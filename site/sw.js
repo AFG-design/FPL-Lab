@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v3";
+const CACHE = "fpl-lab-v4";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
@@ -17,6 +17,10 @@ self.addEventListener("fetch", e => {
       return r;
     }).catch(() => caches.match(url.pathname.endsWith("data.json") ? new Request("data.json") : e.request).then(r => r || caches.match("index.html"))));
   } else if (url.hostname === "fantasy.premierleague.com" && url.pathname.includes("/shirts/")) {
-    e.respondWith(caches.open(CACHE).then(c => c.match(e.request).then(hit => hit || fetch(e.request).then(r => { c.put(e.request, r.clone()); return r; }))));
+    // show the cached kit instantly but always re-check, so kit updates come through
+    e.respondWith(caches.open(CACHE).then(c => c.match(e.request).then(hit => {
+      const net = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => hit);
+      return hit || net;
+    })));
   }
 });

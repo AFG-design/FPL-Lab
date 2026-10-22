@@ -187,7 +187,7 @@ for pid, e in elements.items():
         "s_pts": series(pid, "total_points", int), "s_min": series(pid, "minutes", int),
         "s_xgi": series(pid, "expected_goal_involvements"),
         "ok": bool(e["can_select"]) and e["status"] in ("a", "d") and r["xmin"] > 10,
-        "code": e["code"], "tcode": e["team_code"],
+        "code": e["code"], "tcode": e["team_code"], "tmp": bool(e.get("has_temporary_code")),
         "nailed": nailed(pid, e, r), "mflag": minutes_flag(pid, e),
         "sp": {"pen": e.get("penalties_order"), "cor": e.get("corners_and_indirect_freekicks_order"),
                "fk": e.get("direct_freekicks_order")},
@@ -496,6 +496,8 @@ for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in p
 
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
+             "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
+             "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
              "deadline": next_ev["deadline_time"] if next_ev else None, "proj_gws": proj_gws, "plan_gws": proj_gws[:PLAN_GWS],
              "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw,
