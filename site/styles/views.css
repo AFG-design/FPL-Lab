@@ -113,3 +113,12 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
   .colpick-body { left: 0; right: auto; }
   .explorer { padding: 14px; }
 }
+
+/* ---------- fixtures ---------- */
+.fx-controls { display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+.fx-help { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.fx-help .note { flex: 1 1 360px; }
+.fixtures .tablebox { max-height: none; }
+.fdr.cellchip { display: flex; width: 100%; min-width: 62px; padding: 6px 4px; font-size: var(--fs-sm); }
+.fdr.cellchip + .fdr.cellchip { margin-top: 2px; }
+.fdr.blank.cellchip, .fxc > .fdr.blank { display: flex; padding: 6px 4px; min-width: 62px; }

@@ -15,7 +15,7 @@ const VIEWS = ["week", "planner", "rivals", "review", "fixtures", "players", "st
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
 S.ptab = ["suggest", "captains", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
 S.stab = ["form", "shots", "sp", "defence", "bonus", "value", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
-S.fxMode = ["overall", "att", "def"].includes(store.get("fpl.fxMode")) ? store.get("fpl.fxMode") : "overall";
+S.fxMode = ["fdr", "overall", "att", "def"].includes(store.get("fpl.fxMode")) ? store.get("fpl.fxMode") : "fdr";
 S.horizon = [3, 5, 6].includes(store.get("fpl.horizon")) ? store.get("fpl.horizon") : 5;
 function setHorizon(h) {
   S.horizon = h; store.set("fpl.horizon", h);
