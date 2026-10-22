@@ -108,6 +108,15 @@ def picks(eid):
 all_picks = dict(pmap(picks, everyone, workers=10))
 
 
+def chips_of(eid):
+    d = get(f"/entry/{eid}/history/")
+    return eid, [{"name": c["name"], "event": c["event"]} for c in (d or {}).get("chips", [])] if d else None
+
+
+# chips each mini-league rival has played (public via their history)
+rival_chips = dict(pmap(chips_of, sorted(rival_ids), workers=10))
+
+
 def aggregate(ids):
     got = [all_picks[i] for i in ids if all_picks.get(i)]
     n = len(got)
@@ -134,6 +143,7 @@ out = {
                  rank_to=max(near_ranks) if near_ranks else None),
     "leagues": leagues,
     "rivals": {str(i): all_picks[i] for i in rival_ids if all_picks.get(i)},
+    "rival_chips": {str(i): v for i, v in rival_chips.items() if v is not None},
     "secs": round(time.time() - t0),
 }
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

@@ -250,6 +250,9 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
 .sgfx span{font-family:var(--display);font-weight:600;font-size:11px;border-radius:3px;padding:1px 6px}
 .sg-why{font-size:13px;color:var(--muted)}
 .sg-add{justify-self:start}
+.chipset{display:inline-flex;gap:3px}
+.cbadge{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:.03em;border-radius:4px;padding:1px 5px;background:var(--turf-2);color:#fff}
+.cbadge.used{background:var(--sunk);color:var(--muted);text-decoration:line-through}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
 .rules{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center}
 .rules > div{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
@@ -301,6 +304,7 @@ const VIEWS = ["week", "planner", "rivals", "review", "fixtures", "players", "st
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
 S.ptab = ["suggest", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
 S.stab = ["form", "shots", "sp", "defence", "bonus", "value", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
+S.fxMode = ["overall", "att", "def"].includes(store.get("fpl.fxMode")) ? store.get("fpl.fxMode") : "overall";
 S.horizon = [3, 5, 6].includes(store.get("fpl.horizon")) ? store.get("fpl.horizon") : 5;
 function setHorizon(h) {
   S.horizon = h; store.set("fpl.horizon", h);
@@ -1033,6 +1037,18 @@ function candidates() {
 
 
 /* ---------- Rivals: the field and mini-leagues ---------- */
+const CHIP_SHORT = { wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" };
+const CHIP_NAME = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain" };
+function chipHalf() { const g = D.meta.next_gw || 1; return g <= 19 ? [1, 19] : [20, 38]; }
+function chipState(chips) {
+  if (!chips) return null;
+  const [a, b] = chipHalf();
+  return ["wildcard", "freehit", "bboost", "3xc"].map(k => { const u = chips.find(c => c.name === k && c.event >= a && c.event <= b); return { k, used: u ? u.event : null }; });
+}
+function chipBadges(chips) {
+  const st = chipState(chips); if (!st) return '<span class="muted">–</span>';
+  return `<span class="chipset">${st.map(c => `<span class="cbadge ${c.used ? "used" : ""}" title="${CHIP_NAME[c.k]}: ${c.used ? "used GW" + c.used : "still available"}">${CHIP_SHORT[c.k]}</span>`).join("")}</span>`;
+}
 const recTeam = () => myTeam();
 const field = () => D.crowd ? D.crowd[S.field === "near" ? "near" : "top10k"] : null;
 function fieldRows(F, mult, g) {
@@ -1066,12 +1082,14 @@ function vRivals() {
   const lg = L.find(l => l.id === S.league);
   const me = lg?.rows.find(r => r.me);
   const live = C.in_play;
-  const lgTable = lg ? `<div class="tablebox"><table><thead><tr><th class="n">#</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">Gap</th></tr></thead><tbody>${lg.rows.map(r => {
+  const lgTable = lg ? `<div class="tablebox"><table><thead><tr><th class="n">#</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">Gap</th><th>${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${lg.rows.map(r => {
       const mv = r.last_rank && r.rank ? r.last_rank - r.rank : 0;
       const gap = me && r.total != null ? r.total - me.total : null;
-      return `<tr class="${r.me ? "mine" : ""}" ${r.me ? "" : `data-rival="${r.entry}" style="cursor:pointer"`}><td class="n">${r.rank ?? "–"} <span class="${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}" style="font-size:11px">${mv > 0 ? "▲" : mv < 0 ? "▼" : ""}</span></td><td><span class="pname">${esc(r.player)}</span>${r.me ? ' <span class="pill good">You</span>' : ""}${r.chip ? ` <span class="tag">${esc(r.chip)}</span>` : ""}<br><span class="muted" style="font-size:12.5px">${esc(r.team)}</span></td><td class="n">${live && r.live != null ? r.live : r.gw_pts ?? "–"}</td><td class="n">${r.total ?? "–"}</td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td></tr>`;
+      return `<tr class="${r.me ? "mine" : ""}" ${r.me ? "" : `data-rival="${r.entry}" style="cursor:pointer"`}><td class="n">${r.rank ?? "–"} <span class="${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}" style="font-size:11px">${mv > 0 ? "▲" : mv < 0 ? "▼" : ""}</span></td><td><span class="pname">${esc(r.player)}</span>${r.me ? ' <span class="pill good">You</span>' : ""}${r.chip ? ` <span class="tag">${esc(r.chip)}</span>` : ""}<br><span class="muted" style="font-size:12.5px">${esc(r.team)}</span></td><td class="n">${live && r.live != null ? r.live : r.gw_pts ?? "–"}</td><td class="n">${r.total ?? "–"}</td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td><td>${chipBadges(r.chips)}</td></tr>`;
     }).join("")}</tbody></table></div>
-    ${lg.size > lg.rows.length ? `<p class="note">Big league: showing the top 10 and the managers around you.</p>` : ""}` : "";
+    ${lg.size > lg.rows.length ? `<p class="note">Big league: showing the top 10 and the managers around you.</p>` : ""}
+    ${(() => { const st = lg.rows.filter(r => !r.me && r.chips).map(r => chipState(r.chips)); if (!st.length) return ""; const [a, b] = chipHalf();
+      return `<p class="note">Rivals with each chip still to play (GW${a}–${b}): ${["wildcard", "freehit", "bboost", "3xc"].map(k => `<b>${CHIP_NAME[k]}</b> ${st.filter(x => !x.find(c => c.k === k).used).length}/${st.length}`).join(" · ")}. Greyed badges are used.</p>`; })()}` : "";
 
   // rival comparison
   let cmp = "";
@@ -1085,7 +1103,7 @@ function vRivals() {
     const mineOnly = diffs.filter(r => r.sw > 0).sort((a, b) => b.sw - a.sw), theirsOnly = diffs.filter(r => r.sw < 0).sort((a, b) => a.sw - b.sw);
     const li = r => `<li class="${r.sw > 0 ? "good" : "bad"}"><span><b>${esc(P[r.id].name)}</b> ${r.me === 2 ? "(your C)" : r.them === 2 ? "(their C)" : ""} · ${f1(r.x)} xP · ${sgn(r.sw)}</span></li>`;
     cmp = `<div class="panel"><div class="bar"><h3>You vs ${esc(rv.player)}</h3><button class="btn" data-rival="0">Close</button></div>
-      <p class="verdict">Their GW${C.gw} team${capT ? ` captained <b>${esc(P[capT]?.name || "?")}</b>` : ""}${rv.chip ? ` with ${esc(rv.chip)} active` : ""}. Against your planned GW${g} team, the differences are worth <b class="${swing >= 0 ? "up" : "down"}">${sgn(swing)}</b> projected points to you next gameweek.</p>
+      <p class="verdict">Their GW${C.gw} team${capT ? ` captained <b>${esc(P[capT]?.name || "?")}</b>` : ""}${rv.chip ? ` with ${esc(CHIP_NAME[rv.chip] || rv.chip)} active` : ""}.${rv.chips ? ` Chips used: ${rv.chips.length ? rv.chips.map(c => `${CHIP_NAME[c.name] || c.name} GW${c.event}`).join(", ") : "none"}. Still to play this half: ${chipState(rv.chips).filter(c => !c.used).map(c => CHIP_NAME[c.k]).join(", ") || "none"}.` : ""} Against your planned GW${g} team, the differences are worth <b class="${swing >= 0 ? "up" : "down"}">${sgn(swing)}</b> projected points to you next gameweek.</p>
       <div class="statgrid" style="margin-top:12px"><div><span class="lbl">Where you gain</span><ul class="alerts" style="margin-top:6px">${mineOnly.map(li).join("") || "<li><span class='muted'>Nothing</span></li>"}</ul></div>
       <div><span class="lbl">Where they gain</span><ul class="alerts" style="margin-top:6px">${theirsOnly.map(li).join("") || "<li><span class='muted'>Nothing</span></li>"}</ul></div></div>
       <p class="note">Based on their GW${C.gw} team, the latest that FPL shows. Changes they make before the deadline appear afterwards.</p></div>`;
@@ -1110,22 +1128,59 @@ function vRivals() {
   </div>`;
 }
 /* ---------- Fixtures ---------- */
+// match outcome chances from projected goals (independent Poisson), as the model uses
+function wdl(mf, ma) {
+  const pf = k => Math.exp(-mf) * mf ** k / fact(k), pa = k => Math.exp(-ma) * ma ** k / fact(k);
+  let w = 0, d = 0, l = 0;
+  for (let i = 0; i <= 10; i++) for (let j = 0; j <= 10; j++) { const p = pf(i) * pa(j); if (i > j) w += p; else if (i === j) d += p; else l += p; }
+  const t = w + d + l; return { w: w / t, d: d / t, l: l / t };
+}
+const fact = n => n < 2 ? 1 : n * fact(n - 1);
+const csChance = xga => Math.exp(-0.9 * xga);
+// team strength as percentages, from the model's attack and defence ratings
+function teamStrength(t) {
+  const L = D.meta.league_goals || 1.4, r = wdl(L * t.att, L * t.def);
+  return { att: t.att * 100, def: 100 / t.def, win: r.w * 100, pts: (3 * r.w + r.d) / 3 * 100 };
+}
+function winClass(p) { return p >= 0.6 ? "d1" : p >= 0.45 ? "d2" : p >= 0.3 ? "d3" : p >= 0.2 ? "d4" : "d5"; }
+function csClass(p) { return p >= 0.45 ? "d1" : p >= 0.35 ? "d2" : p >= 0.25 ? "d3" : p >= 0.15 ? "d4" : "d5"; }
 function vFixtures() {
-  const mode = S.fxMode;
+  const mode = ["overall", "att", "def"].includes(S.fxMode) ? S.fxMode : "overall";
+  const n = Math.min(S.fxN || 6, GWS.length), gws = GWS.slice(0, n);
   const myTeams = new Set(D.squad.map(s => P[s.id]?.team));
   const rows = Object.values(T).map(t => {
-    let sum = 0;
-    const cells = GWS.map(g => {
+    let sum = 0, cnt = 0;
+    const cells = gws.map(g => {
       const fx = t.fx[g] || [];
       if (!fx.length) return `<td class="fxc"><span class="d5">Blank</span></td>`;
-      return `<td class="fxc">${fx.map(x => { const v = mode === "att" ? x.xgf : x.xga; sum += mode === "att" ? x.xgf : -x.xga; return `<span class="${mode === "att" ? attClass(v) : defClass(v)}" ${x.eu ? `title="Also plays ${esc(x.eu)}"` : ""}>${oppTxt(x)} <small>${v.toFixed(1)}</small>${x.eu ? '<i class="eudot" aria-label="European game nearby"></i>' : ""}</span>`; }).join("")}</td>`;
+      return `<td class="fxc">${fx.map(x => {
+        let label, cls, v;
+        if (mode === "overall") { const r = wdl(x.xgf, x.xga); v = r.w; label = Math.round(r.w * 100) + "%"; cls = winClass(r.w); }
+        else if (mode === "att") { v = x.xgf; label = x.xgf.toFixed(1); cls = attClass(x.xgf); }
+        else { v = csChance(x.xga); label = Math.round(v * 100) + "%"; cls = csClass(v); }
+        sum += v; cnt++;
+        const r = wdl(x.xgf, x.xga);
+        const tip = `${T[x.opp].name} ${x.home ? "(home)" : "(away)"}: win ${Math.round(r.w * 100)}%, draw ${Math.round(r.d * 100)}%, loss ${Math.round(r.l * 100)}% · projected ${x.xgf.toFixed(1)}–${x.xga.toFixed(1)} · clean sheet ${Math.round(csChance(x.xga) * 100)}%${x.eu ? ` · also plays ${x.eu}` : ""}`;
+        return `<span class="${cls}" title="${esc(tip)}" data-fxtip="${esc(tip)}" tabindex="0">${oppTxt(x)} <small>${label}</small>${x.eu ? '<i class="eudot" aria-label="European game nearby"></i>' : ""}</span>`;
+      }).join("")}</td>`;
     }).join("");
-    return { sum, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname">${t.name}</td>${cells}</tr>` };
+    const st = teamStrength(t);
+    const avg = cnt ? sum / cnt : 0;
+    const avgTxt = mode === "att" ? avg.toFixed(2) : Math.round(avg * 100) + "%";
+    return { sum: avg, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname">${t.name}</td><td class="n">${Math.round(mode === "att" ? st.att : mode === "def" ? st.def : st.pts)}%</td><td class="n"><b>${avgTxt}</b></td>${cells}</tr>` };
   }).sort((a, b) => b.sum - a.sum);
-  return `<div class="panel"><div class="bar"><h2>Fixture ticker</h2>
-    <div class="seg" role="group" aria-label="Mode"><button data-fx="att" aria-pressed="${mode === "att"}">Attack</button><button data-fx="def" aria-pressed="${mode === "def"}">Defence</button></div></div>
-    <p class="note" style="margin-top:0">${mode === "att" ? "Projected goals each team should score. Green = easy to attack." : "Projected goals each team should concede. Green = best clean-sheet chance."} Easiest run first. Capitals = home. Gold edge = a team you own players from. A small dot = a European game within 3 days, so a little rotation risk.</p>
-    <div class="tablebox tick"><table><thead><tr><th>Team</th>${GWS.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>`;
+  const help = {
+    overall: "Each team's chance of winning each fixture, from projected goals for and against. Best overall run first.",
+    att: "Projected goals each team should score. Green = easy to attack. Best run for attackers first.",
+    def: "Each team's chance of keeping a clean sheet. Green = best clean-sheet chance. Best run for defenders and keepers first.",
+  }[mode];
+  const strengthHead = { overall: "Strength", att: "Attack", def: "Defence" }[mode];
+  return `<div class="panel"><div class="bar"><h2>Fixture tracker</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <div class="seg" role="group" aria-label="View"><button data-fx="overall" aria-pressed="${mode === "overall"}">Overall</button><button data-fx="att" aria-pressed="${mode === "att"}">Attack</button><button data-fx="def" aria-pressed="${mode === "def"}">Defence</button></div>
+      <div class="seg" role="group" aria-label="Gameweeks">${[3, 6].filter(k => k <= GWS.length).map(k => `<button data-fxn="${k}" aria-pressed="${n === k}">${k} GWs</button>`).join("")}</div></div></div>
+    <p class="note" style="margin-top:0">${help} Tap or hover a fixture for win, draw and loss chances, the projected score and clean-sheet chance. Capitals = home. Gold edge = a team you own players from. Dot = a European game within 3 days.</p>
+    <div class="tablebox tick"><table><thead><tr><th>Team</th><th class="n">${term("strength", strengthHead + " %")}</th><th class="n">Avg</th>${gws.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>`;
 }
 
 /* ---------- Players ---------- */
@@ -1246,8 +1301,8 @@ function vStats() {
       <div class="legend"><span><i class="s1"></i>xG for</span><span><i class="s4"></i>xG against</span></div>
       ${trendChart}
       <p class="note">Real scores: ${tr.map(x => `${oppTxt(x)} ${x.gf}–${x.ga}`).join(" · ")}</p></div>
-    <div class="panel"><h3>Team ratings</h3><p class="note" style="margin-top:0">1.00 = league average. Attack above 1 scores more; defence below 1 concedes less. Opponent-adjusted.</p>
-      <div class="tablebox" style="max-height:420px"><table><thead><tr><th>Team</th><th class="n">Attack</th><th class="n">Defence</th></tr></thead><tbody>${ratings.map(t => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${t.att * 40}px"></span> ${t.att.toFixed(2)}</td><td class="n"><span class="minibar neg" style="width:${t.def * 40}px"></span> ${t.def.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>
+    <div class="panel"><h3>${term("strength", "Team strength")}</h3><p class="note" style="margin-top:0">From the model's predictions, adjusted for the opponents each team has faced. Strength = expected share of points against an average team; Attack and Defence are against the league average (100%).</p>
+      <div class="tablebox" style="max-height:460px"><table><thead><tr><th>Team</th><th class="n">Strength</th><th class="n">Win vs avg</th><th class="n">Attack</th><th class="n">Defence</th><th class="n">Next ${Math.min(6, GWS.length)} win %</th></tr></thead><tbody>${Object.values(T).map(t => ({ t, s: teamStrength(t), nx: GWS.slice(0, 6).flatMap(g => (t.fx[g] || []).map(x => wdl(x.xgf, x.xga).w)) })).sort((a, b) => b.s.pts - a.s.pts).map(({ t, s: st, nx }) => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${st.pts * 0.8}px"></span> <b>${Math.round(st.pts)}%</b></td><td class="n">${Math.round(st.win)}%</td><td class="n">${Math.round(st.att)}%</td><td class="n">${Math.round(st.def)}%</td><td class="n">${nx.length ? Math.round(100 * nx.reduce((a, b) => a + b, 0) / nx.length) + "%" : "–"}</td></tr>`).join("")}</tbody></table></div></div>
   </div>${teamSPHTML()}`;
   return nav + body;
 }
@@ -1475,7 +1530,8 @@ $("#dlg").addEventListener("click", e => { if (e.target.id === "dlg") e.target.c
 function bind() {
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
   on("[data-p]", b => openPlayer(+b.dataset.p));
-  on("[data-fx]", b => { S.fxMode = b.dataset.fx; render(); });
+  on("[data-fx]", b => { S.fxMode = b.dataset.fx; store.set("fpl.fxMode", S.fxMode); render(); });
+  on("[data-fxn]", b => { S.fxN = +b.dataset.fxn; render(); });
   on("[data-field]", b => { S.field = b.dataset.field; render(); });
   on("[data-mode]", b => {
     S.mode = b.dataset.mode; store.set("fpl.mode", S.mode);
@@ -1600,12 +1656,14 @@ const GLOSS = {
   xmins: ["xMins", "Expected minutes next gameweek, from recent starts and FPL's chance-of-playing flag."],
   verdict: ["Verdicts", "Strong: a clear gain worth acting on. Marginal: a small edge. Coin flip: the options are too close for the model to call, so go with your judgement. Safe pick: what most managers around your rank are doing."],
   strategy: ["Strategy", "Balanced maximises your projected points. Play safe sticks closer to what managers around your rank own. Chase rank goes for differentials: more swing, up or down."],
+  strength: ["Team strength %", "From the model's attack and defence ratings. Strength = share of the available points (3 a game) a team would expect against an average side on a neutral ground: 50% is mid-table, 70%+ is title form. Attack = goals scored vs the league average (120% = 20% more). Defence = how few they concede vs average (120% = concede about a sixth less)."],
+  chipsleft: ["Chips left", "Each manager's chips for this half of the season (GW1–19, then a new set from GW20): WC Wildcard, FH Free Hit, BB Bench Boost, TC Triple Captain. Greyed out = already used. A rival with Triple Captain or Bench Boost left can make up a lot of ground in one week."],
   horizon: ["Plan length", "How many gameweeks the planner, suggestions and Re-plan look ahead. 3 GWs favours players with good short-term fixtures. 6 GWs favours longer-term value and fewer hits. Moves after the last gameweek are kept but don't count."],
   l4: ["L4 / L6", "Over the last 4 or 6 gameweeks. Recent form, which reacts faster to changes in role or team than whole-season numbers."],
 };
 function term(key, label) { return `<button type="button" class="term" data-term="${key}">${label ?? GLOSS[key]?.[0] ?? key}</button>`; }
 function showTerm(btn) {
-  const g = GLOSS[btn.dataset.term]; if (!g) return;
+  const g = btn.dataset.fxtip ? [btn.dataset.fxtip.split(":")[0], btn.dataset.fxtip.slice(btn.dataset.fxtip.indexOf(":") + 1).trim()] : GLOSS[btn.dataset.term]; if (!g) return;
   let tip = $("#tip");
   if (!tip) { tip = document.createElement("div"); tip.id = "tip"; tip.setAttribute("role", "dialog"); document.body.appendChild(tip); }
   tip.innerHTML = `<b>${esc(g[0])}</b><p>${esc(g[1])}</p>`;
@@ -1617,7 +1675,7 @@ function showTerm(btn) {
   tip.style.top = (below + h > innerHeight - 12 ? Math.max(12, r.top - h - 8) : below) + "px";
 }
 document.addEventListener("click", e => {
-  const t = e.target.closest(".term");
+  const t = e.target.closest(".term, [data-fxtip]");
   if (t) { e.preventDefault(); e.stopPropagation(); showTerm(t); return; }
   const tip = $("#tip"); if (tip && !tip.hidden && !e.target.closest("#tip")) tip.hidden = true;
 }, true);

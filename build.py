@@ -392,7 +392,9 @@ if crowd:
             pk = crowd["rivals"].get(str(e_id)) if e_id != TEAM_ID else (
                 {"p": [[x["element"], x["multiplier"]] for x in picks["picks"]], "chip": picks["active_chip"],
                  "hits": picks["entry_history"]["event_transfers_cost"]} if picks and picks_gw == G else None)
-            rows.append({"entry": e_id, "player": mbr["player"], "team": mbr["team"], "me": e_id == TEAM_ID,
+            used = history["chips"] if e_id == TEAM_ID else crowd.get("rival_chips", {}).get(str(e_id))
+            rows.append({"chips": [{"name": c["name"], "event": c["event"]} for c in used] if used is not None else None,
+                         "entry": e_id, "player": mbr["player"], "team": mbr["team"], "me": e_id == TEAM_ID,
                          "rank": f.get("rank"), "last_rank": f.get("last_rank"), "total": f.get("total"),
                          "gw_pts": f.get("event_total"), "picks": pk["p"] if pk else None,
                          "chip": pk["chip"] if pk else None, "hits": pk["hits"] if pk else 0,
