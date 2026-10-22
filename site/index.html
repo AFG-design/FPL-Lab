@@ -745,7 +745,7 @@ function transferSuggestions(g) {
   });
   out.sort((a, b) => b.adj - a.adj);
   const seenIn = new Set(), list = [];
-  for (const s2 of out) { if (s2.adj <= 0.05 || seenIn.has(s2.in)) continue; seenIn.add(s2.in); list.push(s2); if (list.length >= 8) break; }
+  for (const s2 of out) { if (s2.adj <= 0.05 || seenIn.has(s2.in)) continue; seenIn.add(s2.in); list.push(s2); if (list.length >= 3) break; }
   _sugg = { key, list };
   return list;
 }
@@ -781,7 +781,7 @@ function suggestionsHTML(g) {
       <button class="btn primary sg-add" data-sugg="${s2.out}:${s2.in}">Add to plan</button></div>`;
   }).join("");
   return `<div class="bar"><h3>Transfer suggestions · GW${g}</h3><span class="tag">${freeLeft} free left</span></div>
-    <p class="note" style="margin-top:0">The best single moves on top of your current plan, judged on your whole squad's projected points over the rest of the plan${S.mode !== "balanced" ? ` and your ${MODES[S.mode].toLowerCase()} strategy` : ""}. For moves that fund each other, use Re-plan.</p>
+    <p class="note" style="margin-top:0">The top 3 single moves on top of your current plan, judged on your whole squad's projected points over the rest of the plan${S.mode !== "balanced" ? ` and your ${MODES[S.mode].toLowerCase()} strategy` : ""}. For moves that fund each other, use Re-plan.</p>
     ${rows || `<p class="muted">No single move improves your plan from GW${g}. Try another gameweek or Re-plan.</p>`}`;
 }
 function vPlanner() {
