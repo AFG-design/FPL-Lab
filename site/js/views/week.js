@@ -140,7 +140,7 @@ function vWeek() {
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       <div class="bar" style="margin:0"><h3>GW${g} team · ${esc(planName())}</h3><span class="tag">${f1(me.pts)} ${term("xp", "xP")}${sp != null ? ` · ±${f1(sp)} ${term("spread", "vs field")}` : ""}</span></div>
       ${pitch(me.xi, me.bench, g, { cap: me.cap, vice: me.vice, fresh: new Set(moves0.map(m => m.in)) })}
-      <p class="note">The team from your plan, also used by Planner and Rivals. Big number = projected points. Chips show the next 3 opponents (capitals = home). ${sp != null ? `<b>±${f1(sp)}</b> is how far your score typically lands from the managers around your rank: lower means safer.` : ""}</p>
+      <p class="note">The team from your plan, also used by Planner and Rivals. ${sp != null ? `<b>±${f1(sp)}</b> is how far your score typically lands from the managers around your rank: lower means safer.` : ""}</p>
     </div>
   </div>`;
 }

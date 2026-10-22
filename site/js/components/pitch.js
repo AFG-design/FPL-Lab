@@ -2,14 +2,16 @@
 /* ---------- pitch ---------- */
 function card(id, g, o = {}) {
   const p = P[id]; if (!p) return "";
-  const badge = o.cap === id ? `<span class="badge">C</span>` : o.vice === id ? `<span class="badge v">V</span>` : "";
+  const role = o.cap === id ? "captain" : o.vice === id ? "vice-captain" : "";
+  const badge = role === "captain" ? `<span class="badge" aria-hidden="true">C</span>` : role ? `<span class="badge v" aria-hidden="true">V</span>` : "";
   const cls = ["pc", o.sel === id ? "sel" : "", o.fresh?.has(id) ? "newin" : ""].join(" ");
-  return `<button class="${cls}" data-${o.act || "p"}="${id}" aria-label="${esc(p.name)}">${flag(p)}${badge}
+  const label = `${p.name}, ${T[p.team].name}, ${money(p.price)}, form ${f1(p.form)}, ${f1(xpg(id, g))} projected points${role ? `, ${role}` : ""}${o.fresh?.has(id) ? ", new signing in your plan" : ""}${p.status !== "a" ? `, ${p.news || "flagged"}` : ""}`;
+  return `<button class="${cls}" data-${o.act || "p"}="${id}" aria-label="${esc(label)}">${flag(p)}${badge}
     <img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">
-    <div class="tm">${T[p.team].short} ${p.price.toFixed(1)}</div>
-    <div class="nm">${esc(p.name)}</div>
-    <div class="xp">${f1(xpg(id, g))}</div>
-    <div class="fx">${fxChips(p, g, 3)}</div></button>`;
+    <span class="nm">${esc(p.name)}</span>
+    <span class="xp">${f1(xpg(id, g))}</span>
+    <span class="pc-meta"><span>£${p.price.toFixed(1)}m</span><span class="pc-form" title="Form">${f1(p.form)}</span></span>
+    <span class="fx">${fxChips(p, g, 3)}</span></button>`;
 }
 // the same image sources the official FPL app uses this season
 const shirtBase = p => {
@@ -22,5 +24,6 @@ const PHOTO_BASE = "https://resources.premierleague.com/premierleague25/photos/p
 const photoURL = p => `${PHOTO_BASE}/${p.tmp ? "placeholder" : p.code}.png`;
 function pitch(xi, bench, g, o = {}) {
   const rows = ["GKP", "DEF", "MID", "FWD"].map(pos => `<div class="row">${xi.filter(i => P[i]?.pos === pos).map(i => card(i, g, o)).join("")}</div>`).join("");
-  return `<div class="pitchwrap"><div class="pitch">${rows}</div><div class="bench"><span class="lbl">Bench</span>${bench.map(i => card(i, g, o)).join("")}</div></div>`;
+  return `<div class="pitchwrap"><div class="pitch" role="group" aria-label="Starting XI">${rows}</div><div class="bench" role="group" aria-label="Bench"><span class="lbl">Bench</span>${bench.map(i => card(i, g, o)).join("")}</div>
+    <div class="pitch-key"><span>Big number: projected points</span><span>Then price and <span class="pc-form">form</span></span>${fdrKey()}</div></div>`;
 }

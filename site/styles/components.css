@@ -99,6 +99,8 @@ a.btn { text-decoration: none; }
 .pitch::before { content: ""; position: absolute; inset: 8px; border: 1.5px solid var(--chalk); border-radius: 3px; pointer-events: none; }
 .pitch::after { content: ""; position: absolute; left: 50%; top: 8px; width: 34%; max-width: 170px; height: 56px; transform: translateX(-50%); border: 1.5px solid var(--chalk); border-top: 0; pointer-events: none; }
 .row { position: relative; z-index: 1; display: flex; justify-content: center; gap: 6px; min-width: 0; }
+.pitch-key { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; padding: 9px 12px; border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--muted); }
+.pitch-key .fdr-key { margin-left: auto; }
 .bench { display: flex; justify-content: center; gap: 6px; padding: 12px 8px; background: var(--sunk); border-top: 1px solid var(--line); }
 .bench .lbl { align-self: center; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10.5px; }
 .pc {
@@ -109,11 +111,15 @@ a.btn { text-decoration: none; }
 }
 .pc:hover { border-color: var(--accent-text); }
 .pc .shirt { display: block; width: 30px; height: 30px; margin: -2px auto 1px; object-fit: contain; }
-.pc .tm { white-space: nowrap; font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.pc > span { display: block; }
+.pc .pc-meta { display: flex; justify-content: center; gap: 6px; font-size: 10.5px; color: var(--muted); font-weight: 500; }
+.pc-form { color: var(--accent-text); background: var(--accent-soft); border-radius: 3px; padding: 0 4px; }
 .pc .nm { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc .xp { font-weight: 700; font-size: 17px; line-height: 1.15; letter-spacing: -.01em; }
-.pc .fx { display: flex; gap: 2px; justify-content: center; margin-top: 4px; }
-.pc .fx .fdr { flex: 1 1 0; padding: 1px 2px; gap: 1px; font-size: 9.5px; }
+.pc .fx { display: flex !important; gap: 2px; justify-content: center; margin-top: 4px; }
+.pc .fx .fdr { flex: 1 1 0; padding: 1px 3px; gap: 2px; font-size: 10px; }
+.pc .fx .fdr:nth-child(n+3) { display: none; } /* cards show the next two fixtures; the detail sheet shows them all */
+.pc .fx .eudot { display: none; }
 .pc.sel { outline: 2px solid var(--hi); outline-offset: 1px; }
 .pc.newin { box-shadow: inset 0 -3px 0 var(--good), 0 2px 6px rgb(0 0 0 / 25%); }
 .badge {
@@ -134,7 +140,7 @@ a.btn { text-decoration: none; }
   .pc { flex-basis: 68px; padding: 5px 2px 4px; }
   .pc .shirt { width: 22px; height: 22px; }
   .pc .nm { font-size: 11px; }
-  .pc .tm { font-size: 9.5px; }
+  .pc .pc-meta { font-size: 9.5px; gap: 4px; }
   .pc .xp { font-size: 15px; }
   .pc .fx .fdr { font-size: 9.5px; gap: 3px; }
   .pc .fx .fdr:nth-child(n+2) { display: none; } /* phones: next fixture only, so the difficulty number still fits */

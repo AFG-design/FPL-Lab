@@ -34,6 +34,9 @@ function fdrChip(x, { gw, size = "", extra = "" } = {}) {
   const tip = `${gw ? `GW${gw}: ` : ""}${opp.name} ${x.home ? "at home" : "away"}, difficulty ${f} (${FDR_WORD[f]})${x.eu ? `. Also plays ${x.eu} that week` : ""}`;
   return `<span class="fdr f${f} ${size}" title="${esc(tip)}" aria-label="${esc(tip)}">${x.home ? opp.short : opp.short.toLowerCase()}<b>${f}</b>${x.eu ? '<i class="eudot" aria-hidden="true"></i>' : ""}${extra}</span>`;
 }
+function fdrKey() {
+  return `<span class="fdr-key" aria-label="Fixture difficulty from 1, easiest, to 5, hardest">Difficulty ${[1, 2, 3, 4, 5].map(f => `<span class="fdr f${f} xs">${f}</span>`).join("")} (capitals = home)</span>`;
+}
 function blankChip(gw) { return `<span class="fdr blank" title="GW${gw}: no fixture" aria-label="GW${gw}: no fixture">—</span>`; }
 
 /* ---------- StatBadge ---------- */
