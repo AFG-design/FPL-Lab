@@ -1,0 +1,33 @@
+name: Update shots and big chances (Understat)
+
+on:
+  schedule:
+    - cron: "41 */3 * * *"   # every 3 hours; only new matches are downloaded
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: understat
+  cancel-in-progress: false
+
+jobs:
+  understat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 understat.py
+      - name: Commit if changed (the next 30-minute refresh picks it up)
+        run: |
+          git config user.name "fpl-lab-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add understat/
+          git diff --cached --quiet && exit 0
+          git commit -m "Understat shots update"
+          git pull --rebase
+          git push

@@ -152,6 +152,51 @@ def minutes_flag(pid, e):
     return None
 
 
+# ---- bonus point form: per match, who finished in the top 3 of the bonus point system (BPS)
+bps_top = defaultdict(dict)   # pid -> gw -> rank within his match (1 = highest BPS)
+for g, data in live.items():
+    by_fx = defaultdict(list)
+    for x in data["elements"]:
+        if x["stats"]["minutes"] <= 0:
+            continue
+        for ex in x["explain"]:
+            by_fx[ex["fixture"]].append((x["stats"]["bps"], x["id"]))
+    for fx, rows in by_fx.items():
+        rows.sort(reverse=True)
+        for rank, (bps, pid) in enumerate(rows, 1):
+            bps_top[pid][g] = min(rank, bps_top[pid].get(g, 99))
+
+
+def bonus_form(pid, n):
+    gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1)]
+    s = pstats.get(pid, {})
+    mins = sum(s[g]["minutes"] for g in gws if g in s)
+    bps = sum(s[g]["bps"] for g in gws if g in s)
+    bonus = sum(s[g]["bonus"] for g in gws if g in s)
+    played = [g for g in gws if s.get(g, {}).get("minutes", 0) > 0]
+    top3 = sum(1 for g in played if bps_top[pid].get(g, 99) <= 3)
+    return {"bps90": round(bps / mins * 90, 1) if mins >= 90 else 0.0, "bonus": bonus, "top3": top3, "apps": len(played)}
+
+
+try:
+    US = json.load(open(os.path.join(HERE, "understat", "fpl_players.json")))
+except Exception:
+    US = {"meta": {}, "players": {}}
+
+
+def shot_stats(pid, mins4):
+    u = US["players"].get(str(pid))
+    if not u or u["mins"] < 1:
+        return None
+    m = u["mins"]
+    p90 = lambda v, mm: round(v / mm * 90, 2) if mm >= 90 else 0.0
+    return {"shots90": p90(u["shots"], m), "sib90": p90(u["sib"], m), "bc90": p90(u["bc"], m), "cc90": p90(u["cc"], m),
+            "bcc90": p90(u["bcc"], m), "npxg90": p90(u["npxg"], m), "chain90": p90(u["xgchain"], m),
+            "shots": u["shots"], "sib": u["sib"], "bc": u["bc"], "bc_scored": u["bc_scored"], "cc": u["cc"], "bcc": u["bcc"],
+            "shots_4": u["shots_4"], "sib_4": u["sib_4"], "bc_4": u["bc_4"], "cc_4": u["cc_4"], "bcc_4": u["bcc_4"],
+            "sib90_4": p90(u["sib_4"], mins4), "bc90_4": p90(u["bc_4"], mins4)}
+
+
 players = {}
 for pid, e in elements.items():
     r = proj.get(pid)
@@ -188,6 +233,9 @@ for pid, e in elements.items():
         "s_xgi": series(pid, "expected_goal_involvements"),
         "ok": bool(e["can_select"]) and e["status"] in ("a", "d") and r["xmin"] > 10,
         "code": e["code"], "tcode": e["team_code"], "tmp": bool(e.get("has_temporary_code")),
+        "bf4": bonus_form(pid, 4), "bf6": bonus_form(pid, 6), "bps_season": e["bps"],
+        "us": shot_stats(pid, m4),
+        "s_bps": series(pid, "bps", int),
         "nailed": nailed(pid, e, r), "mflag": minutes_flag(pid, e),
         "sp": {"pen": e.get("penalties_order"), "cor": e.get("corners_and_indirect_freekicks_order"),
                "fk": e.get("direct_freekicks_order")},
@@ -496,6 +544,7 @@ for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in p
 
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
+             "understat": US.get("meta"),
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),

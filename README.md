@@ -3,7 +3,8 @@
 A personal Fantasy Premier League assistant at **https://afg-design.github.io/FPL-Lab/**.
 
 - **This week:** a deadline checklist covering transfers, lineup, captain, chip and risks, each with a plain verdict (Strong, Marginal, Coin flip) and details on tap. A strategy switch picks Balanced, Play safe (track the managers around your rank) or Chase rank (differentials).
-- **Planner:** tap players to plan transfers over 5 gameweeks, with budget, club limits, free transfers and hits worked out live. Load the optimiser's plans as a starting point.
+- **Planner:** tap a player to make him captain or vice, bench or start him, lock him or replace him. **Re-plan** runs the optimiser in your browser (HiGHS, in `site/vendor/`) with your locks, bans, captains and hit limit.
+- **Planner (moves):** tap players to plan transfers over 5 gameweeks, with budget, club limits, free transfers and hits worked out live. Load the optimiser's plans as a starting point.
 - **Rivals:** what the top 10k and managers around your rank own and captain, the biggest threats and your differentials, and your mini-leagues with a rival-by-rival comparison.
 - **Fixtures, Players, Stats, Chips, Season:** a fixture ticker, a player explorer with price-change progress, underlying form (xGI/90), over- and under-performers, team xG trends, player charts, chip planning and rank history.
 - **Review:** each gameweek's captain, bench, transfers and model check, plus season totals and your best and worst transfers.
@@ -19,6 +20,8 @@ A personal Fantasy Premier League assistant at **https://afg-design.github.io/FP
 | `backtest.py` / `tune.py` | Re-projects past gameweeks to measure and tune the model |
 | `crowd.py` | Samples 2,000 top-10k teams, 500 around your rank and your mini-league rivals once per gameweek into `crowd/latest.json` |
 | `europe.json` | European fixtures used to flag rotation risk. Edit if dates change |
+| `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/` (workflow every 3 hours) |
+| `site/plan-solver.js` | The browser version of the optimiser |
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
 | `site/index.html` | The dashboard |
