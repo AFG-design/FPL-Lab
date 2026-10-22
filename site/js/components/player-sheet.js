@@ -71,6 +71,7 @@ function openPlayer(id) {
       ${statBadge(`xP next ${Math.min(5, GWS.length)}`, f1(p.xp5), { sub: `${p.xmin} expected mins` })}
     </dl>
 
+    ${newsTimeline(p)}
     <section class="ph-sec"><h3>Points this season</h3>${pointsHistory(p)}
       <p class="note">Points per gameweek. Yellow bars are 10 or more.</p></section>
 
@@ -94,11 +95,12 @@ function openPlayer(id) {
         ${tile("Top-3 BPS L6", `${p.bf6.top3}/${p.bf6.apps}`)}</div></details>` : ""}
     </section>
 
-    <div class="ph-acts">${MINE.has(id) ? `<button class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}
+    <div class="ph-acts"><button class="btn ${isStarred(id) ? "primary" : ""}" id="dlgStar" aria-pressed="${isStarred(id)}">${isStarred(id) ? "★ On your watchlist" : "☆ Add to watchlist"}</button>${MINE.has(id) ? `<button class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}
       <button class="btn" id="dlgLock">${SB.rules.locked.includes(id) ? "Unlock in plans" : "Lock in plans"}</button>
       <button class="btn" id="dlgBan">${SB.rules.banned.includes(id) ? "Allow in plans" : "Never pick in plans"}</button></div>`;
   const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "dlgTitle"); dlg.showModal();
   $("#dlgX").onclick = () => dlg.close();
+  $("#dlgStar").onclick = () => { toggleStar(id); const b = $("#dlgStar"), on = isStarred(id); b.classList.toggle("primary", on); b.setAttribute("aria-pressed", on); b.textContent = on ? "★ On your watchlist" : "☆ Add to watchlist"; render(); };
   $("#dlgLock").onclick = () => { SB.rules.locked = SB.rules.locked.includes(id) ? SB.rules.locked.filter(x => x !== id) : [...SB.rules.locked, id]; SB.rules.banned = SB.rules.banned.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
   $("#dlgBan").onclick = () => { SB.rules.banned = SB.rules.banned.includes(id) ? SB.rules.banned.filter(x => x !== id) : [...SB.rules.banned, id]; SB.rules.locked = SB.rules.locked.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
   const pr = $("[data-plan-replace]"); if (pr) pr.onclick = () => { dlg.close(); SB.sel = id; SB.gw = PG[0]; SB.q = ""; setView("planner"); };

@@ -78,6 +78,7 @@ function bind() {
   on("[data-v-go]", b => setView(b.dataset.vGo));
   on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
   on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
+  on("[data-missgw]", b => { S.missGw = +b.dataset.missgw; render(); });
   on("[data-howto]", b => openMovesSummary(+b.dataset.howto));
   on("[data-cancel]", () => { SB.sel = null; render(); });
   on("[data-pick]", b => { makeTransfer(SB.gw, SB.sel, +b.dataset.pick); render(); });

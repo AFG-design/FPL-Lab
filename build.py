@@ -363,6 +363,9 @@ def corr_mae(pairs):
     return (round(c, 3) if c is not None else None), round(sum(abs(x - y) for x, y in pairs) / len(pairs), 2)
 
 
+from fplmodel import DEFAULTS as _MD
+DEFAULTS_CAL = _MD["cal_slope"]
+keep_extra = set()
 acc_weeks = []
 for g in [g for g in finished_gws if g >= 3]:
     ev1 = evaluate(ctx, [g])
@@ -381,8 +384,77 @@ for g in [g for g in finished_gws if g >= 3]:
         co, mo = corr_mae(ours); cf, mf = corr_mae(fplp)
         row["live"] = {"n": len(ours), "corr": co, "mae": mo, "fpl_corr": cf, "fpl_mae": mf}
     acc_weeks.append(row)
+# biggest misses each gameweek, and which part of the score they came from
+CAT = {"minutes": "mins", "goals_scored": "goals", "assists": "assists", "clean_sheets": "cs", "goals_conceded": "gc",
+       "saves": "saves", "defensive_contribution": "dc", "bonus": "bonus", "yellow_cards": "cards", "red_cards": "cards",
+       "own_goals": "other", "penalties_missed": "other", "penalties_saved": "saves"}
+GROUP = {"mins": "Minutes", "goals": "Attack", "assists": "Attack", "cs": "Defence", "gc": "Defence", "saves": "Defence",
+         "dc": "Defence", "bonus": "Bonus", "cards": "Cards and other", "other": "Cards and other"}
+
+
+def why_text(c, d, st, xd):
+    mins = st["minutes"]
+    if c == "mins":
+        if mins == 0:
+            return "Didn't play"
+        return f"Only {mins} minutes" + (" off the bench" if not st["starts"] else "") if d < 0 else f"Played {mins} minutes (expected fewer)"
+    if c == "goals":
+        g = st["goals_scored"]
+        return f"Scored {g} from {float(st['expected_goals']):.2f} xG" if g else f"No goal ({float(st['expected_goals']):.2f} xG)"
+    if c == "assists":
+        a = st["assists"]
+        return f"{a} assist{'s' if a > 1 else ''} from {float(st['expected_assists']):.2f} xA" if a else f"No assist ({float(st['expected_assists']):.2f} xA)"
+    if c in ("cs", "gc"):
+        return "Clean sheet" if st["clean_sheets"] else f"Conceded {st['goals_conceded']}"
+    if c == "dc":
+        return "Hit the defensive contribution target" if d > 0 else "Missed the defensive contribution target"
+    if c == "saves":
+        return f"{st['saves']} saves" + (", penalty save" if st["penalties_saved"] else "")
+    if c == "bonus":
+        return f"{st['bonus']} bonus" if st["bonus"] else "No bonus"
+    if c == "cards":
+        return "Red card" if st["red_cards"] else "Booked"
+    return "Own goal" if st["own_goals"] else "Missed a penalty" if st["penalties_missed"] else "Other"
+
+
+misses = []
+for g in [g for g in finished_gws if g >= 3][-4:]:
+    try:
+        pr_g = project(ctx, g, 1, {"use_flags": False})["players"]
+    except Exception:
+        continue
+    lv_g = {x["id"]: x for x in live[g]["elements"]}
+    rows, blame = [], defaultdict(float)
+    for pid, r in pr_g.items():
+        x = r["xp"].get(g, 0.0)
+        L = lv_g.get(pid)
+        if not L or not any(pstats.get(pid, {}).get(k, {}).get("minutes", 0) > 0 for k in range(g - 3, g)):
+            continue
+        act = defaultdict(float)
+        for fx in L["explain"]:
+            for it in fx["stats"]:
+                act[CAT.get(it["identifier"], "other")] += it["points"]
+        exp_ = {k: v * DEFAULTS_CAL for k, v in r["detail"].get(g, {}).items()}
+        exp_["mins"] = exp_.get("mins", 0) + (x - sum(exp_.values()))   # calibration intercept counts as appearance
+        diffs = {c: act.get(c, 0) - exp_.get(c, 0) for c in set(act) | set(exp_)}
+        pts = L["stats"]["total_points"]
+        for c, d in diffs.items():
+            blame[GROUP.get(c, "Cards and other")] += abs(d)
+        miss = pts - x
+        cands = [(c, d) for c, d in diffs.items() if d * miss > 0] or list(diffs.items())
+        c, d = max(cands, key=lambda cd: abs(cd[1]))
+        rows.append({"id": pid, "xp": round(x, 1), "pts": pts, "miss": round(miss, 1), "why": why_text(c, d, L["stats"], exp_),
+                     "cat": GROUP.get(c, "Cards and other")})
+    tot = sum(blame.values()) or 1
+    over = sorted([r for r in rows if r["xp"] >= 3], key=lambda r: r["miss"])[:8]
+    under = sorted(rows, key=lambda r: -r["miss"])[:8]
+    misses.append({"gw": g, "over": over, "under": under, "blame": {k: round(100 * v / tot) for k, v in sorted(blame.items(), key=lambda kv: -kv[1])},
+                   "n": len(rows), "mae": round(sum(abs(r["miss"]) for r in rows) / max(1, len(rows)), 2)})
+    for r in over + under:
+        keep_extra.add(r["id"])
 if accuracy is not None:
     accuracy["weeks"] = acc_weeks
+    accuracy["misses"] = misses
 
 # ---------------------------------------------------------------- chips, gameweeks
 used = [(c["name"], c["event"]) for c in history["chips"]]
@@ -672,9 +744,42 @@ keep |= {t["element_in"] for t in transfers} | {t["element_out"] for t in transf
 keep |= {w[k] for w in review["weeks"] for k in ("captain", "best_cap", "model_cap") if w.get(k)}
 keep |= {i for row in sp_now.values() for v in row.values() for i in v}
 keep |= {c[k] for c in sp_changes for k in ("old", "new") if c.get(k)}
+keep |= keep_extra
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
+
+# ---------------------------------------------------------------- injury news history
+# Every change to a player's FPL status, chance of playing or news text, timed by FPL's own news_added
+NEWS_F = os.path.join(HIST, "news.json")
+try:
+    NH = json.load(open(NEWS_F))
+except Exception:
+    NH = {}
+now_iso = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+for e in elements.values():
+    k = str(e["id"])
+    cur = [e["status"], e.get("chance_of_playing_next_round"), (e.get("news") or "").strip()]
+    hist = NH.get(k, [])
+    if hist and hist[-1][1:] == cur:
+        continue
+    if not hist and cur[0] == "a" and not cur[2]:
+        continue                     # fit and never flagged since we started: nothing to record
+    when = e.get("news_added") or now_iso
+    if hist and when <= hist[-1][0]:
+        when = now_iso               # cleared or edited without a new timestamp
+    NH[k] = (hist + [[when[:19] + "Z" if not when.endswith("Z") and "+" not in when else when] + cur])[-10:]
+cut = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=90)).isoformat()
+NH = {k: v for k, v in NH.items() if v[-1][0] > cut or v[-1][1] != "a"}
+json.dump(NH, open(NEWS_F, "w"), separators=(",", ":"))
+for k, v in NH.items():
+    if int(k) in players:
+        players[int(k)]["newsh"] = v
+relevant = lambda i: i in players and (players[i]["mins"] > 0 or players[i]["xp5"] > 1 or i in squad_ids)
+news_feed = sorted(([v[-1][0], int(k), v[-2][1:] if len(v) > 1 else None, v[-1][1:]] for k, v in NH.items()
+                    if relevant(int(k))), reverse=True)[:60]
+for _, pid, _, _ in news_feed:
+    keep.add(pid)
 
 # ---------------------------------------------------------------- price change tracker
 # Before each nightly price update we keep FPL's projection for tonight and everyone's price; a few hours after it,
@@ -790,7 +895,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
-    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "review": review, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "news": news_feed, "review": review, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

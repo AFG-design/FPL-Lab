@@ -17,7 +17,7 @@ function vModel() {
       <div class="tablebox" style="margin-top:10px"><table><thead><tr><th>GW</th><th class="n">Players</th><th class="n">Correlation</th><th class="n">Avg miss</th><th class="n">Top 30: projected → actual</th><th class="n">Live corr</th><th class="n">FPL's corr</th><th class="n">Live miss / FPL's</th></tr></thead>
       <tbody>${A.weeks.slice().reverse().map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.n}</td><td class="n"><b>${w.corr.toFixed(2)}</b></td><td class="n">${w.mae.toFixed(2)}</td><td class="n">${w.top_pred.toFixed(1)} → ${w.top_act.toFixed(1)}</td><td class="n">${w.live?.corr != null ? w.live.corr.toFixed(2) : "–"}</td><td class="n">${w.live?.fpl_corr != null ? w.live.fpl_corr.toFixed(2) : "–"}</td><td class="n">${w.live?.mae != null ? `${w.live.mae.toFixed(2)} / ${w.live.fpl_mae.toFixed(2)}` : "–"}</td></tr>`).join("")}</tbody></table></div>
       <p class="note">Live figures start from GW8, the first week the snapshot was saved before the deadline.</p></div>` : ""}` : "";
-  return `${acc}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
+  return `${missesPanel()}${acc}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
     <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
     <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In testing on GW3–7 this lifted the correlation with real points from 0.40 to 0.42.</li>
@@ -29,4 +29,20 @@ function vModel() {
     <li><b>Transfer plans.</b> An optimiser plans the next 5 gameweeks together: transfers, lineups and captains, within budget, squad shape, the 3-per-club rule and free-transfer rules. A banked free transfer is valued at 1.5 points.</li>
   </ul>
   <p class="note">Selling prices and free transfers are estimated from your public transfer history, because FPL only shows exact values when you're signed in. The model and data are updated every 30 minutes.</p></div>`;
+}
+
+/* ---------- the week's biggest misses, and what caused them ---------- */
+function missesPanel() {
+  const M = D.accuracy?.misses; if (!M || !M.length) return "";
+  if (!M.some(m => m.gw === S.missGw)) S.missGw = M[M.length - 1].gw;
+  const m = M.find(x => x.gw === S.missGw), mx = Math.max(...Object.values(m.blame), 1);
+  const row = r => `<tr><td><button data-p="${r.id}" class="pname linkish">${esc(P[r.id]?.name || r.id)}</button>${MINE.has(r.id) ? ' <span class="tag">Yours</span>' : ""}</td><td class="n">${f1(r.xp)}</td><td class="n"><b>${r.pts}</b></td><td class="n ${r.miss > 0 ? "up" : "down"}">${sgn(r.miss)}</td><td>${esc(r.why)}</td></tr>`;
+  const tbl = list => `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">xP</th><th class="n">Pts</th><th class="n">Miss</th><th>Main reason</th></tr></thead><tbody>${list.map(row).join("")}</tbody></table></div>`;
+  return `<div class="panel"><div class="bar"><h2>Biggest misses</h2>
+      <div class="seg" role="group" aria-label="Gameweek">${M.map(x => `<button data-missgw="${x.gw}" aria-pressed="${x.gw === m.gw}">GW${x.gw}</button>`).join("")}</div></div>
+    <p class="note" style="margin-top:0">GW${m.gw} re-projected from the data before it, against what happened (${m.n} players, average miss ${m.mae.toFixed(2)} pts). The reason is the part of the score that differed most from the projection.</p>
+    <span class="lbl">Where the error came from</span>
+    <div class="capbars" style="margin:6px 0 14px">${Object.entries(m.blame).map(([k, v]) => `<div class="cb"><span class="pname">${esc(k)}</span><div class="track"><div class="fill" style="width:${v / mx * 100}%"></div></div><span class="val">${v}%</span></div>`).join("")}</div>
+    <div class="statgrid"><div><h3 style="margin-bottom:8px">Scored less than projected</h3>${tbl(m.over)}</div><div><h3 style="margin-bottom:8px">Scored more than projected</h3>${tbl(m.under)}</div></div>
+    <p class="note">Share of the total miss across all players, by part of the score. Attack misses (goals from low xG) are mostly luck; minutes misses are where better team news would help most.</p></div>`;
 }

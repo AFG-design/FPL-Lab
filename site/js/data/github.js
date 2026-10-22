@@ -45,6 +45,7 @@ function setSyncMsg(t) { SYNC.msg = t; const el = $("#syncMsg"); if (el) el.text
 async function syncPull() {
   try {
     const { doc } = await syncGet();
+    if (typeof mergeStars === "function" && mergeStars(doc.stars)) render();
     const r = doc.plans?.[sbKey()];
     if (r && (r.updated || 0) > (SB.updated || 0)) {
       SB.moves = (r.moves || []).filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw));
@@ -69,6 +70,7 @@ function syncPush() {
         const cutoff = Date.now() - 30 * 864e5;
         Object.keys(doc.plans).forEach(k => { if ((doc.plans[k].updated || 0) < cutoff) delete doc.plans[k]; });
         doc.plans[sbKey()] = sbState();
+        if (typeof STARS !== "undefined" && STARS.updated >= (doc.stars?.updated || 0)) doc.stars = STARS;
         const body = { message: "Plan sync", content: b64e(JSON.stringify(doc)), branch: SYNC.branch };
         if (sha) body.sha = sha;
         const r = await fetch(`https://api.github.com/repos/${REPO}/contents/${SYNC.path}`, { method: "PUT", headers: { ...syncHeaders(true), "Content-Type": "application/json" }, body: JSON.stringify(body) });

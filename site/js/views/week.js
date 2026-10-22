@@ -146,5 +146,6 @@ function vWeek() {
       ${pitch(me.xi, me.bench, g, { cap: me.cap, vice: me.vice, fresh: new Set(moves0.map(m => m.in)) })}
       <p class="note">The team from your plan, also used by Planner and Rivals. ${sp != null ? `<b>±${f1(sp)}</b> is how far your score typically lands from the managers around your rank: lower means safer.` : ""}</p>
     </div>
-  </div>`;
+  </div>
+  ${starsPanel()}`;
 }

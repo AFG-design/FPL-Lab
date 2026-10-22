@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v10";
+const CACHE = "fpl-lab-v11";
 const SHELL = [
   "./",
   "index.html",
@@ -36,6 +36,7 @@ const SHELL = [
   "js/components/search.js",
   "js/components/moves-summary.js",
   "js/components/drag.js",
+  "js/components/watchlist.js",
   "js/main.js"
 ];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

@@ -50,6 +50,9 @@ DEFAULTS = {
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
     "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
     "use_out": True,       # skip weeks a player was injured, suspended or away when judging his minutes
+    "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
+    "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
+    "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -382,6 +385,27 @@ def project(ctx, as_of, horizon=6, params=None):
         for (g, opp, home, f) in lst:
             team_gws[tid].add(g)
 
+    # ---- club sub patterns: how often each club's starters (by position) play 60+, and for how long
+    sub_pat = {}
+    if P["p60_prior"] or P["mstart_prior"]:
+        acc = defaultdict(lambda: [0.0, 0.0, 0.0])
+        for pid, e in elements.items():
+            gs = pstats.get(pid, {})
+            for g in hist_gws:
+                s_ = gs.get(g)
+                if s_ and s_["starts"] > 0:
+                    a = acc[(e["team"], e["element_type"])]
+                    a[0] += 1; a[1] += s_["minutes"] >= 60; a[2] += min(90, s_["minutes"])
+        lg = defaultdict(lambda: [0.0, 0.0, 0.0])
+        for (t, et), a in acc.items():
+            for i in range(3):
+                lg[et][i] += a[i]
+        for (t, et), a in acc.items():
+            L = lg[et]
+            # shrink each club towards the league rate for the position (10 starts of prior)
+            sub_pat[(t, et)] = ((a[1] + 10 * L[1] / L[0]) / (a[0] + 10), (a[2] + 10 * L[2] / L[0]) / (a[0] + 10))
+        for et, L in lg.items():
+            sub_pat[(None, et)] = (L[1] / L[0], L[2] / L[0]) if L[0] else (0.75, 75)
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -450,11 +474,17 @@ def project(ctx, as_of, horizon=6, params=None):
             elif s["minutes"] > 0:
                 sub += w
                 msub += w * s["minutes"]
+        tp60, tmst = sub_pat.get((e["team"], e["element_type"]), sub_pat.get((None, e["element_type"]), (0.75, 75)))
+        a60, ams = P["p60_prior"], P["mstart_prior"]
         if wsum:
-            p_start, p_sub = st / wsum, sub / wsum
-            m_start = mstart / st if st else 75
+            sp_ = P["start_prior"]
+            # last season's share of the 38 games he'd have started, judged from his minutes
+            prs = (pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230)) if pr else None) if sp_ else None
+            p_start = (st + sp_ * prs) / (wsum + sp_) if prs is not None else st / wsum
+            p_sub = sub / wsum
+            m_start = (mstart + ams * tmst) / (st + ams) if (st or ams) else 75
             m_sub = msub / sub if sub else 20
-            p60_given_start = p60s / st if st else 0.75
+            p60_given_start = (p60s + a60 * tp60) / (st + a60) if (st or a60) else 0.75
         else:
             p_start = p_sub = 0.0
             m_start, m_sub, p60_given_start = 75, 20, 0.75
