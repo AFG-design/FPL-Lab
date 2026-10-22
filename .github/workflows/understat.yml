@@ -1,8 +1,6 @@
-name: Update shots and big chances (Understat)
+name: Update shots and big chances (manual; the refresh job runs this too)
 
 on:
-  schedule:
-    - cron: "41 */3 * * *"   # every 3 hours; only new matches are downloaded
   workflow_dispatch:
 
 permissions:

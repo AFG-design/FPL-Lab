@@ -1,8 +1,6 @@
-name: Sample the field and mini-leagues
+name: Sample the field and mini-leagues (manual; the refresh job runs this too)
 
 on:
-  schedule:
-    - cron: "*/20 * * * *"   # checks every 20 minutes; only does work once per gameweek, after the deadline
   workflow_dispatch:
     inputs:
       force:

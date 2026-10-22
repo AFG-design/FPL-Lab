@@ -300,6 +300,7 @@ const VIEWS = ["week", "planner", "rivals", "review", "fixtures", "players", "st
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
 S.ptab = ["suggest", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
+S.stab = ["form", "shots", "sp", "defence", "bonus", "value", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
 S.horizon = [3, 5, 6].includes(store.get("fpl.horizon")) ? store.get("fpl.horizon") : 5;
 function setHorizon(h) {
   S.horizon = h; store.set("fpl.horizon", h);
@@ -428,8 +429,10 @@ function header() {
   const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
   $("#meta").innerHTML = `<span>Data updated ${built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}${ageH > 3 ? ' <span class="pill warn">stale</span>' : ""}</span>
     <span>Squad shown is your GW${meta.picks_gw} team. Transfers you make on the FPL site show up after the deadline.</span>
-    <a class="btn" href="https://github.com/${REPO}/actions/workflows/refresh.yml" target="_blank" rel="noopener">Refresh data now</a>
+    <button class="btn" data-refresh="1">${REFRESH.busy ? "Refreshing…" : "Refresh data now"}</button><span id="refreshMsg">${esc(REFRESH.msg)}</span>
     <button class="btn" data-sync="1">${syncToken() ? "Sync on" : "Sync plan"}</button><span id="syncMsg">${esc(SYNC.msg || "")}</span>`;
+  const rb = $("#meta [data-refresh]"); if (rb) rb.onclick = () => { if (!REFRESH.busy) startRefresh(); };
+  const sb2 = $("#meta [data-sync]"); if (sb2) sb2.onclick = () => openSync();
 }
 
 function setView(v) {
@@ -1222,27 +1225,90 @@ function vStats() {
       <span class="lbl">Points per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_pts })), gwl, { h: 180 })}
       <span class="lbl">Expected goal involvement per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_xgi })), gwl, { h: 180, yfmt: v => v.toFixed(1) })}`
     : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
-  return `
-  ${form}
+  const tabs = [["form", "Form"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["teams", "Teams"]];
+  const tab = S.stab || "form";
+  const nav = `<div class="seg ptabs" role="tablist" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`;
+  let body = "";
+  if (tab === "form") body = `${form}
   <div class="panel"><div class="bar"><h3>Player charts</h3><span class="muted">${cps.length}/4 selected</span></div>${pc}
     <div class="filters" style="margin-top:10px"><input type="search" id="chartq" list="plist" placeholder="Add a player to the chart" aria-label="Add a player to the chart"><datalist id="plist">${D.players.slice(0, 350).map(p => `<option value="${esc(p.name)} (${T[p.team].short})">`).join("")}</datalist>${cps.map(p => `<button class="btn" data-uncmp="${p.id}">✕ ${esc(p.name)}</button>`).join("")}</div></div>
   <div class="statgrid">
     <div class="panel"><h3>Running hot</h3><p class="note" style="margin-top:0">Scoring well above their xG. Finishing streaks rarely last, so expect fewer goals unless the chances rise.</p>${ou(hot)}</div>
     <div class="panel"><h3>Due a goal</h3><p class="note" style="margin-top:0">Getting chances but scoring less than their xG. Often good value before the goals come.</p>${ou(due)}</div>
-  </div>
-  ${shotsHTML()}
-  ${bonusHTML()}
-  ${setPiecesHTML()}
-  <div class="grid2">
+  </div>`;
+  else if (tab === "shots") body = shotsHTML();
+  else if (tab === "sp") body = spThreatHTML() + setPiecesHTML();
+  else if (tab === "defence") body = dcHTML();
+  else if (tab === "bonus") body = bonusHTML();
+  else if (tab === "value") body = valueHTML();
+  else body = `<div class="grid2">
     <div class="panel"><div class="bar"><h3>Team trend</h3><select id="trendTeam" aria-label="Team" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 9px">${teamOpts}</select></div>
       <div class="legend"><span><i class="s1"></i>xG for</span><span><i class="s4"></i>xG against</span></div>
       ${trendChart}
       <p class="note">Real scores: ${tr.map(x => `${oppTxt(x)} ${x.gf}–${x.ga}`).join(" · ")}</p></div>
     <div class="panel"><h3>Team ratings</h3><p class="note" style="margin-top:0">1.00 = league average. Attack above 1 scores more; defence below 1 concedes less. Opponent-adjusted.</p>
       <div class="tablebox" style="max-height:420px"><table><thead><tr><th>Team</th><th class="n">Attack</th><th class="n">Defence</th></tr></thead><tbody>${ratings.map(t => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${t.att * 40}px"></span> ${t.att.toFixed(2)}</td><td class="n"><span class="minibar neg" style="width:${t.def * 40}px"></span> ${t.def.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>
-  </div>`;
+  </div>${teamSPHTML()}`;
+  return nav + body;
 }
 
+function posSeg(key, opts) {
+  return `<div class="seg" role="group" aria-label="Position">${opts.map(([v, l]) => `<button data-posseg="${key}:${v}" aria-pressed="${(S[key] || opts[0][0]) === v}">${l}</button>`).join("")}</div>`;
+}
+const posMatch = (p, f) => f === "ALL" || (f === "ATT" ? (p.pos === "MID" || p.pos === "FWD") : p.pos === f);
+function spThreatHTML() {
+  const f = S.spPos || "DEF";
+  const rows = D.players.filter(p => p.us && p.mins >= 270 && posMatch(p, f)).sort((a, b) => b.us.sp_xg90 - a.us.sp_xg90).slice(0, 20);
+  return `<div class="panel"><div class="bar"><h3>Set-piece threat</h3>${posSeg("spPos", [["DEF", "DEF"], ["ATT", "MID+FWD"], ["ALL", "All"]])}</div>
+    <p class="note" style="margin-top:0">xG from corners, free kicks and other set pieces, separate from open play and penalties. Defenders who are dangerous from set pieces score far more than their attacking stats suggest, and they're often cheap. Data from Understat.</p>
+    <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Set-piece xG/90</th><th class="n">Set-piece shots</th><th class="n">Set-piece headers</th><th class="n">Open-play xG/90</th><th class="n">Pen xG</th><th>Takes</th></tr></thead>
+    <tbody>${rows.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td><td class="n">${p.price.toFixed(1)}</td><td class="n"><b>${p.us.sp_xg90.toFixed(2)}</b></td><td class="n">${p.us.sp_shots}</td><td class="n">${p.us.sp_headers}</td><td class="n">${p.us.op_xg90.toFixed(2)}</td><td class="n">${p.us.pen_xg.toFixed(1)}</td><td>${[p.sp?.pen === 1 ? "Pens" : "", p.sp?.cor === 1 ? "Corners" : "", p.sp?.fk === 1 ? "FKs" : ""].filter(Boolean).join(", ") || '<span class="muted">–</span>'}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function teamSPHTML() {
+  const rows = Object.values(T).filter(t => t.sp).sort((a, b) => b.sp.for - a.sp.for);
+  if (!rows.length) return "";
+  return `<div class="panel"><h3>Set pieces by team</h3><p class="note" style="margin-top:0">Expected goals per game from set pieces, for and against. A team that concedes a lot from set pieces is a good opponent for set-piece-threat defenders; one that creates a lot makes its defenders worth more.</p>
+    <div class="tablebox"><table><thead><tr><th>Team</th><th class="n">Set-piece xG for</th><th class="n">Set-piece xG against</th><th class="n">Open-play xG for</th><th class="n">Open-play xG against</th></tr></thead>
+    <tbody>${rows.map(t => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${t.sp.for * 80}px"></span> ${t.sp.for.toFixed(2)}</td><td class="n"><span class="minibar neg" style="width:${t.sp.against * 80}px"></span> ${t.sp.against.toFixed(2)}</td><td class="n">${t.sp.op_for.toFixed(2)}</td><td class="n">${t.sp.op_against.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function dcHTML() {
+  const f = S.dcPos || "DEF";
+  const thr = f === "DEF" ? 10 : 12;
+  // rank by expected DC points next game: the model's (shrunk) chance of hitting the threshold x how nailed he is
+  const exp = p => p.dc_rate * Math.min(1, p.nailed / 100);
+  const rows = D.players.filter(p => p.dcs && p.dcs.apps >= 4 && posMatch(p, f) && p.pos !== "GKP")
+    .sort((a, b) => exp(b) - exp(a) || (b.dcs.per90 - a.dcs.per90)).slice(0, 25);
+  return `<div class="panel"><div class="bar"><h3>Defensive contribution leaders</h3>${posSeg("dcPos", [["DEF", "DEF"], ["MID", "MID"], ["FWD", "FWD"]])}</div>
+    <p class="note" style="margin-top:0">A ${term("dc", "defensive contribution")} is worth 2 points: ${f === "DEF" ? "10 clearances, blocks, interceptions and tackles" : "12 clearances, blocks, interceptions, tackles and recoveries"} in a match. Hit rate = how often he reached it in games of 60+ minutes. Chance next = the model's estimate for his next game, allowing for small samples and how likely he is to start. Ranked by chance next; at least 4 games of 60+ minutes.</p>
+    <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Per 90 (need ${thr})</th><th class="n">Hit rate</th><th class="n">Chance next</th><th class="n">DC points</th><th class="n">Last 6</th><th class="n">${term("nailed", "Nailed")}</th><th class="n">xP ${PG.length} GWs</th></tr></thead>
+    <tbody>${rows.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short}</span></td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.dcs.per90.toFixed(1)}</td><td class="n">${Math.round(100 * p.dcs.hits / p.dcs.apps)}% <span class="muted">(${p.dcs.hits}/${p.dcs.apps})</span></td><td class="n"><b>${Math.round(100 * exp(p))}%</b></td><td class="n">${2 * p.dcs.hits}</td><td class="n">${p.dc6.hits}/${p.dc6.apps}</td><td class="n">${nailedPill(p)}</td><td class="n">${f1(xpFrom(p.id, PG[0], PG.length))}</td></tr>`).join("")}</tbody></table></div></div>`;
+}
+function valueHTML() {
+  const caps = { GKP: 4.5, DEF: 4.5, MID: 5.0, FWD: 5.5 }, g0 = PG[0], H = PG.length;
+  const xf = id => xpFrom(id, g0, H);
+  const starters = p => p.ok !== false && p.nailed >= 70 && p.status === "a";
+  const enab = Object.keys(caps).map(pos => {
+    const list = D.players.filter(p => p.pos === pos && p.price <= caps[pos] && starters(p)).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 5);
+    return `<div><h3 style="font-size:16px;margin:10px 0 6px">${pos} ≤ £${caps[pos].toFixed(1)}m</h3>${list.length ? `<div class="tablebox"><table><tbody>${list.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short} · £${p.price.toFixed(1)}m</span></td><td class="n">${nailedPill(p)}</td><td class="n"><b>${f1(xf(p.id))}</b></td><td><span class="fx sgfx">${fxChips(p, g0, 4)}</span></td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">No regular starters at this price.</p>'}</div>`;
+  }).join("");
+  // rotation pairs: two cheap players from different clubs; start whichever has the better fixture each week
+  const pairsFor = (pos, cap, minEach) => {
+    const ps = D.players.filter(p => p.pos === pos && p.price <= cap && starters(p) && xf(p.id) >= minEach).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 25);
+    const out = [];
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const a = ps[i], b = ps[j]; if (a.team === b.team) continue;
+      const tot = PG.reduce((s2, g) => s2 + Math.max(xpg(a.id, g), xpg(b.id, g)), 0);
+      out.push({ a, b, tot, cost: a.price + b.price, best1: Math.max(xf(a.id), xf(b.id)) });
+    }
+    return out.sort((x, y) => y.tot - x.tot).slice(0, 4);
+  };
+  const pairTable = (list) => list.length ? `<div class="tablebox"><table><thead><tr><th>Pair</th><th class="n">£m</th><th class="n">xP rotating</th>${PG.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${list.map(r => `<tr><td><span class="pname">${esc(r.a.name)}</span> <span class="muted">${T[r.a.team].short}</span> + <span class="pname">${esc(r.b.name)}</span> <span class="muted">${T[r.b.team].short}</span></td><td class="n">${r.cost.toFixed(1)}</td><td class="n"><b>${f1(r.tot)}</b> <span class="muted">(+${f1(r.tot - r.best1)})</span></td>${PG.map(g => { const s2 = xpg(r.a.id, g) >= xpg(r.b.id, g) ? r.a : r.b; return `<td>${esc(s2.name)}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>` : '<p class="muted">No suitable pairs.</p>';
+  return `<div class="panel"><h3>Budget enablers</h3><p class="note" style="margin-top:0">The best cheap players who actually start (Nailed 70+), by projected points over ${H} GWs. Filling these spots well frees money for premiums.</p>
+      <div class="statgrid">${enab}</div></div>
+    <div class="panel"><h3>Rotation pairs</h3><p class="note" style="margin-top:0">Two cheap players from different clubs: start whichever has the better fixture each week. The bracket shows how much the pair adds over just starting the better one every week.</p>
+      <h3 style="font-size:16px;margin:6px 0">Goalkeepers ≤ £5.0m each</h3>${pairTable(pairsFor("GKP", 5.0, 0))}
+      <h3 style="font-size:16px;margin:14px 0 6px">Defenders ≤ £5.0m each</h3>${pairTable(pairsFor("DEF", 5.0, 0))}</div>`;
+}
 function shotsHTML() {
   const posF = S.stPos, k = S.shSort || "sib90_4";
   let rows = D.players.filter(p => p.us && p.mins >= 270 && (posF === "ALL" || (posF === "ATT" ? (p.pos === "MID" || p.pos === "FWD") : p.pos === posF)));
@@ -1494,6 +1560,8 @@ function bind() {
   on("[data-reset]", () => { setPlan([], "custom"); render(); });
   on("th[data-sort]", th => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });
   on("[data-stsort]", th => { S.stSort = th.dataset.stsort; render(); });
+  on("[data-stab]", b => { S.stab = b.dataset.stab; store.set("fpl.stab", S.stab); render(); });
+  on("[data-posseg]", b => { const [k, v] = b.dataset.posseg.split(":"); S[k] = v; render(); });
   on("[data-shsort]", th => { S.shSort = th.dataset.shsort; render(); });
   on("[data-bosort]", th => { S.boSort = th.dataset.bosort; render(); });
   on("[data-stpos]", b => { S.stPos = b.dataset.stpos; render(); });
@@ -1556,6 +1624,31 @@ document.addEventListener("click", e => {
 document.addEventListener("keydown", e => { if (e.key === "Escape") { const tip = $("#tip"); if (tip) tip.hidden = true; } });
 addEventListener("scroll", () => { const tip = $("#tip"); if (tip) tip.hidden = true; }, { passive: true });
 
+/* ---------- one-tap refresh (starts the GitHub job; needs a token with Actions access) ---------- */
+const REFRESH = { busy: false, msg: "", poll: null };
+async function startRefresh() {
+  if (!syncToken()) { window.open(`https://github.com/${REPO}/actions/workflows/refresh.yml`, "_blank", "noopener"); return; }
+  REFRESH.busy = true; REFRESH.msg = ""; header();
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/refresh.yml/dispatches`, {
+      method: "POST", headers: { ...syncHeaders(true), "Content-Type": "application/json" }, body: JSON.stringify({ ref: "main" }) });
+    if (r.status === 204) {
+      REFRESH.msg = "Refresh started. New data usually arrives in 3–6 minutes and the page updates itself.";
+      const built = D.meta.built; let n = 0;
+      clearInterval(REFRESH.poll);
+      REFRESH.poll = setInterval(async () => {
+        n++;
+        try { const nd = await fetchData(); if (nd.meta.built !== built) { clearInterval(REFRESH.poll); REFRESH.busy = false; REFRESH.msg = "Updated just now."; ingest(nd); header(); render(); return; } } catch (e) {}
+        if (n > 40) { clearInterval(REFRESH.poll); REFRESH.busy = false; REFRESH.msg = "Still waiting on GitHub. The data will update when the job finishes."; header(); }
+      }, 20000);
+    } else if (r.status === 401 || r.status === 403 || r.status === 404) {
+      REFRESH.busy = false;
+      REFRESH.msg = "Your token can't start the refresh. Give it Actions: Read and write (Sync plan → instructions), or use GitHub's Run workflow button.";
+    } else { REFRESH.busy = false; REFRESH.msg = "GitHub said " + r.status + ". Try again in a minute."; }
+  } catch (e) { REFRESH.busy = false; REFRESH.msg = "Couldn't reach GitHub. Check your connection."; }
+  header();
+}
+
 /* ---------- plan sync between devices (GitHub, "sync" branch) ---------- */
 const SYNC = { branch: "sync", path: "plan.json", msg: "", timer: null, busy: false };
 const syncToken = () => { try { return localStorage.getItem("fpl.gh") || ""; } catch (e) { return ""; } };
@@ -1615,12 +1708,12 @@ function syncPush() {
 function openSync() {
   const has = !!syncToken();
   $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
-    <h2>Sync your plan</h2>
+    <h2>Sync and one-tap refresh</h2>
     <p>Your plan is always saved on this device. Every device can read your synced plan. To save changes from a device to the sync, it needs a GitHub access token, set up once per device.</p>
     <ol style="margin:0;padding-left:20px;display:grid;gap:4px;font-size:14px">
       <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → new fine-grained token</a>.</li>
       <li>Name it "FPL Lab sync". Under <b>Repository access</b> choose <b>Only select repositories</b> → <b>FPL-Lab</b>.</li>
-      <li>Under <b>Permissions → Contents</b> choose <b>Read and write</b>. Generate it and copy it.</li>
+      <li>Under <b>Permissions</b>, set <b>Contents</b> to <b>Read and write</b> and <b>Actions</b> to <b>Read and write</b>. Contents lets it save your plan; Actions lets the Refresh button start an update. Generate it and copy it.</li>
       <li>Paste it below. It stays in this browser only.</li></ol>
     <div class="filters" style="margin:0"><input id="ghTok" type="password" autocomplete="off" placeholder="${has ? "Token saved. Paste a new one to replace it" : "github_pat_…"}" aria-label="GitHub token" style="flex:1"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="tokSave">Save and sync now</button>${has ? '<button class="btn" id="tokDel">Stop syncing from this device</button>' : ""}</div>

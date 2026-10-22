@@ -194,7 +194,21 @@ def shot_stats(pid, mins4):
             "bcc90": p90(u["bcc"], m), "npxg90": p90(u["npxg"], m), "chain90": p90(u["xgchain"], m),
             "shots": u["shots"], "sib": u["sib"], "bc": u["bc"], "bc_scored": u["bc_scored"], "cc": u["cc"], "bcc": u["bcc"],
             "shots_4": u["shots_4"], "sib_4": u["sib_4"], "bc_4": u["bc_4"], "cc_4": u["cc_4"], "bcc_4": u["bcc_4"],
-            "sib90_4": p90(u["sib_4"], mins4), "bc90_4": p90(u["bc_4"], mins4)}
+            "sib90_4": p90(u["sib_4"], mins4), "bc90_4": p90(u["bc_4"], mins4),
+            "op_xg90": p90(u.get("op_xg", 0), m), "sp_xg90": p90(u.get("sp_xg", 0), m), "sp_xg": u.get("sp_xg", 0),
+            "pen_xg": u.get("pen_xg", 0), "pen_shots": u.get("pen_shots", 0), "sp_shots": u.get("sp_shots", 0),
+            "headers": u.get("headers", 0), "sp_headers": u.get("sp_headers", 0), "head_xg": u.get("head_xg", 0)}
+
+
+def dc_record(pid, n=None):
+    """Defensive contribution: games reaching the threshold, out of 60+ minute games."""
+    gws = range(1, cur_gw + 1) if n is None else range(max(1, cur_gw - n + 1), cur_gw + 1)
+    s = pstats.get(pid, {})
+    apps = [g for g in gws if s.get(g, {}).get("minutes", 0) >= 60]
+    hits = sum(1 for g in apps if ctx["dc_hit"][pid].get(g))
+    cbit = sum(s[g]["defensive_contribution"] for g in gws if g in s)
+    mins = sum(s[g]["minutes"] for g in gws if g in s)
+    return {"hits": hits, "apps": len(apps), "per90": round(cbit / mins * 90, 1) if mins >= 90 else 0.0}
 
 
 players = {}
@@ -234,7 +248,7 @@ for pid, e in elements.items():
         "ok": bool(e["can_select"]) and e["status"] in ("a", "d") and r["xmin"] > 10,
         "code": e["code"], "tcode": e["team_code"], "tmp": bool(e.get("has_temporary_code")),
         "bf4": bonus_form(pid, 4), "bf6": bonus_form(pid, 6), "bps_season": e["bps"],
-        "us": shot_stats(pid, m4),
+        "us": shot_stats(pid, m4), "dcs": dc_record(pid), "dc6": dc_record(pid, 6),
         "s_bps": series(pid, "bps", int),
         "nailed": nailed(pid, e, r), "mflag": minutes_flag(pid, e),
         "sp": {"pen": e.get("penalties_order"), "cor": e.get("corners_and_indirect_freekicks_order"),
@@ -528,7 +542,11 @@ for tid, t in teams.items():
                               "xgf": round(ctx["team_gw_xg"][tid][g], 2), "xga": round(ctx["team_gw_xg"][opp][g], 2),
                               "gf": f["team_h_score"] if home else f["team_a_score"],
                               "ga": f["team_a_score"] if home else f["team_h_score"]})
+    usT = US.get("teams", {}).get(str(tid))
     team_out[tid] = {"id": tid, "short": t["short_name"], "name": t["name"],
+                     "sp": ({"for": round(usT.get("sp_for", 0) / max(1, usT["games"]), 2), "against": round(usT.get("sp_against", 0) / max(1, usT["games"]), 2),
+                             "op_for": round(usT.get("op_for", 0) / max(1, usT["games"]), 2), "op_against": round(usT.get("op_against", 0) / max(1, usT["games"]), 2),
+                             "games": int(usT["games"])} if usT else None),
                      "att": round(rating[tid]["att"], 2), "def": round(rating[tid]["def"], 2), "trend": trend,
                      "fx": {g: [{"opp": o, "home": h, "xgf": round(mf, 2), "xga": round(ma, 2), "fdr": fd, "eu": euro_flags.get((tid, g))}
                                 for (o, h, mf, ma, fd) in upcoming[tid].get(g, [])] for g in proj_gws}}

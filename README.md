@@ -41,3 +41,18 @@ pip install -r requirements.txt
 python3 build.py 8122679 site/data.json
 cd site && python3 -m http.server 8000
 ```
+
+## Reliable automatic updates (backup scheduler)
+
+GitHub's built-in schedule can start late or not at all on new repositories. A free external scheduler keeps the data fresh:
+
+1. Create a fine-grained GitHub token: Settings → Developer settings → Fine-grained tokens → **Only select repositories: FPL-Lab** → Permissions: **Actions: Read and write**. Copy it.
+2. Sign up at [cron-job.org](https://cron-job.org) (free) and create a cron job:
+   - **URL:** `https://api.github.com/repos/AFG-design/FPL-Lab/actions/workflows/refresh.yml/dispatches`
+   - **Schedule:** every 30 minutes
+   - **Advanced → Request method:** `POST`
+   - **Headers:** `Authorization: Bearer YOUR_TOKEN`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`
+   - **Request body:** `{"ref":"main"}`
+3. Save. Each run starts the refresh workflow (FPL data, rival samples and Understat shots) and redeploys the site.
+
+The dashboard's **Refresh data now** button does the same on demand when the token saved under **Sync plan** has Actions access.

@@ -52,10 +52,10 @@ os.makedirs(OUTDIR, exist_ok=True)
 cache_path = os.path.join(OUTDIR, "shots.json")
 try:
     cache = json.load(open(cache_path))
-    if cache.get("season") != SEASON:
-        cache = {"season": SEASON, "matches": {}}
+    if cache.get("season") != SEASON or cache.get("v") != 2:
+        cache = {"season": SEASON, "v": 2, "matches": {}}
 except Exception:
-    cache = {"season": SEASON, "matches": {}}
+    cache = {"season": SEASON, "v": 2, "matches": {}}
 
 done = [m for m in league["dates"] if m.get("isResult")]
 new = [m for m in done if m["id"] not in cache["matches"]]
@@ -67,7 +67,7 @@ for m in new:
     for side in ("h", "a"):
         for s in d["shots"][side]:
             shots.append([int(s["player_id"]), s["player"], float(s["X"]), float(s["Y"]), round(float(s["xG"]), 4),
-                          s["result"], s["situation"], s.get("player_assisted") or "", side])
+                          s["result"], s["situation"], s.get("player_assisted") or "", side, s.get("shotType", "")])
     cache["matches"][m["id"]] = {"date": m["datetime"][:10], "h": m["h"]["short_title"], "a": m["a"]["short_title"], "shots": shots}
     time.sleep(0.4)
 json.dump(cache, open(cache_path, "w"), separators=(",", ":"))
@@ -91,11 +91,27 @@ def in_box(x, y):
 
 per = defaultdict(lambda: defaultdict(float))
 name_team = {}
+SET = {"FromCorner", "SetPiece", "DirectFreekick"}
+team_sp = defaultdict(lambda: defaultdict(float))   # FPL team id -> sp_for/sp_against/op_for/op_against/games
 for mid, m in cache["matches"].items():
     g = gw_of.get(mid)
     recent = g is not None and g > cur_gw - 4
-    for pid, pname, x, y, xg, res, sit, assister, side in m["shots"]:
+    tids = {side: fpl_teams.get(US_TO_FPL.get(m[side], m[side])) for side in ("h", "a")}
+    for side in ("h", "a"):
+        team_sp[tids[side]]["games"] += 1
+    for pid, pname, x, y, xg, res, sit, assister, side, stype in m["shots"]:
         team = m[side]
+        other = "a" if side == "h" else "h"
+        kind = "sp" if sit in SET else ("pen" if sit == "Penalty" else "op")
+        team_sp[tids[side]][kind + "_for"] += xg
+        team_sp[tids[other]][kind + "_against"] += xg
+        per[pid][kind + "_xg"] += xg
+        per[pid][kind + "_shots"] += 1
+        if stype == "Head":
+            per[pid]["headers"] += 1
+            per[pid]["head_xg"] += xg
+            if sit in SET:
+                per[pid]["sp_headers"] += 1
         for key, add in (("shots", 1), ("sib", in_box(x, y)), ("bc", xg >= 0.3), ("bc_scored", xg >= 0.3 and res == "Goal"),
                          ("npxg", xg if sit != "Penalty" else 0), ("headers", 0)):
             per[pid][key] += add
@@ -166,8 +182,12 @@ for upid, (eid, sc) in mapping.items():
         "cc": int(a.get("cc", 0)), "bcc": int(a.get("bcc", 0)),
         "shots_4": int(c.get("shots_4", 0)), "sib_4": int(c.get("sib_4", 0)), "bc_4": int(c.get("bc_4", 0)),
         "cc_4": int(a.get("cc_4", 0)), "bcc_4": int(a.get("bcc_4", 0)),
+        "op_xg": round(c.get("op_xg", 0), 2), "sp_xg": round(c.get("sp_xg", 0), 2), "pen_xg": round(c.get("pen_xg", 0), 2),
+        "sp_shots": int(c.get("sp_shots", 0)), "pen_shots": int(c.get("pen_shots", 0)),
+        "headers": int(c.get("headers", 0)), "head_xg": round(c.get("head_xg", 0), 2), "sp_headers": int(c.get("sp_headers", 0)),
     }
 meta = {"season": SEASON, "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "matches": len(cache["matches"]),
         "new_matches": len(new), "players": len(out), "unmatched": len(us_players) - len(mapping), "last4_from_gw": cur_gw - 3}
-json.dump({"meta": meta, "players": out}, open(os.path.join(OUTDIR, "fpl_players.json"), "w"), separators=(",", ":"))
+teams_out = {str(t): {k: round(v, 2) for k, v in d.items()} for t, d in team_sp.items() if t}
+json.dump({"meta": meta, "players": out, "teams": teams_out}, open(os.path.join(OUTDIR, "fpl_players.json"), "w"), separators=(",", ":"))
 print(meta)
