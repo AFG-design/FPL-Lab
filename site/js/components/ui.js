@@ -18,6 +18,7 @@ const ICON_PATHS = {
   refresh: "M20 11a8 8 0 0 0-14.6-4.5M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5M20 20v-4h-4",
   sync: "M7 17a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 9 4 4 0 0 1 18 17zM12 12v6M9.5 15.5 12 18l2.5-2.5",
   alert: "M12 4 2.5 20h19zM12 10v4M12 17h.01",
+  search: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4",
   empty: "M4 7h16v12H4zM8 7V5h8v2M9 12h6",
 };
 function icon(name, cls = "") {

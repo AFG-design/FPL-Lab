@@ -56,7 +56,13 @@ try:
     market = json.load(open(os.path.join(HERE, "odds", "odds.json")))
 except Exception:
     market = None
-ctx = prepare(boot, fixtures, live, priors, market)
+try:
+    from fplmodel import understat_sp
+    sp_data = understat_sp(boot, fixtures, json.load(open(os.path.join(HERE, "understat", "shots.json"))),
+                           json.load(open(os.path.join(HERE, "understat", "fpl_players.json")))["players"])
+except Exception:
+    sp_data = None
+ctx = prepare(boot, fixtures, live, priors, market, sp_data)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match
 congestion, euro_flags = {}, {}
@@ -530,6 +536,50 @@ for g, pk in sorted(past.items()):
         "xi_proj": round(xi_proj, 1) if xi_proj is not None else None,
         "xi_actual": sum(pts_of(i, g) for i in xi_ids),
     })
+# decision score: judge each week's choices on the projections available before it (not on what happened)
+def best_xi_by(ids, val):
+    ps = sorted(ids, key=lambda i: -val(i))
+    by = defaultdict(list)
+    for i in ps:
+        by[POS[elements[i]["element_type"]]].append(i)
+    xi = by["GKP"][:1] + by["DEF"][:3] + by["MID"][:2] + by["FWD"][:1]
+    lim = {"DEF": 5, "MID": 5, "FWD": 3}
+    for i in ps:
+        if len(xi) == 11:
+            break
+        pos = POS[elements[i]["element_type"]]
+        if i not in xi and pos != "GKP" and sum(1 for j in xi if POS[elements[j]["element_type"]] == pos) < lim[pos]:
+            xi.append(i)
+    return xi
+
+
+for w in review["weeks"]:
+    g = w["gw"]
+    pk = past.get(g)
+    if g < 3 or not pk:
+        continue
+    try:
+        pr = project(ctx, g, 3, {"use_flags": False})["players"]
+    except Exception:
+        continue
+    xp1 = lambda i: pr.get(i, {}).get("xp", {}).get(g, 0.0)
+    xp3 = lambda i: sum(pr.get(i, {}).get("xp", {}).values())
+    ids = [p["element"] for p in pk["picks"]]
+    chip = pk.get("active_chip")
+    xi = ids if chip == "bboost" else [p["element"] for p in pk["picks"] if p["position"] <= 11]
+    cap = next(p["element"] for p in pk["picks"] if p["is_captain"])
+    cm = 2 if chip == "3xc" else 1
+    best_cap = max(xi, key=xp1)
+    cap_loss = (xp1(best_cap) - xp1(cap)) * cm
+    lineup_loss = 0.0 if chip == "bboost" else sum(xp1(i) for i in best_xi_by(ids, xp1)) - sum(xp1(i) for i in xi)
+    tx_gain = sum(xp3(m["in"]) - xp3(m["out"]) for m in w["moves"]) - w["hits"]
+    proj_total = sum(xp1(i) for i in xi) + xp1(cap) * cm
+    loss = cap_loss + lineup_loss - min(0.0, tx_gain)
+    grade = "A" if loss <= 0.5 and tx_gain >= -0.5 else "B" if loss <= 1.5 else "C" if loss <= 3 else "D"
+    w["decision"] = {"cap_loss": round(cap_loss, 2), "model_cap": best_cap, "lineup_loss": round(max(0.0, lineup_loss), 2),
+                     "tx_gain": round(tx_gain, 2) if w["moves"] else None, "proj": round(proj_total, 1),
+                     "luck": round(w["pts"] - proj_total, 1), "grade": grade}
+
 # season ledger: every transfer, judged on points while the new player stayed in the team
 ledger = []
 real_tx = sorted([t for t in transfers if t["event"] not in fh_set], key=lambda t: t["time"])
@@ -608,6 +658,40 @@ keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
 
+# ---------------------------------------------------------------- compare any team: watch.json + the overall leader
+watch_out = []
+try:
+    wl = [w for w in json.load(open(os.path.join(HERE, "watch.json"))).get("teams", []) if int(w.get("id", 0)) != TEAM_ID]
+except Exception:
+    wl = []
+try:
+    lead = get("/leagues-classic/314/standings/")["standings"]["results"][0]
+    wl = [{"id": lead["entry"], "label": "Overall leader", "auto": True}] + [w for w in wl if int(w["id"]) != lead["entry"]]
+except Exception:
+    pass
+for w in wl[:20]:
+    try:
+        wid = int(w["id"])
+        e = get(f"/entry/{wid}/", tries=2)
+        hst = get(f"/entry/{wid}/history/", tries=2)
+        g = e.get("current_event")
+        pk = get(f"/entry/{wid}/event/{g}/picks/", tries=2) if g else None
+    except Exception as ex:
+        watch_out.append({"entry": int(w.get("id", 0)), "label": w.get("label"), "error": str(ex)[:80]})
+        continue
+    watch_out.append({
+        "entry": wid, "label": w.get("label"), "auto": bool(w.get("auto")),
+        "player": f'{e["player_first_name"]} {e["player_last_name"]}', "team": e["name"],
+        "rank": e.get("summary_overall_rank"), "total": e.get("summary_overall_points"), "gw_pts": e.get("summary_event_points"),
+        "gw": g, "picks": [[x["element"], x["multiplier"]] for x in pk["picks"]] if pk else None,
+        "chip": pk.get("active_chip") if pk else None, "hits": pk["entry_history"]["event_transfers_cost"] if pk else 0,
+        "bank": pk["entry_history"]["bank"] / 10 if pk else None, "value": pk["entry_history"]["value"] / 10 if pk else None,
+        "chips": [{"name": c["name"], "event": c["event"]} for c in hst.get("chips", [])],
+        "hist": [[h["event"], h["points"], h["overall_rank"]] for h in hst.get("current", [])]})
+    for el, _ in (watch_out[-1]["picks"] or []):
+        if el in players:
+            keep.add(el)
+
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
              "understat": US.get("meta"),
@@ -633,7 +717,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
-    "crowd": crowd_out, "review": review, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "review": review, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

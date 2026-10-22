@@ -12,6 +12,35 @@ function rankChart(h) {
     <polyline points="${h.map((d, i) => `${x(i)},${y(d.rank)}`).join(" ")}" fill="none" class="s1" stroke-width="2.5"/>
     ${h.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.rank)}" r="${i === h.length - 1 ? 5 : 3}" fill="${i === h.length - 1 ? "var(--armband)" : "var(--turf-2)"}"/><text x="${x(i)}" y="${H - 8}" text-anchor="middle">${d.gw}</text>`).join("")}</svg>`;
 }
+/* ---------- decision score: your choices judged on what the model knew before the deadline ---------- */
+function decisionPanel(R) {
+  const W = R.weeks.filter(w => w.decision);
+  if (!W.length) return "";
+  const nm = id => esc(P[id]?.name || "?");
+  const tot = W.reduce((a, w) => { const d = w.decision; a.cap += d.cap_loss; a.xi += d.lineup_loss; a.tx += d.tx_gain || 0; a.luck += d.luck; return a; }, { cap: 0, xi: 0, tx: 0, luck: 0 });
+  const gp = { A: 4, B: 3, C: 2, D: 1 }, avg = W.reduce((a, w) => a + gp[w.decision.grade], 0) / W.length;
+  const overall = avg >= 3.5 ? "A" : avg >= 2.5 ? "B" : avg >= 1.5 ? "C" : "D";
+  const cls = g => g === "A" ? "good" : g === "B" ? "info" : g === "C" ? "warn" : "bad";
+  const rows = W.slice().reverse().map(w => {
+    const d = w.decision, capOk = d.cap_loss < 0.05;
+    return `<tr><td>${w.gw}</td><td><span class="grade g-${d.grade}">${d.grade}</span></td>
+      <td>${capOk ? `<span class="up">✓</span> ${nm(w.captain)}` : `${nm(w.captain)} <span class="muted">→ ${nm(d.model_cap)}</span>`}</td>
+      <td class="n ${d.cap_loss > 0.05 ? "down" : ""}">${d.cap_loss > 0.05 ? "−" + f1(d.cap_loss) : "0"}</td>
+      <td class="n ${d.lineup_loss > 0.05 ? "down" : ""}">${d.lineup_loss > 0.05 ? "−" + f1(d.lineup_loss) : "0"}</td>
+      <td class="n ${d.tx_gain == null ? "" : d.tx_gain >= 0 ? "up" : "down"}">${d.tx_gain == null ? '<span class="muted">–</span>' : sgn(d.tx_gain)}</td>
+      <td class="n">${f1(d.proj)} → <b>${w.pts}</b></td><td class="n ${d.luck >= 0 ? "up" : "down"}">${sgn(d.luck)}</td></tr>`;
+  }).join("");
+  return `<div class="panel"><div class="bar"><h3>${term("decision", "Decision score")}</h3><span class="grade big g-${overall}" aria-label="Season grade ${overall}">${overall}</span></div>
+    <p class="note" style="margin-top:0">Each gameweek's choices judged on the projections available <i>before</i> the deadline, not on what happened. A bad week can still be a good decision.</p>
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><span class="lbl">Captain choices</span><b class="${tot.cap > 0.05 ? "down" : ""}">${tot.cap > 0.05 ? "−" + f1(tot.cap) : "0.0"}</b><span class="delta muted">xP given up vs the model's captain</span></div>
+      <div class="kpi"><span class="lbl">Starting XI</span><b class="${tot.xi > 0.05 ? "down" : ""}">${tot.xi > 0.05 ? "−" + f1(tot.xi) : "0.0"}</b><span class="delta muted">xP left on the bench by your picks</span></div>
+      <div class="kpi"><span class="lbl">Transfers</span><b class="${tot.tx >= 0 ? "up" : "down"}">${sgn(tot.tx)}</b><span class="delta muted">projected gain over 3 GWs, after hits</span></div>
+      <div class="kpi"><span class="lbl">${term("luck", "Luck")}</span><b class="${tot.luck >= 0 ? "up" : "down"}">${sgn(tot.luck)}</b><span class="delta muted">points scored vs projected</span></div>
+    </div>
+    <div class="tablebox"><table><thead><tr><th>GW</th><th>Grade</th><th>Captain <span class="muted">→ model</span></th><th class="n">Cap</th><th class="n">XI</th><th class="n">Moves</th><th class="n">Proj → actual</th><th class="n">Luck</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">A = within half a point of the model's best choices; B within 1.5; C within 3; D more. Starts from GW3, when the model has enough data.</p></div>`;
+}
 function vReview() {
   const h = D.history, L = D.live, R = D.review, mx = Math.max(...h.map(x => x.pts));
   const live = L && !L.finished ? `<div class="panel"><div class="bar"><h3>GW${L.gw} live</h3><span class="muted">${L.points} pts · average ${L.average ?? "–"}</span></div>
@@ -40,6 +69,7 @@ function vReview() {
         <div class="kpi"><span class="lbl">Transfers net</span><b class="${Tt.tx_gain - Tt.hits >= 0 ? "up" : "down"}">${Tt.tx_gain - Tt.hits >= 0 ? "+" : ""}${Tt.tx_gain - Tt.hits}</b><span class="delta muted">after ${Tt.hits} pts of hits; Wildcard ${Tt.wc_gain >= 0 ? "+" : ""}${Tt.wc_gain}</span></div>
       </div><p class="note">Transfer net = points the new player scored minus what the old player would have scored, while you kept him.</p></div>
   </div>
+  ${decisionPanel(R)}
   <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Pts</th><th class="n">Avg</th><th class="n">Rank</th><th>Captain</th><th class="n">Cap lost</th><th class="n">Bench</th><th class="n">Best possible</th><th class="n">Model XI</th><th>Chip</th></tr></thead>
     <tbody>${R.weeks.slice().reverse().map(x => `<tr><td>${x.gw}</td><td class="n"><b>${x.pts}</b>${x.hits ? ` <span class="down">−${x.hits}</span>` : ""}</td><td class="n">${x.avg ?? "–"}</td><td class="n">${rankFmt(x.rank)}</td><td>${nm(x.captain)} <span class="muted">${x.cap_pts}</span></td><td class="n ${x.cap_lost ? "down" : ""}">${x.cap_lost ? "−" + x.cap_lost : "0"}</td><td class="n">${x.bench_pts}</td><td class="n">${x.best_possible}</td><td class="n">${x.xi_proj != null ? `${f1(x.xi_proj)} → ${x.xi_actual}` : "–"}</td><td>${x.chip ? `<span class="tag">${({ "3xc": "TC", bboost: "BB", freehit: "FH", wildcard: "WC" })[x.chip] || x.chip}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
   <div class="statgrid"><div class="panel"><h3>Best transfers</h3>${txl(best)}</div><div class="panel"><h3>Worst transfers</h3>${txl(worst)}</div></div>

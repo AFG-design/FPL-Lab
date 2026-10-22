@@ -104,3 +104,30 @@ function openSync() {
   };
   const del = $("#tokDel"); if (del) del.onclick = () => { try { localStorage.removeItem("fpl.gh"); } catch (e) {} setSyncMsg("Sync off on this device"); dlg.close(); header(); };
 }
+
+/* ---------- refresh health: is the data fresh, and did the last refresh job work? ---------- */
+const HEALTH = { last: null, running: false, checked: 0 };
+async function checkHealth() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/refresh.yml/runs?per_page=8&t=${Date.now()}`, { headers: syncHeaders(true), cache: "no-store" });
+    if (!r.ok) return;
+    const runs = (await r.json()).workflow_runs || [];
+    HEALTH.last = runs.find(x => x.status === "completed") || null;
+    HEALTH.running = runs.some(x => x.status !== "completed" && Date.now() - new Date(x.created_at) < 3 * 36e5);
+    HEALTH.checked = Date.now();
+    if (D) header();
+  } catch (e) { /* offline or rate-limited: the age check still works */ }
+}
+function healthBanner() {
+  const ageH = (Date.now() - new Date(D.meta.built)) / 36e5, L = HEALTH.last;
+  const failed = L && L.conclusion && !["success", "cancelled", "skipped"].includes(L.conclusion) && new Date(L.updated_at) > new Date(D.meta.built);
+  if (ageH <= 2 && !failed) return "";
+  const t = iso => new Date(iso).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+  const age = ageH >= 48 ? `${Math.floor(ageH / 24)} days` : ageH >= 1.5 ? `${Math.round(ageH)} hours` : `${Math.round(ageH * 60)} minutes`;
+  const why = failed ? `The last refresh failed (${t(L.updated_at)}). <a href="${L.html_url}" target="_blank" rel="noopener">See what went wrong</a>.`
+    : HEALTH.running ? "A refresh is running now; new data should arrive in a few minutes."
+    : "GitHub hasn't run the refresh recently. Its schedule can be delayed at busy times.";
+  return `<div class="health ${failed || ageH > 6 ? "bad" : "warn"}" role="alert">${icon("alert")}<span><b>${ageH > 2 ? `Data is ${age} old.` : "Refresh problem."}</b> ${why}${ageH > 2 ? " Prices, injuries and projections may be out of date." : ""}</span>${HEALTH.running ? "" : `<button class="btn sm" data-refresh="1">${icon("refresh")}Refresh now</button>`}</div>`;
+}
+checkHealth();
+setInterval(checkHealth, 10 * 60 * 1000);

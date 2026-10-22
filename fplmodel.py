@@ -31,6 +31,11 @@ DEFAULTS = {
     "mkt_w": 0.7,          # weight of betting-market team ratings vs xG ratings (geometric blend); backtest GW3-7
     "direct_w": 0.85,      # weight of a fixture's own market expected goals, when its odds exist
     "mkt_recency": 0.9,    # weight per gameweek back for market ratings
+    "opp_adj": 0.5,        # opponent-adjusted form: past xG/xA divided by (opponent defence rating) ** opp_adj.
+                           # GW3-7: corr unchanged, top-30 over-projection +0.22 -> +0.13
+    "sp_match": 0.0,       # set-piece matchups: set-piece xG scaled by (opponent set-piece xG conceded / average) ** sp_match.
+                           # Off: GW3-7 corr 0.417 -> 0.416. Re-test with tune_v3.py as data grows
+    "sp_prior": 4.0,       # games of league-average prior for team set-piece conceding
 }
 
 
@@ -48,7 +53,36 @@ def p_at_least(mu, k):
     return max(0.0, 1 - sum(poisson(i, mu) for i in range(k)))
 
 
-def prepare(boot, fixtures, live, priors=None, market=None):
+US_TO_FPL = {"BRI": "BHA", "FLH": "FUL", "LED": "LEE", "NOT": "NFO"}
+
+
+def understat_sp(boot, fixtures, shots_cache, us_players):
+    """Per-gameweek set-piece xG for each FPL player, and set-piece xG conceded by each FPL team."""
+    SET = {"FromCorner", "SetPiece", "DirectFreekick"}
+    short = {t["short_name"]: t["id"] for t in boot["teams"]}
+    fx = {(f["team_h"], f["team_a"]): f["event"] for f in fixtures if f["event"]}
+    us_to_fpl = {v["us_id"]: int(k) for k, v in (us_players or {}).items()}
+    sp_player = defaultdict(lambda: defaultdict(float))
+    sp_against = defaultdict(lambda: defaultdict(float))
+    for m in (shots_cache or {}).get("matches", {}).values():
+        h = short.get(US_TO_FPL.get(m["h"], m["h"])); a = short.get(US_TO_FPL.get(m["a"], m["a"]))
+        g = fx.get((h, a))
+        if not g:
+            continue
+        sp_against[h][g] += 0.0; sp_against[a][g] += 0.0  # mark the game as played
+        for sh in m["shots"]:
+            upid, xg, sit, side = sh[0], sh[4], sh[6], sh[8]
+            if sit not in SET:
+                continue
+            conceding = a if side == "h" else h
+            sp_against[conceding][g] += xg
+            pid = us_to_fpl.get(upid)
+            if pid:
+                sp_player[pid][g] += xg
+    return {"player": sp_player, "against": sp_against}
+
+
+def prepare(boot, fixtures, live, priors=None, market=None, sp=None):
     """Index the raw API responses once; reused across projections."""
     elements = {e["id"]: e for e in boot["elements"]}
     teams = {t["id"]: t for t in boot["teams"]}
@@ -91,6 +125,7 @@ def prepare(boot, fixtures, live, priors=None, market=None):
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr,
+        "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
     }
@@ -226,6 +261,22 @@ def project(ctx, as_of, horizon=6, params=None):
         pos_prior[pos] = {k: num[k] / mins * 90 for k in ("xg", "xa", "bonus", "saves", "yc", "dc")}
         pos_prior[pos]["dchit"] = hits / n60 if n60 else 0
 
+    opp_of = defaultdict(list)
+    for tid, lst in ctx["team_fix"].items():
+        for (g, opp, home, f) in lst:
+            opp_of[(tid, g)].append(opp)
+    sp = ctx.get("sp")
+    sp_fac = {}
+    if sp and P["sp_match"]:
+        tot = {}
+        for tid in teams:
+            gsp = {g: v for g, v in sp["against"].get(tid, {}).items() if g < as_of}
+            tot[tid] = (sum(gsp.values()), len(gsp))
+        n_all = sum(n for _, n in tot.values()) or 1
+        avg = sum(v for v, _ in tot.values()) / n_all or 0.3
+        for tid, (v, n) in tot.items():
+            sp_fac[tid] = ((v + P["sp_prior"] * avg) / (n + P["sp_prior"])) / avg
+
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -239,8 +290,15 @@ def project(ctx, as_of, horizon=6, params=None):
             s = gs[g]
             w = P["recency"] ** (as_of - 1 - g)
             den += w * s["minutes"]
-            num["xg"] += w * float(s["expected_goals"])
-            num["xa"] += w * float(s["expected_assists"])
+            if P["opp_adj"]:
+                opps = opp_of.get((e["team"], g)) or []
+                of = (sum(rating[o]["def"] for o in opps) / len(opps)) ** P["opp_adj"] if opps else 1.0
+            else:
+                of = 1.0
+            num["xg"] += w * float(s["expected_goals"]) / of
+            num["xa"] += w * float(s["expected_assists"]) / of
+            if sp and P["sp_match"]:
+                num["sp"] += w * sp["player"].get(pid, {}).get(g, 0.0) / of
             num["bonus"] += w * s["bonus"]
             num["saves"] += w * s["saves"]
             num["yc"] += w * s["yellow_cards"]
@@ -255,6 +313,7 @@ def project(ctx, as_of, horizon=6, params=None):
             return (num[k] + last * w_last / 90 + pp[k] * P["w_pos"] / 90) / (den + w_last + P["w_pos"]) * 90
 
         xg90, xa90, bo90, sv90, yc90, dc90 = (rate(k) for k in ("xg", "xa", "bonus", "saves", "yc", "dc"))
+        sp90 = min(xg90, num["sp"] / (den + P["w_pos"]) * 90) if (sp and P["sp_match"]) else 0.0
         if e.get("penalties_order") == 1:
             xg90 += P["pen_xg"]
 
@@ -305,7 +364,10 @@ def project(ctx, as_of, horizon=6, params=None):
                 m = ps * m_start + pb * m_sub
                 p60 = ps * p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
-                eg = P["goal_mult"] * xg90 * atk * m / 90
+                if sp90:  # set-piece threat scales with how much this opponent concedes from set pieces
+                    eg = P["goal_mult"] * ((xg90 - sp90) * atk + sp90 * sp_fac.get(opp, 1.0) ** P["sp_match"]) * m / 90
+                else:
+                    eg = P["goal_mult"] * xg90 * atk * m / 90
                 ea = P["assist_mult"] * xa90 * atk * m / 90
                 comp["mins"] += (ps + pb) * scoring["short_play"] + p60 * (scoring["long_play"] - scoring["short_play"])
                 comp["goals"] += eg * scoring["goals_scored"][pos]

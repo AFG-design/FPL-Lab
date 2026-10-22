@@ -43,6 +43,8 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 
 - **Team ID:** repository variable `FPL_TEAM_ID` (Settings → Secrets and variables → Actions → Variables). Default 8122679.
 - **Refresh now:** Actions → "Refresh FPL data" → Run workflow, or the button on the dashboard.
+- **Compare any team:** `watch.json` lists extra team IDs to fetch each refresh (`{"teams": [{"id": 123456, "label": "Friend"}]}`, up to 20). The overall leader is always included. The Rivals page adds and removes teams in one tap if Sync is set up; editing the file triggers a rebuild.
+- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
 
 ## Run locally
 

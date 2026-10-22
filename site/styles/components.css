@@ -327,3 +327,62 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .state .btn { margin-top: 8px; }
 .state-ic { width: 36px; height: 36px; color: var(--faint); stroke-width: 1.5; }
 .state.error .state-ic { color: var(--bad); }
+
+/* ---------- search everywhere ---------- */
+.searchbtn { display: inline-flex; align-items: center; gap: 8px; min-width: 200px; padding: 8px 10px 8px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--sunk); color: var(--muted); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+.searchbtn:hover { border-color: var(--line-strong); color: var(--fg); }
+.searchbtn .ic { width: 16px; height: 16px; }
+.searchbtn kbd { margin-left: auto; font: inherit; font-size: 11px; border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 5px; }
+
+@media (max-width: 899px) {
+  .searchbtn { min-width: 0; width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 50%; }
+  .searchbtn span, .searchbtn kbd { display: none; }
+}
+#searchDlg { width: min(620px, calc(100vw - 32px)); margin: 10vh auto auto; padding: 0; overflow: hidden; }
+#searchDlg[open] { display: flex; flex-direction: column; max-height: 75vh; }
+.search-box { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.search-box .ic { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.search-box input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: var(--fs-md); padding: 6px 0; outline: none; }
+#searchList { list-style: none; margin: 0; padding: 6px; overflow: auto; }
+#searchList li[role="option"] { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: var(--r-sm); cursor: pointer; }
+#searchList li[aria-selected="true"], #searchList li[role="option"]:hover { background: var(--sunk); }
+#searchList li[aria-selected="true"] { box-shadow: inset 3px 0 0 var(--accent); }
+.sr-ic { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--sunk); color: var(--muted); font-size: 10px; font-weight: 700; }
+.sr-ic .ic { width: 16px; height: 16px; }
+.sr-txt { display: grid; min-width: 0; }
+.sr-txt b { font-weight: 600; }
+.sr-txt span { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-empty { padding: 14px 10px; color: var(--muted); font-size: var(--fs-sm); }
+
+@media (max-width: 640px) {
+  #searchDlg { width: 100vw; max-width: 100vw; margin: 0 0 auto; border-radius: 0 0 var(--r-lg) var(--r-lg); border-top: 0; max-height: 85vh; }
+}
+
+/* ---------- refresh health banner ---------- */
+.health { flex-basis: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: var(--r); border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 12%, transparent); font-size: var(--fs-sm); }
+.health.bad { border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.health > .ic { width: 18px; height: 18px; flex: none; color: var(--warn); }
+.health.bad > .ic { color: var(--bad); }
+.health > span { flex: 1 1 240px; }
+.health a { color: inherit; text-decoration: underline; }
+
+/* ---------- decision grades ---------- */
+.grade { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; font-weight: 700; font-size: var(--fs-sm); }
+.grade.big { width: 40px; height: 40px; font-size: var(--fs-lg); border-radius: 10px; }
+.g-A { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+.g-B { background: color-mix(in srgb, var(--info) 18%, transparent); color: var(--info); }
+.g-C { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.g-D { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+
+/* ---------- compare any team ---------- */
+.chiprow { display: flex; flex-wrap: wrap; gap: 6px; }
+.chipbtn { display: inline-grid; text-align: left; gap: 1px; padding: 6px 11px; border: 1px solid var(--line); border-radius: var(--r); background: var(--sunk); color: var(--fg); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; max-width: 220px; }
+.chipbtn span { font-size: 11px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chipbtn:hover { border-color: var(--line-strong); }
+.chipbtn[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cmp-panel { margin: 0; }
+.panel .cmp-panel { padding: 0; border: 0; background: none; box-shadow: none; margin-top: 4px; }
+
+.morechips { flex-basis: 100%; margin-top: 4px; }
+.morechips summary { cursor: pointer; color: var(--muted); font-size: var(--fs-sm); padding: 4px 0; }
+.morechips .chiprow { margin-top: 6px; }

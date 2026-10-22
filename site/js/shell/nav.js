@@ -23,15 +23,15 @@ function header() {
     `<div class="stat deadline"><dt>GW${meta.next_gw} deadline</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : ""}</dd></div>`;
   const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
   const when = built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-  $("#meta").innerHTML = `
-    <span class="st-when">${ageH > 3 ? '<span class="pill warn">Out of date</span>' : '<span class="live-dot" aria-hidden="true"></span>'}Updated ${when}</span>
+  $("#meta").innerHTML = `${typeof healthBanner === "function" ? healthBanner() : ""}
+    <span class="st-when">${ageH > 2 ? "" : '<span class="live-dot" aria-hidden="true"></span>'}Updated ${when}</span>
     <span class="st-note">Your GW${meta.picks_gw} squad. Transfers made on the FPL site appear after the deadline.</span>
     <span class="st-acts">
       <button class="btn ghost sm" data-refresh="1" ${REFRESH.busy ? "aria-busy=\"true\"" : ""}>${icon("refresh")}${REFRESH.busy ? "Refreshing" : "Refresh data"}</button>
       <button class="btn ghost sm" data-sync="1">${icon("sync")}${syncToken() ? "Sync on" : "Sync plan"}</button>
     </span>
     <span class="st-msg" id="refreshMsg">${esc(REFRESH.msg)}</span><span class="st-msg" id="syncMsg">${esc(SYNC.msg || "")}</span>`;
-  const rb = $("#meta [data-refresh]"); if (rb) rb.onclick = () => { if (!REFRESH.busy) startRefresh(); };
+  document.querySelectorAll("#meta [data-refresh]").forEach(rb => rb.onclick = () => { if (!REFRESH.busy) startRefresh(); });
   const sb2 = $("#meta [data-sync]"); if (sb2) sb2.onclick = () => openSync();
 }
 
