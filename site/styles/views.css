@@ -83,3 +83,33 @@
   .phead h2 { font-size: var(--fs-xl); }
   .photo { width: 56px; height: 72px; }
 }
+
+/* ---------- player explorer ---------- */
+.explorer .filters { margin-bottom: 10px; }
+.explorer .tablebox { margin-top: 4px; }
+.sticky-col { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+th.sticky-col { z-index: 3; background: var(--raised); }
+tbody tr:hover .sticky-col { background: var(--raised); }
+tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
+.pcell { display: flex; align-items: center; gap: 8px; }
+.pcell input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+.linkish { all: unset; cursor: pointer; }
+.linkish:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+.linkish:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; border-radius: 3px; }
+.colpick { position: relative; margin: 0 0 0 auto; }
+.colpick summary { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); }
+.colpick-body {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: 220px;
+  display: grid; gap: 2px; padding: 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: var(--shadow);
+}
+.colpick-body label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: var(--fs-sm); cursor: pointer; }
+.colpick-body label:hover { background: var(--sunk); }
+.colpick-body input { accent-color: var(--accent); }
+.colpick-body .btn { justify-self: start; margin-top: 6px; }
+
+@media (max-width: 640px) {
+  .explorer .filters select { flex: 1 1 140px; }
+  .colpick { margin-left: 0; }
+  .colpick-body { left: 0; right: auto; }
+  .explorer { padding: 14px; }
+}

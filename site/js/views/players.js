@@ -1,7 +1,10 @@
 // Player explorer.
 /* ---------- Players ---------- */
-const COLS = [["name", "Player", 0], ["team", "Team", 0], ["pos", "Pos", 0], ["price", "£m", 1], ["own", "Own %", 1], ["pts", "Pts", 1],
-  ["xgi90_4", "xGI/90 L4", 1], ["t10k", "Top 10k", 1], ["nailed", "Nailed", 1], ["xmin", "xMins", 1], ["xp1", "xP next", 1], ["xp5", "xP 5", 1], ["val", "xP5/£m", 1], ["pc", "Price", 1]];
+// [key, header, numeric, shown by default]
+const COLS = [["team", "Team", 0, 1], ["pos", "Pos", 0, 1], ["price", "£m", 1, 1], ["form", "Form", 1, 1], ["pts", "Pts", 1, 1],
+  ["xg", "xG", 1, 1], ["xa", "xA", 1, 1], ["xgi90_4", "xGI/90 L4", 1, 1], ["own", "Own %", 1, 1], ["t10k", "Top 10k", 1, 0],
+  ["nailed", "Nailed", 1, 1], ["xmin", "xMins", 1, 0], ["xp1", "xP next", 1, 1], ["xp5", "xP 5", 1, 1], ["val", "xP5/£m", 1, 0], ["pc", "Price change", 1, 1]];
+const colsOn = () => { const v = store.get("fpl.cols"); return Array.isArray(v) ? v : COLS.filter(c => c[3]).map(c => c[0]); };
 function nailedPill(p) {
   const n = p.nailed ?? 0, c = n >= 85 ? "good" : n >= 60 ? "warn" : "bad";
   return `<span class="pill ${c}" title="${esc(p.mflag || (n >= 85 ? "Nailed on" : n >= 60 ? "Usually starts" : "Rotation or bench risk"))}">${n}</span>`;
@@ -13,31 +16,57 @@ function priceCell(p) {
   return `<span class="minibar ${v < 0 ? "neg" : ""}" style="width:${w}px" title="${v.toFixed(0)}% towards a ${v < 0 ? "fall" : "rise"}"></span> <span class="mono">${v.toFixed(0)}%</span>`;
 }
 function vPlayers() {
+  const t10 = p => D.crowd?.top10k.own[p.id] || 0;
   let rows = D.players.slice();
   if (S.pos !== "ALL") rows = rows.filter(p => p.pos === S.pos);
   if (S.team !== "ALL") rows = rows.filter(p => String(p.team) === String(S.team));
+  if (S.minp) rows = rows.filter(p => p.price >= +S.minp);
   if (S.maxp) rows = rows.filter(p => p.price <= +S.maxp);
+  if (S.minform) rows = rows.filter(p => +p.form >= +S.minform);
+  if (S.own === "diff") rows = rows.filter(p => p.own < 5);
+  else if (S.own === "mid") rows = rows.filter(p => p.own >= 5 && p.own < 20);
+  else if (S.own === "template") rows = rows.filter(p => p.own >= 20);
   if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(p => (p.name + " " + p.full).toLowerCase().includes(q)); }
-  const t10 = p => D.crowd?.top10k.own[p.id] || 0;
-  const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : p[S.sort];
+  const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short
+    : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : ["name", "pos"].includes(S.sort) ? p[S.sort] : +p[S.sort] || 0;
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
-  const shown = rows.slice(0, 150);
+  const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = COLS.filter(c => on.has(c[0]));
+  const cell = {
+    team: p => T[p.team].short, pos: p => p.pos, price: p => p.price.toFixed(1), form: p => f1(p.form), pts: p => p.pts,
+    xg: p => (p.xg ?? 0).toFixed(1), xa: p => (p.xa ?? 0).toFixed(1), xgi90_4: p => p.xgi90_4.toFixed(2), own: p => p.own.toFixed(1),
+    t10k: p => D.crowd ? t10(p).toFixed(0) + "%" : "–", nailed: p => nailedPill(p), xmin: p => p.xmin, xp1: p => f1(p.xp1),
+    xp5: p => `<b>${f1(p.xp5)}</b>`, val: p => (p.xp5 / p.price).toFixed(2), pc: p => priceCell(p),
+  };
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${String(S.team) === String(t.id) ? "selected" : ""}>${t.name}</option>`).join("");
-  return `<div class="panel"><div class="bar"><h2>Players</h2><span class="muted">${rows.length} players${rows.length > 150 ? " · top 150 shown" : ""}</span></div>
+  const prices = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12, 15];
+  const priceSel = (id, cur, any, op) => `<select id="${id}" aria-label="${any}"><option value="">${any}</option>${prices.map(x => `<option ${+cur === x ? "selected" : ""} value="${x}">${op} £${x.toFixed(1)}m</option>`).join("")}</select>`;
+  const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.q].filter(Boolean).length;
+  const head = `<th class="sort sticky-col" data-sort="name" ${S.sort === "name" ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>Player${S.sort === "name" ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>` +
+    cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], l) : l}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+  const body = shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
+      <td class="sticky-col"><span class="pcell"><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}">
+        <button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${p.chance ?? 0}%</span>` : ""}</span></td>
+      ${cols.map(([k, , n]) => `<td class="${n ? "n" : ""}">${cell[k](p)}</td>`).join("")}</tr>`).join("");
+  return `<div class="panel explorer">
+    <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
     <div class="filters">
       <input type="search" id="q" placeholder="Search players" value="${esc(S.q)}" aria-label="Search players">
-      <select id="fpos" aria-label="Position">${["ALL", "GKP", "DEF", "MID", "FWD"].map(x => `<option ${S.pos === x ? "selected" : ""} value="${x}">${x === "ALL" ? "All positions" : x}</option>`).join("")}</select>
+      <div class="seg" role="group" aria-label="Position">${["ALL", "GKP", "DEF", "MID", "FWD"].map(x => `<button data-fpos="${x}" aria-pressed="${S.pos === x}">${x === "ALL" ? "All" : x}</button>`).join("")}</div>
+    </div>
+    <div class="filters">
       <select id="fteam" aria-label="Team"><option value="ALL">All teams</option>${teamOpts}</select>
-      <select id="fmax" aria-label="Max price"><option value="">Any price</option>${[4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12].map(x => `<option ${+S.maxp === x ? "selected" : ""} value="${x}">≤ £${x.toFixed(1)}m</option>`).join("")}</select>
+      ${priceSel("fmin", S.minp, "Min price", "From")}${priceSel("fmax", S.maxp, "Max price", "Up to")}
+      <select id="fform" aria-label="Minimum form"><option value="">Any form</option>${[2, 3, 4, 5, 6, 8].map(x => `<option ${+S.minform === x ? "selected" : ""} value="${x}">Form ${x}+</option>`).join("")}</select>
+      <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+      ${active ? `<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button>` : ""}
+      <details class="colpick"><summary>Columns</summary><div class="colpick-body" role="group" aria-label="Columns to show">
+        ${COLS.map(([k, l]) => `<label><input type="checkbox" data-col="${k}" ${on.has(k) ? "checked" : ""}> ${l}</label>`).join("")}
+        <button class="btn ghost sm" data-colreset="1">Reset columns</button></div></details>
     </div>
     ${compareHTML()}
-    <div class="tablebox" style="max-height:70vh"><table><thead><tr><th>Cmp</th>${COLS.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], l) : l}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr></thead>
-    <tbody>${shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
-      <td><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}"></td>
-      <td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${p.chance ?? 0}%</span>` : ""}</td>
-      <td>${T[p.team].short}</td><td>${p.pos}</td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.own.toFixed(1)}</td><td class="n">${p.pts}</td>
-      <td class="n">${p.xgi90_4.toFixed(2)}</td><td class="n">${D.crowd ? t10(p).toFixed(0) + "%" : "–"}</td><td class="n">${nailedPill(p)}</td><td class="n">${p.xmin}</td><td class="n">${f1(p.xp1)}</td><td class="n"><b>${f1(p.xp5)}</b></td><td class="n">${(p.xp5 / p.price).toFixed(2)}</td><td class="n">${priceCell(p)}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note">Gold edge = in your squad. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. Price = progress towards a price change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}. Tick up to 4 players to compare; charts appear in Stats.</p></div>`;
+    ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
+      : stateView({ title: "No players match", body: "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-fclear="1">Clear filters</button>` })}
+    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. Price change = progress towards a change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}.</p></div>`;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";

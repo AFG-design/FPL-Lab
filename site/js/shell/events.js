@@ -108,5 +108,11 @@ function bind() {
     el.oninput = () => { obj[key] = el.value; clearTimeout(el._t); el._t = setTimeout(() => { const pos = el.selectionStart; render(); const n = $(id); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 200); };
   };
   live("#q", "q", S); live("#candq", "q", SB);
-  const fp = $("#fpos"); if (fp) { fp.onchange = e => { S.pos = e.target.value; render(); }; $("#fteam").onchange = e => { S.team = e.target.value; render(); }; $("#fmax").onchange = e => { S.maxp = e.target.value; render(); }; }
+  // player explorer filters and column toggles
+  on("[data-fpos]", b => { S.pos = b.dataset.fpos; render(); });
+  [["#fteam", "team"], ["#fmin", "minp"], ["#fmax", "maxp"], ["#fform", "minform"], ["#fown", "own"]].forEach(([id, k]) => { const el = $(id); if (el) el.onchange = () => { S[k] = el.value; render(); }; });
+  on("[data-fclear]", () => { Object.assign(S, { pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", q: "" }); render(); });
+  const keepCols = () => { const d = $(".colpick"); return d && d.open; };
+  on("[data-col]", c => { const cur = new Set(colsOn()); c.checked ? cur.add(c.dataset.col) : cur.delete(c.dataset.col); store.set("fpl.cols", COLS.map(x => x[0]).filter(k => cur.has(k))); const open = keepCols(); render(); if (open) { $(".colpick").open = true; $(`[data-col="${c.dataset.col}"]`)?.focus(); } }, "onchange");
+  on("[data-colreset]", () => { store.set("fpl.cols", null); render(); });
 }
