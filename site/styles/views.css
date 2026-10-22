@@ -122,3 +122,12 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 .fdr.cellchip { display: flex; width: 100%; min-width: 62px; padding: 6px 4px; font-size: var(--fs-sm); }
 .fdr.cellchip + .fdr.cellchip { margin-top: 2px; }
 .fdr.blank.cellchip, .fxc > .fdr.blank { display: flex; padding: 6px 4px; min-width: 62px; }
+
+/* ---------- mini-league ---------- */
+.league td { vertical-align: middle; }
+.lg-rank { display: inline-grid; grid-template-columns: auto 30px; gap: 6px; place-items: baseline end; }
+.mv { font-size: var(--fs-xs); font-weight: 600; justify-self: start; }
+.mv.same { color: var(--faint); }
+.lg-team { font-size: var(--fs-xs); }
+td.lg-best { color: var(--hi-text); font-weight: 700; }
+tr.is-rival td { background: var(--accent-soft); }

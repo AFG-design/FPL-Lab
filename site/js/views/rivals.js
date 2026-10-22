@@ -45,10 +45,16 @@ function vRivals() {
   const lg = L.find(l => l.id === S.league);
   const me = lg?.rows.find(r => r.me);
   const live = C.in_play;
-  const lgTable = lg ? `<div class="tablebox"><table><thead><tr><th class="n">#</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">Gap</th><th>${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${lg.rows.map(r => {
+  const gwOf = r => live && r.live != null ? r.live : r.gw_pts;
+  const bestGw = lg ? Math.max(...lg.rows.map(r => gwOf(r) ?? -1)) : null;
+  const lgTable = lg ? `<div class="tablebox league"><table><thead><tr><th class="n">Rank</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">${term("gap", "Gap")}</th><th>${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${lg.rows.map(r => {
       const mv = r.last_rank && r.rank ? r.last_rank - r.rank : 0;
       const gap = me && r.total != null ? r.total - me.total : null;
-      return `<tr class="${r.me ? "mine" : ""}" ${r.me ? "" : `data-rival="${r.entry}" style="cursor:pointer"`}><td class="n">${r.rank ?? "–"} <span class="${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}" style="font-size:11px">${mv > 0 ? "▲" : mv < 0 ? "▼" : ""}</span></td><td><span class="pname">${esc(r.player)}</span>${r.me ? ' <span class="pill good">You</span>' : ""}${r.chip ? ` <span class="tag">${esc(r.chip)}</span>` : ""}<br><span class="muted" style="font-size:12.5px">${esc(r.team)}</span></td><td class="n">${live && r.live != null ? r.live : r.gw_pts ?? "–"}</td><td class="n">${r.total ?? "–"}</td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td><td>${chipBadges(r.chips)}</td></tr>`;
+      const arrow = mv > 0 ? `<span class="mv up" aria-label="up ${mv}">▲${mv}</span>` : mv < 0 ? `<span class="mv down" aria-label="down ${-mv}">▼${-mv}</span>` : `<span class="mv same" aria-label="no change">–</span>`;
+      const gw = gwOf(r);
+      return `<tr class="${r.me ? "mine" : ""} ${r.entry === S.rival ? "is-rival" : ""}"><td class="n"><span class="lg-rank"><b>${r.rank ?? "–"}</b>${arrow}</span></td>
+        <td>${r.me ? `<span class="pname">${esc(r.player)}</span> <span class="pill good">You</span>` : `<button class="pname linkish" data-rival="${r.entry}" aria-pressed="${r.entry === S.rival}">${esc(r.player)}</button>`}${r.chip ? ` <span class="tag">${esc(r.chip)}</span>` : ""}<br><span class="muted lg-team">${esc(r.team)}</span></td>
+        <td class="n ${gw === bestGw && gw != null ? "lg-best" : ""}">${gw ?? "–"}</td><td class="n"><b>${r.total ?? "–"}</b></td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td><td>${chipBadges(r.chips)}</td></tr>`;
     }).join("")}</tbody></table></div>
     ${lg.size > lg.rows.length ? `<p class="note">Big league: showing the top 10 and the managers around you.</p>` : ""}
     ${(() => { const st = lg.rows.filter(r => !r.me && r.chips).map(r => chipState(r.chips)); if (!st.length) return ""; const [a, b] = chipHalf();
@@ -85,8 +91,8 @@ function vRivals() {
     <div style="margin-top:14px"><span class="lbl">Captaincy split</span><div class="capbars" style="margin-top:6px">${capTop.map(([id, v], k) => `<div class="cb ${k === 0 ? "top" : ""}"><span class="pname">${esc(P[id]?.name || id)}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><span class="val">${v.toFixed(0)}%</span></div>`).join("")}</div></div>
   </div>
   <div class="grid2">
-    <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" aria-label="League" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 9px;max-width:100%">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
-      ${lgTable}<p class="note">Tap a rival to compare teams.${live ? " Live points are summed from the latest match data, without automatic substitutions." : ""}</p></div>
+    <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" class="sel" aria-label="League">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
+      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek.${live ? " Live points are summed from the latest match data, without automatic substitutions." : ""}</p></div>
     <div style="min-width:0">${cmp || `<div class="panel"><h3>Compare with a rival</h3><p class="muted">Pick someone from the league table to see where your teams differ and who the differences favour next gameweek.</p></div>`}</div>
   </div>`;
 }
