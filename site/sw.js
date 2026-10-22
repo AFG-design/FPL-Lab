@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v9";
+const CACHE = "fpl-lab-v10";
 const SHELL = [
   "./",
   "index.html",
@@ -47,7 +47,8 @@ self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   if (url.origin === location.origin) {
     // network first, so fresh data and new versions always win; cache as a fallback
-    e.respondWith(fetch(e.request).then(r => {
+    // "no-cache" checks with the server every time, so a new version is never hidden by the browser's 10-minute cache
+    e.respondWith(fetch(e.request, { cache: "no-cache" }).then(r => {
       const copy = r.clone();
       const key = url.pathname.endsWith("data.json") ? new Request("data.json") : e.request;
       caches.open(CACHE).then(c => c.put(key, copy));
