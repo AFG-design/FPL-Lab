@@ -2,3 +2,4 @@ site/data.json
 __pycache__/
 raw
 node_modules/
+archive/

@@ -62,7 +62,21 @@ try:
                            json.load(open(os.path.join(HERE, "understat", "fpl_players.json")))["players"])
 except Exception:
     sp_data = None
-ctx = prepare(boot, fixtures, live, priors, market, sp_data)
+# injury / suspension log: each player's status at every deadline, so the model can tell
+# "injured" from "dropped" later in the season (FPL keeps no history of this)
+STATUS_LOG = os.path.join(HERE, "history", "status.json")
+try:
+    status_log = json.load(open(STATUS_LOG))
+except Exception:
+    status_log = {"gws": {}}
+if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
+    # latest status before this deadline; only players not fully available, to keep it small
+    status_log["gws"][str(next_gw)] = {str(e["id"]): [e["status"], e["chance_of_playing_next_round"]]
+                                       for e in boot["elements"] if e["status"] != "a"}
+    status_log["updated"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    os.makedirs(os.path.dirname(STATUS_LOG), exist_ok=True)
+    json.dump(status_log, open(STATUS_LOG, "w"), separators=(",", ":"))
+ctx = prepare(boot, fixtures, live, priors, market, sp_data, status_log)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match
 congestion, euro_flags = {}, {}
@@ -150,7 +164,9 @@ def nailed(pid, e, r):
 def minutes_flag(pid, e):
     """Spot players losing (or winning back) their place from the last 6 gameweeks."""
     s = pstats.get(pid, {})
-    recent = [g for g in range(max(1, cur_gw - 5), cur_gw + 1)]
+    # last 6 gameweeks his club actually played (a blank week is not a dropped player)
+    played = {x[0] for x in ctx["team_fix"].get(e["team"], [])}
+    recent = [g for g in range(1, cur_gw + 1) if g in played and g in s][-6:]
     starts = [bool(s.get(g, {}).get("starts")) for g in recent]
     mins = [s.get(g, {}).get("minutes", 0) for g in recent]
     if len(starts) >= 4 and sum(starts[:-2]) >= 3 and not any(starts[-2:]):
