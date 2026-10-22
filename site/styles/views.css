@@ -50,6 +50,7 @@
 .ph-stats .stat-sub { white-space: normal; }
 .ph-sec { display: grid; gap: 8px; }
 .ph-sec h3 { font-size: var(--fs-md); }
+.ph-sec h3.ph-sub { margin-top: 14px; }
 .ptsbars { position: relative; display: flex; gap: 4px; align-items: stretch; height: 132px; }
 .ptsbars > div { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; }
 .ptsbars b { font-size: var(--fs-xs); font-weight: 650; }

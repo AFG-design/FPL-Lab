@@ -23,6 +23,7 @@ const GLOSS = {
   horizon: ["Plan length", "How many gameweeks the planner, suggestions and Re-plan look ahead. 3 GWs favours players with good short-term fixtures. 6 GWs favours longer-term value and fewer hits. Moves after the last gameweek are kept but don't count."],
   decision: ["Decision score", "Grades your captain, starting XI and transfers against what the model projected before each deadline, so luck doesn't count. Captain = xP you gave up by not picking the model's top captain from your XI. XI = xP lost by your bench choices. Moves = projected points gained by your transfers over the next 3 GWs, minus hits."],
   luck: ["Luck", "Points you actually scored minus what your team was projected to score. Over a season this should even out near zero; a big positive number means things went your way."],
+  outcomes: ["Haul and blank chances", "From simulating each match thousands of times: whether he starts, how many his team scores and concedes, his share of goals and assists, clean sheets, bonus and cards. 10+ is a haul (20+ as captain). 2 or fewer is a blank. The likely range covers 8 of 10 simulated outcomes. Checked against 2025/26 and this season, these chances beat a simple bell curve around xP."],
   l4: ["L4 / L6", "Over the last 4 or 6 gameweeks. Recent form, which reacts faster to changes in role or team than whole-season numbers."],
 };
 function term(key, label) { return `<button type="button" class="term" data-term="${key}">${label ?? GLOSS[key]?.[0] ?? key}</button>`; }

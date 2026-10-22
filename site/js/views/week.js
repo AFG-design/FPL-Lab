@@ -90,6 +90,9 @@ function vWeek() {
   const capNote = me.capMine ? `Your choice, set in the planner. The model's pick would be ${esc(P[capPick(me.xi, g).cap].name)}.` : me.swapped
     ? `${esc(P[me.swapped].name)} projects ${f1(xpg(me.swapped, g) - xpg(me.cap, g))} more on clean-sheet odds, but that's too small a gap to give up ${esc(P[me.cap].name)}'s much higher ceiling.`
     : `${f1(capGap)} pts ahead of ${esc(P[me.vice].name)}.`;
+  const haul = i => P[i]?.dist?.[g]?.[0];
+  const capHaul = haul(me.cap) != null && haul(me.vice) != null
+    ? ` Chance of a captain haul (10+, so 20+ doubled): ${esc(P[me.cap].name)} ${Math.round(haul(me.cap) * 100)}%, ${esc(P[me.vice].name)} ${Math.round(haul(me.vice) * 100)}%.` : "";
 
   // chip
   const tc = D.chips.find(c => c.key === "3xc" && c.available && c.to <= 19);
@@ -132,7 +135,7 @@ function vWeek() {
       ${step(2, starts.length || benches.length ? "act" : "ok", "Lineup", vPill(lV), lineupTxt,
         `<p class="sub">Best XI projects <b>${f1(me.pts)}</b> pts including the captain. Bench order: ${me.bench.map(i => esc(P[i].name)).join(", ")}.${benchFirst ? ` First sub ${esc(P[benchFirst].name)} (${f1(xpg(benchFirst, g))}) vs weakest starter ${esc(P[weakest].name)} (${f1(xpg(weakest, g))}).` : ""}</p>`)}
       ${step(3, "act", "Captain", vPill(cV), `C ${esc(P[me.cap].name)} · V ${esc(P[me.vice].name)}`,
-        `<p class="sub">${capNote}${capEO != null ? ` ${capEO.toFixed(0)}% of managers around your rank captained ${esc(P[me.cap].name)} last week.` : ""}</p>
+        `<p class="sub">${capNote}${capHaul}${capEO != null ? ` ${capEO.toFixed(0)}% of managers around your rank captained ${esc(P[me.cap].name)} last week.` : ""}</p>
          <div class="capbars">${capOpts.map(i => `<div class="cb ${i === me.cap ? "top" : ""}"><span class="pname">${esc(P[i].name)}<br><span class="muted" style="font-weight:400;font-size:12.5px">${fxText(P[i], g)}</span></span><div class="track"><div class="fill" style="width:${xpg(i, g) / cmax * 100}%"></div></div><span class="val">${f1(xpg(i, g))}</span></div>`).join("")}</div>`)}
       ${step(4, chipNow ? "act" : "ok", "Chip", "", chipTxt, `<p class="sub">${chipSub}</p>`)}
       ${step(5, bad ? "act" : "ok", "Risks", bad ? `<span class="pill warn">${bad} to check</span>` : `<span class="pill good">Clear</span>`, bad ? risks.filter(r => r[0] === "bad" || r[0] === "warn").slice(0, 2).map(r => r[1]).join("<br>") : "No injury flags, price drops or minutes worries.",
