@@ -1,6 +1,14 @@
-# FPL Lab
+# FPL LAB
 
 A personal Fantasy Premier League assistant at **https://afg-design.github.io/FPL-Lab/**.
+
+![This week, desktop, dark mode](docs/screenshots/dashboard-desktop-dark.png)
+
+| Pitch view (phone) | Player detail (phone) |
+| --- | --- |
+| ![Planner pitch on a phone](docs/screenshots/pitch-phone.png) | ![Player detail sheet on a phone](docs/screenshots/player-detail-phone.png) |
+
+More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explorer](docs/screenshots/players-desktop.png), [fixtures](docs/screenshots/fixtures-desktop.png).
 
 - **This week:** a deadline checklist covering transfers, lineup, captain, chip and risks, each with a plain verdict (Strong, Marginal, Coin flip) and details on tap. A strategy switch picks Balanced, Play safe (track the managers around your rank) or Chase rank (differentials).
 - **Planner:** tap a player to make him captain or vice, bench or start him, lock him or replace him. **Re-plan** runs the optimiser in your browser (HiGHS, in `site/vendor/`) with your locks, bans, captains and hit limit.
@@ -27,7 +35,7 @@ A personal Fantasy Premier League assistant at **https://afg-design.github.io/FP
 | `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page |
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
-| `site/index.html` | The dashboard |
+| `site/` | The web app (see **Front end** below) |
 
 `.github/workflows/refresh.yml` rebuilds and publishes every 30 minutes. `priors.yml` refreshes `priors.json` every Monday. `crowd.yml` checks every 20 minutes and samples other managers' teams once per gameweek, just after the deadline.
 
@@ -40,9 +48,79 @@ A personal Fantasy Premier League assistant at **https://afg-design.github.io/FP
 
 ```
 pip install -r requirements.txt
-python3 build.py 8122679 site/data.json
-cd site && python3 -m http.server 8000
+python3 build.py 8122679 site/data.json   # fetches the FPL API and writes the data file (about 20 s)
+npm install                               # dev tools only: linting and checks
+npm run dev                               # serves site/ at http://localhost:8000
 ```
+
+`build.py` also updates files in `history/`; discard those changes (`git checkout -- history/`) unless you mean to commit them. The site needs no build step: GitHub Pages publishes `site/` exactly as it is.
+
+Before committing front-end changes:
+
+```
+npm test        # ESLint + Stylelint, then the whole-app check below
+npm run sw      # after adding or removing a script or stylesheet: refreshes the offline file list in sw.js
+```
+
+`npm run check` reads every script in page order to catch names that are used but never defined (or defined twice), confirms every file the page, manifest and service worker refer to exists, and that each one is cached for offline use.
+
+## Front end
+
+Plain HTML, CSS and JavaScript with no framework or bundler. The scripts are classic `<script defer>` files that share one global scope and load in the order listed in `index.html`; each view returns an HTML string and `render()` swaps it in.
+
+```
+site/
+  index.html              app shell: sidebar, top bar, status line, bottom nav, dialog
+  styles/
+    tokens.css            colours (dark default + light), type, spacing, motion, Inter @font-face
+    base.css              reset, typography, focus ring, reduced motion
+    layout.css            sidebar (≥900px), top bar, status line, bottom nav and More sheet (phones)
+    components.css        reusable pieces (below)
+    views.css             screen-specific styles
+  js/
+    core/state.js         app state, constants, formatting helpers
+    core/model.js         fixture lookups, projections, lineup and captain rules (same maths as the optimiser)
+    core/plan.js          plans and the sandbox: the one plan every screen uses
+    data/load.js          loads data.json, skeleton while loading, error state with retry, 5-minute refresh
+    data/github.js        one-tap refresh and plan sync (token stays in this browser)
+    components/ui.js      icon, FDRChip, StatBadge, skeleton, empty/error StateView
+    components/pitch.js   PlayerCard and PitchView
+    components/player-sheet.js  player detail (bottom sheet on phones)
+    components/explain.js tap-to-explain terms
+    shell/theme.js        dark/light toggle, saved per device
+    shell/nav.js          header stats, sidebar/bottom nav, hash routing, render() with a per-view error boundary
+    shell/events.js       event wiring after each render
+    views/*.js            one file per screen: week, planner, rivals, players, fixtures, stats, chips, review, model
+  vendor/                 HiGHS solver and the self-hosted Inter font (with licences)
+```
+
+Data fetching (`data/`) is kept apart from presentation (`components/`, `views/`); `build.py` and the `data.json` format are unchanged.
+
+**Components**
+
+| Component | Function | Notes |
+| --- | --- | --- |
+| FDRChip | `fdrChip(fixture, { gw })` | FPL's official difficulty: 1–2 green, 3 grey, 4–5 red. The number is always printed, so colour is never the only signal. `fdrKey()` draws the legend. |
+| StatBadge | `statBadge(label, value, { sub, tone })` | A labelled number with tabular figures. |
+| PlayerCard | `card(id, gw, opts)` | Kit, name, projected points, price, form, next two fixtures, captain/vice badge, injury flag, full spoken label. |
+| PitchView | `pitch(xi, bench, gw, opts)` | Formation rows on a stylised pitch, bench and key. |
+| DataTable | `.tablebox` + `table` | Sticky header (and sticky first column in the player explorer); keyboard-scrollable. |
+| Player detail | `openPlayer(id)` | Points history, upcoming fixtures, price change, key stats. |
+| States | `skeleton()`, `stateView({ kind, title, body, action })` | Loading, empty and error. |
+
+**Design tokens.** Change colours in `styles/tokens.css` only. `--accent` (pitch green) is for actions; `--hi` (armband yellow) is kept for captaincy, the deadline and the current selection. `--f1`…`--f5` are the difficulty colours. All text pairs meet WCAG AA in both themes.
+
+### Screenshots
+
+The images above live in `docs/screenshots/`. To retake them after a design change:
+
+```
+pip install playwright && python3 -m playwright install chromium
+npm run dev                         # keep this running
+python3 scripts/screenshots.py      # writes docs/screenshots/*.png
+```
+
+The script avoids the mini-league screen so other managers' names aren't published in the repository.
 
 ## Reliable automatic updates (backup scheduler)
 
