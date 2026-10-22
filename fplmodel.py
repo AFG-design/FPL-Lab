@@ -5,6 +5,7 @@ gameweeks starting at `as_of`, using only information from gameweeks before it.
 That makes the same code usable for live projections and for backtests.
 """
 import math, re, datetime as dt
+import numpy as np
 from collections import defaultdict
 
 P_UNKNOWN_WEEKS = 6  # 'Unknown return date': availability climbs over 6 gameweeks rather than 3
@@ -30,6 +31,12 @@ DEFAULTS = {
     "cs_k": 0.9,           # P(clean sheet) = exp(-cs_k * mu); real CS rates beat a plain Poisson
     "cal_slope": 0.86,     # final calibration: xP = slope * raw + intercept * P(appears)
     "cal_int": 0.33,
+    "sim_sigma": 0.5,      # uncertainty in each player's true scoring rate (log scale) in the simulation
+    "sim_match": True,     # shift simulated scores so their average equals the projection
+    "sim": 0,              # simulated outcomes per fixture for points distributions (0 = off; build.py uses 4000).
+                           # 2025/26 + 2026/27 check: chance of 10+ / 6+ / 2-or-fewer error 0.111 vs 0.119 for a normal
+                           # curve on the variance formula (no model 0.122). The formula still fits the spread better,
+                           # so optimise.variance stays for Play safe / Chase rank.
     "use_flags": True,     # use FPL injury / availability flags
     "mkt_w": 0.7,          # weight of betting-market team ratings vs xG ratings (geometric blend); backtest GW3-7
     "direct_w": 0.85,      # weight of a fixture's own market expected goals, when its odds exist
@@ -240,6 +247,60 @@ def market_ratings(ctx, as_of, P):
     return rating, league
 
 
+def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90, mu_f, mu_a, sv_rate, p_dc, b_exp, yc90):
+    """One fixture, N simulated outcomes: (raw points, appeared) arrays. Parts follow project()."""
+    u = rng.random(N)
+    start = u < ps
+    sub = (u >= ps) & (u < ps + pb)
+    full = start & (rng.random(N) < p60s)
+    f = np.where(full, min(1.0, max(60.0, m_start) / 90), np.where(start, 0.5, np.where(sub, m_sub / 90, 0.0)))
+    m_exp = (ps * m_start + pb * m_sub) / 90
+    if f.mean() > 0:
+        f = f * (m_exp / f.mean())  # same expected minutes as the projection
+    if P["sim_sigma"]:  # we only estimate his true scoring rate: draw it per run
+        q = np.exp(P["sim_sigma"] * rng.standard_normal(N) - P["sim_sigma"] ** 2 / 2)
+        g90, a90 = g90 * q, a90 * q
+    gf = rng.poisson(mu_f, N)
+    ga = rng.poisson(P["cs_k"] * mu_a, N)
+    goals = rng.binomial(gf, np.clip(f * g90 / max(mu_f, 1e-6), 0, 0.95))
+    assists = rng.binomial(gf - goals, np.clip(f * a90 / max(mu_f - np.mean(g90) * f.mean(), 0.05), 0, 0.95))
+    appeared = start | sub
+    pts = np.where(appeared, scoring["short_play"], 0) + np.where(full, scoring["long_play"] - scoring["short_play"], 0)
+    pts = pts + goals * scoring["goals_scored"][pos] + assists * scoring["assists"]
+    cs = full & (ga == 0)
+    pts = pts + cs * scoring["clean_sheets"][pos]
+    if scoring["goals_conceded"][pos]:
+        pts = pts + scoring["goals_conceded"][pos] * (rng.binomial(ga, np.clip(f, 0, 1)) // 2)
+    saves3 = np.zeros(N)
+    if pos == "GKP":
+        saves3 = rng.poisson(sv_rate * f) // 3
+        pts = pts + saves3 * scoring["saves"]
+    if pos != "GKP":
+        pts = pts + (full & (rng.random(N) < p_dc)) * scoring["defensive_contribution"][pos]
+    # bonus: goes to the players with returns; scaled so its average matches the projection
+    proxy = np.where(appeared, 0.3 + 3 * goals + 2 * assists + (2 * cs if pos in ("GKP", "DEF") else 0) + 0.5 * saves3, 0.0)
+    if proxy.mean() > 0 and b_exp > 0:
+        b = np.minimum(3.0, proxy * (b_exp / proxy.mean()))
+        b = np.minimum(3.0, b * (b_exp / max(b.mean(), 1e-9)))
+        b = np.floor(b) + (rng.random(N) < (b - np.floor(b)))
+        pts = pts + b
+    pts = pts - (rng.random(N) < np.clip(yc90 * f, 0, 0.5))
+    return pts.astype(float), appeared
+
+
+def _dist(samples, appeared=None, xp=None, rng=None):
+    """Summary of a simulated points distribution (whole-number FPL scores). With xp, the runs where
+    he plays gain or lose whole points at random so the average matches the projection."""
+    if xp is not None and appeared is not None and appeared.any():
+        d = (xp - samples.mean()) / appeared.mean()
+        step = np.floor(d) + (rng.random(len(samples)) < d - np.floor(d))
+        samples = samples + np.where(appeared, step, 0.0)
+    q = np.percentile(samples, [10, 90])
+    return {"sd": round(float(samples.std()), 2), "p10": round(float((samples >= 10).mean()), 3),
+            "p6": round(float((samples >= 6).mean()), 3), "blank": round(float((samples <= 2).mean()), 3),
+            "q10": round(float(q[0]), 1), "q90": round(float(q[1]), 1)}
+
+
 def project(ctx, as_of, horizon=6, params=None):
     P = dict(DEFAULTS, **(params or {}))
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
@@ -412,13 +473,14 @@ def project(ctx, as_of, horizon=6, params=None):
         ch_now = e.get("chance_of_playing_next_round")
         ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
-        per_gw, detail = {}, {}
+        per_gw, detail, dist = {}, {}, {}
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
             av = availability(e, k, ko, ret) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
             if not P["use_flags"] and P["hist_flags"] and g in ctx.get("out", {}).get(pid, ()):
                 av = 0.0  # backtests: the injury flag that was showing at that deadline
             comp = defaultdict(float)
+            sim_pts = sim_app = None
             cong = ctx.get("congestion", {}).get((tid, g), 1.0)
             if returning:  # managers ease players back in: fewer starts, more bench appearances
                 ramp = P["return_ramp"]
@@ -448,13 +510,25 @@ def project(ctx, as_of, horizon=6, params=None):
                 comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
                 comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
                 comp["cards"] -= yc90 * m / 90
+                if P["sim"] and (ps + pb) > 0.01:
+                    rng = np.random.default_rng(pid * 1000 + g * 10 + len(detail))
+                    bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
+                    sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
+                                            p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
+                                            P["assist_mult"] * xa90 * atk, mu_f, mu_a,
+                                            sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0, p_dc, bexp, yc90)
+                    sim_pts = sp_ if sim_pts is None else sim_pts + sp_
+                    sim_app = sa_.astype(float) if sim_app is None else sim_app + sa_
             raw = sum(comp.values())
             nfx = len(upcoming[tid].get(g, []))
             pplay = min(1.0, (p_start + p_sub) * av)
             per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
             detail[g] = dict(comp)
+            if sim_pts is not None:  # same calibration as the projection, applied to every simulated outcome
+                dist[g] = _dist(sim_pts, sim_app > 0, per_gw[g] if P["sim_match"] else None,
+                                np.random.default_rng(pid * 7 + g))
         out[pid] = {
-            "xp": per_gw, "detail": detail, "xg90": xg90, "xa90": xa90, "dc90": dc90, "p_dc": p_dc,
+            "xp": per_gw, "detail": detail, "dist": dist, "xg90": xg90, "xa90": xa90, "dc90": dc90, "p_dc": p_dc,
             "p_start": p_start, "p_sub": p_sub, "m_start": m_start,
             "xmin": (p_start * m_start + p_sub * m_sub) * (availability(e, 0) if P["use_flags"] else 1.0),
             "has_prior": bool(pr),

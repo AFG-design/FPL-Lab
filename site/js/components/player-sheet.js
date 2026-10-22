@@ -81,6 +81,7 @@ function openPlayer(id) {
 
     <section class="ph-sec"><h3>Key stats</h3>
       <div class="brk">${tile("Season pts", p.pts)}${tile("Goals, assists", `${p.goals}, ${p.assists}`)}${tile("xG, xA", `${p.xg.toFixed(1)}, ${p.xa.toFixed(1)}`)}${tile("xGI/90 L4", p.xgi90_4.toFixed(2))}${tile("Starts", `${Math.round(p.p_start * 100)}%`)}${tile("Owned", `${p.own.toFixed(1)}%`)}${p.last ? tile(`${p.last.season} pts`, p.last.pts) : ""}${sq ? tile("Bought at", money(sq.buy)) : ""}</div>
+      ${outcomeTiles(p, g, tile)}
       <details><summary>GW${g} projection breakdown</summary>
         <div class="brk dbody">${Object.entries(d).filter(([, v]) => Math.abs(v) >= 0.01).map(([k, v]) => tile(labels[k] || k, v.toFixed(2))).join("")}</div></details>
       ${p.us ? `<details><summary>Shots and chances per 90 (last 4 GWs)</summary><div class="brk dbody">
@@ -104,3 +105,12 @@ function openPlayer(id) {
 }
 $("#dlg").addEventListener("click", e => { if (e.target.id === "dlg") e.target.close(); });
 $("#dlg").addEventListener("close", () => $("#dlg").removeAttribute("aria-labelledby"));
+
+// simulated outcomes for one gameweek: chance of a haul (10+) and a blank (2 or fewer), and the likely range
+function outcomeTiles(p, g, tile) {
+  const d = p.dist?.[g];
+  if (!d) return "";
+  const pc = x => x < 0.01 ? "<1%" : Math.round(x * 100) + "%";
+  return `<h3 class="ph-sub">GW${g} ${term("outcomes", "outcomes")}</h3>
+      <div class="brk">${tile("10+ pts", pc(d[0]))}${tile("6+ pts", pc(d[1]))}${tile("2 or fewer", pc(d[2]))}${tile("Likely range", `${Math.round(d[3])}–${Math.round(d[4])}`)}</div>`;
+}

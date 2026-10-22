@@ -99,7 +99,7 @@ except Exception as ex:
     print("europe.json not used:", ex)
 ctx["congestion"] = congestion
 elements, teams = ctx["elements"], ctx["teams"]
-res = project(ctx, next_gw, HORIZON) if next_gw else None
+res = project(ctx, next_gw, HORIZON, {"sim": 4000}) if next_gw else None
 proj = res["players"] if res else {}
 proj_gws = res["gws"] if res else []
 upcoming = res["upcoming"] if res else {}
@@ -265,6 +265,8 @@ for pid, e in elements.items():
         "xp": xp, "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),
         "xp_detail": {k: round(v * slope, 2) for k, v in det.items()},
+        # simulated outcomes per gameweek: [chance of 10+, chance of 6+, chance of 2 or fewer, low (10th pct), high (90th pct)]
+        "dist": {g: [d["p10"], d["p6"], d["blank"], d["q10"], d["q90"]] for g, d in r.get("dist", {}).items()},
         "price_proj": [float(x["projected_percent"]) for x in (e.get("price_change_projections") or [])],
         "tin": e["transfers_in_event"], "tout": e["transfers_out_event"],
         "pen": e.get("penalties_order"), "ep_fpl": float(e["ep_next"] or 0),

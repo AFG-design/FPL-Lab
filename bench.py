@@ -93,7 +93,13 @@ def pool_rows(ctx, k, pred):
     return rows
 
 
-def run_current(params, gws=None):
+_CUR = {}
+
+
+def current_ctx():
+    """This season's data from raw/ (written by a local build), prepared once."""
+    if _CUR:
+        return _CUR["ctx"]
     raw = os.path.join(HERE, "raw")
     boot = json.load(open(f"{raw}/bootstrap.json"))
     fixtures = json.load(open(f"{raw}/fixtures.json"))
@@ -104,9 +110,15 @@ def run_current(params, gws=None):
         market = json.load(open(os.path.join(HERE, "odds", "odds.json")))
     except Exception:
         market = None
-    ctx = prepare(boot, fixtures, live, priors, market)
+    _CUR["ctx"] = prepare(boot, fixtures, live, priors, market)
+    _CUR["cur"] = cur
+    return _CUR["ctx"]
+
+
+def run_current(params, gws=None):
+    ctx = current_ctx()
     out = {}
-    for k in (gws or range(3, cur + 1)):
+    for k in (gws or range(3, _CUR["cur"] + 1)):
         res = project(ctx, k, 1, dict(params, use_flags=False))["players"]
         out[k] = pool_rows(ctx, k, {pid: r["xp"].get(k, 0.0) for pid, r in res.items()})
     return out
