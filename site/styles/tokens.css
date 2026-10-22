@@ -1,0 +1,114 @@
+/* Design tokens. "Pitch at night": deep green-black surfaces, pitch green for actions,
+   armband yellow reserved for the captain, the deadline and the thing you've selected.
+   Dark is the default; [data-theme="light"] switches the whole set. */
+
+:root {
+  color-scheme: dark;
+
+  /* surfaces */
+  --bg: #0f1a16;
+  --surface: #15221c;
+  --raised: #1b2b24;
+  --sunk: #0b1411;
+  --line: #24352d;
+  --line-strong: #33493e;
+
+  /* text */
+  --fg: #e7efe9;
+  --muted: #93a69a;
+  --faint: #6c8075;
+
+  /* brand */
+  --accent: #2fa36b;
+  --accent-hover: #38b878;
+  --accent-fg: #04140b;
+  --accent-text: #5ccf94;
+  --accent-soft: rgb(47 163 107 / 14%);
+  --hi: #ffd23f;
+  --hi-fg: #1d1600;
+  --hi-text: #ffd23f;
+  --hi-soft: rgb(255 210 63 / 14%);
+
+  /* status */
+  --good: #4fcf8a;
+  --warn: #f2b33d;
+  --bad: #ff6b5e;
+  --info: #6fb3ff;
+
+  /* fixture difficulty: 1–2 green, 3 grey, 4–5 red */
+  --f1: #2fb36d; --f1-fg: #04140b;
+  --f2: #93d9ad; --f2-fg: #04140b;
+  --f3: #4b5852; --f3-fg: #fff;
+  --f4: #ff9d8f; --f4-fg: #2a0703;
+  --f5: #c8352c; --f5-fg: #fff;
+
+  /* the pitch */
+  --turf: #123d29;
+  --turf-2: #164831;
+  --chalk: rgb(255 255 255 / 20%);
+  --floodlight: rgb(190 255 220 / 9%);
+
+  /* type */
+  --font: "Inter", system-ui, -apple-system, "Segoe UI", roboto, sans-serif;
+  --fs-xs: 11.5px;
+  --fs-sm: 13px;
+  --fs-md: 14.5px;
+  --fs-lg: 17px;
+  --fs-xl: 22px;
+  --fs-2xl: 28px;
+  --fs-num: 26px;
+
+  /* shape and space */
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+  --gap: 16px;
+  --sidebar: 232px;
+  --shadow: 0 10px 30px rgb(0 0 0 / 35%);
+
+  /* motion */
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --t-fast: 150ms;
+  --t: 200ms;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3f6f4;
+  --surface: #fff;
+  --raised: #fff;
+  --sunk: #e9efeb;
+  --line: #d7e0da;
+  --line-strong: #bccbc1;
+  --fg: #0f1a16;
+  --muted: #55675c;
+  --faint: #8a998f;
+  --accent: #17804e;
+  --accent-hover: #126c41;
+  --accent-fg: #fff;
+  --accent-text: #13703f;
+  --accent-soft: rgb(23 128 78 / 10%);
+  --hi: #ffd23f;
+  --hi-fg: #1d1600;
+  --hi-text: #856000;
+  --hi-soft: rgb(255 210 63 / 28%);
+  --good: #157a45;
+  --warn: #9a5d00;
+  --bad: #c2352b;
+  --info: #1f63b5;
+  --f3: #56635c;
+  --turf: #1b6440;
+  --turf-2: #1f7049;
+  --chalk: rgb(255 255 255 / 35%);
+  --floodlight: rgb(255 255 255 / 10%);
+  --shadow: 0 10px 30px rgb(15 26 22 / 14%);
+}
+
+/* Inter, self-hosted so it works offline (SIL Open Font License, see vendor/fonts/LICENSE-Inter.txt) */
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("../vendor/fonts/inter-var-latin.woff2") format("woff2");
+}

@@ -1,56 +1,64 @@
 <!doctype html>
-<html lang="en-GB">
+<html lang="en-GB" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>BACK2BACK FPL Lab</title>
+<title>FPL LAB</title>
+<script>
+  // Set the saved theme before anything paints, so there's no flash of the wrong colours.
+  try { const t = localStorage.getItem("fpl.theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#1f6b45">
+<meta name="theme-color" content="#0f1a16">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="FPL Lab">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="styles/app.css">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FPL LAB">
+<link rel="preload" href="vendor/fonts/inter-var-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles/tokens.css">
+<link rel="stylesheet" href="styles/base.css">
+<link rel="stylesheet" href="styles/layout.css">
+<link rel="stylesheet" href="styles/components.css">
+<link rel="stylesheet" href="styles/views.css">
 </head>
 <body>
-<header>
-  <div class="wrap">
-    <div class="hd">
-      <div class="brand"><h1 id="teamName">FPL Lab</h1><span class="sub" id="mgr">Loading your squad…</span></div>
-      <div class="score" id="score"></div>
+<a class="skip" href="#app">Skip to content</a>
+<div class="shell">
+  <aside class="sidebar" aria-label="FPL LAB">
+    <div class="wordmark" aria-hidden="true"><span class="wm-mark"></span>FPL LAB</div>
+    <nav id="sidenav" aria-label="Sections"></nav>
+    <div class="side-foot">
+      <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false"></button>
     </div>
-    <nav class="tabs" id="tabs" aria-label="Sections">
-      <button data-v="week">This week</button>
-      <button data-v="planner">Planner</button>
-      <button data-v="rivals">Rivals</button>
-      <button data-v="players">Players</button>
-      <div class="morewrap"><button id="moreTop" aria-haspopup="true" aria-expanded="false">More ▾</button>
-        <div class="moremenu" id="moreMenu" hidden></div></div>
-    </nav>
+  </aside>
+
+  <div class="maincol">
+    <header class="topbar">
+      <div class="team">
+        <span class="wordmark mobile-only" aria-hidden="true"><span class="wm-mark"></span>FPL LAB</span>
+        <h1 id="teamName">Your team</h1>
+        <span class="sub" id="mgr">Loading your squad</span>
+      </div>
+      <dl class="score" id="score"></dl>
+      <button class="theme-toggle icon-only mobile-only" type="button" data-theme-toggle aria-pressed="false"></button>
+    </header>
+    <div class="status" id="meta" aria-live="polite"></div>
+    <main id="app" tabindex="-1"></main>
+    <footer>FPL LAB uses the public Fantasy Premier League API. Projections are estimates, not guarantees.</footer>
   </div>
-</header>
-<main class="wrap">
-  <div class="meta" id="meta"></div>
-  <div id="app" style="margin-top:14px"><p class="empty">Loading the latest FPL data…</p></div>
-</main>
-<footer class="wrap">FPL Lab uses the public Fantasy Premier League API. Projections are estimates, not guarantees.</footer>
-<nav class="bottomnav" id="bottomnav" aria-label="Sections">
-  <button data-v="week"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
-  <button data-v="planner"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8v3H8zM6 5H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1v3H6zM8 12h8v2H8zm0 4h5v2H8z"/></svg><span>Plan</span></button>
-  <button data-v="rivals"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v3a5 5 0 0 1-4 4.9V15h3v2H8v-2h3v-3.1A5 5 0 0 1 7 7zM4 5h2v2a3 3 0 0 1-2-2.8zm16 0a3 3 0 0 1-2 2.8V5zM9 19h6v2H9z"/></svg><span>Rivals</span></button>
-  <button data-v="players"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0v1H5z"/></svg><span>Players</span></button>
-  <button data-v="more" id="moreBottom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg><span>More</span></button>
-</nav>
+</div>
+
+<nav class="bottomnav" id="bottomnav" aria-label="Sections"></nav>
 <div class="sheet" id="moreSheet" hidden><div class="sheetbody" role="menu" aria-label="More sections"></div></div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
 <script src="js/core/state.js" defer></script>
 <script src="js/core/model.js" defer></script>
+<script src="js/components/ui.js" defer></script>
 <script src="js/data/load.js" defer></script>
+<script src="js/shell/theme.js" defer></script>
 <script src="js/shell/nav.js" defer></script>
 <script src="js/components/pitch.js" defer></script>
 <script src="js/core/plan.js" defer></script>

@@ -1,14 +1,22 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v5";
+const CACHE = "fpl-lab-v6";
 const SHELL = [
   "./",
   "index.html",
   "manifest.webmanifest",
   "icon-192.png",
   "icon-512.png",
+  "vendor/fonts/inter-var-latin.woff2",
+  "styles/tokens.css",
+  "styles/base.css",
+  "styles/layout.css",
+  "styles/components.css",
+  "styles/views.css",
   "js/core/state.js",
   "js/core/model.js",
+  "js/components/ui.js",
   "js/data/load.js",
+  "js/shell/theme.js",
   "js/shell/nav.js",
   "js/components/pitch.js",
   "js/core/plan.js",
@@ -25,8 +33,7 @@ const SHELL = [
   "js/shell/events.js",
   "js/components/explain.js",
   "js/data/github.js",
-  "js/main.js",
-  "styles/app.css"
+  "js/main.js"
 ];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {

@@ -2,6 +2,7 @@
 /* ---------- load ---------- */
 async function fetchData() {
   const r = await fetch("data.json?t=" + Date.now(), { cache: "no-store" });
+  if (!r.ok) throw new Error("data.json returned " + r.status);
   return r.json();
 }
 function ingest(d) {
@@ -14,8 +15,18 @@ function ingest(d) {
   syncPull();
 }
 async function load() {
+  render();                                   // highlights the current section in the nav
+  if (!D) $("#app").innerHTML = skeleton();
   try { ingest(await fetchData()); } catch (e) {
-    $("#app").innerHTML = `<p class="empty">The data file could not be loaded. Reload the page to try again.</p>`; return;
+    if (D) return;                            // keep showing what we have
+    $("#app").innerHTML = stateView({
+      kind: "error", title: "The latest data didn't load",
+      body: navigator.onLine === false
+        ? "You're offline and there's no saved copy on this device yet. Connect and try again."
+        : "The data file couldn't be reached. This is usually a brief hiccup while the site updates.",
+      action: '<button class="btn primary" id="retryLoad">Try again</button>' });
+    $("#retryLoad").onclick = load;
+    return;
   }
   header(); render();
 }

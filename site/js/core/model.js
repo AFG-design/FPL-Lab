@@ -5,11 +5,10 @@ function defClass(x) { return x <= 0.85 ? "d1" : x <= 1.1 ? "d2" : x <= 1.4 ? "d
 const fxFor = (tid, g) => T[tid].fx[g] || [];
 const oppTxt = x => x.home ? T[x.opp].short : T[x.opp].short.toLowerCase();
 function fxChips(p, from, n = 3) {
-  const gs = GWS.filter(g => g >= from).slice(0, n);
-  return gs.map(g => {
+  // official FPL difficulty, with the number printed on each chip (see fdrChip)
+  return GWS.filter(g => g >= from).slice(0, n).map(g => {
     const fx = fxFor(p.team, g);
-    if (!fx.length) return `<span class="d5">—</span>`;
-    return fx.map(x => `<span class="${(p.pos === "GKP" || p.pos === "DEF") ? defClass(x.xga) : attClass(x.xgf)}" title="GW${g}: ${T[x.opp].name} ${x.home ? "home" : "away"}">${oppTxt(x)}</span>`).join("");
+    return fx.length ? fx.map(x => fdrChip(x, { gw: g, size: "xs" })).join("") : blankChip(g);
   }).join("");
 }
 const fxText = (p, g) => fxFor(p.team, g).map(x => `${T[x.opp].short} (${x.home ? "H" : "A"})`).join(" + ") || "Blank";

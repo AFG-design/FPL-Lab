@@ -7,11 +7,21 @@
     "keyframes-name-pattern": null,
     "no-descending-specificity": null,
     "declaration-block-single-line-max-declarations": null,
-    "value-keyword-case": ["lower", { "camelCaseSvgKeywords": true }],
+    "value-keyword-case": null,
     "font-family-name-quotes": null,
     "media-feature-range-notation": null,
     "color-function-notation": null,
     "alpha-value-notation": null,
-    "selector-not-notation": null
+    "selector-not-notation": null,
+    "rule-empty-line-before": null,
+    "custom-property-empty-line-before": null,
+    "property-no-vendor-prefix": [
+      true,
+      {
+        "ignoreProperties": [
+          "text-size-adjust"
+        ]
+      }
+    ]
   }
 }

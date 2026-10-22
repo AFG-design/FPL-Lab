@@ -6,7 +6,8 @@
     "dev": "python3 -m http.server 8000 --directory site",
     "lint": "eslint site/js && stylelint \"site/styles/**/*.css\"",
     "check": "node scripts/check.mjs",
-    "test": "npm run lint && npm run check"
+    "test": "npm run lint && npm run check",
+    "sw": "node scripts/sw-shell.mjs"
   },
   "devDependencies": {
     "eslint": "^9.14.0",
