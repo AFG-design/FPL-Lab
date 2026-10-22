@@ -12,6 +12,11 @@ XI_MAX = {"GKP": 1, "DEF": 5, "MID": 5, "FWD": 3}
 POOL = {"GKP": 14, "DEF": 40, "MID": 45, "FWD": 25}
 
 
+def _k(k, lam):
+    """Chase (lam < 0) only rewards differentials; it never pushes you to drop what the field owns."""
+    return max(0.0, k) if lam < 0 else k
+
+
 def variance(pos, x):
     """Variance of a player's points for one fixture, fitted on GW3-7 backtest residuals."""
     if pos == "MID":
@@ -108,7 +113,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
         obj.append(d * pulp.lpSum(xp[i, w] * (xi[i][w] + cp[i][w] + bench_w * (sq[i][w] - xi[i][w])) for i in pool))
         if eo is not None and lam and w < eo_weeks:  # ownership data goes stale after a week or two
             obj.append(-lam * d * pulp.lpSum(
-                variance(players[i]["pos"], xp[i, w]) * (xi[i][w] * (1 - 2 * eo.get(i, 0.0)) + cp[i][w] * (3 - 2 * eo.get(i, 0.0)))
+                variance(players[i]["pos"], xp[i, w]) * (xi[i][w] * _k(1 - 2 * eo.get(i, 0.0), lam) + cp[i][w] * _k(3 - 2 * eo.get(i, 0.0), lam))
                 for i in pool if xp[i, w] > 0))
         obj.append(-d * hit * hits[w])
     obj.append(ft_value * ft[len(gws)])

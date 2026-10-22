@@ -55,8 +55,10 @@
         let cx = d * (x - benchW * x), cc = d * x, cs = d * benchW * x;
         if (inp.eo && inp.lam && w < eoW && x > 0) {
           const v = variance(P[i].pos, x), e = inp.eo[i] || 0;
-          cx -= inp.lam * d * v * (1 - 2 * e);
-          cc -= inp.lam * d * v * (3 - 2 * e);
+          const kx = 1 - 2 * e, kc = 3 - 2 * e;
+          // chase (lam < 0) only rewards differentials, never dropping what the field owns
+          cx -= inp.lam * d * v * (inp.lam < 0 ? Math.max(0, kx) : kx);
+          cc -= inp.lam * d * v * (inp.lam < 0 ? Math.max(0, kc) : kc);
         }
         if (cx) obj.push(term(cx, xi(i, w)));
         if (cc) obj.push(term(cc, cp(i, w)));
