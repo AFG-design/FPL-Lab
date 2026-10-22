@@ -24,6 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install the optimiser
+        run: pip install -r requirements.txt
       - name: Build data.json from the FPL API
         env:
           FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}

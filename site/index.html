@@ -58,6 +58,7 @@ header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var
 .tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px 9px;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .tabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--turf-2)}
 .meta{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:12.5px;color:var(--muted);padding-block:6px 0}
+a.btn{text-decoration:none;color:inherit;display:inline-block}
 .btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600}
 .btn:hover{border-color:var(--turf-2)}
 .btn.primary{background:var(--turf-2);border-color:var(--turf-2);color:#fff}
@@ -78,10 +79,10 @@ section.view{display:grid;gap:20px}
 
 /* pitch */
 .pitchwrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
-.pitch{position:relative;background:repeating-linear-gradient(180deg,var(--turf) 0 56px,var(--turf-2) 56px 112px);padding:18px 8px 14px;display:grid;gap:14px}
+.pitch{grid-template-columns:minmax(0,1fr);position:relative;background:repeating-linear-gradient(180deg,var(--turf) 0 56px,var(--turf-2) 56px 112px);padding:18px 8px 14px;display:grid;gap:14px}
 .pitch::before{content:"";position:absolute;inset:8px;border:2px solid var(--chalk);border-radius:4px;pointer-events:none}
 .pitch::after{content:"";position:absolute;left:50%;top:8px;width:150px;height:60px;transform:translateX(-50%);border:2px solid var(--chalk);border-top:0;pointer-events:none}
-.row{position:relative;display:flex;justify-content:center;gap:6px;z-index:1;flex-wrap:nowrap}
+.row{min-width:0;position:relative;display:flex;justify-content:center;gap:6px;z-index:1;flex-wrap:nowrap}
 .bench{background:var(--sunk);padding:12px 8px;display:flex;justify-content:center;gap:6px;flex-wrap:nowrap}
 .bench .lbl{align-self:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px}
 .pc{position:relative;width:96px;flex:0 1 96px;min-width:0;background:var(--surface);color:var(--fg);border-radius:8px;padding:6px 5px 5px;text-align:center;border:0;box-shadow:0 1px 0 rgba(0,0,0,.18)}
@@ -168,6 +169,7 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .gwbars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted);justify-content:flex-end;height:100%}
 .gwbars i{display:block;width:100%;background:var(--turf-2);border-radius:3px 3px 0 0}
 svg text{fill:var(--muted);font-family:var(--body);font-size:11px}
+.chart text{font-size:14px}
 .empty{padding:40px 0;text-align:center;color:var(--muted)}
 .note{font-size:13px;color:var(--muted)}
 details summary{cursor:pointer;font-weight:600}
@@ -176,10 +178,50 @@ body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* ---- v2 additions ---- */
+.steps{display:grid;gap:14px}
+.stepcard{display:grid;grid-template-columns:40px minmax(0,1fr);gap:0 14px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.stepcard .sbody{display:grid;gap:6px;min-width:0}
+.stepcard .no{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:19px;background:var(--sunk);color:var(--muted)}
+.stepcard.act .no{background:var(--armband);color:var(--armband-fg)}
+.stepcard.ok .no{background:var(--good);color:#fff}
+.stepcard h3{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.stepcard .do{font-size:16px;font-weight:600}
+.stepcard .sub{font-size:13.5px;color:var(--muted)}
+.moves{display:grid;gap:6px;margin:6px 0 2px}
+.move{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;font-weight:600}
+.move .out{color:var(--bad)} .move .in{color:var(--good)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-top:8px}
+.opt{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface);text-align:left}
+.opt b{display:block;font-family:var(--display);font-size:20px;font-variant-numeric:tabular-nums}
+.opt.sel{border-color:var(--armband);box-shadow:inset 0 0 0 1px var(--armband)}
+.opt span{font-size:12px;color:var(--muted)}
+.gwsel{display:flex;gap:6px;flex-wrap:wrap}
+.gwsel button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-family:var(--display);font-weight:700;font-size:15px;min-width:64px;text-align:left}
+.gwsel button small{display:block;font-family:var(--body);font-weight:500;font-size:11.5px;color:var(--muted)}
+.gwsel button[aria-pressed="true"]{background:var(--fg);color:var(--surface);border-color:var(--fg)}
+.gwsel button[aria-pressed="true"] small{color:var(--surface);opacity:.8}
+.pc.sel{outline:3px solid var(--armband);outline-offset:1px}
+.pc.newin{box-shadow:inset 0 -3px 0 var(--good)}
+.plansum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.cand{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px 12px;align-items:center;padding:8px 6px;border-bottom:1px solid var(--line);width:100%;background:none;border-left:0;border-right:0;border-top:0;text-align:left}
+.cand:hover{background:var(--sunk)}
+.cand .d{font-size:12px;color:var(--muted);grid-column:1/4}
+.cand b{font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums;text-align:right}
+.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.s1{stroke:var(--turf-2);background:var(--turf-2)} .s2{stroke:var(--armband);background:var(--armband)} .s3{stroke:var(--info);background:var(--info)} .s4{stroke:var(--bad);background:var(--bad)}
+.tag{font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;background:var(--sunk);color:var(--muted)}
+.minibar{display:inline-block;height:8px;border-radius:4px;background:var(--turf-2);vertical-align:middle}
+.minibar.neg{background:var(--bad)}
+.statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+footer{padding-block:0 40px;font-size:12.5px;color:var(--muted)}
 </style>
 </head>
 <body>
-
 <header>
   <div class="wrap">
     <div class="hd">
@@ -187,74 +229,98 @@ img{max-width:100%}
       <div class="score" id="score"></div>
     </div>
     <nav class="tabs" role="tablist" id="tabs">
-      <button role="tab" data-v="team" aria-selected="true">My team</button>
-      <button role="tab" data-v="transfers" aria-selected="false">Transfers</button>
-      <button role="tab" data-v="captain" aria-selected="false">Captain</button>
-      <button role="tab" data-v="fixtures" aria-selected="false">Fixtures</button>
-      <button role="tab" data-v="players" aria-selected="false">Players</button>
-      <button role="tab" data-v="chips" aria-selected="false">Chips</button>
-      <button role="tab" data-v="prices" aria-selected="false">Prices</button>
-      <button role="tab" data-v="season" aria-selected="false">Season</button>
-      <button role="tab" data-v="method" aria-selected="false">Model</button>
+      <button role="tab" data-v="week">This week</button>
+      <button role="tab" data-v="planner">Planner</button>
+      <button role="tab" data-v="fixtures">Fixtures</button>
+      <button role="tab" data-v="players">Players</button>
+      <button role="tab" data-v="stats">Stats</button>
+      <button role="tab" data-v="chips">Chips</button>
+      <button role="tab" data-v="season">Season</button>
+      <button role="tab" data-v="model">Model</button>
     </nav>
   </div>
 </header>
-
 <main class="wrap">
   <div class="meta" id="meta"></div>
-  <div id="app"><p class="empty">Loading the latest FPL data…</p></div>
+  <div id="app" style="margin-top:14px"><p class="empty">Loading the latest FPL data…</p></div>
 </main>
-
+<footer class="wrap">FPL Lab uses the public Fantasy Premier League API. Projections are estimates, not guarantees.</footer>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
-
 <script>
-const REPO = "AFG-design/FPL-Lab"; // owner/name, used for the refresh link
-const S = { view: "team", pitch: "best", fxMode: "att", sort: "xp5", dir: -1, pos: "ALL", team: "ALL", maxp: "", q: "", cmp: [] };
-let D, P, T, GWS, MINE;
+const REPO = "AFG-design/FPL-Lab";
+const S = { view: "week", plan: null, fxMode: "att", sort: "xp5", dir: -1, pos: "ALL", team: "ALL", maxp: "", q: "", cmp: [],
+  stSort: "xgi90_4", stPos: "ATT", trendTeam: null, pitch: "plan" };
+let D, P, T, GWS, PG, MINE, SB;
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const f1 = x => (Math.round(x * 10) / 10).toFixed(1);
+const f1 = x => (Math.round((x || 0) * 10) / 10).toFixed(1);
+const sgn = x => (x > 0 ? "+" : x < 0 ? "−" : "±") + f1(Math.abs(x));
 const money = x => "£" + Number(x).toFixed(1) + "m";
 const rankFmt = n => n == null ? "–" : n.toLocaleString("en-GB");
-try { const v = localStorage.getItem("fpl.view"); if (v) S.view = v; } catch (e) {}
-if (location.hash && /^#[a-z]+$/.test(location.hash)) S.view = location.hash.slice(1);
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+const VIEWS = ["week", "planner", "fixtures", "players", "stats", "chips", "season", "model"];
+{ const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
+if (location.hash && VIEWS.includes(location.hash.slice(1))) S.view = location.hash.slice(1);
 
+/* ---------- helpers ---------- */
 function attClass(x) { return x >= 1.9 ? "d1" : x >= 1.5 ? "d2" : x >= 1.15 ? "d3" : x >= 0.85 ? "d4" : "d5"; }
 function defClass(x) { return x <= 0.85 ? "d1" : x <= 1.1 ? "d2" : x <= 1.4 ? "d3" : x <= 1.75 ? "d4" : "d5"; }
-function fxFor(tid, g) { return (T[tid].fx[g] || []); }
-function fxLabel(fx) { return T[fx.opp].short + (fx.home ? "" : "") ; }
-function playerFxChips(p, n = 3) {
-  return GWS.slice(0, n).map(g => {
+const fxFor = (tid, g) => T[tid].fx[g] || [];
+const oppTxt = x => x.home ? T[x.opp].short : T[x.opp].short.toLowerCase();
+function fxChips(p, from, n = 3) {
+  const gs = GWS.filter(g => g >= from).slice(0, n);
+  return gs.map(g => {
     const fx = fxFor(p.team, g);
     if (!fx.length) return `<span class="d5">—</span>`;
-    return fx.map(x => {
-      const cls = (p.pos === "GKP" || p.pos === "DEF") ? defClass(x.xga) : attClass(x.xgf);
-      return `<span class="${cls}" title="GW${g}: ${T[x.opp].name} ${x.home ? "home" : "away"}">${x.home ? T[x.opp].short : T[x.opp].short.toLowerCase()}</span>`;
-    }).join("");
+    return fx.map(x => `<span class="${(p.pos === "GKP" || p.pos === "DEF") ? defClass(x.xga) : attClass(x.xgf)}" title="GW${g}: ${T[x.opp].name} ${x.home ? "home" : "away"}">${oppTxt(x)}</span>`).join("");
   }).join("");
 }
-function fxText(p, n = 1) {
-  return GWS.slice(0, n).map(g => fxFor(p.team, g).map(x => `${T[x.opp].short} (${x.home ? "H" : "A"})`).join(" + ") || "Blank").join(", ");
-}
+const fxText = (p, g) => fxFor(p.team, g).map(x => `${T[x.opp].short} (${x.home ? "H" : "A"})`).join(" + ") || "Blank";
 function flag(p) {
   if (p.status === "a") return "";
-  const t = p.chance != null ? p.chance + "%" : "!";
-  return `<span class="flag ${p.status}" title="${esc(p.news)}">${t}</span>`;
+  return `<span class="flag ${p.status}" title="${esc(p.news)}">${p.chance != null ? p.chance + "%" : "!"}</span>`;
+}
+const xpg = (id, g) => (P[id]?.xp[g]) || 0;
+const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a, x) => a + xpg(id, x), 0);
+
+function bestXI(ids, g) {
+  const ps = ids.filter(i => P[i]).slice().sort((a, b) => xpg(b, g) - xpg(a, g));
+  const by = { GKP: [], DEF: [], MID: [], FWD: [] };
+  ps.forEach(i => by[P[i].pos].push(i));
+  const xi = [...by.GKP.slice(0, 1), ...by.DEF.slice(0, 3), ...by.MID.slice(0, 2), ...by.FWD.slice(0, 1)];
+  const cap = { DEF: 5, MID: 5, FWD: 3 };
+  for (const i of ps) {
+    if (xi.length === 11) break;
+    if (xi.includes(i) || P[i].pos === "GKP") continue;
+    if (xi.filter(j => P[j].pos === P[i].pos).length < cap[P[i].pos]) xi.push(i);
+  }
+  const bench = [...by.GKP.filter(i => !xi.includes(i)), ...ps.filter(i => !xi.includes(i) && P[i].pos !== "GKP")];
+  const order = xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g));
+  const pts = xi.reduce((a, i) => a + xpg(i, g), 0) + (order[0] ? xpg(order[0], g) : 0);
+  return { xi, bench, cap: order[0], vice: order[1], pts };
 }
 
-async function load() {
-  try {
-    const r = await fetch("data.json?t=" + Date.now(), { cache: "no-store" });
-    D = await r.json();
-  } catch (e) {
-    $("#app").innerHTML = `<p class="empty">The data file could not be loaded. Try reloading the page.</p>`;
-    return;
-  }
-  P = {}; D.players.forEach(p => P[p.id] = p);
-  T = D.teams; GWS = D.meta.proj_gws;
+/* ---------- load ---------- */
+async function fetchData() {
+  const r = await fetch("data.json?t=" + Date.now(), { cache: "no-store" });
+  return r.json();
+}
+function ingest(d) {
+  D = d; P = {}; D.players.forEach(p => P[p.id] = p);
+  T = D.teams; GWS = D.meta.proj_gws; PG = D.meta.plan_gws || GWS.slice(0, 5);
   MINE = new Set(D.squad.map(s => s.id));
+  if (!S.trendTeam) S.trendTeam = P[D.squad[0]?.id]?.team || 1;
+  loadSandbox();
+}
+async function load() {
+  try { ingest(await fetchData()); } catch (e) {
+    $("#app").innerHTML = `<p class="empty">The data file could not be loaded. Reload the page to try again.</p>`; return;
+  }
   header(); render();
 }
+setInterval(async () => {
+  try { const nd = await fetchData(); if (D && nd.meta.built !== D.meta.built) { ingest(nd); header(); render(); } } catch (e) {}
+}, 5 * 60 * 1000);
 
 function countdown(iso) {
   if (!iso) return "–";
@@ -263,7 +329,7 @@ function countdown(iso) {
   const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
   return d ? `${d}d ${h}h` : `${h}h ${m}m`;
 }
-function ukTime(iso) { return new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); }
+const ukTime = iso => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
 function header() {
   const m = D.manager, meta = D.meta;
@@ -276,338 +342,522 @@ function header() {
     <div><span class="lbl">Points</span><b>${m.points}</b><span class="muted" style="font-size:12px">GW${meta.picks_gw}: ${m.gw_points ?? "–"}</span></div>
     <div><span class="lbl">Bank · FT</span><b>${money(m.bank)} · ${m.free_transfers}</b><span class="muted" style="font-size:12px">value ${money(m.value)}</span></div>
     <div class="deadline"><span class="lbl">GW${meta.next_gw} deadline</span><b id="cd">${countdown(meta.deadline)}</b><span class="muted" style="font-size:12px">${meta.deadline ? ukTime(meta.deadline) : ""}</span></div>`;
-  const built = new Date(meta.built);
-  const ageH = (Date.now() - built) / 36e5;
+  const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
   $("#meta").innerHTML = `<span>Data updated ${built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}${ageH > 3 ? ' <span class="pill warn">stale</span>' : ""}</span>
-    <span>Squad shown is your GW${meta.picks_gw} team; transfers you make before the deadline appear after it passes.</span>
-    <button class="btn" id="refreshBtn" hidden>Refresh data now</button><span id="refreshMsg"></span>`;
-  setupRefresh();
+    <span>Squad shown is your GW${meta.picks_gw} team. Transfers you make on the FPL site show up after the deadline.</span>
+    <a class="btn" href="https://github.com/${REPO}/actions/workflows/refresh.yml" target="_blank" rel="noopener">Refresh data now</a>`;
 }
-
-function setupRefresh() {
-  const b = $("#refreshBtn"); if (!REPO) return;
-  b.hidden = false; b.textContent = "Refresh data now";
-  b.onclick = () => window.open(`https://github.com/${REPO}/actions/workflows/refresh.yml`, "_blank", "noopener");
-  $("#refreshMsg").textContent = "";
-}
-// pick up new data automatically while the page is open
-setInterval(async () => {
-  try {
-    const r = await fetch("data.json?t=" + Date.now(), { cache: "no-store" });
-    const nd = await r.json();
-    if (D && nd.meta.built !== D.meta.built) { D = nd; P = {}; D.players.forEach(p => P[p.id] = p); T = D.teams; GWS = D.meta.proj_gws; MINE = new Set(D.squad.map(s => s.id)); header(); render(); }
-  } catch (e) {}
-}, 5 * 60 * 1000);
 
 function setView(v) {
-  S.view = v;
-  try { localStorage.setItem("fpl.view", v); } catch (e) {}
-  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v));
+  S.view = v; store.set("fpl.view", v);
   render(); window.scrollTo({ top: 0 });
 }
 $("#tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); });
 
 function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === S.view));
-  const fn = { team: vTeam, transfers: vTransfers, captain: vCaptain, fixtures: vFixtures, players: vPlayers, chips: vChips, prices: vPrices, season: vSeason, method: vMethod }[S.view] || vTeam;
+  const fn = { week: vWeek, planner: vPlanner, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vSeason, model: vModel }[S.view] || vWeek;
   $("#app").innerHTML = `<section class="view">${fn()}</section>`;
   bind();
 }
 
-/* ---------- My team ---------- */
-function card(id, g, opts = {}) {
+/* ---------- pitch ---------- */
+function card(id, g, o = {}) {
   const p = P[id]; if (!p) return "";
-  const L = D.lineup;
-  const cap = opts.cap === id ? `<span class="badge">C</span>` : opts.vice === id ? `<span class="badge v">V</span>` : "";
-  return `<button class="pc" data-p="${id}" aria-label="${esc(p.name)} details">${flag(p)}${cap}
+  const badge = o.cap === id ? `<span class="badge">C</span>` : o.vice === id ? `<span class="badge v">V</span>` : "";
+  const cls = ["pc", o.sel === id ? "sel" : "", o.fresh?.has(id) ? "newin" : ""].join(" ");
+  return `<button class="${cls}" data-${o.act || "p"}="${id}" aria-label="${esc(p.name)}">${flag(p)}${badge}
     <div class="tm">${T[p.team].short} ${p.price.toFixed(1)}</div>
     <div class="nm">${esc(p.name)}</div>
-    <div class="xp">${f1(p.xp[g] || 0)}</div>
-    <div class="fx">${playerFxChips(p, 3)}</div></button>`;
+    <div class="xp">${f1(xpg(id, g))}</div>
+    <div class="fx">${fxChips(p, g, 3)}</div></button>`;
 }
-function alerts() {
-  const out = [];
-  D.squad.forEach(s => {
-    const p = P[s.id]; if (!p) return;
-    if (p.status !== "a") out.push(["bad", `<b>${esc(p.name)}</b>: ${esc(p.news || "flagged")}`]);
-    else if (p.xmin < 45 && s.slot <= 11) out.push(["warn", `<b>${esc(p.name)}</b> is projected for only ~${p.xmin} minutes.`]);
-    const pr = p.price_proj?.[0];
-    if (pr != null && pr <= -90) out.push(["warn", `<b>${esc(p.name)}</b> is close to a price fall (${pr.toFixed(0)}% of the way).`]);
-    if (pr != null && pr >= 90) out.push(["good", `<b>${esc(p.name)}</b> is close to a price rise.`]);
+function pitch(xi, bench, g, o = {}) {
+  const rows = ["GKP", "DEF", "MID", "FWD"].map(pos => `<div class="row">${xi.filter(i => P[i]?.pos === pos).map(i => card(i, g, o)).join("")}</div>`).join("");
+  return `<div class="pitchwrap"><div class="pitch">${rows}</div><div class="bench"><span class="lbl">Bench</span>${bench.map(i => card(i, g, o)).join("")}</div></div>`;
+}
+
+/* ---------- plans ---------- */
+const PLAN_LABEL = { roll: "Roll", one: "1 move", two: "2 moves", three: "3 moves", best: "Optimal" };
+function planMoves(pl) {
+  // pair outs and ins by position for each week
+  const mv = [];
+  pl.weeks.forEach(w => {
+    const outs = w.out.slice(), ins = w.in.slice();
+    ins.forEach(i => {
+      const k = outs.findIndex(o => P[o]?.pos === P[i]?.pos);
+      if (k >= 0) mv.push({ gw: w.gw, out: outs.splice(k, 1)[0], in: i });
+    });
   });
-  const L = D.lineup;
-  if (L.xp_best - L.xp_current > 0.4) out.push(["info", `Your best XI for GW${D.meta.next_gw} projects <b>${f1(L.xp_best)}</b> pts vs <b>${f1(L.xp_current)}</b> for last week's lineup. Switch to "Best XI" to see changes.`]);
-  if (D.manager.free_transfers >= 5) out.push(["warn", `You have 5 free transfers, the maximum. Use at least one or you lose it.`]);
-  else if (D.manager.free_transfers >= 3) out.push(["info", `You have ${D.manager.free_transfers} free transfers banked. See the Transfers tab for the best use.`]);
-  const tc = D.chips.find(c => c.key === "3xc" && c.available && c.to <= 19);
-  if (tc) out.push(["info", `Triple Captain (first half) is unused and expires after GW${tc.to}.`]);
-  return out.length ? `<ul class="alerts">${out.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul>` : `<p class="muted">No issues with your squad right now.</p>`;
+  return mv;
 }
-function vTeam() {
-  const g = D.meta.next_gw, L = D.lineup;
-  let xi, bench, cap, vice;
-  if (S.pitch === "best") { xi = L.xi; bench = L.bench; cap = L.captain; vice = L.vice; }
-  else {
-    xi = L.current_xi; bench = D.squad.filter(s => s.slot > 11).map(s => s.id);
-    cap = D.squad.find(s => s.cap)?.id; vice = D.squad.find(s => s.vice)?.id;
-  }
-  const rows = ["GKP", "DEF", "MID", "FWD"].map(pos => `<div class="row">${xi.filter(i => P[i]?.pos === pos).map(i => card(i, g, { cap, vice })).join("")}</div>`).join("");
-  const benchXp = bench.reduce((a, i) => a + (P[i]?.xp[g] || 0), 0);
-  const nextXp = S.pitch === "best" ? L.xp_best : L.xp_current;
-  const sq5 = D.squad.reduce((a, s) => a + (P[s.id]?.xp5 || 0), 0);
-  return `
-  <div class="kpis">
-    <div class="kpi"><span class="lbl">GW${g} projected</span><b>${f1(nextXp)}</b><span class="delta muted">incl. captain · ${S.pitch === "best" ? "best XI" : "last XI"}</span></div>
-    <div class="kpi"><span class="lbl">Best-XI gain</span><b class="${L.xp_best - L.xp_current > 0.05 ? "up" : ""}">+${f1(L.xp_best - L.xp_current)}</b><span class="delta muted">vs last week's picks</span></div>
-    <div class="kpi"><span class="lbl">Squad xP · next 5</span><b>${f1(sq5)}</b><span class="delta muted">all 15 players</span></div>
-    <div class="kpi"><span class="lbl">Bench xP</span><b>${f1(benchXp)}</b><span class="delta muted">GW${g}</span></div>
-  </div>
-  <div class="grid2">
-    <div class="panel" style="padding:0;border:0;background:none">
-      <div class="bar"><h2>GW${g} lineup</h2>
-        <div class="seg" role="group" aria-label="Lineup"><button data-pitch="best" aria-pressed="${S.pitch === "best"}">Best XI</button><button data-pitch="cur" aria-pressed="${S.pitch === "cur"}">Last XI</button></div></div>
-      <div class="pitchwrap"><div class="pitch">${rows}</div>
-      <div class="bench"><span class="lbl">Bench</span>${bench.map(i => card(i, g)).join("")}</div></div>
-      <p class="note">Big number = projected points for GW${g}. Chips show the next 3 opponents (capitals = home, lower case = away), coloured by how hard they are for that player's job (attack for MID/FWD, defence for GKP/DEF). Tap a player for detail.</p>
-    </div>
-    <div style="display:grid;gap:20px;min-width:0">
-      <div class="panel"><h3>What needs attention</h3>${alerts()}</div>
-      <div class="panel"><h3>Top move this week</h3>${D.transfers[0] ? txRow(D.transfers[0], 0, true) : `<p class="muted">No transfer beats rolling this week.</p>`}
-        <button class="btn" data-go="transfers" style="margin-top:8px">See the full plan</button></div>
-    </div>
-  </div>`;
+function recommendedPlan() {
+  const pl = D.plans || {};
+  const keys = ["roll", "one", "two", "three"].filter(k => pl[k]);
+  if (!keys.length) return null;
+  const best = keys.reduce((a, k) => pl[k].vs_roll > pl[a].vs_roll ? k : a, keys[0]);
+  // prefer fewer moves when within 0.5 pts: projections are noisy and flexibility has value
+  for (const k of keys) if (pl[k].vs_roll >= pl[best].vs_roll - 0.5) return k;
+  return best;
 }
 
-/* ---------- Transfers ---------- */
-function txRow(t, i, compact) {
-  const o = P[t.out], n = P[t.in];
-  const hit = !t.free;
-  const worth = t.free ? t.gain >= 1.5 : t.gain > 4.5;
-  const tag = t.free ? (t.gain >= 1.5 ? `<span class="pill good">Free · do it</span>` : `<span class="pill mut">Free · marginal</span>`) : (worth ? `<span class="pill warn">−4 · worth it</span>` : `<span class="pill bad">−4 · not worth it</span>`);
-  return `<div class="tx">
-    <span class="step">${compact ? "" : i + 1}</span>
-    <div class="mv"><span class="out">▼ <button class="linkp" data-p="${o.id}" style="all:unset;cursor:pointer">${esc(o.name)}</button></span><span class="muted mono">${money(t.out_sell)}</span><span class="in">▲ <button data-p="${n.id}" style="all:unset;cursor:pointer">${esc(n.name)}</button></span><span class="muted mono">${money(t.in_cost)} · ${T[n.team].short}</span> ${tag}</div>
-    <span class="gain ${t.gain > 0 ? "up" : ""}">+${f1(t.gain)}</span>
-    <div class="why"><b>Out:</b> ${esc(t.why_out)}<br><b>In:</b> ${esc(t.why_in)} · bank after ${money(t.bank_after)}</div></div>`;
-}
-function vTransfers() {
+/* ---------- This week ---------- */
+function vWeek() {
+  const g = D.meta.next_gw, pl = D.plans || {};
+  const rec = recommendedPlan();
+  const key = S.plan && pl[S.plan] ? S.plan : rec;
+  const plan = pl[key];
+  if (!plan) return `<div class="panel"><p>No plan is available for this gameweek yet.</p></div>`;
+  const w0 = Object.assign({}, plan.weeks[0]);
+  // armband: prefer the best attacker when a GKP/DEF only edges it (attackers have the higher ceiling)
+  { const att = w0.xi.filter(i => ["MID", "FWD"].includes(P[i].pos)).sort((a, b) => xpg(b, g) - xpg(a, g))[0];
+    const c = w0.captain;
+    w0.capSwap = null;
+    if (att && att !== c && ["GKP", "DEF"].includes(P[c].pos) && xpg(c, g) - xpg(att, g) < 0.6) { w0.capSwap = c; w0.vice = c; w0.captain = att; } }
+  const moves0 = planMoves(plan).filter(m => m.gw === g);
+  const later = planMoves(plan).filter(m => m.gw !== g);
   const ft = D.manager.free_transfers;
-  const good = D.transfers.filter(t => t.free && t.gain >= 1.5);
-  const hits = D.transfers.filter(t => !t.free && t.gain > 4.5);
-  const total = [...good, ...hits].reduce((a, t) => a + t.gain, 0) - hits.length * 4;
-  let verdict;
-  if (!D.transfers.length) verdict = `Roll your transfer. Nothing available improves your next five gameweeks by enough.`;
-  else verdict = `Make <b>${good.length}</b> of your ${ft} free transfer${ft === 1 ? "" : "s"}${hits.length ? ` plus <b>${hits.length}</b> hit${hits.length > 1 ? "s" : ""}` : ""}. Projected gain over the next ${Math.min(5, GWS.length)} gameweeks: <b>+${f1(total)} pts</b>${ft - good.length > 0 && good.length < ft ? `, banking ${Math.min(5, ft - good.length + 1)} free transfers for next week` : ""}.`;
-  const repl = D.squad.map(s => {
-    const p = P[s.id]; if (!p) return "";
-    const alts = s.alts.map(a => P[a]).filter(Boolean);
-    return `<tr class="mine"><td><span class="pname">${esc(p.name)}</span> <span class="muted">${T[p.team].short} ${p.pos}</span></td>
-      <td class="n">${money(s.sell)}</td><td class="n">${f1(p.xp5)}</td>
-      ${[0, 1, 2].map(k => alts[k] ? `<td><button data-p="${alts[k].id}" style="all:unset;cursor:pointer" class="pname">${esc(alts[k].name)}</button> <span class="muted mono">${money(alts[k].price)}</span> <b class="${alts[k].xp5 > p.xp5 ? "up" : "down"}">${alts[k].xp5 > p.xp5 ? "+" : ""}${f1(alts[k].xp5 - p.xp5)}</b></td>` : "<td></td>").join("")}</tr>`;
+
+  // step 1 transfers
+  const opts = ["roll", "one", "two", "three", "best"].filter(k => pl[k]).map(k => {
+    const n = pl[k].weeks[0].in.length;
+    return `<button class="opt ${k === key ? "sel" : ""}" data-plan="${k}"><span>${PLAN_LABEL[k]}${k === "best" ? ` (${n})` : ""}${k === rec ? " · pick" : ""}</span><b class="${pl[k].vs_roll > 0.05 ? "up" : ""}">${sgn(pl[k].vs_roll)}</b><span>vs rolling, 5 GWs</span></button>`;
   }).join("");
+  const mvHTML = moves0.length ? `<div class="moves">${moves0.map(m => `<div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="muted mono">${money(sellPrice(m.out))}</span><span class="in">▲ ${esc(P[m.in].name)}</span><span class="muted mono">${money(P[m.in].price)} · ${T[P[m.in].team].short}</span><span class="tag">${sgn(xpFrom(m.in, g, 5) - xpFrom(m.out, g, 5))} over 5 GWs</span></div>`).join("")}</div>` : "";
+  const t1 = moves0.length
+    ? `Make ${moves0.length} transfer${moves0.length > 1 ? "s" : ""}${w0.hits ? ` (${w0.hits} hit${w0.hits > 1 ? "s" : ""})` : ""}`
+    : `Roll your transfer${ft > 1 ? "s" : ""}`;
+  const t1sub = moves0.length
+    ? `Uses ${Math.min(moves0.length, ft)} of ${ft} free transfers. Bank after: ${money(w0.bank)}.${later.length ? ` The plan then makes ${later.length} more move${later.length > 1 ? "s" : ""} in later weeks.` : ""}`
+    : `You'll have ${Math.min(5, ft + 1)} free transfers next week. No move beats rolling by enough.`;
+  const close = Math.abs((pl.roll?.objective || 0) - (plan.objective || 0)) < 1;
+
+  // step 2 lineup
+  const curXI = new Set(D.lineup.current_xi || []);
+  const newXI = new Set(w0.xi);
+  const starts = w0.xi.filter(i => !curXI.has(i));
+  const benches = [...curXI].filter(i => !newXI.has(i) && w0.bench.includes(i));
+  const lineupTxt = starts.length || benches.length
+    ? `${starts.length ? `Start <b>${starts.map(i => esc(P[i].name)).join(", ")}</b>` : ""}${starts.length && benches.length ? "; " : ""}${benches.length ? `bench <b>${benches.map(i => esc(P[i].name)).join(", ")}</b>` : ""}.`
+    : "Same starting XI as last week.";
+
+  // step 3 captain
+  const capOpts = w0.xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g)).slice(0, 5);
+  const cmax = xpg(capOpts[0], g) || 1;
+  const capGap = xpg(w0.captain, g) - xpg(w0.vice, g);
+  const capPos = P[w0.captain].pos;
+  const capNote = w0.capSwap
+    ? `${esc(P[w0.capSwap].name)} projects ${f1(xpg(w0.capSwap, g) - xpg(w0.captain, g))} more on clean-sheet odds, but that's too small a gap to give up ${esc(P[w0.captain].name)}'s much higher ceiling.`
+    : capGap >= 0 ? `${f1(capGap)} pts ahead of the vice-captain.` : `Chosen for ceiling over ${esc(P[w0.vice].name)}, who projects slightly more.`;
+
+  // step 4 chips
+  const tc = D.chips.find(c => c.key === "3xc" && c.available && c.to <= 19);
+  const bestTc = (D.gw_info || []).reduce((a, r) => (!a || r.tc_xp > a.tc_xp) ? r : a, null);
+  const chipTxt = tc && bestTc && bestTc.gw === g ? `Consider Triple Captain this week: GW${g} is your best projected armband week in the next ${GWS.length}.`
+    : "No chip this week.";
+  const chipSub = tc ? `Triple Captain (first half) is unused and expires after GW${tc.to}.${bestTc ? ` Best spot in view: GW${bestTc.gw} (${esc(P[bestTc.tc_player]?.name)}).` : ""}` : "Your other first-half chips are used. The second set unlocks in GW20.";
+
+  // step 5 risks
+  const risks = [];
+  const finalSquad = squadAfter(moves0);
+  finalSquad.forEach(i => {
+    const p = P[i]; if (!p) return;
+    if (p.status !== "a") risks.push(["bad", `<b>${esc(p.name)}</b>: ${esc(p.news || "flagged")}`]);
+    const pr = p.price_proj?.[0];
+    if (pr != null && pr <= -80) risks.push(["warn", `<b>${esc(p.name)}</b> may drop in price tonight (${pr.toFixed(0)}% of the way).`]);
+    if (newXI.has(i) && p.xmin < 50 && p.status === "a") risks.push(["warn", `<b>${esc(p.name)}</b> is starting but only projected ~${p.xmin} minutes.`]);
+  });
+  moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.`]); });
+
+  const step = (n, state, title, body) => `<div class="stepcard ${state}"><span class="no">${state === "ok" ? "✓" : n}</span><div class="sbody"><h3>${title}</h3>${body}</div></div>`;
   return `
-  <div class="panel"><h2 style="margin-bottom:10px">Transfer plan · GW${D.meta.next_gw}</h2>
-    <p class="verdict">${verdict}</p>
-    <div style="margin-top:6px">${D.transfers.map((t, i) => txRow(t, i)).join("") || ""}</div>
-    <p class="note">Moves are chosen one at a time, each the best remaining swap for your whole squad's projected points (best XI plus captain) over the next 5 gameweeks, with later weeks weighted slightly less. Budget uses your estimated selling prices and the 3-per-club rule. A free move is flagged "do it" above +1.5 pts; a −4 hit needs more than +4.5.</p>
-  </div>
-  <div class="panel"><h3>Best like-for-like swaps for each player</h3>
-    <p class="note" style="margin-top:0">Affordable with your bank plus that player's selling price. Number = change in xP over the next 5 GWs.</p>
-    <div class="tablebox"><table><thead><tr><th>Your player</th><th class="n">Sell</th><th class="n">xP5</th><th>Option 1</th><th>Option 2</th><th>Option 3</th></tr></thead><tbody>${repl}</tbody></table></div>
+  <div class="grid2">
+    <div class="steps">
+      <div class="bar" style="margin:0"><h2>Before the GW${g} deadline</h2><span class="muted">${countdown(D.meta.deadline)} left</span></div>
+      ${step(1, moves0.length ? "act" : "ok", "Transfers", `<div class="do">${t1}</div>${mvHTML}<div class="sub">${t1sub}${close && moves0.length ? " The options are close, so treat this as a nudge rather than a must." : ""}</div>
+        <div class="opts">${opts}</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-loadplan="${key}">Open in planner</button></div>`)}
+      ${step(2, starts.length || benches.length ? "act" : "ok", "Lineup", `<div class="do">${lineupTxt}</div><div class="sub">Best XI projects <b>${f1(w0.xp)}</b> pts including the captain. Bench order: ${w0.bench.map(i => esc(P[i].name)).join(", ")}.</div>`)}
+      ${step(3, "act", "Captain", `<div class="do">C ${esc(P[w0.captain].name)} · V ${esc(P[w0.vice].name)}</div><div class="sub">${capNote}</div>
+        <div class="capbars" style="margin-top:8px">${capOpts.map((i, k) => `<div class="cb ${i === w0.captain ? "top" : ""}"><span class="pname">${esc(P[i].name)}<br><span class="muted" style="font-weight:400;font-size:12.5px">${fxText(P[i], g)}</span></span><div class="track"><div class="fill" style="width:${xpg(i, g) / cmax * 100}%"></div></div><span class="val">${f1(xpg(i, g))}</span></div>`).join("")}</div>`)}
+      ${step(4, "ok", "Chip", `<div class="do">${chipTxt}</div><div class="sub">${chipSub}</div>`)}
+      ${step(5, risks.some(r => r[0] !== "good") ? "act" : "ok", "Risks to check", risks.length ? `<ul class="alerts" style="margin-top:4px">${risks.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul>` : `<div class="sub">No injury flags or price drops in your squad.</div>`)}
+    </div>
+    <div style="min-width:0;display:grid;gap:10px;align-content:start">
+      <div class="bar" style="margin:0"><h3>GW${g} team · ${PLAN_LABEL[key]}</h3><span class="tag">${f1(w0.xp)} xP</span></div>
+      ${pitch(w0.xi, w0.bench, g, { cap: w0.captain, vice: w0.vice, fresh: new Set(moves0.map(m => m.in)) })}
+      <p class="note">Big number = projected points this gameweek. Chips show the next 3 opponents (capitals = home), coloured by difficulty for that player's role. A green underline marks a new signing. Tap any player for detail.</p>
+    </div>
   </div>`;
 }
+function squadAfter(moves) {
+  const s = D.squad.map(x => x.id);
+  moves.forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
+  return s;
+}
+function sellPrice(id) { const s = D.squad.find(x => x.id === id); return s ? s.sell : P[id].price; }
 
-/* ---------- Captain ---------- */
-function vCaptain() {
-  const g = D.meta.next_gw, opts = D.lineup.captain_options;
-  const max = Math.max(...opts.map(o => o.xp)) || 1;
-  const field = D.players.filter(p => p.xmin > 45).sort((a, b) => (b.xp[g] || 0) - (a.xp[g] || 0)).slice(0, 8);
-  const fmax = Math.max(...field.map(p => p.xp[g] || 0)) || 1;
-  return `<div class="grid2">
-    <div class="panel"><h2 style="margin-bottom:12px">Captain · GW${g}</h2>
-      <div class="capbars">${opts.map((o, i) => `<div class="cb ${i === 0 ? "top" : ""}"><span class="pname">${i === 0 ? "C " : i === 1 ? "V " : ""}${esc(P[o.id].name)}</span><div class="track"><div class="fill" style="width:${o.xp / max * 100}%"></div></div><span class="val">${f1(o.xp)}</span><span class="why">${esc(o.why)}</span></div>`).join("")}</div>
-      <p class="note">Projected points before doubling. Defenders can top this list in a gameweek with a strong clean-sheet chance, but their ceiling is lower; when the gap is under 0.5 pts, the attacker is usually the better armband.</p>
+/* ---------- Planner (sandbox) ---------- */
+function sbKey() { return `fpl.sb.${D.meta.team_id}.${D.meta.next_gw}.${D.squad.map(s => s.id).join("-")}`; }
+function loadSandbox() {
+  const saved = store.get(sbKey());
+  SB = { moves: [], gw: PG[0], sel: null, q: "" };
+  if (saved && Array.isArray(saved.moves)) SB.moves = saved.moves.filter(m => P[m.in] && P[m.out] && PG.includes(m.gw));
+  sanitize();
+}
+function saveSandbox() { store.set(sbKey(), { moves: SB.moves }); }
+function squadAt(gw) {
+  const s = D.squad.map(x => x.id);
+  SB.moves.filter(m => m.gw <= gw).forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
+  return s;
+}
+function bankAt(gw) {
+  let b = D.manager.bank;
+  const base = new Set(D.squad.map(x => x.id)), boughtLater = new Set();
+  SB.moves.filter(m => m.gw <= gw).forEach(m => {
+    b += (base.has(m.out) && !boughtLater.has(m.out)) ? sellPrice(m.out) : P[m.out].price;
+    b -= P[m.in].price; boughtLater.add(m.in);
+  });
+  return Math.round(b * 10) / 10;
+}
+function sanitize() {
+  // drop moves that no longer make sense (player sold earlier, duplicates)
+  const ok = [];
+  SB.moves.sort((a, b) => a.gw - b.gw);
+  for (const m of SB.moves) {
+    const prev = SB.moves.slice(0, ok.length);
+    const s = D.squad.map(x => x.id);
+    ok.forEach(q => { const k = s.indexOf(q.out); if (k >= 0) s[k] = q.in; });
+    if (s.includes(m.out) && !s.includes(m.in)) ok.push(m);
+  }
+  SB.moves = ok;
+}
+function ftTable() {
+  let ft = Math.min(5, D.manager.free_transfers);
+  return PG.map(g => {
+    const n = SB.moves.filter(m => m.gw === g).length;
+    const hits = Math.max(0, n - ft);
+    const row = { gw: g, ft, n, hits };
+    ft = n > ft ? 1 : Math.min(5, ft - n + 1);
+    row.next = ft;
+    return row;
+  });
+}
+function clubCounts(ids) { const c = {}; ids.forEach(i => c[P[i].team] = (c[P[i].team] || 0) + 1); return c; }
+function sandboxSummary() {
+  const fts = ftTable();
+  const base = D.squad.map(x => x.id);
+  let tot = 0, baseTot = 0;
+  const weeks = fts.map((r, k) => {
+    const sq = squadAt(r.gw), t = bestXI(sq, r.gw), b = bestXI(base, r.gw);
+    tot += t.pts - 4 * r.hits; baseTot += b.pts;
+    const cc = clubCounts(sq), over = Object.entries(cc).filter(([, v]) => v > 3).map(([t]) => T[t].short);
+    return { ...r, team: t, base: b.pts, bank: bankAt(r.gw), over };
+  });
+  return { weeks, tot, baseTot };
+}
+function vPlanner() {
+  const sum = sandboxSummary();
+  const g = SB.gw, wk = sum.weeks.find(w => w.gw === g);
+  const sq = squadAt(g), t = wk.team;
+  const fresh = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
+  const problems = sum.weeks.filter(w => w.bank < 0 || w.over.length);
+  const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
+  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Tap a player on the pitch to replace them, or load a plan below.</p>`;
+  const delta = sum.tot - sum.baseTot;
+  const plans = Object.keys(D.plans || {}).map(k => `<button class="btn" data-loadplan="${k}">${PLAN_LABEL[k]} (${sgn(D.plans[k].vs_roll)})</button>`).join(" ");
+  return `
+  <div class="plansum">
+    <div class="kpi"><span class="lbl">Your plan · ${PG.length} GWs</span><b>${f1(sum.tot)}</b><span class="delta muted">best XI + captain, minus hits</span></div>
+    <div class="kpi"><span class="lbl">vs no transfers</span><b class="${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}">${sgn(delta)}</b><span class="delta muted">${f1(sum.baseTot)} if you do nothing</span></div>
+    <div class="kpi"><span class="lbl">GW${g} bank</span><b class="${wk.bank < 0 ? "down" : ""}">${money(wk.bank)}</b><span class="delta muted">after this week's moves</span></div>
+    <div class="kpi"><span class="lbl">GW${g} free transfers</span><b>${wk.ft}</b><span class="delta muted">${wk.hits ? `${wk.hits} hit (−${wk.hits * 4})` : `next week: ${wk.next}`}</span></div>
+  </div>
+  ${problems.length ? `<p class="verdict" style="border-color:var(--bad)">${problems.map(w => `GW${w.gw}: ${w.bank < 0 ? `over budget by ${money(-w.bank)}` : ""}${w.bank < 0 && w.over.length ? "; " : ""}${w.over.length ? `more than 3 players from ${w.over.join(", ")}` : ""}`).join(". ")}. Adjust the plan before you make it on the FPL site.</p>` : ""}
+  <div class="grid2">
+    <div style="min-width:0;display:grid;gap:10px;align-content:start">
+      <div class="gwsel" role="group" aria-label="Gameweek">${gwButtons}</div>
+      ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, act: "sbp", sel: SB.sel, fresh })}
+      <p class="note">Tap a player to replace them from GW${g} onwards. The lineup and captain are picked automatically for the best projected score.</p>
     </div>
-    <div class="panel"><h3>Top projected players in the game</h3>
-      <div class="capbars">${field.map(p => `<div class="cb"><span class="pname">${esc(p.name)} <span class="muted">${T[p.team].short}</span>${MINE.has(p.id) ? ' <span class="pill good">Yours</span>' : ""}</span><div class="track"><div class="fill" style="width:${(p.xp[g] || 0) / fmax * 100}%"></div></div><span class="val">${f1(p.xp[g] || 0)}</span></div>`).join("")}</div>
-    </div></div>`;
+    <div style="display:grid;gap:20px;min-width:0;align-content:start">
+      <div class="panel" id="candPanel">${SB.sel ? candidates() : `<h3>Planned moves</h3><div class="moves">${movesList}</div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><span class="lbl" style="align-self:center">Load</span>${plans}${SB.moves.length ? ` <button class="btn" data-reset="1">Clear all</button>` : ""}</div>`}</div>
+      <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FT</th><th class="n">Moves</th><th class="n">Hits</th><th class="n">Bank</th><th>Captain</th><th class="n">xP</th><th class="n">vs none</th></tr></thead>
+        <tbody>${sum.weeks.map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.ft}</td><td class="n">${w.n}</td><td class="n ${w.hits ? "down" : ""}">${w.hits ? "−" + 4 * w.hits : "0"}</td><td class="n ${w.bank < 0 ? "down" : ""}">${w.bank.toFixed(1)}</td><td>${esc(P[w.team.cap]?.name)}</td><td class="n">${f1(w.team.pts)}</td><td class="n ${w.team.pts - 4 * w.hits - w.base > 0.05 ? "up" : ""}">${sgn(w.team.pts - 4 * w.hits - w.base)}</td></tr>`).join("")}</tbody></table></div>
+        <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.</p></div>
+    </div>
+  </div>`;
+}
+function candidates() {
+  const g = SB.gw, out = SB.sel, po = P[out];
+  const sq = squadAt(g);
+  const budget = bankAt(g) + (D.squad.some(s => s.id === out) && !SB.moves.some(m => m.in === out) ? sellPrice(out) : po.price);
+  const cc = clubCounts(sq.filter(i => i !== out));
+  const q = (SB.q || "").toLowerCase();
+  const base = xpFrom(out, g, PG.length);
+  const list = D.players.filter(p => p.pos === po.pos && !sq.includes(p.id) && p.ok !== false && p.price <= budget + 1e-9 && (cc[p.team] || 0) < 3 && (!q || (p.name + " " + p.full).toLowerCase().includes(q)))
+    .map(p => ({ p, v: xpFrom(p.id, g, PG.length) })).sort((a, b) => b.v - a.v).slice(0, 30);
+  return `<div class="bar"><h3>Replace ${esc(po.name)} from GW${g}</h3><button class="btn" data-cancel="1">Cancel</button></div>
+    <p class="note" style="margin-top:0">Budget ${money(budget)} · ${esc(po.name)} projects ${f1(base)} over the rest of the plan.</p>
+    <div class="filters"><input type="search" id="candq" placeholder="Search ${po.pos}s" value="${esc(SB.q)}" aria-label="Search replacements"></div>
+    <div style="max-height:420px;overflow:auto">${list.map(({ p, v }) => `<button class="cand" data-pick="${p.id}"><span class="pname">${esc(p.name)} <span class="muted">${T[p.team].short} · ${money(p.price)}</span></span><span class="${v > base ? "up" : "down"} mono">${sgn(v - base)}</span><b>${f1(v)}</b><span class="d">${GWS.filter(x => x >= g).slice(0, 4).map(x => `GW${x} ${fxFor(p.team, x).map(oppTxt).join("+") || "–"} ${f1(xpg(p.id, x))}`).join(" · ")}${p.status !== "a" ? ` · <span class="down">${esc(p.news)}</span>` : ""}</span></button>`).join("") || `<p class="muted">No affordable ${po.pos}s fit the budget and club limits.</p>`}</div>`;
 }
 
 /* ---------- Fixtures ---------- */
 function vFixtures() {
   const mode = S.fxMode;
+  const myTeams = new Set(D.squad.map(s => P[s.id]?.team));
   const rows = Object.values(T).map(t => {
     let sum = 0;
     const cells = GWS.map(g => {
       const fx = t.fx[g] || [];
       if (!fx.length) return `<td class="fxc"><span class="d5">Blank</span></td>`;
-      return `<td class="fxc">${fx.map(x => { const v = mode === "att" ? x.xgf : x.xga; sum += mode === "att" ? x.xgf : -x.xga; return `<span class="${mode === "att" ? attClass(v) : defClass(v)}" title="Projected ${mode === "att" ? "goals for" : "goals against"}: ${v}">${T[x.opp].short} ${x.home ? "H" : "a"} <small>${v.toFixed(1)}</small></span>`; }).join("")}</td>`;
+      return `<td class="fxc">${fx.map(x => { const v = mode === "att" ? x.xgf : x.xga; sum += mode === "att" ? x.xgf : -x.xga; return `<span class="${mode === "att" ? attClass(v) : defClass(v)}">${oppTxt(x)} <small>${v.toFixed(1)}</small></span>`; }).join("")}</td>`;
     }).join("");
-    return { t, sum, html: `<tr><td class="pname">${t.name}</td>${cells}</tr>` };
+    return { sum, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname">${t.name}</td>${cells}</tr>` };
   }).sort((a, b) => b.sum - a.sum);
   return `<div class="panel"><div class="bar"><h2>Fixture ticker</h2>
     <div class="seg" role="group" aria-label="Mode"><button data-fx="att" aria-pressed="${mode === "att"}">Attack</button><button data-fx="def" aria-pressed="${mode === "def"}">Defence</button></div></div>
-    <p class="note" style="margin-top:0">${mode === "att" ? "Projected goals each team should score in each fixture. Green = easy to attack." : "Projected goals each team should concede. Green = best clean-sheet chance."} Sorted easiest first over GW${GWS[0]}–${GWS[GWS.length - 1]}. Lower-case <i>a</i> = away.</p>
+    <p class="note" style="margin-top:0">${mode === "att" ? "Projected goals each team should score. Green = easy to attack." : "Projected goals each team should concede. Green = best clean-sheet chance."} Easiest run first. Capitals = home. Gold edge = a team you own players from.</p>
     <div class="tablebox tick"><table><thead><tr><th>Team</th>${GWS.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>`;
 }
 
 /* ---------- Players ---------- */
-const COLS = [
-  ["name", "Player", 0], ["team", "Team", 0], ["pos", "Pos", 0], ["price", "£m", 1], ["own", "Own %", 1], ["pts", "Pts", 1], ["form", "Form", 1],
-  ["xgi90", "xGI/90", 1], ["xmin", "xMins", 1], ["xp1", "xP next", 1], ["xp3", "xP 3", 1], ["xp5", "xP 5", 1], ["val", "xP5/£m", 1]
-];
+const COLS = [["name", "Player", 0], ["team", "Team", 0], ["pos", "Pos", 0], ["price", "£m", 1], ["own", "Own %", 1], ["pts", "Pts", 1],
+  ["xgi90_4", "xGI/90 L4", 1], ["xmin", "xMins", 1], ["xp1", "xP next", 1], ["xp5", "xP 5", 1], ["val", "xP5/£m", 1], ["pc", "Price", 1]];
+function priceCell(p) {
+  const v = p.price_proj?.[0]; if (v == null) return "–";
+  const w = Math.min(100, Math.abs(v)) * 0.5;
+  return `<span class="minibar ${v < 0 ? "neg" : ""}" style="width:${w}px" title="${v.toFixed(0)}% towards a ${v < 0 ? "fall" : "rise"}"></span> <span class="mono">${v.toFixed(0)}%</span>`;
+}
 function vPlayers() {
   let rows = D.players.slice();
   if (S.pos !== "ALL") rows = rows.filter(p => p.pos === S.pos);
   if (S.team !== "ALL") rows = rows.filter(p => p.team == S.team);
   if (S.maxp) rows = rows.filter(p => p.price <= +S.maxp);
   if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(p => (p.name + " " + p.full).toLowerCase().includes(q)); }
-  const key = S.sort;
-  const val = p => key === "val" ? p.xp5 / p.price : key === "team" ? T[p.team].short : p[key];
+  const val = p => S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : p[S.sort];
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
   const shown = rows.slice(0, 150);
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${S.team == t.id ? "selected" : ""}>${t.name}</option>`).join("");
-  return `<div class="panel"><div class="bar"><h2>Player explorer</h2><span class="muted">${rows.length} players${rows.length > 150 ? " · top 150 shown" : ""}</span></div>
+  return `<div class="panel"><div class="bar"><h2>Players</h2><span class="muted">${rows.length} players${rows.length > 150 ? " · top 150 shown" : ""}</span></div>
     <div class="filters">
       <input type="search" id="q" placeholder="Search players" value="${esc(S.q)}" aria-label="Search players">
       <select id="fpos" aria-label="Position">${["ALL", "GKP", "DEF", "MID", "FWD"].map(x => `<option ${S.pos === x ? "selected" : ""} value="${x}">${x === "ALL" ? "All positions" : x}</option>`).join("")}</select>
       <select id="fteam" aria-label="Team"><option value="ALL">All teams</option>${teamOpts}</select>
       <select id="fmax" aria-label="Max price"><option value="">Any price</option>${[4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12].map(x => `<option ${+S.maxp === x ? "selected" : ""} value="${x}">≤ £${x.toFixed(1)}m</option>`).join("")}</select>
     </div>
-    <div id="cmpBox">${compareHTML()}</div>
+    ${compareHTML()}
     <div class="tablebox" style="max-height:70vh"><table><thead><tr><th>Cmp</th>${COLS.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${l}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("")}</tr></thead>
     <tbody>${shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
       <td><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}"></td>
       <td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${p.chance ?? 0}%</span>` : ""}</td>
-      <td>${T[p.team].short}</td><td>${p.pos}</td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.own.toFixed(1)}</td><td class="n">${p.pts}</td><td class="n">${p.form.toFixed(1)}</td>
-      <td class="n">${p.xgi90.toFixed(2)}</td><td class="n">${p.xmin}</td><td class="n">${f1(p.xp1)}</td><td class="n">${f1(p.xp3)}</td><td class="n"><b>${f1(p.xp5)}</b></td><td class="n">${(p.xp5 / p.price).toFixed(2)}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note">Highlighted rows are in your squad. Tick up to 4 players to compare.</p></div>`;
+      <td>${T[p.team].short}</td><td>${p.pos}</td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.own.toFixed(1)}</td><td class="n">${p.pts}</td>
+      <td class="n">${p.xgi90_4.toFixed(2)}</td><td class="n">${p.xmin}</td><td class="n">${f1(p.xp1)}</td><td class="n"><b>${f1(p.xp5)}</b></td><td class="n">${(p.xp5 / p.price).toFixed(2)}</td><td class="n">${priceCell(p)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note">Gold edge = in your squad. xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. Price = progress towards a price change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}. Tick up to 4 players to compare; charts appear in Stats.</p></div>`;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";
   const ps = S.cmp.map(i => P[i]).filter(Boolean);
-  const stats = [["Price", p => p.price, -1, x => money(x)], ["xP next", p => p.xp1, 1, f1], ["xP next 5", p => p.xp5, 1, f1], ["xGI/90", p => p.xgi90, 1, x => x.toFixed(2)], ["xMins", p => p.xmin, 1, x => x], ["Form", p => p.form, 1, x => x.toFixed(1)], ["Points", p => p.pts, 1, x => x], ["Owned", p => p.own, 0, x => x.toFixed(1) + "%"], ["DC rate", p => p.dc_rate * 100, 1, x => x.toFixed(0) + "%"]];
+  const stats = [["Price", p => p.price, -1, money], ["xP next", p => p.xp1, 1, f1], ["xP next 5", p => p.xp5, 1, f1], ["xGI/90 L4", p => p.xgi90_4, 1, x => x.toFixed(2)], ["xGI/90 model", p => p.xgi90, 1, x => x.toFixed(2)], ["xMins", p => p.xmin, 1, x => x], ["Points", p => p.pts, 1, x => x], ["Goals − xG", p => p.g_xg, 0, x => (x > 0 ? "+" : "") + x.toFixed(1)], ["Owned", p => p.own, 0, x => x.toFixed(1) + "%"], ["DC chance", p => p.dc_rate * 100, 1, x => x.toFixed(0) + "%"]];
   return `<div class="compare" style="margin-bottom:12px">${ps.map(p => `<div class="cmp"><div class="bar" style="margin:0"><b>${esc(p.name)}</b><button class="btn" data-uncmp="${p.id}" aria-label="Remove">✕</button></div>
-    <span class="muted">${T[p.team].short} · ${p.pos}</span><div class="fx pc" style="all:unset;display:flex;gap:2px;margin-top:6px">${playerFxChips(p, 5).replaceAll("<span", '<span style="flex:1;font-size:10px;text-align:center;border-radius:3px;padding:2px 0;font-family:var(--display);font-weight:600"')}</div>
-    <dl>${stats.map(([l, fn, dir, fmt]) => { const vals = ps.map(fn); const best = dir === 1 ? Math.max(...vals) : dir === -1 ? Math.min(...vals) : null; const v = fn(p); return `<dt>${l}</dt><dd class="${ps.length > 1 && best === v ? "best" : ""}">${fmt(v)}</dd>`; }).join("")}</dl></div>`).join("")}</div>`;
+    <span class="muted">${T[p.team].short} · ${p.pos}</span>
+    <dl>${stats.map(([l, fn, dir, fmt]) => { const vals = ps.map(fn), best = dir === 1 ? Math.max(...vals) : dir === -1 ? Math.min(...vals) : null, v = fn(p); return `<dt>${l}</dt><dd class="${ps.length > 1 && best === v ? "best" : ""}">${fmt(v)}</dd>`; }).join("")}</dl></div>`).join("")}</div>`;
+}
+
+/* ---------- Stats ---------- */
+function lineChart(series, labels, { h = 200, yfmt = x => x, title = "" } = {}) {
+  const W = 600, pad = { l: 40, r: 12, t: 12, b: 26 };
+  const all = series.flatMap(s => s.vals.filter(v => v != null));
+  const mx = Math.max(1, ...all), mn = Math.min(0, ...all);
+  const nice = mx <= 2 ? 0.5 : mx <= 5 ? 1 : mx <= 12 ? 2 : 5;
+  const top = Math.ceil(mx / nice) * nice;
+  const x = i => pad.l + (labels.length === 1 ? 0 : i / (labels.length - 1)) * (W - pad.l - pad.r);
+  const y = v => pad.t + (1 - (v - mn) / (top - mn)) * (h - pad.t - pad.b);
+  const ticks = []; for (let v = 0; v <= top + 1e-9; v += nice) ticks.push(v);
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(title)}">
+    ${ticks.map(v => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${yfmt(v)}</text>`).join("")}
+    ${labels.map((l, i) => `<text x="${x(i)}" y="${h - 8}" text-anchor="middle">${l}</text>`).join("")}
+    ${series.map(s => `<polyline class="${s.cls}" fill="none" stroke-width="2.5" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""} points="${s.vals.map((v, i) => `${x(i)},${y(v || 0)}`).join(" ")}"/>${s.vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v || 0)}" r="3" class="${s.cls}" fill="var(--surface)" stroke-width="2"/>`).join("")}`).join("")}
+  </svg>`;
+}
+function vStats() {
+  const cur = D.meta.cur_gw, gwl = Array.from({ length: cur }, (_, i) => "GW" + (i + 1));
+  // form table
+  const posF = S.stPos;
+  let rows = D.players.filter(p => p.mins4 >= 180 && (posF === "ALL" || (posF === "ATT" ? (p.pos === "MID" || p.pos === "FWD") : p.pos === posF)));
+  const k = S.stSort;
+  rows.sort((a, b) => (k === "delta" ? (b.xgi90_4 - b.xgi90) - (a.xgi90_4 - a.xgi90) : (b[k] || 0) - (a[k] || 0)));
+  rows = rows.slice(0, 25);
+  const th = (key, l) => `<th class="sort n" data-stsort="${key}" ${S.stSort === key ? 'aria-sort="descending"' : ""}>${l}${S.stSort === key ? " ↓" : ""}</th>`;
+  const form = `<div class="panel"><div class="bar"><h3>Form by underlying numbers</h3>
+      <div class="seg" role="group" aria-label="Position">${[["ATT", "MID+FWD"], ["DEF", "DEF"], ["ALL", "All"]].map(([v, l]) => `<button data-stpos="${v}" aria-pressed="${posF === v}">${l}</button>`).join("")}</div></div>
+    <p class="note" style="margin-top:0">Last 4 gameweeks, players with 180+ minutes. Rising xGI/90 is the best early sign of a player coming into form, before the points arrive.</p>
+    <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Mins L4</th>${th("xgi90_4", "xGI/90 L4")}${th("xgi90_6", "L6")}<th class="n">Model</th>${th("delta", "Trend")}${th("pts4", "Pts L4")}${th("dc_rate", "DC %")}</tr></thead>
+    <tbody>${rows.map(p => { const d = p.xgi90_4 - p.xgi90; return `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.mins4}</td><td class="n"><b>${p.xgi90_4.toFixed(2)}</b></td><td class="n">${p.xgi90_6.toFixed(2)}</td><td class="n">${p.xgi90.toFixed(2)}</td><td class="n ${d > 0.05 ? "up" : d < -0.05 ? "down" : ""}">${d > 0 ? "▲" : d < 0 ? "▼" : ""} ${Math.abs(d).toFixed(2)}</td><td class="n">${p.pts4}</td><td class="n">${Math.round(p.dc_rate * 100)}%</td></tr>`; }).join("")}</tbody></table></div></div>`;
+  // over/under
+  const att = D.players.filter(p => (p.pos === "MID" || p.pos === "FWD") && p.xg >= 1.2);
+  const hot = att.slice().sort((a, b) => b.g_xg - a.g_xg).slice(0, 8);
+  const due = att.slice().sort((a, b) => a.g_xg - b.g_xg).slice(0, 8);
+  const ou = list => `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">Goals</th><th class="n">xG</th><th class="n">Diff</th></tr></thead><tbody>${list.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short}</span></td><td class="n">${p.goals}</td><td class="n">${p.xg.toFixed(1)}</td><td class="n ${p.g_xg > 0 ? "up" : "down"}">${p.g_xg > 0 ? "+" : ""}${p.g_xg.toFixed(1)}</td></tr>`).join("")}</tbody></table></div>`;
+  // team trend
+  const tt = T[S.trendTeam];
+  const tr = tt.trend;
+  const trendChart = lineChart([{ cls: "s1", vals: tr.map(x => x.xgf) }, { cls: "s4", vals: tr.map(x => x.xga) }], tr.map(x => (x.home ? T[x.opp].short : T[x.opp].short.toLowerCase())), { title: "xG for and against" });
+  const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${S.trendTeam == t.id ? "selected" : ""}>${t.name}</option>`).join("");
+  const ratings = Object.values(T).sort((a, b) => (b.att / b.def) - (a.att / a.def));
+  // player charts
+  const cps = S.cmp.map(i => P[i]).filter(Boolean).slice(0, 4);
+  const cls = ["s1", "s2", "s3", "s4"];
+  const pc = cps.length ? `<div class="legend">${cps.map((p, i) => `<span><i class="${cls[i]}"></i>${esc(p.name)}</span>`).join("")}</div>
+      <span class="lbl">Points per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_pts })), gwl, { h: 180 })}
+      <span class="lbl">Expected goal involvement per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_xgi })), gwl, { h: 180, yfmt: v => v.toFixed(1) })}`
+    : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
+  return `
+  ${form}
+  <div class="panel"><div class="bar"><h3>Player charts</h3><span class="muted">${cps.length}/4 selected</span></div>${pc}
+    <div class="filters" style="margin-top:10px"><input type="search" id="chartq" list="plist" placeholder="Add a player to the chart" aria-label="Add a player to the chart"><datalist id="plist">${D.players.slice(0, 350).map(p => `<option value="${esc(p.name)} (${T[p.team].short})">`).join("")}</datalist>${cps.map(p => `<button class="btn" data-uncmp="${p.id}">✕ ${esc(p.name)}</button>`).join("")}</div></div>
+  <div class="statgrid">
+    <div class="panel"><h3>Running hot</h3><p class="note" style="margin-top:0">Scoring well above their xG. Finishing streaks rarely last, so expect fewer goals unless the chances rise.</p>${ou(hot)}</div>
+    <div class="panel"><h3>Due a goal</h3><p class="note" style="margin-top:0">Getting chances but scoring less than their xG. Often good value before the goals come.</p>${ou(due)}</div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="bar"><h3>Team trend</h3><select id="trendTeam" aria-label="Team" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 9px">${teamOpts}</select></div>
+      <div class="legend"><span><i class="s1"></i>xG for</span><span><i class="s4"></i>xG against</span></div>
+      ${trendChart}
+      <p class="note">Real scores: ${tr.map(x => `${oppTxt(x)} ${x.gf}–${x.ga}`).join(" · ")}</p></div>
+    <div class="panel"><h3>Team ratings</h3><p class="note" style="margin-top:0">1.00 = league average. Attack above 1 scores more; defence below 1 concedes less. Opponent-adjusted.</p>
+      <div class="tablebox" style="max-height:420px"><table><thead><tr><th>Team</th><th class="n">Attack</th><th class="n">Defence</th></tr></thead><tbody>${ratings.map(t => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${t.att * 40}px"></span> ${t.att.toFixed(2)}</td><td class="n"><span class="minibar neg" style="width:${t.def * 40}px"></span> ${t.def.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>
+  </div>`;
 }
 
 /* ---------- Chips ---------- */
 function vChips() {
   const g = D.meta.next_gw;
   const chips = D.chips.map(c => `<div class="chip ${c.used ? "used" : ""}"><h3>${c.name}</h3><span class="muted">GW${c.from}–${c.to}</span><div style="margin-top:6px">${c.used ? `<span class="pill mut">Used GW${c.used}</span>` : c.available ? `<span class="pill good">Available</span>` : `<span class="pill bad">Expired</span>`}</div></div>`).join("");
-  const rows = D.gw_info.map(r => `<tr><td>GW${r.gw}</td><td class="n">${r.squad_playing ?? "–"}/15</td><td class="n">${f1(r.bench_xp ?? 0)}</td><td>${esc(P[r.tc_player]?.name || "–")}</td><td class="n">${f1((r.tc_xp || 0) * 3)}</td><td>${r.doubles.length ? r.doubles.join(", ") : "–"}</td><td>${r.blanks.length ? r.blanks.join(", ") : "–"}</td></tr>`).join("");
+  const rows = (D.gw_info || []).map(r => `<tr><td>GW${r.gw}</td><td class="n">${r.squad_playing}/15</td><td class="n">${f1(r.bench_xp)}</td><td>${esc(P[r.tc_player]?.name || "–")}</td><td class="n">${f1(r.tc_xp * 3)}</td></tr>`).join("");
   const dgw = D.season_gws.filter(r => r.gw >= g && (r.doubles.length || r.blanks.length));
   const tc1 = D.chips.find(c => c.key === "3xc" && c.to <= 19);
-  const bestTc = D.gw_info.reduce((a, r) => (!a || r.tc_xp > a.tc_xp) ? r : a, null);
-  const advice = [];
-  if (tc1 && tc1.available) advice.push(`Your first-half <b>Triple Captain</b> must be played by GW${tc1.to}. ${dgw.some(r => r.gw <= tc1.to && r.doubles.length) ? "A double gameweek falls before then; that is the best spot." : `No double gameweeks are scheduled before then, so aim it at your best single fixture. In the next ${GWS.length} GWs that is <b>GW${bestTc.gw}</b> (${esc(P[bestTc.tc_player]?.name)}, ${f1(bestTc.tc_xp * 3)} pts projected with TC).`}`);
-  advice.push(`Your first-half Wildcard, Free Hit and Bench Boost are spent. The second set unlocks in GW20; save Bench Boost and Free Hit for the double and blank gameweeks that usually get announced around the cup rounds.`);
-  return `<div class="panel"><h2 style="margin-bottom:12px">Chip planner</h2><p class="verdict">${advice.join("<br><br>")}</p></div>
+  const bestTc = (D.gw_info || []).reduce((a, r) => (!a || r.tc_xp > a.tc_xp) ? r : a, null);
+  const adv = [];
+  if (tc1 && tc1.available) adv.push(`Your first-half <b>Triple Captain</b> must be played by GW${tc1.to}. ${dgw.some(r => r.gw <= tc1.to && r.doubles.length) ? "A double gameweek falls before then, which is the best spot." : `No doubles are scheduled before then, so aim it at the best single fixture. In view now: <b>GW${bestTc.gw}</b> (${esc(P[bestTc.tc_player]?.name)}, ${f1(bestTc.tc_xp * 3)} pts with TC).`}`);
+  adv.push("The second set of chips unlocks in GW20. Save Bench Boost and Free Hit for the doubles and blanks, which usually get announced around the cup rounds.");
+  return `<div class="panel"><h2 style="margin-bottom:12px">Chip planner</h2><p class="verdict">${adv.join("<br><br>")}</p></div>
     <div class="chips">${chips}</div>
-    <div class="panel"><h3>Next ${GWS.length} gameweeks</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Squad playing</th><th class="n">Bench xP</th><th>Best TC pick</th><th class="n">TC xP</th><th>Doubles</th><th>Blanks</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="note">${dgw.length ? `Known blanks/doubles from GW${g}: ${dgw.map(r => `GW${r.gw}${r.doubles.length ? " double: " + r.doubles.join(", ") : ""}${r.blanks.length ? " blank: " + r.blanks.join(", ") : ""}`).join("; ")}.` : "No blank or double gameweeks are scheduled yet for the rest of the season. This updates automatically when the fixture list changes."}</p></div>`;
+    <div class="panel"><h3>Your squad, next ${(D.gw_info || []).length} gameweeks</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Playing</th><th class="n">Bench xP</th><th>Best captain</th><th class="n">TC xP</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">${dgw.length ? `Known blanks/doubles: ${dgw.map(r => `GW${r.gw}${r.doubles.length ? " double: " + r.doubles.join(", ") : ""}${r.blanks.length ? " blank: " + r.blanks.join(", ") : ""}`).join("; ")}.` : "No blank or double gameweeks are scheduled yet. This updates automatically when the fixture list changes."}</p></div>`;
 }
 
-/* ---------- Prices ---------- */
-function priceBar(v) {
-  const w = Math.min(100, Math.abs(v || 0));
-  return `<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:8px;background:var(--sunk);border-radius:4px;overflow:hidden;min-width:60px"><div style="width:${w}%;height:100%;background:${v >= 0 ? "var(--good)" : "var(--bad)"}"></div></div><span class="mono" style="width:52px;text-align:right">${v == null ? "–" : v.toFixed(0) + "%"}</span></div>`;
-}
-function vPrices() {
-  const mine = D.squad.map(s => P[s.id]).filter(Boolean).sort((a, b) => (a.price_proj?.[0] ?? 0) - (b.price_proj?.[0] ?? 0));
-  const all = D.players.filter(p => p.price_proj && p.price_proj.length);
-  const risers = all.slice().sort((a, b) => b.price_proj[0] - a.price_proj[0]).slice(0, 12);
-  const fallers = all.slice().sort((a, b) => a.price_proj[0] - b.price_proj[0]).slice(0, 12);
-  const nextDl = (D.meta.price_deadlines || []).find(d => new Date(d) > new Date());
-  const tbl = list => `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th>Progress to change tonight</th><th class="n">Net transfers GW</th></tr></thead><tbody>${list.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><span class="pname">${esc(p.name)}</span> <span class="muted">${T[p.team].short}</span></td><td class="n">${p.price.toFixed(1)}</td><td style="min-width:160px">${priceBar(p.price_proj[0])}</td><td class="n">${(p.tin - p.tout).toLocaleString("en-GB")}</td></tr>`).join("")}</tbody></table></div>`;
-  return `<div class="panel"><h2 style="margin-bottom:6px">Price changes</h2>
-    <p class="note" style="margin-top:0">Progress comes from FPL's own price-change projection: 100% means a change is likely at the next update${nextDl ? ` (around ${ukTime(nextDl)} UK time)` : ""}. Negative values point to a fall.</p>
-    <h3 style="margin:10px 0 8px">Your squad</h3>${tbl(mine)}</div>
-    <div class="grid2"><div class="panel"><h3>Closest to rising</h3>${tbl(risers)}</div><div class="panel"><h3>Closest to falling</h3>${tbl(fallers)}</div></div>`;
-}
-
-/* ---------- Season / live ---------- */
+/* ---------- Season ---------- */
 function rankChart(h) {
   const W = 640, H = 220, pad = { l: 64, r: 16, t: 14, b: 28 };
-  const ranks = h.map(x => x.rank);
-  const lo = Math.log10(Math.min(...ranks)), hi = Math.log10(Math.max(...ranks));
-  const span = Math.max(0.3, hi - lo);
+  const ranks = h.map(x => x.rank), lo = Math.log10(Math.min(...ranks)), hi = Math.log10(Math.max(...ranks)), span = Math.max(0.3, hi - lo);
   const y = r => pad.t + (Math.log10(r) - (lo - 0.05)) / (span + 0.1) * (H - pad.t - pad.b);
   const x = i => pad.l + (h.length === 1 ? 0 : i / (h.length - 1)) * (W - pad.l - pad.r);
-  const pts = h.map((d, i) => `${x(i)},${y(d.rank)}`).join(" ");
   const ticks = [];
   for (let e = Math.floor(lo); e <= Math.ceil(hi); e++) [1, 2, 5].forEach(m => { const v = m * 10 ** e; if (Math.log10(v) >= lo - 0.05 && Math.log10(v) <= hi + 0.05) ticks.push(v); });
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Overall rank by gameweek">
-    ${ticks.map(t => `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${pad.l - 8}" y="${y(t) + 4}" text-anchor="end">${t >= 1e6 ? t / 1e6 + "m" : t >= 1e3 ? t / 1e3 + "k" : t}</text>`).join("")}
-    <polyline points="${pts}" fill="none" stroke="var(--turf-2)" stroke-width="2.5" stroke-linejoin="round"/>
-    ${h.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.rank)}" r="${i === h.length - 1 ? 5 : 3}" fill="${i === h.length - 1 ? "var(--armband)" : "var(--turf-2)"}"/><text x="${x(i)}" y="${H - 8}" text-anchor="middle">${d.gw}</text>`).join("")}
-  </svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Overall rank by gameweek">
+    ${ticks.map(t => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${pad.l - 8}" y="${y(t) + 4}" text-anchor="end">${t >= 1e6 ? t / 1e6 + "m" : t >= 1e3 ? t / 1e3 + "k" : t}</text>`).join("")}
+    <polyline points="${h.map((d, i) => `${x(i)},${y(d.rank)}`).join(" ")}" fill="none" class="s1" stroke-width="2.5"/>
+    ${h.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.rank)}" r="${i === h.length - 1 ? 5 : 3}" fill="${i === h.length - 1 ? "var(--armband)" : "var(--turf-2)"}"/><text x="${x(i)}" y="${H - 8}" text-anchor="middle">${d.gw}</text>`).join("")}</svg>`;
 }
 function vSeason() {
-  const h = D.history, L = D.live;
-  const mx = Math.max(...h.map(x => x.pts));
+  const h = D.history, L = D.live, mx = Math.max(...h.map(x => x.pts));
   const live = L ? `<div class="panel"><div class="bar"><h3>GW${L.gw} ${L.finished ? "result" : "live points"}</h3><span class="muted">${L.points} pts · average ${L.average ?? "–"} · highest ${L.highest ?? "–"}</span></div>
     <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">Mins</th><th class="n">BPS</th><th class="n">Bonus</th><th class="n">Pts</th><th class="n">Counted</th></tr></thead><tbody>${L.rows.map(r => `<tr><td><span class="pname">${esc(P[r.id]?.name || r.id)}</span>${r.cap ? ' <span class="pill warn">C</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}${r.pos > 11 ? ' <span class="muted">bench</span>' : ""}</td><td class="n">${r.mins}</td><td class="n">${r.bps}</td><td class="n">${r.bonus}</td><td class="n">${r.pts}</td><td class="n"><b>${r.pts * r.mult}</b></td></tr>`).join("")}</tbody></table></div>
-    ${!L.finished ? `<p class="note">Live during the gameweek, as of the last data update. Bonus is provisional until FPL confirms it.</p>` : ""}</div>` : "";
+    ${!L.finished ? `<p class="note">Live during the gameweek, as of the last update. Bonus is provisional until FPL confirms it.</p>` : ""}</div>` : "";
   return `<div class="grid2"><div class="panel"><h3>Overall rank</h3>${rankChart(h)}</div>
     <div class="panel"><h3>Points per gameweek</h3><div class="gwbars">${h.map(x => `<div title="GW${x.gw}: ${x.pts} pts"><span class="num" style="color:var(--fg);font-weight:600">${x.pts}</span><i style="height:${x.pts / mx * 60}px;${x.chip ? "background:var(--armband)" : ""}"></i>${x.gw}</div>`).join("")}</div>
-    <p class="note">Gold bars = chip weeks (${h.filter(x => x.chip).map(x => `GW${x.gw} ${({ bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard", "3xc": "Triple Captain" })[x.chip]}`).join(", ") || "none"}). Points left on bench this season: <b>${h.reduce((a, x) => a + x.bench, 0)}</b>.</p></div></div>
-    ${live}`;
+    <p class="note">Gold bars = chip weeks. Points left on your bench this season: <b>${h.reduce((a, x) => a + x.bench, 0)}</b>.</p></div></div>${live}`;
 }
 
-/* ---------- Method ---------- */
-function vMethod() {
-  return `<div class="panel" style="max-width:760px"><h2 style="margin-bottom:10px">How the projections work</h2>
-  <p>Every player gets an expected-points (xP) figure for each of the next ${GWS.length} gameweeks, built from the official FPL data:</p>
+/* ---------- Model ---------- */
+function vModel() {
+  const A = D.accuracy;
+  const acc = A ? `<div class="panel"><h2 style="margin-bottom:10px">How accurate is it?</h2>
+    <p>Each finished gameweek (GW${A.gws[0]}–${A.gws[A.gws.length - 1]}) was projected again using only the data available before it, then compared with the real points of ${A.n.toLocaleString("en-GB")} player appearances.</p>
+    <div class="kpis"><div class="kpi"><span class="lbl">Correlation with real points</span><b>${A.corr.toFixed(2)}</b><span class="delta muted">recent-points average: ${A.base_corr.toFixed(2)}</span></div>
+      <div class="kpi"><span class="lbl">Typical miss (RMSE)</span><b>${A.rmse.toFixed(2)}</b><span class="delta muted">recent-points average: ${A.base_rmse.toFixed(2)}</span></div>
+      <div class="kpi"><span class="lbl">Average miss</span><b>${A.mae.toFixed(2)}</b><span class="delta muted">points per player per GW</span></div></div>
+    <h3 style="margin:16px 0 6px">Calibration</h3><p class="note" style="margin-top:0">When the model says a player will score about X, how many did players actually score on average?</p>
+    <div class="tablebox"><table><thead><tr><th>Projected</th><th class="n">Players</th><th class="n">Avg projected</th><th class="n">Avg actual</th></tr></thead><tbody>${A.buckets.map(([b, c, px, pa]) => `<tr><td>${b}–${b + 1} pts</td><td class="n">${c}</td><td class="n">${px.toFixed(2)}</td><td class="n">${pa.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="note">Single-gameweek FPL points are very noisy: a correlation around 0.4 is about as good as public models get. The value is in ranking players sensibly and avoiding bad bets, not in calling exact scores.</p></div>` : "";
+  return `${acc}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
-    <li><b>Team strength.</b> Each club's attack and defence ratings come from expected goals for and against in every match so far (70%) blended with actual goals (30%), adjusted for the opponents they've faced and for home advantage, then nudged toward league average while the sample is small.</li>
-    <li><b>Fixture projection.</b> For each fixture: projected goals = league average (${D.meta.league_goals}) × team attack × opponent defence × home/away factor. Clean-sheet chance comes from a Poisson model of goals conceded.</li>
-    <li><b>Minutes.</b> Recent minutes (last 5 gameweeks, weighted to the most recent), times FPL's chance-of-playing flag, recovering over following weeks for injured players.</li>
-    <li><b>Returns.</b> Each player's xG and xA per 90 (recent games weighted more, shrunk toward a positional average for small samples), scaled to the fixture, converted with FPL scoring: goals, assists, clean sheets, goals conceded, saves, defensive contributions (based on how often they've hit the threshold), bonus and cards.</li>
-    <li><b>Transfers.</b> The best squad value is the best possible XI plus captain each week over 5 gameweeks. Each suggested move is the single swap that raises that most, within budget and club limits.</li>
+    <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
+    <li><b>Fixtures.</b> Projected goals = league average (${D.meta.league_goals}) × attack × opponent defence × home/away. Clean-sheet and goals-conceded chances come from that, calibrated to real clean-sheet rates.</li>
+    <li><b>Minutes.</b> How often a player starts or comes off the bench, and how long they play, over the last 5 gameweeks (recent games count more), times FPL's chance-of-playing flag.</li>
+    <li><b>Player output.</b> xG and xA per 90 this season (recent games count more), blended with ${D.meta.priors_season || "last season"} and the two seasons before it, plus a positional average. First-choice penalty takers get a small boost. Assists are scaled up because FPL awards more assists than xA counts.</li>
+    <li><b>Defensive contributions.</b> The chance of reaching the CBIT threshold, from each player's hit rate and their per-90 rate.</li>
+    <li><b>Calibration.</b> The raw projections are adjusted so that, across past gameweeks, projected and real averages match (see the table above).</li>
+    <li><b>Transfer plans.</b> An optimiser plans the next 5 gameweeks together: transfers, lineups and captains, within budget, squad shape, the 3-per-club rule and free-transfer rules. A banked free transfer is valued at 1.5 points.</li>
   </ul>
-  <p class="note">Selling prices and free transfers are estimated from your public transfer history, because FPL only shows the exact values when signed in. Projections are a guide, not a guarantee. Data refreshes on a schedule; the update time is at the top of the page.</p></div>`;
+  <p class="note">Selling prices and free transfers are estimated from your public transfer history, because FPL only shows exact values when you're signed in. The model and data are updated every 30 minutes.</p></div>`;
 }
 
 /* ---------- player dialog ---------- */
 function openPlayer(id) {
   const p = P[id]; if (!p) return;
-  const d = p.xp_detail || {};
+  const d = p.xp_detail || {}, g = D.meta.next_gw;
   const labels = { mins: "Appearance", goals: "Goals", assists: "Assists", cs: "Clean sheet", gc: "Conceded", saves: "Saves", dc: "Def. contrib.", bonus: "Bonus", cards: "Cards" };
-  const mx = Math.max(...GWS.map(g => p.xp[g] || 0), 1);
+  const mx = Math.max(...GWS.map(x => xpg(id, x)), 1);
   const sq = D.squad.find(s => s.id === id);
+  const gwl = Array.from({ length: D.meta.cur_gw }, (_, i) => String(i + 1));
   $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
     <div><span class="lbl">${T[p.team].name} · ${p.pos} · ${money(p.price)} · ${p.own.toFixed(1)}% owned</span><h2>${esc(p.full)}</h2>
     ${p.status !== "a" ? `<p class="pill ${p.status === "d" ? "warn" : "bad"}" style="margin-top:6px">${esc(p.news || "Flagged")}</p>` : ""}</div>
     <div class="kpis"><div class="kpi"><span class="lbl">xP next</span><b>${f1(p.xp1)}</b></div><div class="kpi"><span class="lbl">xP 5 GWs</span><b>${f1(p.xp5)}</b></div><div class="kpi"><span class="lbl">xMins</span><b>${p.xmin}</b></div></div>
-    <div><span class="lbl">GW${D.meta.next_gw} breakdown · ${fxText(p)}</span><div class="brk" style="margin-top:6px">${Object.entries(d).filter(([k, v]) => Math.abs(v) >= 0.01).map(([k, v]) => `<div><span class="muted" style="font-size:12px">${labels[k] || k}</span><b>${v > 0 ? "" : ""}${v.toFixed(2)}</b></div>`).join("")}</div></div>
-    <div><span class="lbl">Projected points by gameweek</span><div class="gwbars" style="margin-top:6px">${GWS.map(g => `<div title="GW${g}"><span class="num" style="color:var(--fg);font-weight:600">${f1(p.xp[g] || 0)}</span><i style="height:${(p.xp[g] || 0) / mx * 50}px"></i>${fxFor(p.team, g).map(x => x.home ? T[x.opp].short : T[x.opp].short.toLowerCase()).join("+") || "–"}</div>`).join("")}</div></div>
-    <div class="brk"><div><span class="muted" style="font-size:12px">Season pts</span><b>${p.pts}</b></div><div><span class="muted" style="font-size:12px">Form</span><b>${p.form}</b></div><div><span class="muted" style="font-size:12px">xG / xA</span><b>${p.xg.toFixed(1)} / ${p.xa.toFixed(1)}</b></div><div><span class="muted" style="font-size:12px">xGI per 90</span><b>${p.xgi90.toFixed(2)}</b></div><div><span class="muted" style="font-size:12px">Minutes</span><b>${p.mins}</b></div>${sq ? `<div><span class="muted" style="font-size:12px">Bought / sell</span><b>${sq.buy.toFixed(1)} / ${sq.sell.toFixed(1)}</b></div>` : ""}</div>
-    ${sq && sq.alts.length ? `<div><span class="lbl">Affordable upgrades</span><ul class="alerts" style="margin-top:6px">${sq.alts.map(a => P[a]).filter(Boolean).map(a => `<li class="${a.xp5 > p.xp5 ? "good" : ""}"><span><b>${esc(a.name)}</b> ${T[a.team].short} · ${money(a.price)} · ${f1(a.xp5)} xP5 (${a.xp5 > p.xp5 ? "+" : ""}${f1(a.xp5 - p.xp5)})</span></li>`).join("")}</ul></div>` : ""}`;
+    <div><span class="lbl">GW${g} breakdown · ${fxText(p, g)}</span><div class="brk" style="margin-top:6px">${Object.entries(d).filter(([, v]) => Math.abs(v) >= 0.01).map(([k, v]) => `<div><span class="muted" style="font-size:12px">${labels[k] || k}</span><b>${v.toFixed(2)}</b></div>`).join("")}</div></div>
+    <div><span class="lbl">Projected points by gameweek</span><div class="gwbars" style="margin-top:6px">${GWS.map(x => `<div><span class="num" style="color:var(--fg);font-weight:600">${f1(xpg(id, x))}</span><i style="height:${xpg(id, x) / mx * 50}px"></i>${fxFor(p.team, x).map(oppTxt).join("+") || "–"}</div>`).join("")}</div></div>
+    <div><span class="lbl">This season, by gameweek</span><div class="legend" style="margin-top:4px"><span><i class="s1"></i>Points</span><span><i class="s2"></i>xGI × 10</span></div>${lineChart([{ cls: "s1", vals: p.s_pts }, { cls: "s2", vals: p.s_xgi.map(v => v * 10) }], gwl, { h: 150 })}</div>
+    <div class="brk"><div><span class="muted" style="font-size:12px">Season pts</span><b>${p.pts}</b></div><div><span class="muted" style="font-size:12px">G / A</span><b>${p.goals} / ${p.assists}</b></div><div><span class="muted" style="font-size:12px">xG / xA</span><b>${p.xg.toFixed(1)} / ${p.xa.toFixed(1)}</b></div><div><span class="muted" style="font-size:12px">xGI/90 L4</span><b>${p.xgi90_4.toFixed(2)}</b></div><div><span class="muted" style="font-size:12px">Starts</span><b>${Math.round(p.p_start * 100)}%</b></div>${p.last ? `<div><span class="muted" style="font-size:12px">${p.last.season} pts</span><b>${p.last.pts}</b></div>` : ""}${sq ? `<div><span class="muted" style="font-size:12px">Bought / sell</span><b>${sq.buy.toFixed(1)} / ${sq.sell.toFixed(1)}</b></div>` : ""}</div>
+    ${MINE.has(id) ? `<button class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}`;
   const dlg = $("#dlg"); dlg.showModal();
   $("#dlgX").onclick = () => dlg.close();
+  const pr = $("[data-plan-replace]"); if (pr) pr.onclick = () => { dlg.close(); SB.sel = id; SB.gw = PG[0]; SB.q = ""; setView("planner"); };
 }
 $("#dlg").addEventListener("click", e => { if (e.target.id === "dlg") e.target.close(); });
 
+/* ---------- events ---------- */
 function bind() {
-  document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => openPlayer(+b.dataset.p));
-  document.querySelectorAll("[data-pitch]").forEach(b => b.onclick = () => { S.pitch = b.dataset.pitch; render(); });
-  document.querySelectorAll("[data-fx]").forEach(b => b.onclick = () => { S.fxMode = b.dataset.fx; render(); });
-  document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => setView(b.dataset.go));
-  document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });
-  document.querySelectorAll("[data-cmp]").forEach(c => c.onchange = () => { const id = +c.dataset.cmp; if (c.checked) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } else S.cmp = S.cmp.filter(x => x !== id); render(); });
-  document.querySelectorAll("[data-uncmp]").forEach(b => b.onclick = () => { S.cmp = S.cmp.filter(x => x !== +b.dataset.uncmp); render(); });
-  const q = $("#q");
-  if (q) {
-    q.oninput = () => { S.q = q.value; clearTimeout(q._t); q._t = setTimeout(() => { const pos = q.selectionStart; render(); const n = $("#q"); n.focus(); n.setSelectionRange(pos, pos); }, 200); };
-    $("#fpos").onchange = e => { S.pos = e.target.value; render(); };
-    $("#fteam").onchange = e => { S.team = e.target.value; render(); };
-    $("#fmax").onchange = e => { S.maxp = e.target.value; render(); };
-  }
+  const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
+  on("[data-p]", b => openPlayer(+b.dataset.p));
+  on("[data-fx]", b => { S.fxMode = b.dataset.fx; render(); });
+  on("[data-plan]", b => { S.plan = b.dataset.plan; render(); });
+  on("[data-loadplan]", b => { SB.moves = planMoves(D.plans[b.dataset.loadplan]); SB.sel = null; sanitize(); saveSandbox(); setView("planner"); });
+  on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
+  on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
+  on("[data-cancel]", () => { SB.sel = null; render(); });
+  on("[data-pick]", b => {
+    const g = SB.gw, out = SB.sel, inn = +b.dataset.pick;
+    // a move from this GW replaces the player for all later weeks; drop later moves of the same player
+    SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === out));
+    SB.moves.push({ gw: g, out, in: inn }); SB.sel = null; sanitize(); saveSandbox(); render();
+  });
+  on("[data-undo]", b => { SB.moves.splice(+b.dataset.undo, 1); sanitize(); saveSandbox(); render(); });
+  on("[data-reset]", () => { SB.moves = []; saveSandbox(); render(); });
+  on("th[data-sort]", th => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });
+  on("[data-stsort]", th => { S.stSort = th.dataset.stsort; render(); });
+  on("[data-stpos]", b => { S.stPos = b.dataset.stpos; render(); });
+  on("[data-cmp]", c => { const id = +c.dataset.cmp; if (c.checked) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } else S.cmp = S.cmp.filter(x => x !== id); render(); }, "onchange");
+  on("[data-uncmp]", b => { S.cmp = S.cmp.filter(x => x !== +b.dataset.uncmp); render(); });
+  const tsel = $("#trendTeam"); if (tsel) tsel.onchange = e => { S.trendTeam = +e.target.value; render(); };
+  const cq = $("#chartq");
+  if (cq) cq.onchange = () => {
+    const v = cq.value; const p = D.players.find(p => `${p.name} (${T[p.team].short})` === v);
+    if (p && !S.cmp.includes(p.id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(p.id); render(); }
+  };
+  const live = (id, key, obj) => {
+    const el = $(id); if (!el) return;
+    el.oninput = () => { obj[key] = el.value; clearTimeout(el._t); el._t = setTimeout(() => { const pos = el.selectionStart; render(); const n = $(id); if (n) { n.focus(); n.setSelectionRange(pos, pos); } }, 200); };
+  };
+  live("#q", "q", S); live("#candq", "q", SB);
+  const fp = $("#fpos"); if (fp) { fp.onchange = e => { S.pos = e.target.value; render(); }; $("#fteam").onchange = e => { S.team = e.target.value; render(); }; $("#fmax").onchange = e => { S.maxp = e.target.value; render(); }; }
 }
 setInterval(() => { const c = $("#cd"); if (c && D) c.textContent = countdown(D.meta.deadline); }, 30000);
 load();
+
 </script>
 </body>
 </html>
