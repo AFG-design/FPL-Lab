@@ -49,7 +49,8 @@ function vStats() {
     : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
   const tabs = [["form", "Form"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["prices", "Prices"], ["teams", "Teams"]];
   const tab = S.stab || "form";
-  const nav = `<div class="seg ptabs" role="group" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`;
+  const nav = `<div class="stats-nav"><div class="seg ptabs" role="group" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>
+    <button class="btn ghost sm" data-statlabels="${tab}" aria-haspopup="dialog">What the labels mean</button></div>`;
   let body = "";
   if (tab === "form") body = `${form}
   <div class="panel"><div class="bar"><h3>Player charts</h3><span class="muted">${cps.length}/4 selected</span></div>${pc}
@@ -208,4 +209,85 @@ function pricesHTML() {
     <div class="panel"><h3>Track record</h3><p class="note" style="margin-top:0">How often a player at each FPL projection actually changed price that night, over the last ${PR?.nights || 0} night${PR?.nights === 1 ? "" : "s"}. "Our record" above appears once a band has 15+ cases.${PR?.changes ? ` ${PR.unpredicted} of ${PR.changes} changes weren't projected above 50%.` : ""}</p>
       <div class="tablebox"><table><thead><tr><th>FPL projection</th><th class="n">Rose</th><th class="n">Fell</th></tr></thead><tbody>${rec}</tbody></table></div></div>
   </div>`;
+}
+
+/* ---------- what the labels mean, per Stats tab ---------- */
+const STAT_LABELS = {
+  general: ["Across Stats", [
+    ["L4 / L6", "Over the last 4 or 6 gameweeks. Recent form reacts faster to a change of role or team than whole-season numbers."],
+    ["/90", "Per 90 minutes, so players who play less can be compared fairly with regulars."],
+    ["£m", "Current FPL price."],
+    ["Highlighted row", "A player in your squad."],
+    ["xG / xA / xGI", "Expected goals, expected assists, and the two added together (expected goal involvement): how good his chances were, whether or not they went in."],
+    ["xP", "Projected FPL points from the model."],
+  ]],
+  form: ["Form", [
+    ["Mins L4", "Minutes played over the last 4 gameweeks (360 is every minute)."],
+    ["xGI/90 L4 and L6", "Expected goal involvement per 90 over the last 4 and 6 gameweeks."],
+    ["Model", "The model's long-run xGI per 90 for him, blending this season with last season. This is what his projections are based on."],
+    ["Trend", "xGI/90 over the last 4 minus the Model figure. ▲ means he's getting better chances than usual, often a sign he's coming into form before the points arrive."],
+    ["Pts L4", "FPL points over the last 4 gameweeks."],
+    ["DC %", "The model's chance he reaches the defensive contribution target (worth 2 points) in a game."],
+    ["Running hot / Due a goal", "Goals compared with xG this season. Diff = goals minus xG. Big positive gaps usually shrink, and big negative ones usually close."],
+  ]],
+  shots: ["Shots", [
+    ["Shots/90", "All shots per 90, including long-range efforts."],
+    ["In box/90 (and L4)", "Shots from inside the penalty area per 90, where most goals come from. More reliable than total shots."],
+    ["Big ch/90, Big ch L4", "Big chances: shots worth 0.3 xG or more, such as one-on-ones or close-range headers. Per 90, and the count over the last 4 gameweeks."],
+    ["Big ch scored", "Big chances scored out of big chances taken."],
+    ["Created/90", "Shots he set up with a pass (key passes) per 90."],
+    ["Big ch created/90", "Big chances he set up per 90."],
+  ]],
+  sp: ["Set pieces", [
+    ["Set-piece xG/90", "Expected goals from corners and free kicks per 90 (penalties not included)."],
+    ["Set-piece shots / headers", "Shots, and headed shots, from set pieces this season."],
+    ["Open-play xG/90", "Expected goals from open play per 90."],
+    ["Pen xG", "Expected goals from penalties taken this season (about 0.76 each)."],
+    ["Takes", "The set pieces FPL lists him as first choice for."],
+    ["Set-piece xG for / against", "Per game: how dangerous a team is from set pieces, and how much it concedes from them."],
+    ["Penalties, Corners, Free kicks", "First-choice taker on top, back-up underneath, from FPL's own data."],
+  ]],
+  defence: ["Defence", [
+    ["Per 90 (need X)", "Clearances, blocks, interceptions and tackles per 90 (plus recoveries for midfielders and forwards). X is the target for 2 points in a match: 10 for defenders, 12 for others."],
+    ["Hit rate", "How often he reached the target in games where he played 60+ minutes."],
+    ["Chance next", "The model's chance he reaches it next game, allowing for small samples."],
+    ["DC points", "Points he has earned from defensive contributions this season."],
+    ["Last 6", "Games he hit the target out of his games in the last 6 gameweeks."],
+    ["Nailed", "How sure he is to start, from 0 to 100. 85+ is nailed on; under 60 is a rotation risk."],
+    ["xP N GWs", "Projected points over the plan length you've chosen."],
+  ]],
+  bonus: ["Bonus", [
+    ["BPS/90 L4", "Bonus Point System score per 90 over the last 4 gameweeks. The top 3 BPS in each match get 3, 2 and 1 bonus points."],
+    ["Top 3 in match L6", "Games in the last 6 where he finished in the top 3 for BPS in his match."],
+    ["Bonus L6", "Bonus points over the last 6 gameweeks."],
+    ["Season BPS", "Total BPS this season."],
+  ]],
+  value: ["Value", [
+    ["Budget enablers", "The best regular starters at or under each price, by projected points over your plan length."],
+    ["Nailed", "How sure he is to start (85+ nailed on)."],
+    ["Pair / xP rotating", "Two cheap players from different clubs: you start whichever has the better fixture each week. xP rotating is what that pair projects, with (+) the gain over just owning the better one."],
+    ["GW columns", "Each player's projection that week; the higher one is the one you'd start."],
+  ]],
+  prices: ["Prices", [
+    ["FPL projection", "FPL's own estimate of how close a player is to a price change at the next update (around 01:30 UK). 100% means the threshold is reached; negative means a fall."],
+    ["Our record", "How often players at that projection actually changed price, from our nightly log. Appears once there are 15+ cases."],
+    ["Net transfers", "Transfers in minus out this gameweek, which is what moves prices."],
+    ["Rose / Fell", "In the track record: the share of players at each projection level that actually rose or fell that night."],
+  ]],
+  teams: ["Teams", [
+    ["Strength", "The share of available points (3 a game) a team would expect against an average side on a neutral ground. 50% is mid-table; 70%+ is title form."],
+    ["Win vs avg", "Their chance of beating an average team."],
+    ["Attack", "Goals they'd expect to score against average, versus the league average (120% = 20% more)."],
+    ["Defence", "How few they'd expect to concede versus average (120% = concede about a sixth less)."],
+    ["Next N win %", "Average chance of winning their next fixtures, from the model."],
+    ["xG for and against", "The team-trend chart: expected goals created and conceded in each recent match."],
+  ]],
+};
+function openStatLabels(tab) {
+  const sec = ([t, rows]) => `<section><h3>${t}</h3><dl class="labels">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl></section>`;
+  $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
+    <h2>What the labels mean</h2>
+    ${sec(STAT_LABELS[tab] || STAT_LABELS.form)}${sec(STAT_LABELS.general)}
+    <p class="note">Tap any dotted-underlined word on the site for a quick explanation too.</p>`;
+  const dlg = $("#dlg"); dlg.showModal(); $("#dlgX").onclick = () => dlg.close();
 }

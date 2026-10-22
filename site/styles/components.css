@@ -463,3 +463,12 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .subtag { font-size: 10px; font-weight: 700; }
 .subtag.in { color: var(--good); }
 .subtag.out { color: var(--bad); }
+
+/* ---------- stats: what the labels mean ---------- */
+.stats-nav { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; }
+.labels { display: grid; grid-template-columns: minmax(110px, max-content) 1fr; gap: 8px 14px; margin: 0; font-size: var(--fs-sm); }
+.labels dt { font-weight: 600; }
+.labels dd { margin: 0; color: var(--muted); }
+#dlgBody section h3 { margin: 0 0 8px; }
+
+@media (max-width: 480px) { .labels { grid-template-columns: 1fr; gap: 2px; } .labels dd { margin-bottom: 8px; } }
