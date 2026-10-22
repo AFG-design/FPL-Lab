@@ -417,3 +417,27 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .newsline li.warn::before { background: var(--warn); }
 .newsline li.bad::before { background: var(--bad); }
 .newsline time { font-size: var(--fs-xs); color: var(--muted); }
+
+/* ---------- squad rating ---------- */
+.rate-top { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin-bottom: 14px; }
+.rate-score { display: grid; justify-items: center; align-content: center; width: 104px; height: 104px; border-radius: 50%; border: 6px solid var(--accent); background: var(--sunk); line-height: 1; }
+.rate-score b { font-size: 34px; }
+.rate-score span { font-size: var(--fs-xs); color: var(--muted); }
+.rate-score small { font-size: 11px; margin-top: 4px; color: var(--accent-text); font-weight: 600; }
+.rate-pos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.rate-pos > div { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunk); }
+.rate-pos span:last-child { display: grid; font-size: var(--fs-sm); }
+.rate-pos small { color: var(--muted); font-size: var(--fs-xs); }
+.rating .alerts li { align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 480px) { .rate-top { grid-template-columns: 1fr; justify-items: center; } }
+
+/* ---------- past team viewer ---------- */
+.pc.past .xp { font-size: var(--fs-xl); }
+.pc.past.haul .xp { color: var(--hi-text); }
+.subtag { font-size: 10px; font-weight: 700; }
+.subtag.in { color: var(--good); }
+.subtag.out { color: var(--bad); }
+.rating .kpis { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; width: 100%; }
+.rating .alerts .btn { white-space: nowrap; }
+.rating .alerts li > span { flex: 1 1 200px; }

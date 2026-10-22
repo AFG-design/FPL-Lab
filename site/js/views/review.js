@@ -69,6 +69,7 @@ function vReview() {
         <div class="kpi"><span class="lbl">Transfers net</span><b class="${Tt.tx_gain - Tt.hits >= 0 ? "up" : "down"}">${Tt.tx_gain - Tt.hits >= 0 ? "+" : ""}${Tt.tx_gain - Tt.hits}</b><span class="delta muted">after ${Tt.hits} pts of hits; Wildcard ${Tt.wc_gain >= 0 ? "+" : ""}${Tt.wc_gain}</span></div>
       </div><p class="note">Transfer net = points the new player scored minus what the old player would have scored, while you kept him.</p></div>
   </div>
+  ${pastTeamPanel(R)}
   ${decisionPanel(R)}
   <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Pts</th><th class="n">Avg</th><th class="n">Rank</th><th>Captain</th><th class="n">Cap lost</th><th class="n">Bench</th><th class="n">Best possible</th><th class="n">Model XI</th><th>Chip</th></tr></thead>
     <tbody>${R.weeks.slice().reverse().map(x => `<tr><td>${x.gw}</td><td class="n"><b>${x.pts}</b>${x.hits ? ` <span class="down">−${x.hits}</span>` : ""}</td><td class="n">${x.avg ?? "–"}</td><td class="n">${rankFmt(x.rank)}</td><td>${nm(x.captain)} <span class="muted">${x.cap_pts}</span></td><td class="n ${x.cap_lost ? "down" : ""}">${x.cap_lost ? "−" + x.cap_lost : "0"}</td><td class="n">${x.bench_pts}</td><td class="n">${x.best_possible}</td><td class="n">${x.xi_proj != null ? `${f1(x.xi_proj)} → ${x.xi_actual}` : "–"}</td><td>${x.chip ? `<span class="tag">${({ "3xc": "TC", bboost: "BB", freehit: "FH", wildcard: "WC" })[x.chip] || x.chip}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
@@ -76,4 +77,30 @@ function vReview() {
   <div class="grid2"><div class="panel"><h3>Overall rank</h3>${rankChart(h)}</div>
     <div class="panel"><h3>Points per gameweek</h3><div class="gwbars">${h.map(x => `<div title="GW${x.gw}: ${x.pts} pts"><span class="num" style="color:var(--fg);font-weight:600">${x.pts}</span><i style="height:${x.pts / mx * 60}px;${x.chip ? "background:var(--armband)" : ""}"></i>${x.gw}</div>`).join("")}</div>
     <p class="note">Gold bars = chip weeks.</p></div></div>`;
+}
+
+/* ---------- your team in any past gameweek: real points on the pitch, with the projection made before it ---------- */
+function pastTeamPanel(R) {
+  const W = R.weeks.filter(w => w.team); if (!W.length) return "";
+  if (!W.some(w => w.gw === S.revGw)) S.revGw = W[W.length - 1].gw;
+  const w = W.find(x => x.gw === S.revGw);
+  const subIn = new Set(w.autosubs.map(a => a[0])), subOut = new Set(w.autosubs.map(a => a[1]));
+  const card = ([id, slot, mult, pts, mins, xp]) => { const p = P[id]; if (!p) return "";
+    const capB = mult >= 2 ? `<span class="badge" aria-hidden="true">${mult === 3 ? "TC" : "C"}</span>` : "";
+    const sc = mult ? pts * mult : pts, tag = subIn.has(id) ? '<span class="subtag in">▲ sub on</span>' : subOut.has(id) ? '<span class="subtag out">▼ sub off</span>' : "";
+    const label = `${p.name}: ${pts} points${mult >= 2 ? ` (×${mult} as captain)` : ""}, ${mins} minutes${xp != null ? `, projected ${xp}` : ""}`;
+    return `<button class="pc past ${sc >= 10 ? "haul" : ""}" data-p="${id}" aria-label="${esc(label)}">${capB}
+      <img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">
+      <span class="nm">${esc(p.name)}</span><span class="xp">${sc}</span>
+      <span class="pc-meta"><span>${mins}'</span>${xp != null ? `<span title="Projected before the deadline">xP ${xp.toFixed(1)}</span>` : ""}</span>${tag}</button>`; };
+  const xi = w.team.filter(t => t[1] <= 11), bench = w.team.filter(t => t[1] > 11);
+  const rows = ["GKP", "DEF", "MID", "FWD"].map(pos => `<div class="row">${xi.filter(t => P[t[0]]?.pos === pos).map(card).join("")}</div>`).join("");
+  const proj = w.team.every(t => t[5] != null) ? xi.reduce((a, t) => a + t[5] * Math.max(1, t[2]), 0) : null;
+  const chip = w.chip ? ({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[w.chip] || w.chip : "";
+  return `<div class="panel"><div class="bar"><h3>Your team by gameweek</h3>
+      <div class="seg" role="group" aria-label="Gameweek">${W.map(x => `<button data-revgw="${x.gw}" aria-pressed="${x.gw === w.gw}">GW${x.gw}</button>`).join("")}</div></div>
+    <p class="note" style="margin-top:0"><b>${w.pts} pts</b>${w.hits ? ` (−${w.hits} hit)` : ""} · average ${w.avg ?? "–"} · rank ${rankFmt(w.rank)}${chip ? ` · ${chip}` : ""}${proj != null ? ` · projected before the deadline: ${f1(proj)}` : ""}${w.decision ? ` · decision grade <span class="grade g-${w.decision.grade}">${w.decision.grade}</span>` : ""}</p>
+    <div class="pitchwrap"><div class="pitch" role="group" aria-label="Starting XI, GW${w.gw}">${rows}</div><div class="bench" role="group" aria-label="Bench"><span class="lbl">Bench</span>${bench.map(card).join("")}</div>
+      <div class="pitch-key"><span>Big number: points scored (doubled for the captain)</span><span>Then minutes and the projection made before that deadline</span></div></div>
+    ${w.moves.length ? `<p class="note">Transfers that week: ${w.moves.map(m => `${esc(P[m.out]?.name || "?")} → ${esc(P[m.in]?.name || "?")}`).join(", ")}.</p>` : ""}</div>`;
 }

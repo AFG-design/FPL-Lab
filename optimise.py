@@ -39,7 +39,7 @@ def spread(players, mult, eo, gw):
 
 def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=1.5,
           hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
-          eo=None, lam=0.0, eo_weeks=2):
+          eo=None, lam=0.0, eo_weeks=2, freeze_after=None):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
     sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek.
 
@@ -106,6 +106,8 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
         m += ft[w + 1] >= 1
         if w == 0 and week1_moves is not None:
             m += n_w == week1_moves
+        if freeze_after is not None and w >= freeze_after:
+            m += n_w == 0          # e.g. a wildcard: rebuild once, then hold the squad
 
     obj = []
     for w in W:

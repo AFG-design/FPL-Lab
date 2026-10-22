@@ -291,7 +291,18 @@ function replanPanel(inner) {
       <span class="lbl">Captains</span><div>${caps || '<span class="muted">chosen by the optimiser</span>'}</div>
       <span class="lbl">Hits</span><div><select id="hitsSel" aria-label="Hits allowed" class="sel">${[["", "Allowed when worth it"], ["0", "No hits"], ["1", "At most 1 a week"]].map(([v, l]) => `<option value="${v}" ${String(R.maxHits ?? "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn primary" data-replan="1" ${SOLVE.busy ? "disabled" : ""}>${SOLVE.busy ? "Planning…" : "Re-plan"}</button><span class="note" id="replanMsg">${esc(SOLVE.msg)}</span></div>${inner ? "" : "</div>"}`;
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn primary" data-replan="1" ${SOLVE.busy ? "disabled" : ""}>${SOLVE.busy ? "Planning…" : "Re-plan"}</button><span class="note" id="replanMsg">${esc(SOLVE.msg)}</span></div>
+    ${vsCurrentTeam()}${inner ? "" : "</div>"}`;
+}
+// how much the plan adds over keeping the team you have, week by week, after hits
+function vsCurrentTeam() {
+  const base = baseScore(), plan = scoreMoves(SB.moves);
+  const rows = plan.weeks.map((w, k) => { const b = base.weeks[k].team.pts, v = w.team.pts - 4 * w.hits;
+    return `<tr><td>GW${w.gw}</td><td class="n">${w.n}${w.hits ? ` <span class="down">−${4 * w.hits}</span>` : ""}</td><td class="n">${f1(b)}</td><td class="n">${f1(v)}</td><td class="n ${v - b > 0.05 ? "up" : v - b < -0.05 ? "down" : ""}">${sgn(v - b)}</td></tr>`; }).join("");
+  const gain = plan.tot - base.tot;
+  return `<div class="vscur"><div class="bar" style="margin:14px 0 6px"><h3>${SB.moves.length ? "Your plan" : "No moves yet"} vs your current team</h3><b class="${gain > 0.05 ? "up" : gain < -0.05 ? "down" : ""}" style="font-size:var(--fs-lg)">${sgn(gain)}</b></div>
+    <p class="note" style="margin-top:0">Over ${PG.length} GWs, after hits: ${f1(plan.tot)} projected points vs ${f1(base.tot)} if you keep your squad and just pick the best XI and captain each week.${plan.ftLeft ? ` The plan also leaves ${plan.ftLeft} free transfer${plan.ftLeft === 1 ? "" : "s"} banked at the end.` : ""}</p>
+    <div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Moves</th><th class="n">Keep team</th><th class="n">Plan</th><th class="n">Gain</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 const SOLVE = { busy: false, msg: "", highs: null };
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("couldn't load " + src)); document.head.appendChild(s); }); }
@@ -321,8 +332,8 @@ async function runReplan() {
     });
     const before = scoreMoves(SB.moves).tot;
     setPlan(res.moves, "replan:" + S.mode);
-    const after = scoreMoves(SB.moves).tot;
-    SOLVE.msg = `Done in ${((performance.now() - t0) / 1000).toFixed(1)}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}, ${sgn(after - before)} vs your previous plan. Undo is above.`;
+    const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;
+    SOLVE.msg = `Done in ${((performance.now() - t0) / 1000).toFixed(1)}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}, ${sgn(after - cur)} vs your current team (${sgn(after - before)} vs your previous plan). Undo is in Your moves.`;
   } catch (e) {
     SOLVE.msg = "Re-plan failed: " + (e.message || e) + ". Your plan hasn't changed.";
   }

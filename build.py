@@ -643,6 +643,7 @@ def best_xi_by(ids, val):
     return xi
 
 
+proj_cache = {}
 for w in review["weeks"]:
     g = w["gw"]
     pk = past.get(g)
@@ -652,6 +653,7 @@ for w in review["weeks"]:
         pr = project(ctx, g, 3, {"use_flags": False})["players"]
     except Exception:
         continue
+    proj_cache[g] = pr
     xp1 = lambda i: pr.get(i, {}).get("xp", {}).get(g, 0.0)
     xp3 = lambda i: sum(pr.get(i, {}).get("xp", {}).values())
     ids = [p["element"] for p in pk["picks"]]
@@ -669,6 +671,16 @@ for w in review["weeks"]:
     w["decision"] = {"cap_loss": round(cap_loss, 2), "model_cap": best_cap, "lineup_loss": round(max(0.0, lineup_loss), 2),
                      "tx_gain": round(tx_gain, 2) if w["moves"] else None, "proj": round(proj_total, 1),
                      "luck": round(w["pts"] - proj_total, 1), "grade": grade}
+
+# each past team as picked: slot, multiplier, real points, and the projection made before that deadline
+for w in review["weeks"]:
+    pk = past.get(w["gw"])
+    if not pk:
+        continue
+    g, pr = w["gw"], proj_cache.get(w["gw"])
+    w["team"] = [[p["element"], p["position"], p["multiplier"], pts_of(p["element"], g), mins_of(p["element"], g),
+                  round(pr.get(p["element"], {}).get("xp", {}).get(g, 0.0), 1) if pr else None] for p in pk["picks"]]
+    w["autosubs"] = [[a["element_in"], a["element_out"]] for a in pk.get("automatic_subs", [])]
 
 # season ledger: every transfer, judged on points while the new player stayed in the team
 ledger = []
@@ -745,6 +757,7 @@ keep |= {w[k] for w in review["weeks"] for k in ("captain", "best_cap", "model_c
 keep |= {i for row in sp_now.values() for v in row.values() for i in v}
 keep |= {c[k] for c in sp_changes for k in ("old", "new") if c.get(k)}
 keep |= keep_extra
+keep |= {t[0] for w in review["weeks"] for t in w.get("team", [])}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
@@ -836,6 +849,30 @@ if PH["nights"]:
         if pid in players:
             keep.add(pid)
 
+# ---------------------------------------------------------------- squad rating
+# Your squad as it stands is compared with (a) the best 15 you could own for the same money, built once and
+# held, and (b) the average top-10k team (effective ownership x projections), over the plan gameweeks.
+rating = None
+if squad_ids and proj_gws:
+    gws_r = proj_gws[:PLAN_GWS]
+    budget = bank + sum(sell.values())
+    try:
+        wc = optimise.solve(opt_players, [], {}, budget, 5, gws_r, hit=0, ft_value=0, max_moves_week=15, freeze_after=1, time_limit=60)
+    except Exception as ex:
+        print("squad rating solve failed:", ex); wc = None
+    field_eo = {}
+    try:
+        field_eo = {int(k): v / 100 for k, v in json.load(open(os.path.join(HERE, "crowd", "latest.json")))["top10k"]["eo"].items()}
+    except Exception:
+        pass
+    if wc:
+        w0 = wc["weeks"][0]
+        rating = {"gws": gws_r, "budget": round(budget, 1),
+                  "best": {"squad": sorted(set(w0["xi"]) | set(w0["bench"])), "xi": w0["xi"], "captain": w0["captain"],
+                           "weeks": [round(wk["xp"], 2) for wk in wc["weeks"]]},
+                  "field": [round(sum(f * players[i]["xp"].get(g, 0) for i, f in field_eo.items() if i in players), 2) for g in gws_r] if field_eo else None}
+        keep.update(i for i in rating["best"]["squad"] if i in players)
+
 # ---------------------------------------------------------------- compare any team: watch.json + the overall leader
 watch_out = []
 try:
@@ -895,7 +932,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
-    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "news": news_feed, "review": review, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "news": news_feed, "review": review, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }
