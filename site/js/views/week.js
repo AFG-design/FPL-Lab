@@ -6,6 +6,53 @@ function modeBar() {
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
     <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]}</p></div>`;
 }
+/* ---------- dashboard strip: last gameweek, rank trend, captain picks ---------- */
+function rankSpark(hist) {
+  const pts = hist.filter(h => h.rank).slice(-10);
+  if (pts.length < 2) return "";
+  const W = 220, H = 36, lo = Math.min(...pts.map(h => h.rank)), hi = Math.max(...pts.map(h => h.rank));
+  // log scale, inverted: up the chart = better rank
+  const y = r => hi === lo ? H / 2 : 4 + (H - 8) * (Math.log(r) - Math.log(lo)) / (Math.log(hi) - Math.log(lo));
+  const x = i => 3 + (W - 6) * i / (pts.length - 1);
+  const d = pts.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.rank).toFixed(1)}`).join("");
+  const last = pts[pts.length - 1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Overall rank from GW${pts[0].gw} (${rankFmt(pts[0].rank)}) to GW${last.gw} (${rankFmt(last.rank)})">
+    <path d="${d}" fill="none" stroke="var(--accent-text)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(pts.length - 1)}" cy="${y(last.rank)}" r="3.5" fill="var(--accent-text)"/></svg>`;
+}
+function dashStrip(me, g) {
+  const L = D.live, h = D.history, last = h[h.length - 1], prev = h[h.length - 2];
+  let score = "";
+  if (L && L.points != null) {
+    const diff = L.average != null ? L.points - L.average : null;
+    score = `<div class="dash-tile">
+      <h3>GW${L.gw} ${L.finished ? "score" : "so far"}</h3>
+      <div class="dash-big"><b>${L.points}</b><span>pts</span></div>
+      <p class="dash-sub">${diff != null ? `<span class="${diff >= 0 ? "up" : "down"}">${diff >= 0 ? "+" : "−"}${Math.abs(diff)} vs average</span> (${L.average})` : ""}${L.highest ? `, top score ${L.highest}` : ""}${last?.gw === L.gw && last.gw_rank ? `. Gameweek rank ${rankFmt(last.gw_rank)}.` : ""}</p>
+    </div>`;
+  }
+  const mv = prev && last ? prev.rank - last.rank : 0;
+  const rank = last ? `<div class="dash-tile">
+      <h3>Overall rank</h3>
+      <div class="dash-rank"><div class="dash-big"><b>${rankFmt(D.manager.rank ?? last.rank)}</b></div>${rankSpark(h)}</div>
+      <p class="dash-sub">${mv ? `<span class="${mv > 0 ? "up" : "down"}">${mv > 0 ? "▲ Up" : "▼ Down"} ${rankFmt(Math.abs(mv))}</span> since GW${prev.gw}` : "No change since last week"}${D.manager.total_players ? `. Top ${Math.max(0.1, last.rank / D.manager.total_players * 100).toFixed(1)}% of ${(D.manager.total_players / 1e6).toFixed(1)}m managers.` : ""}</p>
+    </div>` : "";
+  const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
+  const picks = me.xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g)).slice(0, 3);
+  const top = xpg(picks[0], g) || 1;
+  const caps = `<div class="dash-tile dash-caps">
+      <h3>Top captain picks, GW${g}</h3>
+      <ol>${picks.map(i => `<li class="${i === me.cap ? "is-cap" : ""}">
+        <button type="button" class="dash-cap" data-p="${i}">
+          <span class="dc-name">${i === me.cap ? '<span class="badge inline" aria-label="Your captain">C</span>' : i === me.vice ? '<span class="badge v inline" aria-label="Vice captain">V</span>' : ""}${esc(P[i].name)}</span>
+          <span class="dc-fx">${fxFor(P[i].team, g).map(x => fdrChip(x, { gw: g })).join("") || blankChip(g)}</span>
+          <span class="dc-bar"><i style="width:${(xpg(i, g) / top * 100).toFixed(0)}%"></i></span>
+          <b>${f1(xpg(i, g) * 2)}</b>
+        </button></li>`).join("")}</ol>
+      <p class="dash-sub">Projected points as captain (doubled).${F && F.cap[me.cap] != null ? ` ${F.cap[me.cap].toFixed(0)}% of managers ${F === D.crowd.near ? "around your rank" : "in the top 10k"} captained ${esc(P[me.cap].name)} last week.` : ""}</p>
+    </div>`;
+  return `<div class="dash">${score}${rank}${caps}</div>`;
+}
 function vWeek() {
   const g = D.meta.next_gw, pl = D.plans || {};
   if (!PG.length) return `<div class="panel"><p>No gameweek to plan yet.</p></div>`;
@@ -73,7 +120,7 @@ function vWeek() {
   const sp = spreadVsField(me.mult, g);
   const step = (n, state, title, pill, doTxt, details) => `<div class="stepcard ${state}"><span class="no">${state === "ok" ? "✓" : n}</span><div class="sbody">
     <h3>${title} ${pill ? `<span class="pillwrap">${pill}</span>` : ""}</h3><div class="do">${doTxt}</div>${details ? `<details><summary>Details</summary><div class="dbody">${details}</div></details>` : ""}</div></div>`;
-  return `
+  return `${dashStrip(me, g)}
   <div class="grid2">
     <div class="steps">
       <div class="bar" style="margin:0"><h2>Before the GW${g} deadline</h2><span>${term("verdict", "What the labels mean")}</span><span class="muted">${countdown(D.meta.deadline)} left</span></div>
