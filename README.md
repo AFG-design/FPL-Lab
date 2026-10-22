@@ -34,7 +34,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/` (workflow every 3 hours) |
 | `site/plan-solver.js` | The browser version of the optimiser |
 | `odds.py` | Betting-market expected goals per match from football-data.co.uk (match result and over/under odds), blended into team ratings and fixture projections |
-| `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page |
+| `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page. `status.json` logs every flagged player's injury/suspension status before each deadline, so the model can tell an injured player from a dropped one |
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
 | `site/` | The web app (see **Front end** below) |

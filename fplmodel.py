@@ -4,8 +4,10 @@ project(ctx, as_of, params) projects expected points for every player for the
 gameweeks starting at `as_of`, using only information from gameweeks before it.
 That makes the same code usable for live projections and for backtests.
 """
-import math
+import math, re, datetime as dt
 from collections import defaultdict
+
+P_UNKNOWN_WEEKS = 6  # 'Unknown return date': availability climbs over 6 gameweeks rather than 3
 
 POS = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
@@ -39,6 +41,10 @@ DEFAULTS = {
     "sp_prior": 4.0,       # games of league-average prior for team set-piece conceding
     "min_valid": True,     # minutes history: skip blank gameweeks and weeks before the player joined
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
+    "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
+    "use_out": True,       # skip weeks a player was injured, suspended or away when judging his minutes
+    "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
+                                # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
 
 
@@ -85,7 +91,31 @@ def understat_sp(boot, fixtures, shots_cache, us_players):
     return {"player": sp_player, "against": sp_against}
 
 
-def prepare(boot, fixtures, live, priors=None, market=None, sp=None):
+OUT_STATUS = ("i", "s", "n", "u")
+
+
+def out_weeks(boot, status_log=None):
+    """Gameweeks each player missed through injury, suspension or absence: {pid: {gw}}.
+
+    Two sources: the status saved before each deadline in history/status.json (build.py), and,
+    for players flagged right now, every deadline since FPL added the current note (news_added)."""
+    out = defaultdict(set)
+    for g, rows in (status_log or {}).get("gws", {}).items():
+        for pid, (st, ch) in rows.items():
+            if st in OUT_STATUS or (ch is not None and ch <= 25):
+                out[int(pid)].add(int(g))
+    deadlines = [(e["id"], e.get("deadline_time")) for e in boot.get("events", []) if e.get("deadline_time")]
+    for e in boot["elements"]:
+        ch, since = e.get("chance_of_playing_next_round"), e.get("news_added")
+        if not since or not (e["status"] in OUT_STATUS or (ch is not None and ch <= 25)):
+            continue
+        for g, d in deadlines:
+            if d > since:
+                out[e["id"]].add(g)
+    return out
+
+
+def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
     """Index the raw API responses once; reused across projections."""
     elements = {e["id"]: e for e in boot["elements"]}
     teams = {t["id"]: t for t in boot["teams"]}
@@ -127,7 +157,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None):
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
-        "priors": (priors or {}).get("players", {}), "dc_thr": thr,
+        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out_weeks(boot, status_log),
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
@@ -280,6 +310,12 @@ def project(ctx, as_of, horizon=6, params=None):
         for tid, (v, n) in tot.items():
             sp_fac[tid] = ((v + P["sp_prior"] * avg) / (n + P["sp_prior"])) / avg
 
+    kick = {}  # (team, gw) -> first kick-off date that gameweek
+    for tid, lst in ctx["team_fix"].items():
+        for (g, opp, home, f) in lst:
+            if f.get("kickoff_time"):
+                d = dt.date.fromisoformat(f["kickoff_time"][:10])
+                kick[(tid, g)] = min(d, kick.get((tid, g), d))
     team_gws = defaultdict(set)
     for tid, lst in ctx["team_fix"].items():
         for (g, opp, home, f) in lst:
@@ -330,9 +366,14 @@ def project(ctx, as_of, horizon=6, params=None):
             # only gameweeks where his club played and he was registered; a blank week or one
             # before he joined says nothing about whether he starts
             played = team_gws.get(e["team"], set())
-            recent = [g for g in hist_gws if g in gs and g in played][-P["min_window"]:]
+            outw = ctx.get("out", {}).get(pid, set()) if P["use_out"] else set()
+            recent = [g for g in hist_gws if g in gs and g in played and g not in outw][-P["min_window"]:]
+            # back (or coming back) from injury or a ban: he missed his club's most recent game
+            club_recent = [g for g in hist_gws if g in played]
+            returning = bool(outw and club_recent and club_recent[-1] in outw and recent)
         else:
             recent = [g for g in hist_gws[-P["min_window"]:]]
+            returning = False
         mrec = P["min_recency"] or P["recency"]
         wsum = st = sub = mstart = msub = p60s = 0.0
         for g in recent:
@@ -368,11 +409,21 @@ def project(ctx, as_of, horizon=6, params=None):
         p_dc = (hits + p_dc_model * P["dc_blend"]) / (n60 + P["dc_blend"]) if pos != "GKP" else 0.0
 
         tid = e["team"]
+        ch_now = e.get("chance_of_playing_next_round")
+        ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
+        still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
         per_gw, detail = {}, {}
         for k, g in enumerate(gws):
-            av = availability(e, k) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
+            ko = kick.get((tid, g))
+            av = availability(e, k, ko, ret) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
+            if not P["use_flags"] and P["hist_flags"] and g in ctx.get("out", {}).get(pid, ()):
+                av = 0.0  # backtests: the injury flag that was showing at that deadline
             comp = defaultdict(float)
             cong = ctx.get("congestion", {}).get((tid, g), 1.0)
+            if returning:  # managers ease players back in: fewer starts, more bench appearances
+                ramp = P["return_ramp"]
+                j = k - (1 if still_out else 0)
+                cong *= ramp[j] if 0 <= j < len(ramp) else (ramp[0] if j < 0 else 1.0)
             for (opp, home, mu_f, mu_a, fdr) in upcoming[tid].get(g, []):
                 ps, pb = p_start * av * cong, p_sub * av
                 pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
@@ -411,7 +462,32 @@ def project(ctx, as_of, horizon=6, params=None):
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}
 
 
-def availability(e, k):
+MONTHS = {m: i for i, m in enumerate(("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1)}
+
+
+def return_date(e):
+    """From FPL's note: the date he is due back ('Expected back 8 Nov', 'Suspended until 1 Nov'),
+    'unknown' for 'Unknown return date', or None if the note gives nothing to go on."""
+    news = (e.get("news") or "").lower()
+    if "unknown return date" in news:
+        return "unknown"
+    m = re.search(r"(?:expected back|suspended until)\s+(\d{1,2})\s+([a-z]{3})", news)
+    if not m or m.group(2) not in MONTHS or not e.get("news_added"):
+        return None
+    added = dt.date.fromisoformat(e["news_added"][:10])
+    d = dt.date(added.year, MONTHS[m.group(2)], int(m.group(1)))
+    if d < added - dt.timedelta(days=60):  # 'back 3 Jan' written in December
+        d = dt.date(added.year + 1, d.month, d.day)
+    return d
+
+
+def availability(e, k, kickoff=None, ret=None):
+    """Chance he is available k gameweeks ahead. ret = return_date(e); kickoff = his club's kick-off date that week."""
+    if e["status"] in ("i", "s", "n") and not e["chance_of_playing_next_round"]:
+        if ret == "unknown":
+            return min(1.0, k / P_UNKNOWN_WEEKS)  # open-ended injuries: assume a slow, uncertain return
+        if isinstance(ret, dt.date) and kickoff is not None:
+            return 0.0 if kickoff < ret else 1.0
     c = e["chance_of_playing_next_round"]
     if e["status"] == "u" or e.get("removed"):
         return 0.0
