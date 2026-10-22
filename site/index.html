@@ -255,6 +255,7 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
 .cbadge.used{background:var(--sunk);color:var(--muted);text-decoration:line-through}
 .tabs > button[aria-selected="true"], #moreTop[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--turf-2)}
 .morewrap{position:relative}
+@media (min-width:701px){.tabs{overflow:visible}}  /* the More menu hangs below the bar; a scrolling bar would clip it */
 #moreTop{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px 9px;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .moremenu{position:absolute;right:0;top:100%;z-index:20;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:6px;min-width:260px;display:grid}
 .moremenu button,.sheetbody button{all:unset;cursor:pointer;display:grid;gap:2px;padding:10px 12px;border-radius:8px}
