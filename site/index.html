@@ -231,6 +231,7 @@ footer{padding-block:0 40px;font-size:12.5px;color:var(--muted)}
     <nav class="tabs" role="tablist" id="tabs">
       <button role="tab" data-v="week">This week</button>
       <button role="tab" data-v="planner">Planner</button>
+      <button role="tab" data-v="rivals">Rivals</button>
       <button role="tab" data-v="fixtures">Fixtures</button>
       <button role="tab" data-v="players">Players</button>
       <button role="tab" data-v="stats">Stats</button>
@@ -258,7 +259,7 @@ const sgn = x => (x > 0 ? "+" : x < 0 ? "−" : "±") + f1(Math.abs(x));
 const money = x => "£" + Number(x).toFixed(1) + "m";
 const rankFmt = n => n == null ? "–" : n.toLocaleString("en-GB");
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const VIEWS = ["week", "planner", "fixtures", "players", "stats", "chips", "season", "model"];
+const VIEWS = ["week", "planner", "rivals", "fixtures", "players", "stats", "chips", "season", "model"];
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
 if (location.hash && VIEWS.includes(location.hash.slice(1))) S.view = location.hash.slice(1);
 
@@ -356,7 +357,7 @@ $("#tabs").addEventListener("click", e => { const b = e.target.closest("button")
 
 function render() {
   document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === S.view));
-  const fn = { week: vWeek, planner: vPlanner, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vSeason, model: vModel }[S.view] || vWeek;
+  const fn = { week: vWeek, planner: vPlanner, rivals: vRivals, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vSeason, model: vModel }[S.view] || vWeek;
   $("#app").innerHTML = `<section class="view">${fn()}</section>`;
   bind();
 }
@@ -467,6 +468,7 @@ function vWeek() {
     if (pr != null && pr <= -80) risks.push(["warn", `<b>${esc(p.name)}</b> may drop in price tonight (${pr.toFixed(0)}% of the way).`]);
     if (newXI.has(i) && p.xmin < 50 && p.status === "a") risks.push(["warn", `<b>${esc(p.name)}</b> is starting but only projected ~${p.xmin} minutes.`]);
   });
+  threats(2).forEach(r => risks.push(["warn", `<b>${esc(P[r.id].name)}</b> is in ${r.own.toFixed(0)}% of top-10k teams (EO ${Math.round(r.eo * 100)}%) and not in yours. If he hauls, you lose ground (${sgn(r.impact)} projected).`]));
   moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.`]); });
 
   const step = (n, state, title, body) => `<div class="stepcard ${state}"><span class="no">${state === "ok" ? "✓" : n}</span><div class="sbody"><h3>${title}</h3>${body}</div></div>`;
@@ -604,6 +606,92 @@ function candidates() {
     <div style="max-height:420px;overflow:auto">${list.map(({ p, v }) => `<button class="cand" data-pick="${p.id}"><span class="pname">${esc(p.name)} <span class="muted">${T[p.team].short} · ${money(p.price)}</span></span><span class="${v > base ? "up" : "down"} mono">${sgn(v - base)}</span><b>${f1(v)}</b><span class="d">${GWS.filter(x => x >= g).slice(0, 4).map(x => `GW${x} ${fxFor(p.team, x).map(oppTxt).join("+") || "–"} ${f1(xpg(p.id, x))}`).join(" · ")}${p.status !== "a" ? ` · <span class="down">${esc(p.news)}</span>` : ""}</span></button>`).join("") || `<p class="muted">No affordable ${po.pos}s fit the budget and club limits.</p>`}</div>`;
 }
 
+
+/* ---------- Rivals: the field and mini-leagues ---------- */
+function recTeam() {
+  const g = D.meta.next_gw, pl = D.plans || {}, key = S.plan && pl[S.plan] ? S.plan : recommendedPlan();
+  if (!key) return null;
+  const w = Object.assign({}, pl[key].weeks[0]);
+  const att = w.xi.filter(i => ["MID", "FWD"].includes(P[i]?.pos)).sort((a, b) => xpg(b, g) - xpg(a, g))[0];
+  if (att && att !== w.captain && ["GKP", "DEF"].includes(P[w.captain]?.pos) && xpg(w.captain, g) - xpg(att, g) < 0.6) { w.vice = w.captain; w.captain = att; }
+  const mult = {}; w.xi.forEach(i => mult[i] = 1); mult[w.captain] = 2;
+  return { ...w, key, mult };
+}
+const field = () => D.crowd ? D.crowd[S.field === "near" ? "near" : "top10k"] : null;
+function fieldRows(F, mult, g) {
+  const ids = new Set([...Object.keys(F.eo).map(Number), ...Object.keys(mult).map(Number)]);
+  return [...ids].filter(i => P[i]).map(i => {
+    const eo = (F.eo[i] || 0) / 100, mine = mult[i] || 0, x = xpg(i, g);
+    return { id: i, eo, own: F.own[i] || 0, cap: F.cap[i] || 0, mine, x, impact: (mine - eo) * x };
+  });
+}
+function threats(n = 3) {
+  const F = D.crowd?.top10k, t = recTeam(); if (!F || !t) return [];
+  return fieldRows(F, t.mult, D.meta.next_gw).filter(r => r.impact < -1 && r.mine === 0).sort((a, b) => a.impact - b.impact).slice(0, n);
+}
+function vRivals() {
+  const C = D.crowd;
+  if (!C) return `<div class="panel"><h2>Rivals</h2><p class="muted">Ownership data appears after the next gameweek deadline, once managers' teams become public.</p></div>`;
+  const g = D.meta.next_gw, t = recTeam(), F = field();
+  const rows = fieldRows(F, t.mult, g);
+  const thr = rows.filter(r => r.impact < -0.3).sort((a, b) => a.impact - b.impact).slice(0, 8);
+  const edge = rows.filter(r => r.impact > 0.3).sort((a, b) => b.impact - a.impact).slice(0, 8);
+  const xiOwn = t.xi.reduce((a, i) => a + (F.own[i] || 0), 0) / t.xi.length;
+  const capTop = Object.entries(F.cap).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const chipTxt = Object.entries(F.chips || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[k] || k} ${v.toFixed(0)}%`).join(" · ") || "none";
+  const label = S.field === "near" ? `managers around your rank (${rankFmt(F.rank_from)}–${rankFmt(F.rank_to)})` : "the top 10,000";
+  const multTxt = m => m === 2 ? `<span class="pill warn">C</span>` : m === 1 ? "XI" : `<span class="muted">—</span>`;
+  const tbl = (list, head) => `<div class="tablebox"><table><thead><tr><th>${head}</th><th class="n">xP</th><th class="n">EO</th><th class="n">You</th><th class="n">Swing</th></tr></thead><tbody>${list.map(r => `<tr class="${MINE.has(r.id) ? "mine" : ""}"><td><button data-p="${r.id}" style="all:unset;cursor:pointer" class="pname">${esc(P[r.id].name)}</button> <span class="muted">${T[P[r.id].team].short}</span></td><td class="n">${f1(r.x)}</td><td class="n">${Math.round(r.eo * 100)}%</td><td class="n">${multTxt(r.mine)}</td><td class="n ${r.impact > 0 ? "up" : "down"}">${sgn(r.impact)}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">None</td></tr>`}</tbody></table></div>`;
+
+  // mini-leagues
+  const L = C.leagues || [];
+  if (S.league == null || !L.find(l => l.id === S.league)) S.league = (L.slice().sort((a, b) => a.size - b.size).find(l => l.size <= 70) || L[0])?.id;
+  const lg = L.find(l => l.id === S.league);
+  const me = lg?.rows.find(r => r.me);
+  const live = C.in_play;
+  const lgTable = lg ? `<div class="tablebox"><table><thead><tr><th class="n">#</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">Gap</th></tr></thead><tbody>${lg.rows.map(r => {
+      const mv = r.last_rank && r.rank ? r.last_rank - r.rank : 0;
+      const gap = me && r.total != null ? r.total - me.total : null;
+      return `<tr class="${r.me ? "mine" : ""}" ${r.me ? "" : `data-rival="${r.entry}" style="cursor:pointer"`}><td class="n">${r.rank ?? "–"} <span class="${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}" style="font-size:11px">${mv > 0 ? "▲" : mv < 0 ? "▼" : ""}</span></td><td><span class="pname">${esc(r.player)}</span>${r.me ? ' <span class="pill good">You</span>' : ""}${r.chip ? ` <span class="tag">${esc(r.chip)}</span>` : ""}<br><span class="muted" style="font-size:12.5px">${esc(r.team)}</span></td><td class="n">${live && r.live != null ? r.live : r.gw_pts ?? "–"}</td><td class="n">${r.total ?? "–"}</td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td></tr>`;
+    }).join("")}</tbody></table></div>
+    ${lg.size > lg.rows.length ? `<p class="note">Big league: showing the top 10 and the managers around you.</p>` : ""}` : "";
+
+  // rival comparison
+  let cmp = "";
+  const rv = lg?.rows.find(r => r.entry === S.rival);
+  if (rv && rv.picks) {
+    const theirs = {}; rv.picks.forEach(([el, m]) => theirs[el] = m);
+    const all = new Set([...Object.keys(theirs).map(Number), ...Object.keys(t.mult).map(Number)]);
+    const diffs = [...all].filter(i => P[i]).map(i => ({ id: i, me: t.mult[i] || 0, them: theirs[i] || 0, x: xpg(i, g) })).filter(r => r.me !== r.them).map(r => ({ ...r, sw: (r.me - r.them) * r.x }));
+    const swing = diffs.reduce((a, r) => a + r.sw, 0);
+    const capT = rv.picks.find(([, m]) => m >= 2)?.[0];
+    const mineOnly = diffs.filter(r => r.sw > 0).sort((a, b) => b.sw - a.sw), theirsOnly = diffs.filter(r => r.sw < 0).sort((a, b) => a.sw - b.sw);
+    const li = r => `<li class="${r.sw > 0 ? "good" : "bad"}"><span><b>${esc(P[r.id].name)}</b> ${r.me === 2 ? "(your C)" : r.them === 2 ? "(their C)" : ""} · ${f1(r.x)} xP · ${sgn(r.sw)}</span></li>`;
+    cmp = `<div class="panel"><div class="bar"><h3>You vs ${esc(rv.player)}</h3><button class="btn" data-rival="0">Close</button></div>
+      <p class="verdict">Their GW${C.gw} team${capT ? ` captained <b>${esc(P[capT]?.name || "?")}</b>` : ""}${rv.chip ? ` with ${esc(rv.chip)} active` : ""}. Against your planned GW${g} team, the differences are worth <b class="${swing >= 0 ? "up" : "down"}">${sgn(swing)}</b> projected points to you next gameweek.</p>
+      <div class="statgrid" style="margin-top:12px"><div><span class="lbl">Where you gain</span><ul class="alerts" style="margin-top:6px">${mineOnly.map(li).join("") || "<li><span class='muted'>Nothing</span></li>"}</ul></div>
+      <div><span class="lbl">Where they gain</span><ul class="alerts" style="margin-top:6px">${theirsOnly.map(li).join("") || "<li><span class='muted'>Nothing</span></li>"}</ul></div></div>
+      <p class="note">Based on their GW${C.gw} team, the latest that FPL shows. Changes they make before the deadline appear afterwards.</p></div>`;
+  }
+
+  return `
+  <div class="panel"><div class="bar"><h2>The field</h2>
+      <div class="seg" role="group" aria-label="Compare with"><button data-field="top10k" aria-pressed="${S.field !== "near"}">Top 10k</button><button data-field="near" aria-pressed="${S.field === "near"}">Around your rank</button></div></div>
+    <p class="note" style="margin-top:0">What ${label} owned and captained in GW${C.gw} (${F.n.toLocaleString("en-GB")} teams sampled), against your planned GW${g} team. <b>EO</b> (effective ownership) counts captains twice. <b>Swing</b> = how much a player's projected points move your rank: negative means the field gains on you if he delivers.</p>
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><span class="lbl">Your XI's average ownership</span><b>${xiOwn.toFixed(0)}%</b><span class="delta muted">${xiOwn > 60 ? "very template" : xiOwn > 40 ? "fairly template" : "plenty of differentials"}</span></div>
+      <div class="kpi"><span class="lbl">Their captain</span><b>${esc(P[capTop[0]?.[0]]?.name || "–")}</b><span class="delta muted">${capTop[0] ? capTop[0][1].toFixed(0) + "% of teams" : ""}</span></div>
+      <div class="kpi"><span class="lbl">Chips played GW${C.gw}</span><b style="font-size:18px">${chipTxt}</b><span class="delta muted">avg ${F.avg_pts} pts · hits ${F.hits}</span></div>
+    </div>
+    <div class="statgrid"><div><h3 style="margin-bottom:8px">Threats</h3>${tbl(thr, "Owned by the field")}</div><div><h3 style="margin-bottom:8px">Your edges</h3>${tbl(edge, "Your differentials")}</div></div>
+    <div style="margin-top:14px"><span class="lbl">Captaincy split</span><div class="capbars" style="margin-top:6px">${capTop.map(([id, v], k) => `<div class="cb ${k === 0 ? "top" : ""}"><span class="pname">${esc(P[id]?.name || id)}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><span class="val">${v.toFixed(0)}%</span></div>`).join("")}</div></div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" aria-label="League" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 9px;max-width:100%">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
+      ${lgTable}<p class="note">Tap a rival to compare teams.${live ? " Live points are summed from the latest match data, without automatic substitutions." : ""}</p></div>
+    <div style="min-width:0">${cmp || `<div class="panel"><h3>Compare with a rival</h3><p class="muted">Pick someone from the league table to see where your teams differ and who the differences favour next gameweek.</p></div>`}</div>
+  </div>`;
+}
 /* ---------- Fixtures ---------- */
 function vFixtures() {
   const mode = S.fxMode;
@@ -625,7 +713,7 @@ function vFixtures() {
 
 /* ---------- Players ---------- */
 const COLS = [["name", "Player", 0], ["team", "Team", 0], ["pos", "Pos", 0], ["price", "£m", 1], ["own", "Own %", 1], ["pts", "Pts", 1],
-  ["xgi90_4", "xGI/90 L4", 1], ["xmin", "xMins", 1], ["xp1", "xP next", 1], ["xp5", "xP 5", 1], ["val", "xP5/£m", 1], ["pc", "Price", 1]];
+  ["xgi90_4", "xGI/90 L4", 1], ["t10k", "Top 10k", 1], ["xmin", "xMins", 1], ["xp1", "xP next", 1], ["xp5", "xP 5", 1], ["val", "xP5/£m", 1], ["pc", "Price", 1]];
 function priceCell(p) {
   const v = p.price_proj?.[0]; if (v == null) return "–";
   const w = Math.min(100, Math.abs(v)) * 0.5;
@@ -637,7 +725,8 @@ function vPlayers() {
   if (S.team !== "ALL") rows = rows.filter(p => p.team == S.team);
   if (S.maxp) rows = rows.filter(p => p.price <= +S.maxp);
   if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(p => (p.name + " " + p.full).toLowerCase().includes(q)); }
-  const val = p => S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : p[S.sort];
+  const t10 = p => D.crowd?.top10k.own[p.id] || 0;
+  const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : p[S.sort];
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
   const shown = rows.slice(0, 150);
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${S.team == t.id ? "selected" : ""}>${t.name}</option>`).join("");
@@ -654,7 +743,7 @@ function vPlayers() {
       <td><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}"></td>
       <td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${p.chance ?? 0}%</span>` : ""}</td>
       <td>${T[p.team].short}</td><td>${p.pos}</td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.own.toFixed(1)}</td><td class="n">${p.pts}</td>
-      <td class="n">${p.xgi90_4.toFixed(2)}</td><td class="n">${p.xmin}</td><td class="n">${f1(p.xp1)}</td><td class="n"><b>${f1(p.xp5)}</b></td><td class="n">${(p.xp5 / p.price).toFixed(2)}</td><td class="n">${priceCell(p)}</td></tr>`).join("")}</tbody></table></div>
+      <td class="n">${p.xgi90_4.toFixed(2)}</td><td class="n">${D.crowd ? t10(p).toFixed(0) + "%" : "–"}</td><td class="n">${p.xmin}</td><td class="n">${f1(p.xp1)}</td><td class="n"><b>${f1(p.xp5)}</b></td><td class="n">${(p.xp5 / p.price).toFixed(2)}</td><td class="n">${priceCell(p)}</td></tr>`).join("")}</tbody></table></div>
     <p class="note">Gold edge = in your squad. xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. Price = progress towards a price change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}. Tick up to 4 players to compare; charts appear in Stats.</p></div>`;
 }
 function compareHTML() {
@@ -824,6 +913,9 @@ function bind() {
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
   on("[data-p]", b => openPlayer(+b.dataset.p));
   on("[data-fx]", b => { S.fxMode = b.dataset.fx; render(); });
+  on("[data-field]", b => { S.field = b.dataset.field; render(); });
+  on("[data-rival]", b => { S.rival = +b.dataset.rival || null; render(); if (S.rival && innerWidth < 900) document.querySelector(".grid2 > div:last-child")?.scrollIntoView({ behavior: "smooth" }); });
+  const ls = $("#leagueSel"); if (ls) ls.onchange = e => { S.league = +e.target.value; S.rival = null; render(); };
   on("[data-plan]", b => { S.plan = b.dataset.plan; render(); });
   on("[data-loadplan]", b => { SB.moves = planMoves(D.plans[b.dataset.loadplan]); SB.sel = null; sanitize(); saveSandbox(); setView("planner"); });
   on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });

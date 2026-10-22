@@ -236,6 +236,54 @@ if picks and picks_gw in live:
                          "mins": lv.get(p["element"], {}).get("minutes", 0), "bps": lv.get(p["element"], {}).get("bps", 0),
                          "bonus": lv.get(p["element"], {}).get("bonus", 0)} for p in picks["picks"]]}
 
+# ---------------------------------------------------------------- the field and mini-leagues
+crowd_out = None
+try:
+    crowd = json.load(open(os.path.join(HERE, "crowd", "latest.json")))
+except Exception:
+    crowd = None
+if crowd:
+    G = crowd["gw"]
+    lv = {x["id"]: x["stats"]["total_points"] for x in live[G]["elements"]} if G in live else {}
+    g_ev = next(e for e in events if e["id"] == G)
+    in_play = not g_ev["finished"]
+
+    def team_live(p, hits=0):
+        return sum(lv.get(el, 0) * m for el, m in p) - hits
+
+    leagues_out = []
+    for lg in crowd["leagues"]:
+        # fresh standings each run (cheap), rival picks from the per-gameweek cache
+        fresh = {}
+        try:
+            d = get(f"/leagues-classic/{lg['id']}/standings/")
+            for r in d["standings"]["results"]:
+                fresh[r["entry"]] = r
+            me_rank = next((r for r in d["standings"]["results"] if r["entry"] == TEAM_ID), None)
+        except Exception:
+            me_rank = None
+        rows = []
+        for mbr in lg["members"]:
+            e_id = mbr["entry"]
+            f = fresh.get(e_id, {})
+            pk = crowd["rivals"].get(str(e_id)) if e_id != TEAM_ID else (
+                {"p": [[x["element"], x["multiplier"]] for x in picks["picks"]], "chip": picks["active_chip"],
+                 "hits": picks["entry_history"]["event_transfers_cost"]} if picks and picks_gw == G else None)
+            rows.append({"entry": e_id, "player": mbr["player"], "team": mbr["team"], "me": e_id == TEAM_ID,
+                         "rank": f.get("rank"), "last_rank": f.get("last_rank"), "total": f.get("total"),
+                         "gw_pts": f.get("event_total"), "picks": pk["p"] if pk else None,
+                         "chip": pk["chip"] if pk else None, "hits": pk["hits"] if pk else 0,
+                         "live": team_live(pk["p"], pk["hits"]) if pk and lv else None})
+        rows.sort(key=lambda r: (r["rank"] or 1e9))
+        leagues_out.append({"id": lg["id"], "name": lg["name"], "size": lg["size"],
+                            "my_rank": (me_rank or {}).get("rank", lg["my_rank"]), "rows": rows})
+    keep_ids = {str(i) for i in players}
+    slim = lambda d: {k: v for k, v in d.items() if k in keep_ids}
+    crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play,
+                 "top10k": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["top10k"].items()},
+                 "near": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["near"].items()},
+                 "leagues": leagues_out}
+
 # ---------------------------------------------------------------- teams: fixtures and trends
 team_out = {}
 for tid, t in teams.items():
@@ -276,6 +324,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
+    "crowd": crowd_out,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

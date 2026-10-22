@@ -1,0 +1,41 @@
+name: Sample the field and mini-leagues
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"   # checks every 20 minutes; only does work once per gameweek, after the deadline
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild even if this gameweek is already sampled"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: crowd
+  cancel-in-progress: false
+
+jobs:
+  crowd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Sample teams
+        env:
+          FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
+        run: python3 crowd.py "$FPL_TEAM_ID" ${{ inputs.force && '--force' || '' }}
+      - name: Commit if changed (the next 30-minute refresh picks it up)
+        run: |
+          git config user.name "fpl-lab-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add crowd/latest.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Field and mini-league sample"
+          git pull --rebase
+          git push
