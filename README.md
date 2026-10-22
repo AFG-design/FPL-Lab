@@ -27,6 +27,8 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `fplmodel.py` | Projection model: team ratings from xG, minutes, per-90 rates blended with last season, FPL scoring, calibration |
 | `optimise.py` | Multi-gameweek transfer optimiser (integer programme, CBC via PuLP) |
 | `backtest.py` / `tune.py` | Re-projects past gameweeks to measure and tune the model |
+| `bench.py` | Test bench for model changes: re-projects every gameweek of this season and of 2025/26, and scores accuracy plus the picks and captains the app would make. `python3 bench.py '{"recency":0.85}'` compares a parameter set with the current model |
+| `archive.py` | Rebuilds a past season (default 2025/26) in the live API's shape from the public vaastav/Fantasy-Premier-League archive, for `bench.py`. Cached in `archive/` (not committed) |
 | `crowd.py` | Samples 2,000 top-10k teams, 500 around your rank and your mini-league rivals once per gameweek into `crowd/latest.json` |
 | `europe.json` | European fixtures used to flag rotation risk. Edit if dates change |
 | `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/` (workflow every 3 hours) |
@@ -56,6 +58,8 @@ npm run dev                               # serves site/ at http://localhost:800
 ```
 
 `build.py` also updates files in `history/`; discard those changes (`git checkout -- history/`) unless you mean to commit them. The site needs no build step: GitHub Pages publishes `site/` exactly as it is.
+
+Before changing the model, run `python3 bench.py` (needs `raw/` from a local build: `bootstrap.json`, `fixtures.json`, `live1.json`…) and keep a change only if it helps on both seasons.
 
 Before committing front-end changes:
 

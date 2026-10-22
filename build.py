@@ -150,7 +150,9 @@ def nailed(pid, e, r):
 def minutes_flag(pid, e):
     """Spot players losing (or winning back) their place from the last 6 gameweeks."""
     s = pstats.get(pid, {})
-    recent = [g for g in range(max(1, cur_gw - 5), cur_gw + 1)]
+    # last 6 gameweeks his club actually played (a blank week is not a dropped player)
+    played = {x[0] for x in ctx["team_fix"].get(e["team"], [])}
+    recent = [g for g in range(1, cur_gw + 1) if g in played and g in s][-6:]
     starts = [bool(s.get(g, {}).get("starts")) for g in recent]
     mins = [s.get(g, {}).get("minutes", 0) for g in recent]
     if len(starts) >= 4 and sum(starts[:-2]) >= 3 and not any(starts[-2:]):

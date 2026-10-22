@@ -10,8 +10,9 @@ from collections import defaultdict
 POS = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 
 DEFAULTS = {
-    # tuned by backtest.py / tune.py on GW3-7 of 2026/27
-    "recency": 0.7,        # weight per gameweek back, player rates
+    # tuned by backtest.py / tune.py on GW3-7 of 2026/27; recency and minutes re-tested with bench.py
+    # (GW3-7 of 2026/27 plus GW4-38 of 2025/26)
+    "recency": 0.8,        # weight per gameweek back, player rates (0.7 before bench.py; 0.8 = same accuracy, better top picks)
     "team_recency": 0.93,  # weight per gameweek back, team ratings
     "xg_weight": 0.7,      # team ratings: share from xG (rest from real goals)
     "prior_games": 4.0,    # team ratings: games of league-average prior
@@ -36,6 +37,8 @@ DEFAULTS = {
     "sp_match": 0.0,       # set-piece matchups: set-piece xG scaled by (opponent set-piece xG conceded / average) ** sp_match.
                            # Off: GW3-7 corr 0.417 -> 0.416. Re-test with tune_v3.py as data grows
     "sp_prior": 4.0,       # games of league-average prior for team set-piece conceding
+    "min_valid": True,     # minutes history: skip blank gameweeks and weeks before the player joined
+    "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
 }
 
 
@@ -277,6 +280,11 @@ def project(ctx, as_of, horizon=6, params=None):
         for tid, (v, n) in tot.items():
             sp_fac[tid] = ((v + P["sp_prior"] * avg) / (n + P["sp_prior"])) / avg
 
+    team_gws = defaultdict(set)
+    for tid, lst in ctx["team_fix"].items():
+        for (g, opp, home, f) in lst:
+            team_gws[tid].add(g)
+
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -318,10 +326,17 @@ def project(ctx, as_of, horizon=6, params=None):
             xg90 += P["pen_xg"]
 
         # ---- minutes: start probability and minutes when starting / from the bench
-        recent = [g for g in hist_gws[-P["min_window"]:]]
+        if P["min_valid"]:
+            # only gameweeks where his club played and he was registered; a blank week or one
+            # before he joined says nothing about whether he starts
+            played = team_gws.get(e["team"], set())
+            recent = [g for g in hist_gws if g in gs and g in played][-P["min_window"]:]
+        else:
+            recent = [g for g in hist_gws[-P["min_window"]:]]
+        mrec = P["min_recency"] or P["recency"]
         wsum = st = sub = mstart = msub = p60s = 0.0
         for g in recent:
-            w = P["recency"] ** (as_of - 1 - g)
+            w = mrec ** (as_of - 1 - g)
             wsum += w
             s = gs.get(g)
             if not s:
