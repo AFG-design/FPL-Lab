@@ -249,7 +249,7 @@ function vPlanner() {
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       <div class="gwsel" role="group" aria-label="Gameweek">${gwButtons}</div>
       ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, act: "sbp", sel: SB.sel, fresh })}
-      <p class="note">Tap a player to make him captain, bench or start him, lock him, or replace him. Anything you don't set is picked automatically for the best projected score.</p>
+      <p class="note">Tap a player to make him captain, bench or start him, lock him, or replace him. Or drag: a starter onto a sub to swap them, a sub onto another sub to change the bench order, or a replacement from the list onto the player he replaces. On a phone, press and hold to drag. Anything you don't set is picked automatically for the best projected score.</p>
       <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FT</th><th class="n">Moves</th><th class="n">Hits</th><th class="n">Bank</th><th>Captain</th><th class="n">xP</th><th class="n">vs none</th></tr></thead>
         <tbody>${sum.weeks.map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.ft}</td><td class="n">${w.n}</td><td class="n ${w.hits ? "down" : ""}">${w.hits ? "−" + 4 * w.hits : "0"}</td><td class="n ${w.bank < 0 ? "down" : ""}">${w.bank.toFixed(1)}</td><td>${esc(P[w.team.cap]?.name)}</td><td class="n">${f1(w.team.pts)}</td><td class="n ${w.team.pts - 4 * w.hits - w.base > 0.05 ? "up" : ""}">${sgn(w.team.pts - 4 * w.hits - w.base)}</td></tr>`).join("")}</tbody></table></div>
         <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.</p></div>
@@ -259,7 +259,7 @@ function vPlanner() {
       <div class="panel" id="candPanel">${right}</div>
       <div class="panel"><div class="bar"><h3>Your moves</h3>${SB.prev ? `<button class="btn" data-undoplan="1">Undo last change</button>` : ""}</div>
         <div class="moves">${movesList}</div>
-        ${SB.moves.length ? `<div style="margin-top:10px"><button class="btn" data-reset="1">Clear all moves</button></div>` : ""}
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-howto="${g}">Make GW${g} moves on FPL</button>${SB.moves.length ? `<button class="btn" data-reset="1">Clear all moves</button>` : ""}</div>
         <p class="note">Saved on this device${syncToken() ? " and synced" : ""}. This week and Rivals use this plan.</p></div>
     </div>
   </div>`;

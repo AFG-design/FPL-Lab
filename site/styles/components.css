@@ -386,3 +386,25 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .morechips { flex-basis: 100%; margin-top: 4px; }
 .morechips summary { cursor: pointer; color: var(--muted); font-size: var(--fs-sm); padding: 4px 0; }
 .morechips .chiprow { margin-top: 6px; }
+
+/* ---------- drag and drop (planner) ---------- */
+.view-planner .pc, .view-planner .cand { -webkit-touch-callout: none; user-select: none; }
+.view-planner .pc img { -webkit-user-drag: none; }
+.drag-ghost { background: var(--raised); border-radius: var(--r); position: fixed; z-index: 50; pointer-events: none; opacity: .92; box-shadow: var(--shadow); transform-origin: 0 0; margin: 0; }
+.dragging, .dragging * { cursor: grabbing !important; }
+.drag-src { opacity: .35; }
+.pc.drop-ok { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.pc.drop-no { outline: 2px dashed var(--bad); outline-offset: 2px; }
+#toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); z-index: 60; transform: translate(-50%, 12px); max-width: min(480px, calc(100vw - 32px)); padding: 10px 14px; border-radius: var(--r); background: var(--raised); border: 1px solid var(--line-strong); box-shadow: var(--shadow); font-size: var(--fs-sm); opacity: 0; pointer-events: none; transition: opacity var(--t-fast), transform var(--t-fast); }
+#toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+@media (min-width: 900px) { #toast { bottom: 24px; } }
+
+/* ---------- make these moves ---------- */
+.howto-btn { justify-self: start; }
+.howto { margin: 0; padding-left: 22px; display: grid; gap: 14px; }
+.howto h3 { font-size: var(--fs-md); margin: 0 0 6px; }
+.howto h3 .muted { font-weight: 400; font-size: var(--fs-sm); }
+.xi-lines { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0; font-size: var(--fs-sm); }
+.xi-lines dt { color: var(--muted); font-weight: 600; }
+.xi-lines dd { margin: 0; }

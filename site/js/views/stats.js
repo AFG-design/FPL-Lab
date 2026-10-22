@@ -47,7 +47,7 @@ function vStats() {
       <span class="lbl">Points per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_pts })), gwl, { h: 180 })}
       <span class="lbl">Expected goal involvement per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_xgi })), gwl, { h: 180, yfmt: v => v.toFixed(1) })}`
     : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
-  const tabs = [["form", "Form"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["teams", "Teams"]];
+  const tabs = [["form", "Form"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["prices", "Prices"], ["teams", "Teams"]];
   const tab = S.stab || "form";
   const nav = `<div class="seg ptabs" role="group" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`;
   let body = "";
@@ -63,6 +63,7 @@ function vStats() {
   else if (tab === "defence") body = dcHTML();
   else if (tab === "bonus") body = bonusHTML();
   else if (tab === "value") body = valueHTML();
+  else if (tab === "prices") body = pricesHTML();
   else body = `<div class="grid2">
     <div class="panel"><div class="bar"><h3>Team trend</h3><select id="trendTeam" aria-label="Team" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 9px">${teamOpts}</select></div>
       <div class="legend"><span><i class="s1"></i>xG for</span><span><i class="s4"></i>xG against</span></div>
@@ -165,4 +166,46 @@ function setPiecesHTML() {
   return `<div class="panel"><h3>Set pieces and penalties</h3><p class="note" style="margin-top:0">First choice on top, back-up underneath, from FPL's own data. Penalty takers already get a small boost in the projections.</p>
     ${ch.length ? `<ul class="alerts" style="margin-bottom:12px">${ch.map(c => `<li class="warn"><span>${c.date}: ${T[c.team]?.name} ${label[c.type]} now ${c.new && P[c.new] ? esc(P[c.new].name) : "unknown"}${c.old && P[c.old] ? ` (was ${esc(P[c.old].name)})` : ""}.</span></li>`).join("")}</ul>` : `<p class="note">Changes to first-choice takers will be listed here as FPL updates them.</p>`}
     <div class="tablebox" style="max-height:480px"><table><thead><tr><th>Team</th><th>Penalties</th><th>Corners</th><th>Free kicks</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+/* ---------- prices: tonight's likely changes and how reliable FPL's projection has been ---------- */
+// our record for this projection band, once there's enough of it; otherwise null
+function priceRecord(pr) {
+  const B = D.prices?.bands; if (!B || pr == null) return null;
+  const dir = pr >= 0 ? "rise" : "fall", a = Math.abs(pr);
+  const b = B.filter(x => x.dir === dir).find(x => a >= x.lo); if (!b || b.n < 15) return null;
+  return { pct: Math.round(100 * b.hit / b.n), n: b.n, band: b.band };
+}
+function pricesHTML() {
+  const PR = D.prices, g0 = PG[0];
+  const when = PR?.pending_night ? new Date(new Date(PR.pending_night).getTime() + 90 * 6e4).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "tonight";
+  const pr = p => p.price_proj?.[0];
+  const chance = p => { const r = priceRecord(pr(p)); return r ? `<b>${r.pct}%</b> <span class="muted">(${r.n})</span>` : '<span class="muted">–</span>'; };
+  const row = p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td><td class="n">${p.price.toFixed(1)}</td><td>${priceCell(p)}</td><td class="n">${chance(p)}</td><td class="n">${(p.tin - p.tout).toLocaleString("en-GB")}</td></tr>`;
+  const tbl = list => `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th>FPL projection</th><th class="n">Our record</th><th class="n">Net transfers</th></tr></thead><tbody>${list.map(row).join("") || '<tr><td colspan="5" class="muted">None close</td></tr>'}</tbody></table></div>`;
+  const risers = D.players.filter(p => pr(p) >= 75).sort((a, b) => pr(b) - pr(a)).slice(0, 12);
+  const fallers = D.players.filter(p => pr(p) <= -75).sort((a, b) => pr(a) - pr(b)).slice(0, 12);
+  // what matters to you: players you own that may fall, players you plan to buy that may rise
+  const buys = (SB?.moves || []).filter(m => m.gw === g0).map(m => P[m.in]).filter(Boolean);
+  const alerts = [
+    ...buys.filter(p => pr(p) >= 75).map(p => ["warn", `<b>${esc(p.name)}</b> is in your plan and ${pr(p) >= 100 ? "is projected to rise" : "may rise"} at the next update (${when}). Making the transfer before then saves £0.1m.`]),
+    ...D.squad.map(s => P[s.id]).filter(p => p && pr(p) <= -75).map(p => ["bad", `<b>${esc(p.name)}</b> ${pr(p) <= -100 ? "is projected to fall" : "may fall"} at the next update (${when}). If you're selling him anyway, sell before then.`]),
+  ];
+  const last = PR?.last;
+  const lastHTML = last && last.rows.length ? `<ul class="alerts">${last.rows.slice().sort((a, b) => b[2] - a[2]).slice(0, 16).map(([id, p0, ch]) => `<li class="${ch > 0 ? "good" : "bad"}"><span><b>${esc(P[id]?.name || id)}</b> ${ch > 0 ? "▲" : "▼"} £${(Math.abs(ch) / 10).toFixed(1)}m <span class="muted">· FPL had ${p0.toFixed(0)}%${Math.abs(p0) < 50 ? " (a surprise)" : ""}</span></span></li>`).join("")}</ul>`
+    : `<p class="muted">${PR?.nights ? "No price changes at the last update." : "The first night of tracking finishes after the next update."}</p>`;
+  const B = PR?.bands || [];
+  const rec = ["100%+", "90–100%", "75–90%", "50–75%"].map(lab => { const r = B.find(x => x.dir === "rise" && x.band === lab), f = B.find(x => x.dir === "fall" && x.band === lab);
+    const c = x => x && x.n ? `${Math.round(100 * x.hit / x.n)}% <span class="muted">(${x.hit}/${x.n})</span>` : '<span class="muted">–</span>';
+    return `<tr><td>${lab}</td><td class="n">${c(r)}</td><td class="n">${c(f)}</td></tr>`; }).join("");
+  return `${alerts.length ? `<div class="panel"><h3>Before the next price update</h3><ul class="alerts">${alerts.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul></div>` : ""}
+  <div class="statgrid">
+    <div class="panel"><h3>Likely to rise</h3><p class="note" style="margin-top:0">FPL's projection for the next update (${when}). 100% means the threshold is reached.</p>${tbl(risers)}</div>
+    <div class="panel"><h3>Likely to fall</h3><p class="note" style="margin-top:0">Same projection, for falls. Your players are highlighted.</p>${tbl(fallers)}</div>
+  </div>
+  <div class="grid2">
+    <div class="panel"><h3>Last update</h3>${lastHTML}</div>
+    <div class="panel"><h3>Track record</h3><p class="note" style="margin-top:0">How often a player at each FPL projection actually changed price that night, over the last ${PR?.nights || 0} night${PR?.nights === 1 ? "" : "s"}. "Our record" above appears once a band has 15+ cases.${PR?.changes ? ` ${PR.unpredicted} of ${PR.changes} changes weren't projected above 50%.` : ""}</p>
+      <div class="tablebox"><table><thead><tr><th>FPL projection</th><th class="n">Rose</th><th class="n">Fell</th></tr></thead><tbody>${rec}</tbody></table></div></div>
+  </div>`;
 }

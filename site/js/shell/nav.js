@@ -41,7 +41,7 @@ const NAV = [
   ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"], ["stats", "Stats"]]],
   ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"]]],
 ];
-const MORE = [["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"]];
+const MORE = [["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"]];
 const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
 $("#sidenav").innerHTML = NAV.map(([g, items]) => `<div class="navgroup"><span class="navhead">${g}</span>${items.map(([v, l]) => `<button type="button" data-v="${v}">${icon(v)}<span>${l}</span></button>`).join("")}</div>`).join("");
 $("#bottomnav").innerHTML = BOTTOM.map(([v, l]) => `<button type="button" data-v="${v}" ${v === "more" ? 'aria-haspopup="menu" aria-expanded="false" id="moreBottom"' : ""}>${icon(v)}<span>${l}</span></button>`).join("");

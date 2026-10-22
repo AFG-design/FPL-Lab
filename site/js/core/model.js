@@ -60,7 +60,9 @@ function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null)) {
   for (const pos of Object.keys(MIN)) ps.filter(i => P[i].pos === pos && !fb.has(i)).forEach(i => { if (cnt[pos] < MIN[pos]) tryAdd(i); });
   ps.filter(i => !fb.has(i)).forEach(tryAdd);
   ps.forEach(tryAdd);                                                         // only if benching left too few
-  const bench = [...ps.filter(i => !xi.includes(i) && P[i].pos === "GKP"), ...ps.filter(i => !xi.includes(i) && P[i].pos !== "GKP")];
+  let out = ps.filter(i => !xi.includes(i) && P[i].pos !== "GKP");
+  if (ov?.order?.length) { const rk = i => { const k = ov.order.indexOf(i); return k < 0 ? 99 : k; }; out = out.map((i, k) => [i, k]).sort((a, b) => rk(a[0]) - rk(b[0]) || a[1] - b[1]).map(x => x[0]); }  // your bench order
+  const bench = [...ps.filter(i => !xi.includes(i) && P[i].pos === "GKP"), ...out];
   let c = capPick(xi, g), mine = false;
   if (ov?.cap && xi.includes(ov.cap)) {
     mine = true;

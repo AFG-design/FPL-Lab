@@ -658,6 +658,61 @@ keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
 
+# ---------------------------------------------------------------- price change tracker
+# Before each nightly price update we keep FPL's projection for tonight and everyone's price; a few hours after it,
+# we compare: who actually moved, and how often FPL's projection bands turned out right.
+PRICE_F = os.path.join(HIST, "prices.json")
+try:
+    PH = json.load(open(PRICE_F))
+except Exception:
+    PH = {"pending": {}, "nights": []}
+now_utc = dt.datetime.now(dt.timezone.utc)
+pdl = [dt.datetime.fromisoformat(x.replace("Z", "+00:00")) for x in boot["game_config"]["settings"].get("price_change_deadlines", [])]
+nxt = min((d for d in pdl if d > now_utc), default=None)
+if nxt:
+    key = nxt.isoformat()
+    PH["pending"][key] = {"pred": {str(e["id"]): float(e["price_change_projections"][0]["projected_percent"])
+                                   for e in elements.values() if e.get("price_change_projections")},
+                          "cost": {str(e["id"]): e["now_cost"] for e in elements.values()}}
+for key in sorted(PH["pending"]):
+    if now_utc < dt.datetime.fromisoformat(key) + dt.timedelta(hours=4):
+        continue                                     # changes land around 01:30 UK; wait until they have
+    snap = PH["pending"].pop(key)
+    rows = []
+    for pid, c0 in snap["cost"].items():
+        e = elements.get(int(pid))
+        if not e:
+            continue
+        ch = e["now_cost"] - c0
+        pr = snap["pred"].get(pid, 0.0)
+        if ch or abs(pr) >= 50:
+            rows.append([int(pid), round(pr, 1), ch])
+    PH["nights"].append({"night": key, "rows": rows})
+PH["nights"] = PH["nights"][-40:]
+PH["pending"] = {k: v for k, v in PH["pending"].items() if dt.datetime.fromisoformat(k) > now_utc - dt.timedelta(days=3)}
+json.dump(PH, open(PRICE_F, "w"), separators=(",", ":"))
+
+BANDS = [("100%+", 100, 1e9), ("90–100%", 90, 100), ("75–90%", 75, 90), ("50–75%", 50, 75)]
+price_out = {"nights": len(PH["nights"]), "bands": [], "last": None, "pending_night": nxt.isoformat() if nxt else None}
+for dirn, sgn_ in (("rise", 1), ("fall", -1)):
+    for lab, lo, hi in BANDS:
+        n = hit = 0
+        for nt in PH["nights"]:
+            for pid, pr, ch in nt["rows"]:
+                if lo <= pr * sgn_ < hi:
+                    n += 1; hit += (ch * sgn_ > 0)
+        price_out["bands"].append({"dir": dirn, "band": lab, "lo": lo, "n": n, "hit": hit})
+# surprise moves: changes FPL's projection didn't see coming (under 50%)
+miss = sum(1 for nt in PH["nights"] for pid, pr, ch in nt["rows"] if ch and pr * (1 if ch > 0 else -1) < 50)
+price_out["unpredicted"] = miss
+price_out["changes"] = sum(1 for nt in PH["nights"] for r in nt["rows"] if r[2])
+if PH["nights"]:
+    lt = PH["nights"][-1]
+    price_out["last"] = {"night": lt["night"], "rows": [r for r in lt["rows"] if r[2]]}
+    for pid, _, _ in price_out["last"]["rows"]:
+        if pid in players:
+            keep.add(pid)
+
 # ---------------------------------------------------------------- compare any team: watch.json + the overall leader
 watch_out = []
 try:
@@ -717,7 +772,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
-    "crowd": crowd_out, "watch": watch_out, "review": review, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "review": review, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

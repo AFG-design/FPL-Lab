@@ -128,6 +128,7 @@ function vWeek() {
         `<p class="sub">${t1why}${later.length ? ` Your plan has ${later.length} more move${later.length > 1 ? "s" : ""} in later weeks.` : ""} Bank after: ${money(w0.bank)}.</p>
          <p class="sub">Strategy: <b>${MODES[S.mode]}</b>. Change it, compare the optimiser's plans and see transfer suggestions in the Planner.</p>
          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-v-go="planner">Open planner</button>${undo}</div>`)}
+      <button class="btn primary howto-btn" data-howto="${g}">Make these moves on FPL</button>
       ${step(2, starts.length || benches.length ? "act" : "ok", "Lineup", vPill(lV), lineupTxt,
         `<p class="sub">Best XI projects <b>${f1(me.pts)}</b> pts including the captain. Bench order: ${me.bench.map(i => esc(P[i].name)).join(", ")}.${benchFirst ? ` First sub ${esc(P[benchFirst].name)} (${f1(xpg(benchFirst, g))}) vs weakest starter ${esc(P[weakest].name)} (${f1(xpg(weakest, g))}).` : ""}</p>`)}
       ${step(3, "act", "Captain", vPill(cV), `C ${esc(P[me.cap].name)} · V ${esc(P[me.vice].name)}`,

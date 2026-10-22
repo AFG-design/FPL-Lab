@@ -78,18 +78,9 @@ function bind() {
   on("[data-v-go]", b => setView(b.dataset.vGo));
   on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
   on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
+  on("[data-howto]", b => openMovesSummary(+b.dataset.howto));
   on("[data-cancel]", () => { SB.sel = null; render(); });
-  on("[data-pick]", b => {
-    const g = SB.gw, out = SB.sel, inn = +b.dataset.pick;
-    // a move from this GW replaces the player for all later weeks; drop later moves of the same player
-    SB.prev = { moves: SB.moves.slice(), source: SB.source };
-    editPlan(() => {
-      const same = SB.moves.find(m => m.gw === g && m.in === out);
-      if (same) { same.in = inn; if (same.in === same.out) SB.moves = SB.moves.filter(m => m !== same); }  // swap a signing made this week: still one transfer
-      else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === out)); SB.moves.push({ gw: g, out, in: inn }); }
-    });
-    SB.sel = null; render();
-  });
+  on("[data-pick]", b => { makeTransfer(SB.gw, SB.sel, +b.dataset.pick); render(); });
   on("[data-undo]", b => { SB.prev = { moves: SB.moves.slice(), source: SB.source }; editPlan(() => SB.moves.splice(+b.dataset.undo, 1)); render(); });
   on("[data-reset]", () => { setPlan([], "custom"); render(); });
   on("th[data-sort]", th => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });
