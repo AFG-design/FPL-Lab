@@ -419,18 +419,43 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .newsline time { font-size: var(--fs-xs); color: var(--muted); }
 
 /* ---------- squad rating ---------- */
-.rate-top { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; margin-bottom: 14px; }
-.rate-score { display: grid; justify-items: center; align-content: center; width: 104px; height: 104px; border-radius: 50%; border: 6px solid var(--accent); background: var(--sunk); line-height: 1; }
-.rate-score b { font-size: 34px; }
-.rate-score span { font-size: var(--fs-xs); color: var(--muted); }
-.rate-score small { font-size: 11px; margin-top: 4px; color: var(--accent-text); font-weight: 600; }
-.rate-pos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
-.rate-pos > div { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunk); }
-.rate-pos span:last-child { display: grid; font-size: var(--fs-sm); }
-.rate-pos small { color: var(--muted); font-size: var(--fs-xs); }
-.rating .alerts li { align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.rate-top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: center; margin-bottom: 14px; }
+.rate-badge { display: grid; justify-items: center; gap: 6px; }
+.rate-score { --p: 0;
 
-@media (max-width: 480px) { .rate-top { grid-template-columns: 1fr; justify-items: center; } }
+ display: grid; place-content: center; justify-items: center; width: 96px; height: 96px; border-radius: 50%; line-height: 1;
+  background: radial-gradient(closest-side, var(--surface) 80%, transparent 81%), conic-gradient(var(--accent) calc(var(--p) * 1%), var(--sunk) 0); }
+.rate-score b { font-size: 32px; }
+.rate-score span { font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; }
+.rate-badge small { font-size: var(--fs-xs); font-weight: 600; color: var(--accent-text); white-space: nowrap; }
+.rating .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rating .kpi b { font-size: var(--fs-xl); }
+.rate-pos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.rate-pos > div { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunk); min-width: 0; }
+.rate-pos span:last-child { display: grid; font-size: var(--fs-sm); min-width: 0; }
+.rate-pos small { color: var(--muted); font-size: var(--fs-xs); }
+.rate-links { list-style: none; margin: 6px 0 0; padding: 0; display: grid; }
+.rate-links li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.rate-links li:last-child { border-bottom: 1px solid var(--line); }
+.rl-move { min-width: 0; }
+.rl-gain { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rl-gain small { font-weight: 400; color: var(--muted); font-size: var(--fs-xs); }
+.rate-links .btn { white-space: nowrap; }
+.rate-links + .note { margin-top: 12px; }
+.rl-move .pname { font-weight: 600; }
+
+@media (max-width: 1280px) { .rate-pos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+@media (max-width: 1100px) and (min-width: 900px), (max-width: 520px) {
+  .rate-top { grid-template-columns: 1fr; justify-items: center; }
+  .rating .kpis { width: 100%; }
+}
+
+@media (max-width: 420px) {
+  .rate-links li { grid-template-columns: minmax(0, 1fr) auto; }
+  .rate-links .btn { grid-column: 1 / -1; justify-self: start; }
+  .rating .kpi b { font-size: var(--fs-lg); }
+}
 
 /* ---------- past team viewer ---------- */
 .pc.past .xp { font-size: var(--fs-xl); }
@@ -438,6 +463,3 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .subtag { font-size: 10px; font-weight: 700; }
 .subtag.in { color: var(--good); }
 .subtag.out { color: var(--bad); }
-.rating .kpis { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; width: 100%; }
-.rating .alerts .btn { white-space: nowrap; }
-.rating .alerts li > span { flex: 1 1 200px; }
