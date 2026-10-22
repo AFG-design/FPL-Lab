@@ -284,21 +284,29 @@ function flag(p) {
 const xpg = (id, g) => (P[id]?.xp[g]) || 0;
 const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a, x) => a + xpg(id, x), 0);
 
+// one captain rule everywhere: highest projection, but an attacker beats a GKP/DEF that only edges it
+function capPick(xi, g) {
+  const order = xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g));
+  let cap = order[0], vice = order[1], swapped = null;
+  const att = order.find(i => ["MID", "FWD"].includes(P[i]?.pos));
+  if (att && att !== cap && ["GKP", "DEF"].includes(P[cap]?.pos) && xpg(cap, g) - xpg(att, g) < 0.6) { swapped = cap; vice = cap; cap = att; }
+  return { cap, vice, swapped };
+}
 function bestXI(ids, g) {
   const ps = ids.filter(i => P[i]).slice().sort((a, b) => xpg(b, g) - xpg(a, g));
   const by = { GKP: [], DEF: [], MID: [], FWD: [] };
   ps.forEach(i => by[P[i].pos].push(i));
   const xi = [...by.GKP.slice(0, 1), ...by.DEF.slice(0, 3), ...by.MID.slice(0, 2), ...by.FWD.slice(0, 1)];
-  const cap = { DEF: 5, MID: 5, FWD: 3 };
+  const lim = { DEF: 5, MID: 5, FWD: 3 };
   for (const i of ps) {
     if (xi.length === 11) break;
     if (xi.includes(i) || P[i].pos === "GKP") continue;
-    if (xi.filter(j => P[j].pos === P[i].pos).length < cap[P[i].pos]) xi.push(i);
+    if (xi.filter(j => P[j].pos === P[i].pos).length < lim[P[i].pos]) xi.push(i);
   }
   const bench = [...by.GKP.filter(i => !xi.includes(i)), ...ps.filter(i => !xi.includes(i) && P[i].pos !== "GKP")];
-  const order = xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g));
-  const pts = xi.reduce((a, i) => a + xpg(i, g), 0) + (order[0] ? xpg(order[0], g) : 0);
-  return { xi, bench, cap: order[0], vice: order[1], pts };
+  const c = capPick(xi, g);
+  const pts = xi.reduce((a, i) => a + xpg(i, g), 0) + (c.cap ? xpg(c.cap, g) : 0);
+  return { xi, bench, cap: c.cap, vice: c.vice, swapped: c.swapped, pts };
 }
 
 /* ---------- load ---------- */
@@ -311,6 +319,7 @@ function ingest(d) {
   T = D.teams; GWS = D.meta.proj_gws; PG = D.meta.plan_gws || GWS.slice(0, 5);
   MINE = new Set(D.squad.map(s => s.id));
   if (!S.trendTeam) S.trendTeam = P[D.squad[0]?.id]?.team || 1;
+  _base = null;
   loadSandbox();
 }
 async function load() {
@@ -381,11 +390,10 @@ function pitch(xi, bench, g, o = {}) {
 /* ---------- plans ---------- */
 const PLAN_LABEL = { roll: "Roll", one: "1 move", two: "2 moves", three: "3 moves", best: "Optimal" };
 function planMoves(pl) {
-  // pair outs and ins by position for each week
   const mv = [];
   pl.weeks.forEach(w => {
-    const outs = w.out.slice(), ins = w.in.slice();
-    ins.forEach(i => {
+    const outs = w.out.slice();
+    w.in.forEach(i => {
       const k = outs.findIndex(o => P[o]?.pos === P[i]?.pos);
       if (k >= 0) mv.push({ gw: w.gw, out: outs.splice(k, 1)[0], in: i });
     });
@@ -397,77 +405,152 @@ function recommendedPlan() {
   const keys = ["roll", "one", "two", "three"].filter(k => pl[k]);
   if (!keys.length) return null;
   const best = keys.reduce((a, k) => pl[k].vs_roll > pl[a].vs_roll ? k : a, keys[0]);
-  // prefer fewer moves when within 0.5 pts: projections are noisy and flexibility has value
-  for (const k of keys) if (pl[k].vs_roll >= pl[best].vs_roll - 0.5) return k;
+  for (const k of keys) if (pl[k].vs_roll >= pl[best].vs_roll - 0.5) return k;  // fewer moves when it's close
   return best;
+}
+const mvKey = mv => mv.map(m => `${m.gw}:${m.out}>${m.in}`).sort().join(",");
+const sameMoves = (a, b) => mvKey(a) === mvKey(b);
+
+/* ---------- your plan: one source of truth for every tab ---------- */
+function sbKey() { return `fpl.sb.${D.meta.team_id}.${D.meta.next_gw}.${D.squad.map(s => s.id).join("-")}`; }
+function loadSandbox() {
+  const keepGw = SB && PG.includes(SB.gw) ? SB.gw : PG[0], keepSel = SB?.sel ?? null;
+  const saved = store.get(sbKey());
+  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", prev: SB?.prev || null };
+  if (saved && Array.isArray(saved.moves)) {
+    SB.moves = saved.moves.filter(m => P[m.in] && P[m.out] && PG.includes(m.gw));
+    SB.source = saved.source || "custom";
+  } else {
+    const rec = recommendedPlan();
+    SB.moves = rec ? planMoves(D.plans[rec]) : [];
+    SB.source = rec ? "plan:" + rec : "custom";
+  }
+  sanitize();
+}
+function saveSandbox() { store.set(sbKey(), { moves: SB.moves, source: SB.source }); }
+function setPlan(moves, source) {
+  SB.prev = { moves: SB.moves.slice(), source: SB.source };
+  SB.moves = moves.map(m => ({ ...m })); SB.source = source; SB.sel = null;
+  sanitize(); saveSandbox();
+}
+function editPlan(fn) { fn(); SB.source = "custom"; sanitize(); saveSandbox(); }
+function planName() {
+  if (SB.source.startsWith("plan:")) { const k = SB.source.slice(5); if (D.plans[k] && sameMoves(planMoves(D.plans[k]), SB.moves)) return PLAN_LABEL[k] + " plan"; }
+  return SB.moves.length ? "Your plan" : "No transfers";
+}
+function squadAt(gw, moves = SB.moves) {
+  const s = D.squad.map(x => x.id);
+  moves.filter(m => m.gw <= gw).forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
+  return s;
+}
+function sellPrice(id) { const s = D.squad.find(x => x.id === id); return s ? s.sell : P[id].price; }
+function bankAt(gw, moves = SB.moves) {
+  let b = D.manager.bank;
+  const base = new Set(D.squad.map(x => x.id)), bought = new Set();
+  moves.filter(m => m.gw <= gw).forEach(m => {
+    b += (base.has(m.out) && !bought.has(m.out)) ? sellPrice(m.out) : P[m.out].price;
+    b -= P[m.in].price; bought.add(m.in);
+  });
+  return Math.round(b * 10) / 10;
+}
+function cleanMoves(moves) {
+  const ok = [], s = D.squad.map(x => x.id);
+  moves.slice().sort((a, b) => a.gw - b.gw).forEach(m => {
+    if (s.includes(m.out) && !s.includes(m.in)) { ok.push(m); s[s.indexOf(m.out)] = m.in; }
+  });
+  return ok;
+}
+function sanitize() { SB.moves = cleanMoves(SB.moves); }
+function ftTable(moves = SB.moves) {
+  let ft = Math.min(5, D.manager.free_transfers);
+  return PG.map(g => {
+    const n = moves.filter(m => m.gw === g).length, hits = Math.max(0, n - ft);
+    const row = { gw: g, ft, n, hits };
+    ft = n > ft ? 1 : Math.min(5, ft - n + 1);
+    row.next = ft;
+    return row;
+  });
+}
+function clubCounts(ids) { const c = {}; ids.forEach(i => c[P[i].team] = (c[P[i].team] || 0) + 1); return c; }
+// the single scorer used by This week, Planner and Rivals
+function scoreMoves(moves) {
+  let tot = 0;
+  const weeks = ftTable(moves).map(r => {
+    const sq = squadAt(r.gw, moves), team = bestXI(sq, r.gw);
+    tot += team.pts - 4 * r.hits;
+    const over = Object.entries(clubCounts(sq)).filter(([, v]) => v > 3).map(([t]) => T[t].short);
+    return { ...r, team, sq, bank: bankAt(r.gw, moves), over };
+  });
+  return { weeks, tot, ftLeft: weeks.length ? weeks[weeks.length - 1].next : 0 };
+}
+let _base = null;
+const baseScore = () => _base || (_base = scoreMoves([]));
+function sandboxSummary() {
+  const sc = scoreMoves(SB.moves), base = baseScore();
+  sc.weeks.forEach((w, i) => w.base = base.weeks[i].team.pts);
+  return { weeks: sc.weeks, tot: sc.tot, baseTot: base.tot, ftLeft: sc.ftLeft };
+}
+function myTeam() {
+  const g = D.meta.next_gw, sc = scoreMoves(SB.moves), w = sc.weeks[0];
+  const mult = {}; w.team.xi.forEach(i => mult[i] = 1); mult[w.team.cap] = 2;
+  return { ...w.team, g, mult, week: w, moves0: SB.moves.filter(m => m.gw === g), later: SB.moves.filter(m => m.gw !== g), score: sc };
 }
 
 /* ---------- This week ---------- */
 function vWeek() {
   const g = D.meta.next_gw, pl = D.plans || {};
-  const rec = recommendedPlan();
-  const key = S.plan && pl[S.plan] ? S.plan : rec;
-  const plan = pl[key];
-  if (!plan) return `<div class="panel"><p>No plan is available for this gameweek yet.</p></div>`;
-  const w0 = Object.assign({}, plan.weeks[0]);
-  // armband: prefer the best attacker when a GKP/DEF only edges it (attackers have the higher ceiling)
-  { const att = w0.xi.filter(i => ["MID", "FWD"].includes(P[i].pos)).sort((a, b) => xpg(b, g) - xpg(a, g))[0];
-    const c = w0.captain;
-    w0.capSwap = null;
-    if (att && att !== c && ["GKP", "DEF"].includes(P[c].pos) && xpg(c, g) - xpg(att, g) < 0.6) { w0.capSwap = c; w0.vice = c; w0.captain = att; } }
-  const moves0 = planMoves(plan).filter(m => m.gw === g);
-  const later = planMoves(plan).filter(m => m.gw !== g);
-  const ft = D.manager.free_transfers;
+  if (!PG.length) return `<div class="panel"><p>No gameweek to plan yet.</p></div>`;
+  const rec = recommendedPlan(), me = myTeam(), w0 = me.week, ft = D.manager.free_transfers;
+  const base = baseScore().tot, myGain = me.score.tot - base;
+  const moves0 = me.moves0, later = me.later;
 
-  // step 1 transfers
-  const opts = ["roll", "one", "two", "three", "best"].filter(k => pl[k]).map(k => {
-    const n = pl[k].weeks[0].in.length;
-    return `<button class="opt ${k === key ? "sel" : ""}" data-plan="${k}"><span>${PLAN_LABEL[k]}${k === "best" ? ` (${n})` : ""}${k === rec ? " · pick" : ""}</span><b class="${pl[k].vs_roll > 0.05 ? "up" : ""}">${sgn(pl[k].vs_roll)}</b><span>vs rolling, 5 GWs</span></button>`;
-  }).join("");
-  const mvHTML = moves0.length ? `<div class="moves">${moves0.map(m => `<div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="muted mono">${money(sellPrice(m.out))}</span><span class="in">▲ ${esc(P[m.in].name)}</span><span class="muted mono">${money(P[m.in].price)} · ${T[P[m.in].team].short}</span><span class="tag">${sgn(xpFrom(m.in, g, 5) - xpFrom(m.out, g, 5))} over 5 GWs</span></div>`).join("")}</div>` : "";
-  const t1 = moves0.length
-    ? `Make ${moves0.length} transfer${moves0.length > 1 ? "s" : ""}${w0.hits ? ` (${w0.hits} hit${w0.hits > 1 ? "s" : ""})` : ""}`
-    : `Roll your transfer${ft > 1 ? "s" : ""}`;
-  const t1sub = moves0.length
-    ? `Uses ${Math.min(moves0.length, ft)} of ${ft} free transfers. Bank after: ${money(w0.bank)}.${later.length ? ` The plan then makes ${later.length} more move${later.length > 1 ? "s" : ""} in later weeks.` : ""}`
-    : `You'll have ${Math.min(5, ft + 1)} free transfers next week. No move beats rolling by enough.`;
-  const close = Math.abs((pl.roll?.objective || 0) - (plan.objective || 0)) < 1;
+  // option cards, all scored with the same rules as the planner
+  let anySel = false;
+  const cards = ["roll", "one", "two", "three", "best"].filter(k => pl[k]).map(k => {
+    const mv = planMoves(pl[k]), sc = scoreMoves(mv), sel = sameMoves(mv, SB.moves);
+    anySel = anySel || sel;
+    return `<button class="opt ${sel ? "sel" : ""}" data-plan="${k}"><span>${PLAN_LABEL[k]}${k === "best" ? ` (${mv.filter(m => m.gw === g).length} now)` : ""}${k === rec ? " · pick" : ""}</span><b class="${sc.tot - base > 0.05 ? "up" : ""}">${sgn(sc.tot - base)}</b><span>${sc.ftLeft} FT left after GW${PG[PG.length - 1]}</span></button>`;
+  });
+  if (!anySel) cards.unshift(`<button class="opt sel" data-v-go="planner"><span>Your plan · edited</span><b class="${myGain > 0.05 ? "up" : myGain < -0.05 ? "down" : ""}">${sgn(myGain)}</b><span>${me.score.ftLeft} FT left after GW${PG[PG.length - 1]}</span></button>`);
 
-  // step 2 lineup
-  const curXI = new Set(D.lineup.current_xi || []);
-  const newXI = new Set(w0.xi);
-  const starts = w0.xi.filter(i => !curXI.has(i));
-  const benches = [...curXI].filter(i => !newXI.has(i) && w0.bench.includes(i));
+  const mvHTML = moves0.length ? `<div class="moves">${moves0.map(m => `<div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="muted mono">${money(sellPrice(m.out))}</span><span class="in">▲ ${esc(P[m.in].name)}</span><span class="muted mono">${money(P[m.in].price)} · ${T[P[m.in].team].short}</span><span class="tag">${sgn(xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length))} over ${PG.length} GWs</span></div>`).join("")}</div>` : "";
+  const t1 = moves0.length ? `Make ${moves0.length} transfer${moves0.length > 1 ? "s" : ""}${w0.hits ? ` (−${4 * w0.hits} hit)` : ""}` : `Roll your transfer${ft > 1 ? "s" : ""}`;
+  const t1sub = (moves0.length ? `Uses ${Math.min(moves0.length, ft)} of ${ft} free transfers. Bank after: ${money(w0.bank)}.` : `You'll have ${Math.min(5, ft + 1)} free transfers next week.`)
+    + (later.length ? ` Your plan has ${later.length} more move${later.length > 1 ? "s" : ""} in later weeks.` : "")
+    + ` Over ${PG.length} GWs this projects <b>${sgn(myGain)}</b> vs doing nothing.`;
+  const undo = SB.prev ? ` <button class="btn" data-undoplan="1">Undo plan change</button>` : "";
+
+  // lineup
+  const curXI = new Set(D.lineup.current_xi || []), newXI = new Set(me.xi);
+  const starts = me.xi.filter(i => !curXI.has(i)), benches = [...curXI].filter(i => !newXI.has(i) && me.bench.includes(i));
   const lineupTxt = starts.length || benches.length
     ? `${starts.length ? `Start <b>${starts.map(i => esc(P[i].name)).join(", ")}</b>` : ""}${starts.length && benches.length ? "; " : ""}${benches.length ? `bench <b>${benches.map(i => esc(P[i].name)).join(", ")}</b>` : ""}.`
     : "Same starting XI as last week.";
 
-  // step 3 captain
-  const capOpts = w0.xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g)).slice(0, 5);
-  const cmax = xpg(capOpts[0], g) || 1;
-  const capGap = xpg(w0.captain, g) - xpg(w0.vice, g);
-  const capPos = P[w0.captain].pos;
-  const capNote = w0.capSwap
-    ? `${esc(P[w0.capSwap].name)} projects ${f1(xpg(w0.capSwap, g) - xpg(w0.captain, g))} more on clean-sheet odds, but that's too small a gap to give up ${esc(P[w0.captain].name)}'s much higher ceiling.`
-    : capGap >= 0 ? `${f1(capGap)} pts ahead of the vice-captain.` : `Chosen for ceiling over ${esc(P[w0.vice].name)}, who projects slightly more.`;
+  // captain
+  const capOpts = me.xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g)).slice(0, 5), cmax = xpg(capOpts[0], g) || 1;
+  const capNote = me.swapped
+    ? `${esc(P[me.swapped].name)} projects ${f1(xpg(me.swapped, g) - xpg(me.cap, g))} more on clean-sheet odds, but that's too small a gap to give up ${esc(P[me.cap].name)}'s much higher ceiling.`
+    : `${f1(xpg(me.cap, g) - xpg(me.vice, g))} pts ahead of the vice-captain.`;
 
-  // step 4 chips
+  // chips
   const tc = D.chips.find(c => c.key === "3xc" && c.available && c.to <= 19);
-  const bestTc = (D.gw_info || []).reduce((a, r) => (!a || r.tc_xp > a.tc_xp) ? r : a, null);
-  const chipTxt = tc && bestTc && bestTc.gw === g ? `Consider Triple Captain this week: GW${g} is your best projected armband week in the next ${GWS.length}.`
-    : "No chip this week.";
-  const chipSub = tc ? `Triple Captain (first half) is unused and expires after GW${tc.to}.${bestTc ? ` Best spot in view: GW${bestTc.gw} (${esc(P[bestTc.tc_player]?.name)}).` : ""}` : "Your other first-half chips are used. The second set unlocks in GW20.";
+  const tcWeeks = me.score.weeks.map(w => ({ gw: w.gw, id: w.team.cap, x: xpg(w.team.cap, w.gw) }));
+  const bestTc = tcWeeks.reduce((a, r) => (!a || r.x > a.x) ? r : a, null);
+  const chipTxt = tc && bestTc && bestTc.gw === g ? `Consider Triple Captain this week: GW${g} is your best armband week in view.` : "No chip this week.";
+  const chipSub = tc ? `Triple Captain (first half) is unused and expires after GW${tc.to}.${bestTc ? ` Best spot in view: GW${bestTc.gw} (${esc(P[bestTc.id]?.name)}).` : ""}` : "Your other first-half chips are used. The second set unlocks in GW20.";
 
-  // step 5 risks
+  // risks
   const risks = [];
-  const finalSquad = squadAfter(moves0);
-  finalSquad.forEach(i => {
+  me.week.sq.forEach(i => {
     const p = P[i]; if (!p) return;
     if (p.status !== "a") risks.push(["bad", `<b>${esc(p.name)}</b>: ${esc(p.news || "flagged")}`]);
     const pr = p.price_proj?.[0];
     if (pr != null && pr <= -80) risks.push(["warn", `<b>${esc(p.name)}</b> may drop in price tonight (${pr.toFixed(0)}% of the way).`]);
     if (newXI.has(i) && p.xmin < 50 && p.status === "a") risks.push(["warn", `<b>${esc(p.name)}</b> is starting but only projected ~${p.xmin} minutes.`]);
   });
+  if (w0.bank < 0) risks.push(["bad", `Your plan is ${money(-w0.bank)} over budget in GW${g}.`]);
+  if (w0.over.length) risks.push(["bad", `Your plan has more than 3 players from ${w0.over.join(", ")}.`]);
   threats(2).forEach(r => risks.push(["warn", `<b>${esc(P[r.id].name)}</b> is in ${r.own.toFixed(0)}% of top-10k teams (EO ${Math.round(r.eo * 100)}%) and not in yours. If he hauls, you lose ground (${sgn(r.impact)} projected).`]));
   moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.`]); });
 
@@ -476,88 +559,25 @@ function vWeek() {
   <div class="grid2">
     <div class="steps">
       <div class="bar" style="margin:0"><h2>Before the GW${g} deadline</h2><span class="muted">${countdown(D.meta.deadline)} left</span></div>
-      ${step(1, moves0.length ? "act" : "ok", "Transfers", `<div class="do">${t1}</div>${mvHTML}<div class="sub">${t1sub}${close && moves0.length ? " The options are close, so treat this as a nudge rather than a must." : ""}</div>
-        <div class="opts">${opts}</div>
-        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-loadplan="${key}">Open in planner</button></div>`)}
-      ${step(2, starts.length || benches.length ? "act" : "ok", "Lineup", `<div class="do">${lineupTxt}</div><div class="sub">Best XI projects <b>${f1(w0.xp)}</b> pts including the captain. Bench order: ${w0.bench.map(i => esc(P[i].name)).join(", ")}.</div>`)}
-      ${step(3, "act", "Captain", `<div class="do">C ${esc(P[w0.captain].name)} · V ${esc(P[w0.vice].name)}</div><div class="sub">${capNote}</div>
-        <div class="capbars" style="margin-top:8px">${capOpts.map((i, k) => `<div class="cb ${i === w0.captain ? "top" : ""}"><span class="pname">${esc(P[i].name)}<br><span class="muted" style="font-weight:400;font-size:12.5px">${fxText(P[i], g)}</span></span><div class="track"><div class="fill" style="width:${xpg(i, g) / cmax * 100}%"></div></div><span class="val">${f1(xpg(i, g))}</span></div>`).join("")}</div>`)}
+      ${step(1, moves0.length ? "act" : "ok", "Transfers", `<div class="do">${t1}</div>${mvHTML}<div class="sub">${t1sub}</div>
+        <div class="opts">${cards.join("")}</div>
+        <div class="sub">Tap an option to make it your plan. Gains are projected points over ${PG.length} GWs vs making no transfers, counting hits.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-v-go="planner">Edit in planner</button>${undo}</div>`)}
+      ${step(2, starts.length || benches.length ? "act" : "ok", "Lineup", `<div class="do">${lineupTxt}</div><div class="sub">Best XI projects <b>${f1(me.pts)}</b> pts including the captain. Bench order: ${me.bench.map(i => esc(P[i].name)).join(", ")}.</div>`)}
+      ${step(3, "act", "Captain", `<div class="do">C ${esc(P[me.cap].name)} · V ${esc(P[me.vice].name)}</div><div class="sub">${capNote}</div>
+        <div class="capbars">${capOpts.map(i => `<div class="cb ${i === me.cap ? "top" : ""}"><span class="pname">${esc(P[i].name)}<br><span class="muted" style="font-weight:400;font-size:12.5px">${fxText(P[i], g)}</span></span><div class="track"><div class="fill" style="width:${xpg(i, g) / cmax * 100}%"></div></div><span class="val">${f1(xpg(i, g))}</span></div>`).join("")}</div>`)}
       ${step(4, "ok", "Chip", `<div class="do">${chipTxt}</div><div class="sub">${chipSub}</div>`)}
-      ${step(5, risks.some(r => r[0] !== "good") ? "act" : "ok", "Risks to check", risks.length ? `<ul class="alerts" style="margin-top:4px">${risks.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul>` : `<div class="sub">No injury flags or price drops in your squad.</div>`)}
+      ${step(5, risks.some(r => r[0] !== "good") ? "act" : "ok", "Risks to check", risks.length ? `<ul class="alerts">${risks.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul>` : `<div class="sub">No injury flags or price drops in your squad.</div>`)}
     </div>
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
-      <div class="bar" style="margin:0"><h3>GW${g} team · ${PLAN_LABEL[key]}</h3><span class="tag">${f1(w0.xp)} xP</span></div>
-      ${pitch(w0.xi, w0.bench, g, { cap: w0.captain, vice: w0.vice, fresh: new Set(moves0.map(m => m.in)) })}
-      <p class="note">Big number = projected points this gameweek. Chips show the next 3 opponents (capitals = home), coloured by difficulty for that player's role. A green underline marks a new signing. Tap any player for detail.</p>
+      <div class="bar" style="margin:0"><h3>GW${g} team · ${esc(planName())}</h3><span class="tag">${f1(me.pts)} xP</span></div>
+      ${pitch(me.xi, me.bench, g, { cap: me.cap, vice: me.vice, fresh: new Set(moves0.map(m => m.in)) })}
+      <p class="note">This is the team from your plan, the same one the Planner and Rivals tabs use. Big number = projected points this gameweek. Chips show the next 3 opponents (capitals = home). A green underline marks a new signing.</p>
     </div>
   </div>`;
 }
-function squadAfter(moves) {
-  const s = D.squad.map(x => x.id);
-  moves.forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
-  return s;
-}
-function sellPrice(id) { const s = D.squad.find(x => x.id === id); return s ? s.sell : P[id].price; }
 
-/* ---------- Planner (sandbox) ---------- */
-function sbKey() { return `fpl.sb.${D.meta.team_id}.${D.meta.next_gw}.${D.squad.map(s => s.id).join("-")}`; }
-function loadSandbox() {
-  const saved = store.get(sbKey());
-  SB = { moves: [], gw: PG[0], sel: null, q: "" };
-  if (saved && Array.isArray(saved.moves)) SB.moves = saved.moves.filter(m => P[m.in] && P[m.out] && PG.includes(m.gw));
-  sanitize();
-}
-function saveSandbox() { store.set(sbKey(), { moves: SB.moves }); }
-function squadAt(gw) {
-  const s = D.squad.map(x => x.id);
-  SB.moves.filter(m => m.gw <= gw).forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
-  return s;
-}
-function bankAt(gw) {
-  let b = D.manager.bank;
-  const base = new Set(D.squad.map(x => x.id)), boughtLater = new Set();
-  SB.moves.filter(m => m.gw <= gw).forEach(m => {
-    b += (base.has(m.out) && !boughtLater.has(m.out)) ? sellPrice(m.out) : P[m.out].price;
-    b -= P[m.in].price; boughtLater.add(m.in);
-  });
-  return Math.round(b * 10) / 10;
-}
-function sanitize() {
-  // drop moves that no longer make sense (player sold earlier, duplicates)
-  const ok = [];
-  SB.moves.sort((a, b) => a.gw - b.gw);
-  for (const m of SB.moves) {
-    const prev = SB.moves.slice(0, ok.length);
-    const s = D.squad.map(x => x.id);
-    ok.forEach(q => { const k = s.indexOf(q.out); if (k >= 0) s[k] = q.in; });
-    if (s.includes(m.out) && !s.includes(m.in)) ok.push(m);
-  }
-  SB.moves = ok;
-}
-function ftTable() {
-  let ft = Math.min(5, D.manager.free_transfers);
-  return PG.map(g => {
-    const n = SB.moves.filter(m => m.gw === g).length;
-    const hits = Math.max(0, n - ft);
-    const row = { gw: g, ft, n, hits };
-    ft = n > ft ? 1 : Math.min(5, ft - n + 1);
-    row.next = ft;
-    return row;
-  });
-}
-function clubCounts(ids) { const c = {}; ids.forEach(i => c[P[i].team] = (c[P[i].team] || 0) + 1); return c; }
-function sandboxSummary() {
-  const fts = ftTable();
-  const base = D.squad.map(x => x.id);
-  let tot = 0, baseTot = 0;
-  const weeks = fts.map((r, k) => {
-    const sq = squadAt(r.gw), t = bestXI(sq, r.gw), b = bestXI(base, r.gw);
-    tot += t.pts - 4 * r.hits; baseTot += b.pts;
-    const cc = clubCounts(sq), over = Object.entries(cc).filter(([, v]) => v > 3).map(([t]) => T[t].short);
-    return { ...r, team: t, base: b.pts, bank: bankAt(r.gw), over };
-  });
-  return { weeks, tot, baseTot };
-}
+/* ---------- Planner ---------- */
 function vPlanner() {
   const sum = sandboxSummary();
   const g = SB.gw, wk = sum.weeks.find(w => w.gw === g);
@@ -567,7 +587,7 @@ function vPlanner() {
   const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
   const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Tap a player on the pitch to replace them, or load a plan below.</p>`;
   const delta = sum.tot - sum.baseTot;
-  const plans = Object.keys(D.plans || {}).map(k => `<button class="btn" data-loadplan="${k}">${PLAN_LABEL[k]} (${sgn(D.plans[k].vs_roll)})</button>`).join(" ");
+  const plans = Object.keys(D.plans || {}).map(k => `<button class="btn" data-loadplan="${k}">${PLAN_LABEL[k]} (${sgn(scoreMoves(planMoves(D.plans[k])).tot - sum.baseTot)})</button>`).join(" ");
   return `
   <div class="plansum">
     <div class="kpi"><span class="lbl">Your plan · ${PG.length} GWs</span><b>${f1(sum.tot)}</b><span class="delta muted">best XI + captain, minus hits</span></div>
@@ -583,8 +603,8 @@ function vPlanner() {
       <p class="note">Tap a player to replace them from GW${g} onwards. The lineup and captain are picked automatically for the best projected score.</p>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
-      <div class="panel" id="candPanel">${SB.sel ? candidates() : `<h3>Planned moves</h3><div class="moves">${movesList}</div>
-        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><span class="lbl" style="align-self:center">Load</span>${plans}${SB.moves.length ? ` <button class="btn" data-reset="1">Clear all</button>` : ""}</div>`}</div>
+      <div class="panel" id="candPanel">${SB.sel ? candidates() : `<div class="bar"><h3>${esc(planName())}</h3>${SB.prev ? `<button class="btn" data-undoplan="1">Undo last change</button>` : ""}</div><p class="note" style="margin-top:0">Saved on this device. This week and Rivals use this plan.</p><div class="moves">${movesList}</div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><span class="lbl" style="align-self:center">Load</span>${plans}${SB.moves.length ? ` <button class="btn" data-reset="1">No transfers</button>` : ""}</div>`}</div>
       <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FT</th><th class="n">Moves</th><th class="n">Hits</th><th class="n">Bank</th><th>Captain</th><th class="n">xP</th><th class="n">vs none</th></tr></thead>
         <tbody>${sum.weeks.map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.ft}</td><td class="n">${w.n}</td><td class="n ${w.hits ? "down" : ""}">${w.hits ? "−" + 4 * w.hits : "0"}</td><td class="n ${w.bank < 0 ? "down" : ""}">${w.bank.toFixed(1)}</td><td>${esc(P[w.team.cap]?.name)}</td><td class="n">${f1(w.team.pts)}</td><td class="n ${w.team.pts - 4 * w.hits - w.base > 0.05 ? "up" : ""}">${sgn(w.team.pts - 4 * w.hits - w.base)}</td></tr>`).join("")}</tbody></table></div>
         <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.</p></div>
@@ -608,15 +628,7 @@ function candidates() {
 
 
 /* ---------- Rivals: the field and mini-leagues ---------- */
-function recTeam() {
-  const g = D.meta.next_gw, pl = D.plans || {}, key = S.plan && pl[S.plan] ? S.plan : recommendedPlan();
-  if (!key) return null;
-  const w = Object.assign({}, pl[key].weeks[0]);
-  const att = w.xi.filter(i => ["MID", "FWD"].includes(P[i]?.pos)).sort((a, b) => xpg(b, g) - xpg(a, g))[0];
-  if (att && att !== w.captain && ["GKP", "DEF"].includes(P[w.captain]?.pos) && xpg(w.captain, g) - xpg(att, g) < 0.6) { w.vice = w.captain; w.captain = att; }
-  const mult = {}; w.xi.forEach(i => mult[i] = 1); mult[w.captain] = 2;
-  return { ...w, key, mult };
-}
+const recTeam = () => myTeam();
 const field = () => D.crowd ? D.crowd[S.field === "near" ? "near" : "top10k"] : null;
 function fieldRows(F, mult, g) {
   const ids = new Set([...Object.keys(F.eo).map(Number), ...Object.keys(mult).map(Number)]);
@@ -916,19 +928,26 @@ function bind() {
   on("[data-field]", b => { S.field = b.dataset.field; render(); });
   on("[data-rival]", b => { S.rival = +b.dataset.rival || null; render(); if (S.rival && innerWidth < 900) document.querySelector(".grid2 > div:last-child")?.scrollIntoView({ behavior: "smooth" }); });
   const ls = $("#leagueSel"); if (ls) ls.onchange = e => { S.league = +e.target.value; S.rival = null; render(); };
-  on("[data-plan]", b => { S.plan = b.dataset.plan; render(); });
-  on("[data-loadplan]", b => { SB.moves = planMoves(D.plans[b.dataset.loadplan]); SB.sel = null; sanitize(); saveSandbox(); setView("planner"); });
+  on("[data-plan]", b => { const k = b.dataset.plan; setPlan(planMoves(D.plans[k]), "plan:" + k); render(); });
+  on("[data-loadplan]", b => { const k = b.dataset.loadplan; setPlan(planMoves(D.plans[k]), "plan:" + k); render(); });
+  on("[data-undoplan]", () => { if (SB.prev) { const p = SB.prev; SB.prev = null; SB.moves = p.moves; SB.source = p.source; sanitize(); saveSandbox(); render(); } });
+  on("[data-v-go]", b => setView(b.dataset.vGo));
   on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
   on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
   on("[data-cancel]", () => { SB.sel = null; render(); });
   on("[data-pick]", b => {
     const g = SB.gw, out = SB.sel, inn = +b.dataset.pick;
     // a move from this GW replaces the player for all later weeks; drop later moves of the same player
-    SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === out));
-    SB.moves.push({ gw: g, out, in: inn }); SB.sel = null; sanitize(); saveSandbox(); render();
+    SB.prev = { moves: SB.moves.slice(), source: SB.source };
+    editPlan(() => {
+      const same = SB.moves.find(m => m.gw === g && m.in === out);
+      if (same) { same.in = inn; if (same.in === same.out) SB.moves = SB.moves.filter(m => m !== same); }  // swap a signing made this week: still one transfer
+      else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === out)); SB.moves.push({ gw: g, out, in: inn }); }
+    });
+    SB.sel = null; render();
   });
-  on("[data-undo]", b => { SB.moves.splice(+b.dataset.undo, 1); sanitize(); saveSandbox(); render(); });
-  on("[data-reset]", () => { SB.moves = []; saveSandbox(); render(); });
+  on("[data-undo]", b => { SB.prev = { moves: SB.moves.slice(), source: SB.source }; editPlan(() => SB.moves.splice(+b.dataset.undo, 1)); render(); });
+  on("[data-reset]", () => { setPlan([], "custom"); render(); });
   on("th[data-sort]", th => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });
   on("[data-stsort]", th => { S.stSort = th.dataset.stsort; render(); });
   on("[data-stpos]", b => { S.stPos = b.dataset.stpos; render(); });
