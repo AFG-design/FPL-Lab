@@ -52,7 +52,11 @@ try:
 except Exception:
     priors = None
 
-ctx = prepare(boot, fixtures, live, priors)
+try:
+    market = json.load(open(os.path.join(HERE, "odds", "odds.json")))
+except Exception:
+    market = None
+ctx = prepare(boot, fixtures, live, priors, market)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match
 congestion, euro_flags = {}, {}
@@ -314,6 +318,48 @@ if len(finished_gws) >= 4:
                 "buckets": [[b, c, round(px, 2), round(pa, 2)] for b, (c, px, pa) in ev["buckets"].items()],
                 "top30": [[k, round(x, 2), round(a, 2)] for k, a, x in ev["top30"]]}
 
+# ---------------------------------------------------------------- weekly accuracy log
+HIST = os.path.join(HERE, "history")
+os.makedirs(HIST, exist_ok=True)
+# snapshot this gameweek's projections (ours and FPL's own) until its deadline passes
+if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
+    snap = {str(i): [round(p["xp"].get(next_gw, 0), 2), p["ep_fpl"]] for i, p in players.items() if p["xp"].get(next_gw, 0) > 0 or p["ep_fpl"] > 0}
+    json.dump({"gw": next_gw, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
+              open(os.path.join(HIST, f"proj_gw{next_gw}.json"), "w"), separators=(",", ":"))
+
+
+def corr_mae(pairs):
+    if len(pairs) < 30:
+        return None, None
+    xs, ys = [p for p, _ in pairs], [a for _, a in pairs]
+    mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
+    sxy = sum((x - mx) * (y - my) for x, y in pairs)
+    sxx = sum((x - mx) ** 2 for x in xs); syy = sum((y - my) ** 2 for y in ys)
+    c = sxy / (sxx * syy) ** 0.5 if sxx and syy else None
+    return (round(c, 3) if c is not None else None), round(sum(abs(x - y) for x, y in pairs) / len(pairs), 2)
+
+
+acc_weeks = []
+for g in [g for g in finished_gws if g >= 3]:
+    ev1 = evaluate(ctx, [g])
+    row = {"gw": g, "n": ev1["n"], "corr": round(ev1["corr"], 3), "mae": round(ev1["mae"], 2),
+           "top_pred": round(ev1["top30"][0][2], 2), "top_act": round(ev1["top30"][0][1], 2), "live": None}
+    fpath = os.path.join(HIST, f"proj_gw{g}.json")
+    if os.path.exists(fpath):
+        snap = json.load(open(fpath))["players"]
+        ours, fplp = [], []
+        for pid_s, (xo, xf) in snap.items():
+            pid = int(pid_s)
+            a = ctx["pts_gw"].get(pid, {}).get(g)
+            if a is None or not any(pstats.get(pid, {}).get(k, {}).get("minutes", 0) > 0 for k in range(g - 3, g)):
+                continue
+            ours.append((xo, a)); fplp.append((xf, a))
+        co, mo = corr_mae(ours); cf, mf = corr_mae(fplp)
+        row["live"] = {"n": len(ours), "corr": co, "mae": mo, "fpl_corr": cf, "fpl_mae": mf}
+    acc_weeks.append(row)
+if accuracy is not None:
+    accuracy["weeks"] = acc_weeks
+
 # ---------------------------------------------------------------- chips, gameweeks
 used = [(c["name"], c["event"]) for c in history["chips"]]
 chip_names = {"wildcard": "Wildcard", "freehit": "Free Hit", "bboost": "Bench Boost", "3xc": "Triple Captain"}
@@ -565,6 +611,8 @@ for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in p
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
              "understat": US.get("meta"),
+             "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
+                      "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),

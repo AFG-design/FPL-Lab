@@ -71,7 +71,11 @@ if __name__ == "__main__":
     cur = max(e["id"] for e in boot["events"] if e["finished"])
     live = {g: json.load(open(f"{raw}/live{g}.json")) for g in range(1, cur + 1)}
     priors = json.load(open("priors.json"))
-    ctx = prepare(boot, fixtures, live, priors)
+    try:
+        market = json.load(open("odds/odds.json"))
+    except Exception:
+        market = None
+    ctx = prepare(boot, fixtures, live, priors, market)
     print("With last-season priors"); evaluate(ctx, range(3, cur + 1), verbose=True)
     ctx0 = prepare(boot, fixtures, live, None)
     print("Without priors"); evaluate(ctx0, range(3, cur + 1), verbose=True)

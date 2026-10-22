@@ -23,6 +23,8 @@ A personal Fantasy Premier League assistant at **https://afg-design.github.io/FP
 | `europe.json` | European fixtures used to flag rotation risk. Edit if dates change |
 | `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/` (workflow every 3 hours) |
 | `site/plan-solver.js` | The browser version of the optimiser |
+| `odds.py` | Betting-market expected goals per match from football-data.co.uk (match result and over/under odds), blended into team ratings and fixture projections |
+| `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page |
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
 | `site/index.html` | The dashboard |

@@ -28,6 +28,9 @@ DEFAULTS = {
     "cal_slope": 0.86,     # final calibration: xP = slope * raw + intercept * P(appears)
     "cal_int": 0.33,
     "use_flags": True,     # use FPL injury / availability flags
+    "mkt_w": 0.7,          # weight of betting-market team ratings vs xG ratings (geometric blend); backtest GW3-7
+    "direct_w": 0.85,      # weight of a fixture's own market expected goals, when its odds exist
+    "mkt_recency": 0.9,    # weight per gameweek back for market ratings
 }
 
 
@@ -45,7 +48,7 @@ def p_at_least(mu, k):
     return max(0.0, 1 - sum(poisson(i, mu) for i in range(k)))
 
 
-def prepare(boot, fixtures, live, priors=None):
+def prepare(boot, fixtures, live, priors=None, market=None):
     """Index the raw API responses once; reused across projections."""
     elements = {e["id"]: e for e in boot["elements"]}
     teams = {t["id"]: t for t in boot["teams"]}
@@ -88,6 +91,8 @@ def prepare(boot, fixtures, live, priors=None):
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr,
+        "market": (market or {}).get("matches", []),
+        "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
     }
 
 
@@ -126,6 +131,44 @@ def team_ratings(ctx, as_of, P):
         ma = sum(v["att"] for v in new.values()) / len(new)
         md = sum(v["def"] for v in new.values()) / len(new)
         rating = {k: {"att": v["att"] / ma, "def": v["def"] / md} for k, v in new.items()}
+    w = P.get("mkt_w", 0.0)
+    if w > 0:
+        mrat, mleague = market_ratings(ctx, as_of, P)
+        if mrat:
+            rating = {k: {"att": rating[k]["att"] ** (1 - w) * mrat[k]["att"] ** w,
+                          "def": rating[k]["def"] ** (1 - w) * mrat[k]["def"] ** w} for k in rating}
+            league = league * (1 - w) + mleague * w
+    return rating, league
+
+
+def market_ratings(ctx, as_of, P):
+    """Attack/defence ratings implied by betting odds on matches before `as_of` (venue and opponent adjusted)."""
+    teams = ctx["teams"]
+    H, A = P["home"], 1 / P["home"]
+    games = defaultdict(list)
+    for m in ctx["market"]:
+        g = m.get("gw")
+        if not g or g >= as_of:
+            continue
+        w = P["mkt_recency"] ** max(0, as_of - 1 - g)
+        games[m["h"]].append((w, m["lam_h"], m["lam_a"], True, m["a"]))
+        games[m["a"]].append((w, m["lam_a"], m["lam_h"], False, m["h"]))
+    allg = [x for v in games.values() for x in v]
+    if len(allg) < 20:
+        return None, None
+    league = sum(x[1] for x in allg) / len(allg)
+    rating = {t: {"att": 1.0, "def": 1.0} for t in teams}
+    for _ in range(6):
+        new = {}
+        for tid in teams:
+            gs = games.get(tid, [])
+            W = sum(x[0] for x in gs)
+            gf = sum(x[0] * x[1] / ((H if x[3] else A) * rating[x[4]]["def"]) for x in gs)
+            ga = sum(x[0] * x[2] / ((A if x[3] else H) * rating[x[4]]["att"]) for x in gs)
+            new[tid] = {"att": (gf + 1.0 * league) / (W + 1.0) / league, "def": (ga + 1.0 * league) / (W + 1.0) / league}
+        ma = sum(v["att"] for v in new.values()) / len(new)
+        md = sum(v["def"] for v in new.values()) / len(new)
+        rating = {k: {"att": v["att"] / ma, "def": v["def"] / md} for k, v in new.items()}
     return rating, league
 
 
@@ -140,11 +183,17 @@ def project(ctx, as_of, horizon=6, params=None):
 
     gws = [g for g in range(as_of, as_of + horizon) if g <= 38]
     upcoming = defaultdict(lambda: defaultdict(list))
+    dw = P.get("direct_w", 0.0)
     for tid, lst in ctx["team_fix"].items():
         for (g, opp, home, f) in lst:
             if g in gws:
                 fdr = f["team_h_difficulty"] if home else f["team_a_difficulty"]
-                upcoming[tid][g].append((opp, home, mu(tid, opp, home), mu(opp, tid, not home), fdr))
+                mf, ma_ = mu(tid, opp, home), mu(opp, tid, not home)
+                mk = ctx.get("market_fx", {}).get(f["id"]) if dw > 0 else None
+                if mk:  # this fixture's own odds: blend the market's expected goals in
+                    lf, la = (mk[0], mk[1]) if home else (mk[1], mk[0])
+                    mf, ma_ = (1 - dw) * mf + dw * lf, (1 - dw) * ma_ + dw * la
+                upcoming[tid][g].append((opp, home, mf, ma_, fdr))
 
     hist_gws = [g for g in range(1, as_of)]
     # positional priors per 90 from this season's regulars (data before as_of)

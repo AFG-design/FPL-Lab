@@ -216,7 +216,7 @@ img{max-width:100%}
 .cand:hover{background:var(--sunk)}
 .cand .d{font-size:12px;color:var(--muted);grid-column:1/4}
 .cand b{font-family:var(--display);font-size:18px;font-variant-numeric:tabular-nums;text-align:right}
-.chart{width:100%;height:auto;display:block}
+.chart{width:100%;max-width:760px;height:auto;display:block}
 .chart .grid{stroke:var(--line)}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
 .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
@@ -253,6 +253,30 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
 .chipset{display:inline-flex;gap:3px}
 .cbadge{font-family:var(--display);font-weight:700;font-size:11px;letter-spacing:.03em;border-radius:4px;padding:1px 5px;background:var(--turf-2);color:#fff}
 .cbadge.used{background:var(--sunk);color:var(--muted);text-decoration:line-through}
+.tabs > button[aria-selected="true"], #moreTop[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--turf-2)}
+.morewrap{position:relative}
+#moreTop{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px 9px;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.moremenu{position:absolute;right:0;top:100%;z-index:20;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:6px;min-width:260px;display:grid}
+.moremenu button,.sheetbody button{all:unset;cursor:pointer;display:grid;gap:2px;padding:10px 12px;border-radius:8px}
+.moremenu button:hover,.sheetbody button:hover,.moremenu button:focus-visible,.sheetbody button:focus-visible{background:var(--sunk)}
+.moremenu b,.sheetbody b{font-family:var(--display);font-size:17px}
+.moremenu span,.sheetbody span{font-size:12.5px;color:var(--muted)}
+.moremenu [aria-current="true"] b,.sheetbody [aria-current="true"] b{color:var(--turf-2)}
+.bottomnav{display:none}
+.sheet{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.35)}
+.sheetbody{position:absolute;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;padding:10px max(12px,env(safe-area-inset-left,0px)) calc(72px + env(safe-area-inset-bottom,0px));display:grid;gap:2px;box-shadow:0 -8px 28px rgba(0,0,0,.2)}
+@media (max-width:700px){
+  .tabs{display:none}
+  .bottomnav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:35;background:var(--surface);border-top:1px solid var(--line);padding:4px max(4px,env(safe-area-inset-left,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-right,0px))}
+  .bottomnav button{all:unset;cursor:pointer;display:grid;justify-items:center;gap:2px;padding:6px 0;color:var(--muted);font-family:var(--display);font-weight:600;font-size:12px;letter-spacing:.03em;border-radius:8px}
+  .bottomnav svg{width:22px;height:22px;fill:currentColor}
+  .bottomnav button[aria-selected="true"]{color:var(--turf-2)}
+  .bottomnav button:focus-visible{outline:2px solid var(--armband)}
+  main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  footer{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+}
+.capalt{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:2px 0}
+.capalt .btn{padding:3px 10px;font-size:12px}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
 .rules{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;align-items:center}
 .rules > div{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
@@ -268,16 +292,13 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
       <div class="brand"><h1 id="teamName">FPL Lab</h1><span class="sub" id="mgr">Loading your squad…</span></div>
       <div class="score" id="score"></div>
     </div>
-    <nav class="tabs" role="tablist" id="tabs">
-      <button role="tab" data-v="week">This week</button>
-      <button role="tab" data-v="planner">Planner</button>
-      <button role="tab" data-v="rivals">Rivals</button>
-      <button role="tab" data-v="fixtures">Fixtures</button>
-      <button role="tab" data-v="players">Players</button>
-      <button role="tab" data-v="stats">Stats</button>
-      <button role="tab" data-v="chips">Chips</button>
-      <button role="tab" data-v="review">Review</button>
-      <button role="tab" data-v="model">Model</button>
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <button data-v="week">This week</button>
+      <button data-v="planner">Planner</button>
+      <button data-v="rivals">Rivals</button>
+      <button data-v="players">Players</button>
+      <div class="morewrap"><button id="moreTop" aria-haspopup="true" aria-expanded="false">More ▾</button>
+        <div class="moremenu" id="moreMenu" hidden></div></div>
     </nav>
   </div>
 </header>
@@ -286,6 +307,14 @@ details summary::before{content:"▸ ";} details[open] summary::before{content:"
   <div id="app" style="margin-top:14px"><p class="empty">Loading the latest FPL data…</p></div>
 </main>
 <footer class="wrap">FPL Lab uses the public Fantasy Premier League API. Projections are estimates, not guarantees.</footer>
+<nav class="bottomnav" id="bottomnav" aria-label="Sections">
+  <button data-v="week"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+  <button data-v="planner"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8v3H8zM6 5H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-1v3H6zM8 12h8v2H8zm0 4h5v2H8z"/></svg><span>Plan</span></button>
+  <button data-v="rivals"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v3a5 5 0 0 1-4 4.9V15h3v2H8v-2h3v-3.1A5 5 0 0 1 7 7zM4 5h2v2a3 3 0 0 1-2-2.8zm16 0a3 3 0 0 1-2 2.8V5zM9 19h6v2H9z"/></svg><span>Rivals</span></button>
+  <button data-v="players"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0v1H5z"/></svg><span>Players</span></button>
+  <button data-v="more" id="moreBottom"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg><span>More</span></button>
+</nav>
+<div class="sheet" id="moreSheet" hidden><div class="sheetbody" role="menu" aria-label="More sections"></div></div>
 <dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
 <script>
 const REPO = "AFG-design/FPL-Lab";
@@ -302,7 +331,7 @@ const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } cat
 const VIEWS = ["week", "planner", "rivals", "review", "fixtures", "players", "stats", "chips", "model"];
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
-S.ptab = ["suggest", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
+S.ptab = ["suggest", "captains", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
 S.stab = ["form", "shots", "sp", "defence", "bonus", "value", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
 S.fxMode = ["overall", "att", "def"].includes(store.get("fpl.fxMode")) ? store.get("fpl.fxMode") : "overall";
 S.horizon = [3, 5, 6].includes(store.get("fpl.horizon")) ? store.get("fpl.horizon") : 5;
@@ -439,14 +468,28 @@ function header() {
   const sb2 = $("#meta [data-sync]"); if (sb2) sb2.onclick = () => openSync();
 }
 
+const MORE = [["fixtures", "Fixtures", "Fixture tracker and team strength"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, teams"], ["review", "Review", "Your gameweek and season review"], ["chips", "Chips", "Chip planner"], ["model", "Model", "How accurate the projections are"]];
+function moreItems() { return MORE.map(([v, l, d]) => `<button role="menuitem" data-v="${v}" aria-current="${S.view === v}"><b>${l}</b><span>${d}</span></button>`).join(""); }
+function closeMore() { $("#moreMenu").hidden = true; $("#moreSheet").hidden = true; $("#moreTop").setAttribute("aria-expanded", "false"); }
+$("#moreTop").addEventListener("click", e => { e.stopPropagation(); const m = $("#moreMenu"); m.innerHTML = moreItems(); m.hidden = !m.hidden; $("#moreTop").setAttribute("aria-expanded", String(!m.hidden)); });
+$("#moreMenu").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (b) { closeMore(); setView(b.dataset.v); } });
+$("#moreSheet").addEventListener("click", e => { const b = e.target.closest("[data-v]"); closeMore(); if (b) setView(b.dataset.v); });
+$("#bottomnav").addEventListener("click", e => {
+  const b = e.target.closest("[data-v]"); if (!b) return;
+  if (b.dataset.v === "more") { const sh = $("#moreSheet"); sh.querySelector(".sheetbody").innerHTML = moreItems(); sh.hidden = !sh.hidden; return; }
+  closeMore(); setView(b.dataset.v);
+});
+document.addEventListener("click", e => { if (!e.target.closest(".morewrap") && !e.target.closest("#bottomnav") && !e.target.closest("#moreSheet")) closeMore(); });
 function setView(v) {
   S.view = v; store.set("fpl.view", v);
   render(); window.scrollTo({ top: 0 });
 }
-$("#tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setView(b.dataset.v); });
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (b && !b.closest(".moremenu")) setView(b.dataset.v); });
 
 function render() {
-  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === S.view));
+  const inMore = MORE.some(m => m[0] === S.view);
+  document.querySelectorAll("#tabs > button[data-v], #bottomnav button[data-v]").forEach(b => b.setAttribute("aria-selected", b.dataset.v === S.view || (b.dataset.v === "more" && inMore)));
+  const mt = $("#moreTop"); mt.setAttribute("aria-selected", String(inMore)); mt.textContent = inMore ? `${MORE.find(m => m[0] === S.view)[1]} ▾` : "More ▾";
   const fn = { week: vWeek, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel }[S.view] || vWeek;
   $("#app").innerHTML = `<section class="view">${fn()}</section>`;
   bind();
@@ -872,6 +915,31 @@ function suggestionsHTML(g) {
     ${rows || `<p class="muted">No single move improves your plan from GW${g}. Try another gameweek or Re-plan.</p>`}
     ${pairsHTML(g)}`;
 }
+/* ---------- captain planner ---------- */
+function captainsHTML() {
+  const sc = scoreMoves(SB.moves);
+  const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
+  const tc = D.chips.find(c => c.key === "3xc" && c.available && c.from <= PG[0] && c.to >= PG[0]);
+  let bestTc = null;
+  const rows = sc.weeks.map(w => {
+    const g = w.gw, t = w.team;
+    const opts = t.xi.slice().sort((a, b) => adjCap(b, g) - adjCap(a, g)).slice(0, 3);
+    if (!opts.includes(t.cap)) opts.unshift(t.cap);
+    const capX = xpg(t.cap, g);
+    if (tc && g <= tc.to && (!bestTc || capX > bestTc.x)) bestTc = { g, id: t.cap, x: capX };
+    const gap = opts.length > 1 ? capX - Math.max(...opts.filter(i => i !== t.cap).map(i => xpg(i, g))) : 0;
+    const v = t.capMine ? { t: "Your pick", c: "mut" } : F && (F.cap[t.cap] || 0) >= 50 && gap > -0.3 ? { t: "Safe pick", c: "good" } : verdict(gap, 1, 0.4);
+    return `<tr><td><b>GW${g}</b></td>
+      <td><span class="pname">${esc(P[t.cap].name)}</span> ${vPill(v)}<br><span class="muted" style="font-size:12.5px">${fxText(P[t.cap], g)} · ${f1(capX)} xP${F ? ` · ${(F.cap[t.cap] || 0).toFixed(0)}% field C` : ""}</span></td>
+      <td>${opts.filter(i => i !== t.cap).slice(0, 2).map(i => `<div class="capalt"><span>${esc(P[i].name)} <span class="muted">${f1(xpg(i, g))}${F ? ` · ${(F.cap[i] || 0).toFixed(0)}%` : ""}</span></span><button class="btn" data-setcap="${g}:${i}">Make C</button></div>`).join("")}
+        ${t.capMine ? `<button class="btn" data-setcap="${g}:0">Back to auto</button>` : ""}</td></tr>`;
+  }).join("");
+  return `<div class="bar"><h3>Captain planner</h3><span class="tag">${MODES[S.mode]}</span></div>
+    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. "Field C" = share of managers around your rank who captained him last week. Tap Make C to override any week; This week and Re-plan follow your choice.</p>
+    <div class="tablebox"><table><thead><tr><th>GW</th><th>Captain</th><th>Alternatives</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${tc ? `<p class="verdict" style="margin-top:12px">${bestTc ? `Best Triple Captain week in view: <b>GW${bestTc.g}</b>, ${esc(P[bestTc.id].name)} (${f1(bestTc.x)} xP, so about +${f1(bestTc.x)} from the chip).` : ""} Your first-half Triple Captain expires after GW${tc.to}. It's worth most in a double gameweek, when the captain plays twice.</p>` : ""}`;
+}
+
 /* ---------- saved drafts (up to 3 per gameweek) ---------- */
 const draftKey = () => sbKey() + ".drafts";
 function getDrafts() { return (store.get(draftKey()) || []).filter(d => Array.isArray(d.moves)); }
@@ -922,8 +990,8 @@ function vPlanner() {
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
   const sp = spreadVsField(mult, g);
   const tab = S.ptab || "suggest";
-  const tabs = [["suggest", "Suggestions"], ["plans", "Optimiser plans"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
-  const right = SB.sel ? selPanel() : tab === "plans" ? planCards() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : suggestionsHTML(g);
+  const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["plans", "Optimiser plans"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
+  const right = SB.sel ? selPanel() : tab === "plans" ? planCards() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
   return `
   <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
@@ -1245,7 +1313,7 @@ function lineChart(series, labels, { h = 200, yfmt = x => x, title = "" } = {}) 
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(title)}">
     ${ticks.map(v => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${yfmt(v)}</text>`).join("")}
     ${labels.map((l, i) => `<text x="${x(i)}" y="${h - 8}" text-anchor="middle">${l}</text>`).join("")}
-    ${series.map(s => `<polyline class="${s.cls}" fill="none" stroke-width="2.5" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""} points="${s.vals.map((v, i) => `${x(i)},${y(v || 0)}`).join(" ")}"/>${s.vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v || 0)}" r="3" class="${s.cls}" fill="var(--surface)" stroke-width="2"/>`).join("")}`).join("")}
+    ${series.map(s => `<polyline class="${s.cls}" fill="none" stroke-width="2.5" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""} points="${s.vals.map((v, i) => v == null ? "" : `${x(i)},${y(v)}`).join(" ")}"/>${s.vals.map((v, i) => v == null ? "" : `<circle cx="${x(i)}" cy="${y(v)}" r="3" class="${s.cls}" fill="var(--surface)" stroke-width="2"/>`).join("")}`).join("")}
   </svg>`;
 }
 function vStats() {
@@ -1476,10 +1544,18 @@ function vModel() {
       <div class="kpi"><span class="lbl">Average miss</span><b>${A.mae.toFixed(2)}</b><span class="delta muted">points per player per GW</span></div></div>
     <h3 style="margin:16px 0 6px">Calibration</h3><p class="note" style="margin-top:0">When the model says a player will score about X, how many did players actually score on average?</p>
     <div class="tablebox"><table><thead><tr><th>Projected</th><th class="n">Players</th><th class="n">Avg projected</th><th class="n">Avg actual</th></tr></thead><tbody>${A.buckets.map(([b, c, px, pa]) => `<tr><td>${b}–${b + 1} pts</td><td class="n">${c}</td><td class="n">${px.toFixed(2)}</td><td class="n">${pa.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note">Single-gameweek FPL points are very noisy: a correlation around 0.4 is about as good as public models get. The value is in ranking players sensibly and avoiding bad bets, not in calling exact scores.</p></div>` : "";
+    <p class="note">Single-gameweek FPL points are very noisy: a correlation around 0.4 is about as good as public models get. The value is in ranking players sensibly and avoiding bad bets, not in calling exact scores.</p></div>
+    ${A.weeks && A.weeks.length ? `<div class="panel"><h3>Week by week</h3>
+      <p class="note" style="margin-top:0"><b>Re-run</b> = the current model projecting each past week from data before it. <b>Live</b> = the projections actually shown before the deadline, saved each week from GW8, next to FPL's own projected points for the same players.</p>
+      ${lineChart([{ cls: "s1", vals: A.weeks.map(w => w.corr) }, { cls: "s2", vals: A.weeks.map(w => w.live?.corr ?? null) }, { cls: "s4", vals: A.weeks.map(w => w.live?.fpl_corr ?? null), dash: true }], A.weeks.map(w => "GW" + w.gw), { h: 170, yfmt: v => v.toFixed(1) })}
+      <div class="legend"><span><i class="s1"></i>Re-run</span><span><i class="s2"></i>Live</span><span><i class="s4"></i>FPL's own (live)</span></div>
+      <div class="tablebox" style="margin-top:10px"><table><thead><tr><th>GW</th><th class="n">Players</th><th class="n">Correlation</th><th class="n">Avg miss</th><th class="n">Top 30: projected → actual</th><th class="n">Live corr</th><th class="n">FPL's corr</th><th class="n">Live miss / FPL's</th></tr></thead>
+      <tbody>${A.weeks.slice().reverse().map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.n}</td><td class="n"><b>${w.corr.toFixed(2)}</b></td><td class="n">${w.mae.toFixed(2)}</td><td class="n">${w.top_pred.toFixed(1)} → ${w.top_act.toFixed(1)}</td><td class="n">${w.live?.corr != null ? w.live.corr.toFixed(2) : "–"}</td><td class="n">${w.live?.fpl_corr != null ? w.live.fpl_corr.toFixed(2) : "–"}</td><td class="n">${w.live?.mae != null ? `${w.live.mae.toFixed(2)} / ${w.live.fpl_mae.toFixed(2)}` : "–"}</td></tr>`).join("")}</tbody></table></div>
+      <p class="note">Live figures start from GW8, the first week the snapshot was saved before the deadline.</p></div>` : ""}` : "";
   return `${acc}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
     <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
+    <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In testing on GW3–7 this lifted the correlation with real points from 0.40 to 0.42.</li>
     <li><b>Fixtures.</b> Projected goals = league average (${D.meta.league_goals}) × attack × opponent defence × home/away. Clean-sheet and goals-conceded chances come from that, calibrated to real clean-sheet rates.</li>
     <li><b>Minutes.</b> How often a player starts or comes off the bench, and how long they play, over the last 5 gameweeks (recent games count more), times FPL's chance-of-playing flag.</li>
     <li><b>Player output.</b> xG and xA per 90 this season (recent games count more), blended with ${D.meta.priors_season || "last season"} and the two seasons before it, plus a positional average. First-choice penalty takers get a small boost. Assists are scaled up because FPL awards more assists than xA counts.</li>
@@ -1541,6 +1617,7 @@ function bind() {
   });
   on("[data-sync]", () => openSync());
   on("[data-replan]", () => runReplan());
+  on("[data-setcap]", b => { const [g, id] = b.dataset.setcap.split(":").map(Number); setOv(g, o => { o.cap = id || null; }); render(); });
   on("[data-horizon]", b => { setHorizon(+b.dataset.horizon); render(); });
   on("[data-pair]", b => {
     const [o1, n1, o2, n2] = b.dataset.pair.split(":").map(Number), g = SB.gw;
