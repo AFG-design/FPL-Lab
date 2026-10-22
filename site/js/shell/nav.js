@@ -82,6 +82,8 @@ function render() {
     html = stateView({ kind: "error", title: "This section couldn't be drawn", body: "Something in the latest data didn't match what this page expects. Other sections should still work, and the next data refresh may fix it.", action: `<button class="btn" data-v-go="week">Go to This week</button>` });
   }
   $("#app").innerHTML = `<section class="view view-${S.view}">${html}</section>`;
+  // wide tables scroll sideways: make them reachable by keyboard
+  document.querySelectorAll("#app .tablebox").forEach(t => { t.tabIndex = 0; t.setAttribute("role", "region"); t.setAttribute("aria-label", t.closest(".panel")?.querySelector("h2, h3")?.textContent || "Table"); });
   const go = $("#app [data-v-go]"); if (go) go.onclick = () => setView(go.dataset.vGo);
   bind();
 }

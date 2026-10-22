@@ -16,7 +16,7 @@
   /* text */
   --fg: #e7efe9;
   --muted: #93a69a;
-  --faint: #6c8075;
+  --faint: #7d9286;
 
   /* brand */
   --accent: #2fa36b;
@@ -82,7 +82,7 @@
   --line-strong: #bccbc1;
   --fg: #0f1a16;
   --muted: #55675c;
-  --faint: #8a998f;
+  --faint: #5a6b61;
   --accent: #17804e;
   --accent-hover: #126c41;
   --accent-fg: #fff;
@@ -92,9 +92,9 @@
   --hi-fg: #1d1600;
   --hi-text: #856000;
   --hi-soft: rgb(255 210 63 / 28%);
-  --good: #157a45;
-  --warn: #9a5d00;
-  --bad: #c2352b;
+  --good: #0f6a3a;
+  --warn: #875200;
+  --bad: #b02f26;
   --info: #1f63b5;
   --f3: #56635c;
   --turf: #1b6440;

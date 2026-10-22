@@ -255,7 +255,7 @@ function vPlanner() {
         <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.</p></div>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
-      ${SB.sel ? "" : `<div class="seg ptabs" role="tablist" aria-label="Planner tools">${tabs.map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`}
+      ${SB.sel ? "" : `<div class="seg ptabs" role="group" aria-label="Planner tools">${tabs.map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`}
       <div class="panel" id="candPanel">${right}</div>
       <div class="panel"><div class="bar"><h3>Your moves</h3>${SB.prev ? `<button class="btn" data-undoplan="1">Undo last change</button>` : ""}</div>
         <div class="moves">${movesList}</div>

@@ -9,7 +9,7 @@ function lineChart(series, labels, { h = 200, yfmt = x => x, title = "" } = {}) 
   const x = i => pad.l + (labels.length === 1 ? 0 : i / (labels.length - 1)) * (W - pad.l - pad.r);
   const y = v => pad.t + (1 - (v - mn) / (top - mn)) * (h - pad.t - pad.b);
   const ticks = []; for (let v = 0; v <= top + 1e-9; v += nice) ticks.push(v);
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(title)}">
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(title || `Line chart across ${labels.length} gameweeks`)}">
     ${ticks.map(v => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${yfmt(v)}</text>`).join("")}
     ${labels.map((l, i) => `<text x="${x(i)}" y="${h - 8}" text-anchor="middle">${l}</text>`).join("")}
     ${series.map(s => `<polyline class="${s.cls}" fill="none" stroke-width="2.5" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""} points="${s.vals.map((v, i) => v == null ? "" : `${x(i)},${y(v)}`).join(" ")}"/>${s.vals.map((v, i) => v == null ? "" : `<circle cx="${x(i)}" cy="${y(v)}" r="3" class="${s.cls}" fill="var(--surface)" stroke-width="2"/>`).join("")}`).join("")}
@@ -49,7 +49,7 @@ function vStats() {
     : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
   const tabs = [["form", "Form"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["teams", "Teams"]];
   const tab = S.stab || "form";
-  const nav = `<div class="seg ptabs" role="tablist" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`;
+  const nav = `<div class="seg ptabs" role="group" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`;
   let body = "";
   if (tab === "form") body = `${form}
   <div class="panel"><div class="bar"><h3>Player charts</h3><span class="muted">${cps.length}/4 selected</span></div>${pc}
