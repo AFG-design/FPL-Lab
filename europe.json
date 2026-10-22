@@ -1,0 +1,11 @@
+{
+  "note": "European fixtures 2026/27 league phase. Used to flag rotation risk for Premier League fixtures within ~3 days of a European match. Conference League dates assumed to match Europa League Thursdays; edit if wrong.",
+  "competitions": {
+    "UCL": {"teams": ["ARS", "AVL", "LIV", "MCI", "MUN"],
+            "dates": ["2026-09-09", "2026-10-14", "2026-10-21", "2026-11-04", "2026-11-25", "2026-12-09", "2027-01-20", "2027-01-27"]},
+    "UEL": {"teams": ["BOU", "CRY", "SUN"],
+            "dates": ["2026-09-17", "2026-10-15", "2026-10-22", "2026-11-05", "2026-11-26", "2026-12-10", "2027-01-21", "2027-01-28"]},
+    "UECL": {"teams": ["BHA"], "confirmed": false,
+            "dates": ["2026-10-01", "2026-10-22", "2026-11-05", "2026-11-26", "2026-12-10", "2026-12-17"]}
+  }
+}

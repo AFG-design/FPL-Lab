@@ -12,10 +12,37 @@ XI_MAX = {"GKP": 1, "DEF": 5, "MID": 5, "FWD": 3}
 POOL = {"GKP": 14, "DEF": 40, "MID": 45, "FWD": 25}
 
 
+def variance(pos, x):
+    """Variance of a player's points for one fixture, fitted on GW3-7 backtest residuals."""
+    if pos == "MID":
+        return 1.9 * x + 0.23 * x * x
+    return {"GKP": 2.8, "DEF": 3.3, "FWD": 3.8}.get(pos, 3.0) * x
+
+
+def spread(players, mult, eo, gw):
+    """Standard deviation of your score minus the field's for one gameweek (points)."""
+    v = 0.0
+    for i, p in players.items():
+        x = p["xp"].get(gw, 0.0)
+        if x <= 0:
+            continue
+        d = mult.get(i, 0) - eo.get(i, 0.0)
+        if d:
+            v += variance(p["pos"], x) * d * d
+    return v ** 0.5
+
+
 def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=1.5,
-          hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40):
+          hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
+          eo=None, lam=0.0, eo_weeks=2):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
-    sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek."""
+    sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek.
+
+    eo/lam: rank-aware play. eo = {id: effective ownership as a fraction (captain = 2)} for the
+    managers you are competing with. The variance of your score relative to theirs is
+    sum_i var_i * (m_i - eo_i)^2, where m_i is your multiplier (0, 1 or 2). With m = xi + cp that
+    is linear in xi and cp: var_i * (xi*(1 - 2eo) + cp*(3 - 2eo)) + const. lam > 0 penalises
+    that variance (play safe, track the field); lam < 0 rewards it (chase rank with differentials)."""
     gws = list(gws)
     W = range(len(gws))
     # candidate pool: current squad + best options per position by projected points
@@ -79,6 +106,10 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     for w in W:
         d = decay ** w
         obj.append(d * pulp.lpSum(xp[i, w] * (xi[i][w] + cp[i][w] + bench_w * (sq[i][w] - xi[i][w])) for i in pool))
+        if eo is not None and lam and w < eo_weeks:  # ownership data goes stale after a week or two
+            obj.append(-lam * d * pulp.lpSum(
+                variance(players[i]["pos"], xp[i, w]) * (xi[i][w] * (1 - 2 * eo.get(i, 0.0)) + cp[i][w] * (3 - 2 * eo.get(i, 0.0)))
+                for i in pool if xp[i, w] > 0))
         obj.append(-d * hit * hits[w])
     obj.append(ft_value * ft[len(gws)])
     m += pulp.lpSum(obj)

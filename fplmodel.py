@@ -249,8 +249,10 @@ def project(ctx, as_of, horizon=6, params=None):
         for k, g in enumerate(gws):
             av = availability(e, k) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
             comp = defaultdict(float)
+            cong = ctx.get("congestion", {}).get((tid, g), 1.0)
             for (opp, home, mu_f, mu_a, fdr) in upcoming[tid].get(g, []):
-                ps, pb = p_start * av, p_sub * av
+                ps, pb = p_start * av * cong, p_sub * av
+                pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
                 m = ps * m_start + pb * m_sub
                 p60 = ps * p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
