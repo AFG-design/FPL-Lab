@@ -59,6 +59,10 @@ try:
 except Exception:
     market = None
 try:
+    player_odds = json.load(open(os.path.join(HERE, "odds", "players.json")))
+except Exception:
+    player_odds = None
+try:
     from fplmodel import understat_sp
     sp_data = understat_sp(boot, fixtures, json.load(open(os.path.join(HERE, "understat", "shots.json"))),
                            json.load(open(os.path.join(HERE, "understat", "fpl_players.json")))["players"])
@@ -992,6 +996,11 @@ out = {
              "understat": US.get("meta"),
              "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
                       "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,
+             "player_odds": {"built": player_odds.get("built"), "gw": player_odds.get("gw"),
+                             "fixtures": len(player_odds.get("fixtures", {})),
+                             "players": sum(len(f["players"]) for f in player_odds.get("fixtures", {}).values()),
+                             "unmatched": len(player_odds.get("unmatched_players", [])),
+                             "credits_left": player_odds.get("credits_left")} if player_odds else None,
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
