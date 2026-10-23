@@ -24,6 +24,7 @@ section.view { display: grid; gap: 20px; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
 .kpi b { display: block; font-size: var(--fs-num); font-weight: 650; line-height: 1.15; letter-spacing: -.02em; }
+.kpi .lbl, .plansum .lbl { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
 .kpi .delta { font-size: var(--fs-sm); }
 
 /* ---------- buttons and controls ---------- */
@@ -115,7 +116,7 @@ a.btn { text-decoration: none; }
 .pc .pc-meta { display: flex; justify-content: center; gap: 6px; font-size: 10.5px; color: var(--muted); font-weight: 500; }
 .pc-form { color: var(--accent-text); background: var(--accent-soft); border-radius: 3px; padding: 0 4px; }
 .pc .nm { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc .xp { font-weight: 700; font-size: 17px; line-height: 1.15; letter-spacing: -.01em; }
+.pc .xp { font-family: var(--display); font-weight: 700; font-size: 21px; line-height: 1.05; letter-spacing: .01em; }
 .pc .fx { display: flex !important; gap: 2px; justify-content: center; margin-top: 4px; }
 .pc .fx .fdr { flex: 1 1 0; padding: 1px 3px; gap: 2px; font-size: 10px; }
 .pc .fx .fdr:nth-child(n+3) { display: none; } /* cards show the next two fixtures; the detail sheet shows them all */
@@ -141,7 +142,7 @@ a.btn { text-decoration: none; }
   .pc .shirt { width: 22px; height: 22px; }
   .pc .nm { font-size: 11px; }
   .pc .pc-meta { font-size: 9.5px; gap: 4px; }
-  .pc .xp { font-size: 15px; }
+  .pc .xp { font-size: 17px; }
   .pc .fx .fdr { font-size: 9.5px; gap: 3px; }
   .pc .fx .fdr:nth-child(n+2) { display: none; } /* phones: next fixture only, so the difficulty number still fits */
   .row, .bench { gap: 4px; }
@@ -194,7 +195,7 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
 .cb .track { height: 10px; background: var(--sunk); border-radius: 5px; overflow: hidden; }
 .cb .fill { height: 100%; background: var(--accent); border-radius: 5px; }
 .cb.top .fill { background: var(--hi); }
-.cb .val { font-weight: 700; font-size: var(--fs-lg); text-align: right; }
+.cb .val { font-family: var(--display); font-weight: 700; font-size: 20px; text-align: right; }
 .cb .why { grid-column: 1 / 4; font-size: var(--fs-xs); color: var(--muted); margin-top: -6px; }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -202,8 +203,11 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
 }
 
 /* step cards (This week) */
-.steps { display: grid; gap: 12px; }
-.stepcard { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 14px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; }
+.steps { display: grid; gap: 12px; align-content: start; }
+.steps-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.stepcard { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 14px; align-items: start; padding: 16px 18px; }
+.stepcard + .stepcard { border-top: 1px solid var(--line); }
+.stepcard .howto-btn { display: flex; width: fit-content; margin-top: 10px; }
 .stepcard .sbody { display: grid; gap: 6px; min-width: 0; }
 .stepcard .no { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: var(--fs-sm); background: var(--sunk); color: var(--muted); border: 1px solid var(--line); }
 .stepcard.act .no { background: var(--hi); color: var(--hi-fg); border-color: var(--hi); }
@@ -223,13 +227,27 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
 .gwsel button { border: 1px solid var(--line); background: var(--sunk); border-radius: var(--r-sm); padding: 6px 11px; font-weight: 650; min-width: 64px; text-align: left; }
 .gwsel button small { display: block; font-weight: 500; font-size: var(--fs-xs); color: var(--muted); }
 .gwsel button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-text); }
-.plansum { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.plansum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.plansum .kpi { background: none; border: 0; border-radius: 0; padding: 14px 18px; display: grid; gap: 3px; align-content: start; min-width: 0; }
+.plansum .kpi:first-child { padding-left: 0; }
+.plansum .kpi + .kpi { border-left: 1px solid var(--line); }
+.plansum .kpi b { font-family: var(--display); font-size: 36px; font-weight: 700; line-height: 1; letter-spacing: .01em; }
+.plansum .kpi b.up { color: var(--good); }
+.plansum .kpi b.down { color: var(--bad); }
+
+@media (max-width: 640px) {
+  .plansum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .plansum .kpi, .plansum .kpi:first-child { padding: 12px 14px; }
+  .plansum .kpi:nth-child(odd) { border-left: 0; padding-left: 0; }
+  .plansum .kpi:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .plansum .kpi b { font-size: 30px; }
+}
 
 /* suggestions */
 .sugg { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
 .sugg:first-of-type { border-top: 0; }
 .sg-top { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-.sg-gain { font-weight: 700; font-size: var(--fs-xl); }
+.sg-gain { font-family: var(--display); font-weight: 700; font-size: 28px; line-height: 1; }
 .sg-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .sgfx { display: inline-flex; gap: 2px; }
 .sg-why { font-size: var(--fs-sm); color: var(--muted); }
@@ -425,7 +443,7 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 
  display: grid; place-content: center; justify-items: center; width: 96px; height: 96px; border-radius: 50%; line-height: 1;
   background: radial-gradient(closest-side, var(--surface) 80%, transparent 81%), conic-gradient(var(--accent) calc(var(--p) * 1%), var(--sunk) 0); }
-.rate-score b { font-size: 32px; }
+.rate-score b { font-family: var(--display); font-size: 38px; font-weight: 700; letter-spacing: .01em; }
 .rate-score span { font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; }
 .rate-badge small { font-size: var(--fs-xs); font-weight: 600; color: var(--accent-text); white-space: nowrap; }
 .rating .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
@@ -458,7 +476,7 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 }
 
 /* ---------- past team viewer ---------- */
-.pc.past .xp { font-size: var(--fs-xl); }
+.pc.past .xp { font-size: 22px; }
 .pc.past.haul .xp { color: var(--hi-text); }
 .subtag { font-size: 10px; font-weight: 700; }
 .subtag.in { color: var(--good); }
@@ -613,3 +631,14 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 
 /* a sideways-scrolling row must not widen the page: grid and flex children default to min-width: auto */
 .view > *, .scores { min-width: 0; max-width: 100%; }
+
+/* ---------- display face: section headings (screens only, not dialogs or empty states) ---------- */
+.view h2, .view-week .panel > h3, .view-week .bar h3 { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; line-height: 1.1; }
+.view .state h2 { font-family: var(--font); font-size: 19px; font-weight: 650; letter-spacing: -.015em; text-transform: none; line-height: 1.2; }
+.page-title { display: grid; gap: 6px; }
+.page-title h1 { font-family: var(--display); font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: .02em; text-transform: uppercase; }
+.page-title p { margin: 0; max-width: 60ch; color: var(--muted); font-size: var(--fs-md); }
+
+@media (max-width: 520px) {
+  .page-title h1 { font-size: 36px; }
+}

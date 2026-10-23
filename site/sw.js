@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v18";
+const CACHE = "fpl-lab-v20";
 const SHELL = [
   "./",
   "index.html",
@@ -7,6 +7,7 @@ const SHELL = [
   "icon-192.png",
   "icon-512.png",
   "vendor/fonts/inter-var-latin.woff2",
+  "vendor/fonts/barlow-condensed-700-latin.woff2",
   "styles/tokens.css",
   "styles/base.css",
   "styles/layout.css",

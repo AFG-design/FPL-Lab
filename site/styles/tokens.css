@@ -50,6 +50,10 @@
 
   /* type */
   --font: "Inter", system-ui, -apple-system, "Segoe UI", roboto, sans-serif;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --fs-label: 10.5px;
+  --ls-label: .09em;
+  --ls-eyebrow: .12em;
   --fs-xs: 11.5px;
   --fs-sm: 13px;
   --fs-md: 14.5px;
@@ -111,4 +115,21 @@
   font-weight: 100 900;
   font-display: swap;
   src: url("../vendor/fonts/inter-var-latin.woff2") format("woff2");
+}
+
+/* Barlow Condensed, the display face for titles, hero numbers and verdicts (SIL Open Font License, see vendor/fonts/LICENSE-BarlowCondensed.txt) */
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-condensed-600-latin.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Barlow Condensed";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-condensed-700-latin.woff2") format("woff2");
 }

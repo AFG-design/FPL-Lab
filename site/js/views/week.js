@@ -53,6 +53,17 @@ function dashStrip(me, g) {
     </div>`;
   return `<div class="dash">${score}${rank}${caps}</div>`;
 }
+/* ---------- hero: this week's call in one headline ---------- */
+const rankShort = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
+function liveFold() {
+  const strip = scoresStrip(), panel = livePanel();
+  if (!strip && !panel) return "";
+  const L = D.live, st = L && L.in_play && !L.finished ? liveState() : null;
+  const head = st
+    ? `<span class="live-dot" aria-hidden="true"></span>GW${L.gw} live · <b>${st.total} pts</b> · ${st.left} yet to play${st.rank ? ` · live rank ~${rankShort(st.rank.r)}` : ""}`
+    : `GW${L?.gw ?? ""} results${L?.points != null ? ` · <b>${L.points} pts</b>` : ""}`;
+  return `<details class="livefold"><summary><span class="lf-head">${head}</span><span class="lf-go">Scores ›</span></summary><div class="lf-body">${strip}${panel}</div></details>`;
+}
 function vWeek() {
   const g = D.meta.next_gw, pl = D.plans || {};
   if (!PG.length) return `<div class="panel"><p>No gameweek to plan yet.</p></div>`;
@@ -119,18 +130,34 @@ function vWeek() {
   moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.`]); });
   const bad = risks.filter(r => r[0] === "bad" || r[0] === "warn").length;
 
+  // hero
+  const capName = esc(P[me.cap].name);
+  const headT = moves0.length
+    ? (moves0.length === 1 ? `Bring in ${esc(P[moves0[0].in].name)}.` : `Make ${moves0.length} transfers.`)
+    : `Roll your transfer${ft > 1 ? "s" : ""}.`;
+  const heroWhy = moves0.length ? t1why : `No transfer beats keeping your ${ft} free one${ft > 1 ? "s" : ""} this week.`;
+  const doubt = benches[0] != null && P[benches[0]].chance != null && P[benches[0]].chance < 100 ? `, who is a ${P[benches[0]].chance}% doubt` : "";
+  const heroLine = starts.length
+    ? ` Start ${esc(P[starts[0]].name)}${benches.length ? ` ahead of ${esc(P[benches[0]].name)}${doubt}` : ""}.`
+    : benches.length ? ` Bench ${esc(P[benches[0]].name)}${doubt}.` : "";
+  const hero = `<section class="hero" role="region" aria-label="This week's call">
+    <p class="eyebrow">GW${g} · Deadline ${ukTime(D.meta.deadline)} · <em>${countdown(D.meta.deadline)} left</em></p>
+    <h1>${headT} Captain <span class="cap">${capName}</span>.</h1>
+    <p class="hero-why">${heroWhy}${heroLine}</p>
+    <div class="hero-verdicts"><span><span class="hv-l">Transfers</span>${vPill(tV)}</span><span><span class="hv-l">Captain</span>${vPill(cV)}</span><span><span class="hv-l">Lineup</span>${vPill(lV)}</span></div>
+  </section>`;
   const sp = spreadVsField(me.mult, g);
   const step = (n, state, title, pill, doTxt, details) => `<div class="stepcard ${state}"><span class="no">${state === "ok" ? "✓" : n}</span><div class="sbody">
     <h3>${title} ${pill ? `<span class="pillwrap">${pill}</span>` : ""}</h3><div class="do">${doTxt}</div>${details ? `<details><summary>Details</summary><div class="dbody">${details}</div></details>` : ""}</div></div>`;
-  return `${scoresStrip()}${livePanel()}${dashStrip(me, g)}
+  return `${hero}${liveFold()}${dashStrip(me, g)}
   <div class="grid2">
     <div class="steps">
       <div class="bar" style="margin:0"><h2>Before the GW${g} deadline</h2><span>${term("verdict", "What the labels mean")}</span><span class="muted">${countdown(D.meta.deadline)} left</span></div>
-      ${step(1, moves0.length ? "act" : "ok", "Transfers", vPill(tV), `${t1}${mvHTML}`,
+      <div class="steps-panel">
+      ${step(1, moves0.length ? "act" : "ok", "Transfers", vPill(tV), `${t1}${mvHTML}<button class="btn primary howto-btn" data-howto="${g}">Make these moves on FPL</button>`,
         `<p class="sub">${t1why}${later.length ? ` Your plan has ${later.length} more move${later.length > 1 ? "s" : ""} in later weeks.` : ""} Bank after: ${money(w0.bank)}.</p>
          <p class="sub">Strategy: <b>${MODES[S.mode]}</b>. Change it, compare the optimiser's plans and see transfer suggestions in the Planner.</p>
          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-v-go="planner">Open planner</button>${undo}</div>`)}
-      <button class="btn primary howto-btn" data-howto="${g}">Make these moves on FPL</button>
       ${step(2, starts.length || benches.length ? "act" : "ok", "Lineup", vPill(lV), lineupTxt,
         `<p class="sub">Best XI projects <b>${f1(me.pts)}</b> pts including the captain. Bench order: ${me.bench.map(i => esc(P[i].name)).join(", ")}.${benchFirst ? ` First sub ${esc(P[benchFirst].name)} (${f1(xpg(benchFirst, g))}) vs weakest starter ${esc(P[weakest].name)} (${f1(xpg(weakest, g))}).` : ""}</p>`)}
       ${step(3, "act", "Captain", vPill(cV), `C ${esc(P[me.cap].name)} · V ${esc(P[me.vice].name)}`,
@@ -139,6 +166,7 @@ function vWeek() {
       ${step(4, chipNow ? "act" : "ok", "Chip", "", chipTxt, `<p class="sub">${chipSub}</p>`)}
       ${step(5, bad ? "act" : "ok", "Risks", bad ? `<span class="pill warn">${bad} to check</span>` : `<span class="pill good">Clear</span>`, bad ? risks.filter(r => r[0] === "bad" || r[0] === "warn").slice(0, 2).map(r => r[1]).join("<br>") : "No injury flags, price drops or minutes worries.",
         risks.length ? `<ul class="alerts">${risks.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul>` : "")}
+      </div>
     </div>
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       <div class="bar" style="margin:0"><h3>GW${g} team · ${esc(planName())}</h3><span class="tag">${f1(me.pts)} ${term("xp", "xP")}${sp != null ? ` · ±${f1(sp)} ${term("spread", "vs field")}` : ""}</span></div>
