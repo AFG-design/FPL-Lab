@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v14";
+const CACHE = "fpl-lab-v15";
 const SHELL = [
   "./",
   "index.html",
@@ -57,10 +57,10 @@ self.addEventListener("fetch", e => {
     // "no-cache" checks with the server every time, so a new version is never hidden by the browser's 10-minute cache
     e.respondWith(fetch(e.request, { cache: "no-cache" }).then(r => {
       const copy = r.clone();
-      const key = url.pathname.endsWith("data.json") ? new Request("data.json") : e.request;
+      const key = url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : e.request;
       caches.open(CACHE).then(c => c.put(key, copy));
       return r;
-    }).catch(() => caches.match(url.pathname.endsWith("data.json") ? new Request("data.json") : e.request).then(r => r || caches.match("index.html"))));
+    }).catch(() => caches.match(url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : e.request).then(r => r || caches.match("index.html"))));
   } else if (url.hostname === "fantasy.premierleague.com" && url.pathname.includes("/shirts/")) {
     // show the cached kit instantly but always re-check, so kit updates come through
     e.respondWith(caches.open(CACHE).then(c => c.match(e.request).then(hit => {

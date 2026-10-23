@@ -5,8 +5,25 @@ async function fetchData() {
   if (!r.ok) throw new Error("data.json returned " + r.status);
   return r.json();
 }
+/* player detail (shots, bonus, defence, history, breakdown) arrives in a second file, after the page is up */
+const EXTRA = { ready: false, built: null, wait: null };
+const NEEDS_EXTRA = ["stats", "players"];
+function loadExtra() {
+  const built = D.meta.built;
+  if (EXTRA.built === built && EXTRA.wait) return EXTRA.wait;
+  EXTRA.built = built; EXTRA.ready = false;
+  EXTRA.wait = fetch("data-extra.json?t=" + encodeURIComponent(built), { cache: "no-store" }).then(r => r.ok ? r.json() : null).catch(() => null).then(x => {
+    if (D.meta.built !== built) return;                  // newer data arrived meanwhile; its own fetch will merge
+    if (x && x.players) for (const [id, ex] of Object.entries(x.players)) if (P[id]) Object.assign(P[id], ex);
+    EXTRA.ready = true;
+    if (NEEDS_EXTRA.includes(S.view)) render();
+  });
+  return EXTRA.wait;
+}
+const withExtra = fn => EXTRA.ready ? fn() : loadExtra().then(fn);
 function ingest(d) {
   D = d; P = {}; D.players.forEach(p => P[p.id] = p);
+  EXTRA.ready = false; setTimeout(loadExtra, 0);
   T = D.teams; GWS = D.meta.proj_gws; PG = GWS.slice(0, Math.min(S.horizon, GWS.length));
   MINE = new Set(D.squad.map(s => s.id));
   if (!S.trendTeam) S.trendTeam = P[D.squad[0]?.id]?.team || 1;

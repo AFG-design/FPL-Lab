@@ -48,7 +48,7 @@ G = cur["id"]
 if not FORCE and os.path.exists(OUT):
     try:
         old = json.load(open(OUT))
-        if old.get("gw") == G and old.get("complete"):
+        if old.get("gw") == G and old.get("complete") and old.get("teams"):
             print(f"crowd data for GW{G} already built"); sys.exit(0)
     except Exception:
         pass
@@ -70,6 +70,15 @@ top_sample = [r["entry"] for i, r in enumerate(sorted(top_rows, key=lambda r: r[
 mp = max(1, math.ceil(my_rank / 50))
 near_rows = [r for rows in pmap(lambda p: standings(314, p), range(max(1, mp - 5), mp + 5)) for r in rows]
 near_sample = [r["entry"] for r in near_rows if r["entry"] != TEAM_ID]
+# a rank ladder for live rank estimates: 10 managers at each of these overall ranks
+total_players = boot.get("total_players") or 10_000_000
+LADDER = [r for r in (1_000, 5_000, 10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 200_000, 300_000, 500_000,
+                      750_000, 1_000_000, 1_500_000, 2_000_000, 3_000_000, 4_000_000, 5_000_000, 6_500_000, 8_000_000)
+          if r < total_players * 0.95]
+ladder_rows = []
+for rows in pmap(lambda r: standings(314, max(1, math.ceil(r / 50))), LADDER):
+    ladder_rows += rows[::5]
+ladder_sample = [r["entry"] for r in ladder_rows if r["entry"] != TEAM_ID]
 
 # ---- mini-leagues
 leagues = []
@@ -92,7 +101,7 @@ for lg in entry["leagues"]["classic"]:
 rival_ids = {m["entry"] for lg in leagues for m in lg["members"] if m["entry"] != TEAM_ID}
 
 # ---- picks
-everyone = sorted(set(top_sample) | set(near_sample) | rival_ids)
+everyone = sorted(set(top_sample) | set(near_sample) | set(ladder_sample) | rival_ids)
 
 
 def picks(eid):
@@ -143,6 +152,11 @@ out = {
                  rank_to=max(near_ranks) if near_ranks else None),
     "leagues": leagues,
     "rivals": {str(i): all_picks[i] for i in rival_ids if all_picks.get(i)},
+    # individual teams (rank before the GW, total before the GW, picks) for live rank estimates
+    # "before" = overall total (after any hit) minus points already scored this GW, as FPL's standings show them
+    "teams": [{"e": r["entry"], "rank": r["rank"], "before": r["total"] - (r.get("event_total") or 0),
+               "p": all_picks[r["entry"]]["p"], "chip": all_picks[r["entry"]]["chip"], "hits": all_picks[r["entry"]]["hits"]}
+              for r in {x["entry"]: x for x in near_rows + ladder_rows}.values() if all_picks.get(r["entry"]) and r["entry"] != TEAM_ID],
     "rival_chips": {str(i): v for i, v in rival_chips.items() if v is not None},
     "secs": round(time.time() - t0),
 }

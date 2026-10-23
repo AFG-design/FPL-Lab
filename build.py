@@ -590,6 +590,21 @@ if crowd:
                             "my_rank": (me_rank or {}).get("rank", lg["my_rank"]), "rows": rows})
     keep_ids = {str(i) for i in players}
     slim = lambda d: {k: v for k, v in d.items() if k in keep_ids}
+    # live rank: sampled teams' live totals, re-paired with the sample's pre-GW ranks (best total -> best rank)
+    if live_gw and G == picks_gw and crowd.get("teams") and lv:
+        tm = crowd["teams"]
+        lt = sorted((t["before"] + sum(live_gw["pts_all"].get(str(el), 0) * m for el, m in t["p"]) for t in tm), reverse=True)  # before already has the hit taken off
+        rk = sorted(t["rank"] for t in tm)
+        curve = list(zip(rk, lt))
+        step = max(1, len(curve) // 80)
+        live_gw["rank_curve"] = [list(c) for c in curve[::step]] + ([list(curve[-1])] if (len(curve) - 1) % step else [])
+        prev_h = next((h for h in history["current"] if h["event"] == G - 1), None)
+        live_gw["rank_before"] = prev_h["overall_rank"] if prev_h else None
+        # same basis as the sample: overall total after this GW's hit, before this GW's points
+        live_gw["total_before"] = (entry.get("summary_overall_points") or 0) - (entry.get("summary_event_points") or 0)
+        live_gw["hit_now"] = (prev_h["total_points"] if prev_h else live_gw["total_before"]) - live_gw["total_before"]
+        live_gw["hits"] = max(live_gw.get("hits") or 0, live_gw["hit_now"])   # the picks endpoint can lag behind the hit
+        live_gw["sample_n"] = len(tm)
     crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play,
                  "top10k": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["top10k"].items()},
                  "near": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["near"].items()},
@@ -1108,6 +1123,16 @@ if next_ev:
     }
 
 out["meta"]["build_secs"] = round(time.time() - t0, 1)
+# Detail only Stats, Players and the player panel use goes in a second file the site loads in the background,
+# so the main file (Home, Planner, Rivals) is small and opens quickly on a phone.
+EXTRA_FIELDS = ("us", "bf4", "bf6", "dcs", "dc6", "s_xgi", "s_min", "s_bps", "s_pts", "last", "xp_detail")
+extra = {}
+for p_ in out["players"]:
+    ex = {k: p_.pop(k) for k in EXTRA_FIELDS if k in p_}
+    if ex:
+        extra[str(p_["id"])] = ex
+with open(os.path.join(os.path.dirname(os.path.abspath(OUT)), "data-extra.json"), "w") as f:
+    json.dump({"built": out["meta"]["built"], "players": extra}, f, separators=(",", ":"))
 with open(OUT, "w") as f:
     json.dump(out, f, separators=(",", ":"))
 print(f"wrote {OUT}: {len(out['players'])} players, GW{next_gw}, FT {ft}, plans {list(plans)}, {out['meta']['build_secs']}s")

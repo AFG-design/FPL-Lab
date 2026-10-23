@@ -28,7 +28,19 @@ function liveState() {
   // field: effective ownership x live points (with provisional bonus)
   const F = D.crowd && D.crowd.gw === L.gw ? D.crowd : null, all = L.pts_all || {};
   const fieldAvg = src => src ? Object.entries(src.eo).reduce((a, [i, e]) => a + e / 100 * (all[i] || 0), 0) : null;
-  return { L, rows, xi, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing,
+  // live rank: place your live season total on the sampled points-to-rank curve (log-rank interpolation)
+  let rank = null;
+  const C = L.rank_curve;
+  if (C && C.length > 5 && L.total_before != null) {
+    const T = L.total_before + total + (L.hits || 0);   // total_before already has the hit taken off
+    if (T >= C[0][1]) rank = { r: C[0][0], edge: "above" };
+    else if (T <= C[C.length - 1][1]) rank = { r: C[C.length - 1][0], edge: "below" };
+    else for (let i = 0; i < C.length - 1; i++) {
+      const [r1, p1] = C[i], [r2, p2] = C[i + 1];
+      if (T <= p1 && T >= p2) { const f = p1 === p2 ? 0.5 : (p1 - T) / (p1 - p2); rank = { r: Math.round(Math.exp(Math.log(r1) + f * (Math.log(r2) - Math.log(r1)))) }; break; }
+    }
+  }
+  return { L, rows, xi, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing, rank,
     top10k: F ? fieldAvg(F.top10k) : null, near: F && F.near?.n >= 100 ? fieldAvg(F.near) : null };
 }
 function livePanel() {
@@ -42,6 +54,9 @@ function livePanel() {
   return `<div class="panel live-panel"><div class="bar"><h2><span class="live-dot" aria-hidden="true"></span>GW${L.gw} live</h2><span class="muted">updated ${new Date(D.meta.built).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span></div>
     <div class="kpis" style="margin-bottom:12px">
       <div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px">${s.total}</b><span class="delta muted">${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>
+      ${s.rank ? (() => { const rr = s.rank.r, b = L.rank_before, mv = b ? b - rr : 0;
+        const big = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
+        return `<div class="kpi"><span class="lbl">${term("liverank", "Live rank")} (estimate)</span><b>${s.rank.edge === "above" ? "Top " : s.rank.edge === "below" ? "Below " : "~"}${big(rr)}</b><span class="delta ${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}">${b ? `${mv > 0 ? "▲" : mv < 0 ? "▼" : ""} ${big(Math.abs(mv))} from ${big(b)}` : ""}</span></div>`; })() : ""}
       ${vs("Top-10k average", s.top10k)}${vs("Managers around you", s.near)}
       ${L.average ? `<div class="kpi"><span class="lbl">Overall average</span><b>${L.average}</b><span class="delta muted">from FPL</span></div>` : ""}
     </div>

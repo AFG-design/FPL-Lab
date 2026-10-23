@@ -71,6 +71,7 @@ function whyXP(p, g) {
     <p class="note">Points from each part add up to his projection${Math.abs(rest) >= 0.15 ? ` (with ${rest > 0 ? "+" : "−"}${Math.abs(rest).toFixed(1)} from the model's overall calibration)` : ""}. Minutes points are the 1 or 2 for playing.</p></section>`;
 }
 function openPlayer(id) {
+  if (!EXTRA.ready) { withExtra(() => openPlayer(id)); return; }
   const p = P[id]; if (!p) return;
   const d = p.xp_detail || {}, g = D.meta.next_gw;
   const labels = { mins: "Appearance", goals: "Goals", assists: "Assists", cs: "Clean sheet", gc: "Conceded", saves: "Saves", dc: "Def. contrib.", bonus: "Bonus", cards: "Cards" };

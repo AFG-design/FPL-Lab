@@ -77,6 +77,7 @@ function render() {
     if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
   if (!D) return;
+  if (NEEDS_EXTRA.includes(S.view) && !EXTRA.ready) { $("#app").innerHTML = skeleton(); loadExtra(); return; }
   const fn = VIEW_FN()[S.view] || vWeek;
   let html;
   try { html = fn(); } catch (e) {
