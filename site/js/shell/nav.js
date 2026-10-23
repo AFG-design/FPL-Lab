@@ -89,5 +89,6 @@ function render() {
   // wide tables scroll sideways: make them reachable by keyboard
   document.querySelectorAll("#app .tablebox").forEach(t => { t.tabIndex = 0; t.setAttribute("role", "region"); t.setAttribute("aria-label", t.closest(".panel")?.querySelector("h2, h3")?.textContent || "Table"); });
   const go = $("#app [data-v-go]"); if (go) go.onclick = () => setView(go.dataset.vGo);
+  if (S.view === "week" && typeof railToNow === "function") railToNow();
   bind();
 }

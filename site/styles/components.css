@@ -559,3 +559,57 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .dl-hero > b { font-size: 44px; line-height: 1.1; color: var(--hi-text); font-variant-numeric: tabular-nums; }
 .stat.deadline[data-godl] { cursor: pointer; }
 .st-when[data-gohealth] { cursor: pointer; }
+
+/* ---------- club crests ---------- */
+.crest { --sz: 28px; display: inline-grid; place-items: center; width: var(--sz); height: var(--sz); flex: none; position: relative; }
+.crest img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 1px 1px rgb(0 0 0 / 25%)); }
+.crest i { display: none; }
+.crest.nob i { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: var(--club); color: #fff; font-style: normal; font-size: calc(var(--sz) * .3); font-weight: 800; letter-spacing: -.02em; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 25%); }
+
+/* ---------- live scores ---------- */
+.scores { margin-bottom: 20px; }
+.scores h2 { display: flex; align-items: center; gap: 8px; }
+.score-rail { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 10px; }
+.mcard { display: grid; gap: 8px; align-content: start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 1px 2px rgb(0 0 0 / 12%); transition: transform var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease); }
+.mcard:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+.mcard.live { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--good) 9%, var(--surface)), var(--surface) 60%); }
+.mcard.ft { background: var(--surface); }
+.mcard.mine { box-shadow: inset 3px 0 0 var(--hi), 0 1px 2px rgb(0 0 0 / 12%); }
+.mc-top { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .02em; min-height: 18px; }
+.mc-live { display: inline-flex; align-items: center; gap: 6px; color: var(--good); }
+.mc-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); }
+.mc-ft { color: var(--muted); }
+.mc-pre { color: var(--muted); font-weight: 600; }
+.mc-tag { font-size: 10.5px; font-weight: 600; color: var(--hi-text); }
+.mc-team { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.mc-club { all: unset; display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; font-weight: 600; }
+.mc-club span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-club:hover span { text-decoration: underline; text-underline-offset: 3px; }
+.mc-sc { font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1; min-width: 1ch; text-align: right; }
+.mcard.ft .mc-team:not(.win) .mc-sc { color: var(--muted); }
+.mc-ev { font-size: var(--fs-xs); color: var(--muted); border-top: 1px solid var(--line); padding-top: 7px; }
+.mc-ev > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mc-ev > div span:last-child { text-align: right; }
+.mc-ev > div span::before { content: "⚽ "; }
+.mc-ev > div span:empty::before, .mc-ev > div span:only-child::before { content: none; }
+.mc-red { margin: 4px 0 0; color: var(--bad); }
+.mc-mine { display: flex; flex-wrap: wrap; gap: 4px; }
+.mc-p { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: var(--sunk); font-size: 11.5px; font-weight: 600; }
+.mc-p b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .mc-live i { animation: pulse 1.6s ease-out infinite; }
+
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+}
+
+@media (max-width: 700px) {
+  .score-rail { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 6px; gap: 10px; }
+  .score-rail::-webkit-scrollbar { display: none; }
+  .mcard { flex: 0 0 76%; scroll-snap-align: start; }
+}
+.fx-club { display: inline-flex; align-items: center; gap: 8px; }
+.tm-title { display: flex; align-items: center; gap: 12px; }
+
+/* a sideways-scrolling row must not widen the page: grid and flex children default to min-width: auto */
+.view > *, .scores { min-width: 0; max-width: 100%; }

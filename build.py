@@ -571,9 +571,18 @@ if picks and picks_gw in live:
                 prov[e] = award
             given += len(tied)
             k += len(tied)
+    def fx_events(f):
+        st = {x["identifier"]: x for x in f.get("stats", [])}
+        ev = []
+        for ident, kind in (("goals_scored", "g"), ("own_goals", "og"), ("assists", "a"), ("red_cards", "r"), ("penalties_missed", "pm"), ("penalties_saved", "ps")):
+            for side in ("h", "a"):
+                for x in (st.get(ident) or {}).get(side, []):
+                    e = elements.get(x["element"])
+                    ev.append([kind, side, e["web_name"] if e else "?", x["value"], x["element"]])
+        return ev
     live_gw["fixtures"] = [{"id": f["id"], "h": f["team_h"], "a": f["team_a"], "ko": f["kickoff_time"], "started": bool(f["started"]),
                             "done": bool(f["finished"] or f.get("finished_provisional")), "mins": f.get("minutes", 0),
-                            "hs": f["team_h_score"], "as": f["team_a_score"]} for f in gw_fx]
+                            "hs": f["team_h_score"], "as": f["team_a_score"], "ev": fx_events(f) if f["started"] else []} for f in gw_fx]
     live_gw["in_play"] = any(f["started"] for f in gw_fx) and not ev["finished"]
     for r in live_gw["rows"]:
         r["team"] = elements[r["id"]]["team"]
@@ -874,7 +883,7 @@ for tid, t in teams.items():
                               "gf": f["team_h_score"] if home else f["team_a_score"],
                               "ga": f["team_a_score"] if home else f["team_h_score"]})
     usT = US.get("teams", {}).get(str(tid))
-    team_out[tid] = {"id": tid, "short": t["short_name"], "name": t["name"],
+    team_out[tid] = {"id": tid, "short": t["short_name"], "name": t["name"], "code": t["code"],
                      "sp": ({"for": round(usT.get("sp_for", 0) / max(1, usT["games"]), 2), "against": round(usT.get("sp_against", 0) / max(1, usT["games"]), 2),
                              "op_for": round(usT.get("op_for", 0) / max(1, usT["games"]), 2), "op_against": round(usT.get("op_against", 0) / max(1, usT["games"]), 2),
                              "games": int(usT["games"])} if usT else None),
@@ -1121,6 +1130,31 @@ out = {
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }
+# ---------------------------------------------------------------- club badges (downloaded once into site/badges/)
+BADGE_DIR = os.path.join(os.path.dirname(os.path.abspath(OUT)), "badges")
+os.makedirs(BADGE_DIR, exist_ok=True)
+BADGE_URLS = ["https://resources.premierleague.com/premierleague25/badges-alt/{c}.png",
+              "https://resources.premierleague.com/premierleague/badges/100/t{c}@x2.png",
+              "https://resources.premierleague.com/premierleague/badges/70/t{c}.png",
+              "https://resources.premierleague.com/premierleague/badges/t{c}.png"]
+badges_ok = []
+for t in boot["teams"]:
+    dest = os.path.join(BADGE_DIR, f"{t['code']}.png")
+    if not os.path.exists(dest):
+        for u in BADGE_URLS:
+            try:
+                req = urllib.request.Request(u.format(c=t["code"]), headers={"User-Agent": "Mozilla/5.0 fpl-lab"})
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    data_ = r.read()
+                if data_[:8] == b"\x89PNG\r\n\x1a\n" and len(data_) > 500:
+                    open(dest, "wb").write(data_)
+                    break
+            except Exception:
+                continue
+    if os.path.exists(dest):
+        badges_ok.append(t["code"])
+out["meta"]["badges"] = badges_ok
+
 # ---------------------------------------------------------------- shot maps (separate file, loaded when a player is opened)
 try:
     shots_c = json.load(open(os.path.join(HERE, "understat", "shots.json")))

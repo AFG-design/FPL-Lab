@@ -62,7 +62,6 @@ function livePanel() {
     </div>
     ${s.subs.length ? `<ul class="alerts" style="margin-bottom:10px">${s.subs.map(x => `<li class="good"><span>Auto-sub: <b>${esc(P[x.in.id]?.name)}</b> on for ${esc(P[x.out.id]?.name)}${x.sure ? "" : " (if he plays)"}.</span></li>`).join("")}${s.capOut ? `<li class="warn"><span>${esc(P[s.cap.id]?.name)} didn't play: the armband passes to ${esc(P[s.vice?.id]?.name || "your vice")}.</span></li>` : ""}</ul>` : ""}
     <div class="tablebox"><table><thead><tr><th>Player</th><th>Status</th><th class="n">Mins</th><th class="n">${term("bps", "BPS")}</th><th class="n">Bonus</th><th class="n">Pts</th></tr></thead><tbody>${s.xi.map(row).join("")}${s.bench.map(row).join("")}</tbody></table></div>
-    <div class="lv-fx">${fx.map(f => `<span class="${f.done ? "done" : f.started ? "on" : ""}" title="${f.ko ? ukTime(f.ko) : ""}">${T[f.h].short} ${f.started ? `${f.hs ?? 0}–${f.as ?? 0}` : "v"} ${T[f.a].short}${f.started && !f.done ? ` <small>${f.mins}'</small>` : ""}</span>`).join("")}</div>
     <p class="note">Bonus in green is provisional: the top 3 BPS in each match as it stands. Auto-subs follow FPL's rules once a starter's game is over. The field averages use their teams from this gameweek. Updates every 10 minutes during matches (GitHub can run a few minutes late). <button class="linkish" data-v-go="rivals">Live mini-league table →</button></p></div>`;
 }
 

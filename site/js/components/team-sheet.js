@@ -20,7 +20,7 @@ function openTeam(tid) {
   const mine = D.squad.map(s => P[s.id]).filter(p => p && p.team === tid);
   const sw = typeof swings === "function" ? swings().filter(r => r.t.id === tid && Math.abs(r.d) > (r.kind === "att" ? 0.12 : 0.04)) : [];
   $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
-    <div><p class="ph-club">Team profile${mine.length ? ` · you own ${mine.map(nm).join(", ")}` : ""}</p><h2>${esc(t.name)}</h2></div>
+    <div><p class="ph-club">Team profile${mine.length ? ` · you own ${mine.map(nm).join(", ")}` : ""}</p><h2 class="tm-title">${badge(tid, 40)}${esc(t.name)}</h2></div>
     <dl class="ph-stats">
       ${statBadge("Strength", Math.round(st.pts) + "%", { sub: `win vs average ${Math.round(st.win)}%` })}
       ${statBadge("Attack", Math.round(st.att) + "%", { sub: "goals vs league average" })}
