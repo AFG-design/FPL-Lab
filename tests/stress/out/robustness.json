@@ -1,0 +1,1096 @@
+{
+ "generated": "2026-10-23T21:35:52+0100",
+ "copy": "/tmp/claude-0/robust",
+ "api_cache": "/tmp/claude-0/robust-apicache",
+ "api_note": "FPL API responses cached on first fetch so all runs share one snapshot of the API",
+ "snapshot_matches_original": {
+  "odds/odds.json": "same",
+  "odds/players.json": "same",
+  "priors.json": "same",
+  "europe.json": "same",
+  "understat/fpl_players.json": "same",
+  "understat/shots.json": "same",
+  "crowd/latest.json": "same",
+  "history/status.json": "same"
+ },
+ "baseline": {
+  "n_players": 457,
+  "plan_keys": [
+   "best",
+   "chase_best",
+   "chase_one",
+   "chase_roll",
+   "chase_three",
+   "chase_two",
+   "one",
+   "roll",
+   "safe_best",
+   "safe_one",
+   "safe_roll",
+   "safe_three",
+   "safe_two",
+   "three",
+   "two"
+  ],
+  "meta_odds": {
+   "built": "2026-10-23T20:11:56Z",
+   "matches": 80,
+   "upcoming": 10
+  },
+  "crowd_is_null": false,
+  "next_gw": 9,
+  "gw9_xp_top5": {
+   "Murillo": 3.69,
+   "Gibbs-White": 3.71,
+   "Palacios": 3.7,
+   "N.Williams": 3.48,
+   "McAtee": 3.45
+  }
+ },
+ "scenarios": [
+  {
+   "scenario": "baseline",
+   "mode": null,
+   "input": null,
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 21.2,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 20.8,
+   "note": "baseline"
+  },
+  {
+   "scenario": "missing__odds/odds.json",
+   "mode": "missing",
+   "input": "odds/odds.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 15.2,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 14.7,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": null,
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.75,
+    "Gibbs-White": 3.77,
+    "Palacios": 3.57,
+    "N.Williams": 3.55,
+    "McAtee": 3.49
+   },
+   "players_xp_changed": 372,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "accuracy",
+    "afg",
+    "gw_info",
+    "lineup",
+    "meta",
+    "plans",
+    "rating",
+    "review",
+    "sources",
+    "teams"
+   ]
+  },
+  {
+   "scenario": "corrupt__odds/odds.json",
+   "mode": "corrupt",
+   "input": "odds/odds.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 15.4,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 15.1,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": null,
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.75,
+    "Gibbs-White": 3.77,
+    "Palacios": 3.57,
+    "N.Williams": 3.55,
+    "McAtee": 3.49
+   },
+   "players_xp_changed": 372,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "accuracy",
+    "afg",
+    "gw_info",
+    "lineup",
+    "meta",
+    "plans",
+    "rating",
+    "review",
+    "sources",
+    "teams"
+   ]
+  },
+  {
+   "scenario": "missing__odds/players.json",
+   "mode": "missing",
+   "input": "odds/players.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 12.3,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 11.9,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "meta",
+    "sources"
+   ]
+  },
+  {
+   "scenario": "corrupt__odds/players.json",
+   "mode": "corrupt",
+   "input": "odds/players.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 12.7,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 12.2,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "meta",
+    "sources"
+   ]
+  },
+  {
+   "scenario": "missing__priors.json",
+   "mode": "missing",
+   "input": "priors.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 9.9,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 9.5,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.72,
+    "Gibbs-White": 3.74,
+    "Palacios": 3.7,
+    "N.Williams": 3.53,
+    "McAtee": 3.4
+   },
+   "players_xp_changed": 278,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "accuracy",
+    "afg",
+    "gw_info",
+    "lineup",
+    "meta",
+    "plans",
+    "rating",
+    "review"
+   ]
+  },
+  {
+   "scenario": "corrupt__priors.json",
+   "mode": "corrupt",
+   "input": "priors.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 9.8,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 9.3,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.72,
+    "Gibbs-White": 3.74,
+    "Palacios": 3.7,
+    "N.Williams": 3.53,
+    "McAtee": 3.4
+   },
+   "players_xp_changed": 278,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "accuracy",
+    "afg",
+    "gw_info",
+    "lineup",
+    "meta",
+    "plans",
+    "rating",
+    "review"
+   ]
+  },
+  {
+   "scenario": "missing__europe.json",
+   "mode": "missing",
+   "input": "europe.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 11.9,
+   "stdout_notes": [
+    "europe.json not used: [Errno 2] No such file or directory: '/tmp/claude-0/robust/europe.json'",
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 11.5,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 116,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "gw_info",
+    "plans",
+    "rating",
+    "review",
+    "teams",
+    "week"
+   ]
+  },
+  {
+   "scenario": "corrupt__europe.json",
+   "mode": "corrupt",
+   "input": "europe.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 12.2,
+   "stdout_notes": [
+    "europe.json not used: Expecting value: line 1 column 12 (char 11)",
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 11.7,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 116,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "gw_info",
+    "plans",
+    "rating",
+    "review",
+    "teams",
+    "week"
+   ]
+  },
+  {
+   "scenario": "missing__understat/fpl_players.json",
+   "mode": "missing",
+   "input": "understat/fpl_players.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 11.8,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 11.4,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "meta",
+    "sources",
+    "teams"
+   ]
+  },
+  {
+   "scenario": "corrupt__understat/fpl_players.json",
+   "mode": "corrupt",
+   "input": "understat/fpl_players.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 12.5,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 12.1,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "meta",
+    "sources",
+    "teams"
+   ]
+  },
+  {
+   "scenario": "missing__understat/shots.json",
+   "mode": "missing",
+   "input": "understat/shots.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 12.2,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError",
+    "shot maps skipped: [Errno 2] No such file or directory: '/tmp/claude-0/robust/understat/shots.json'"
+   ],
+   "build_secs": 11.7,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": []
+  },
+  {
+   "scenario": "corrupt__understat/shots.json",
+   "mode": "corrupt",
+   "input": "understat/shots.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 12.9,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError",
+    "shot maps skipped: Expecting value: line 1 column 12 (char 11)"
+   ],
+   "build_secs": 12.5,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": []
+  },
+  {
+   "scenario": "missing__crowd/latest.json",
+   "mode": "missing",
+   "input": "crowd/latest.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 9.7,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 9.3,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "one",
+    "roll",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": true,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [
+    "crowd"
+   ],
+   "top_keys_changed": [
+    "crowd",
+    "live",
+    "plans",
+    "rating",
+    "sources"
+   ]
+  },
+  {
+   "scenario": "corrupt__crowd/latest.json",
+   "mode": "corrupt",
+   "input": "crowd/latest.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 7.4,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 6.8,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "one",
+    "roll",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": true,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [
+    "crowd"
+   ],
+   "top_keys_changed": [
+    "crowd",
+    "live",
+    "plans",
+    "rating",
+    "sources"
+   ]
+  },
+  {
+   "scenario": "missing__history/status.json",
+   "mode": "missing",
+   "input": "history/status.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 17.9,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 17.4,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "sources"
+   ]
+  },
+  {
+   "scenario": "corrupt__history/status.json",
+   "mode": "corrupt",
+   "input": "history/status.json",
+   "content": null,
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 18.9,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 18.1,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "sources"
+   ]
+  },
+  {
+   "scenario": "shape__odds/odds.json__{}",
+   "mode": "shape",
+   "input": "odds/odds.json",
+   "content": "{}",
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 22.9,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 22.0,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": null,
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.75,
+    "Gibbs-White": 3.77,
+    "Palacios": 3.57,
+    "N.Williams": 3.55,
+    "McAtee": 3.49
+   },
+   "players_xp_changed": 372,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "accuracy",
+    "afg",
+    "gw_info",
+    "lineup",
+    "meta",
+    "plans",
+    "rating",
+    "review",
+    "sources",
+    "teams"
+   ]
+  },
+  {
+   "scenario": "shape__odds/odds.json__{\"matches\": []}",
+   "mode": "shape",
+   "input": "odds/odds.json",
+   "content": "{\"matches\": []}",
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 15.3,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 14.9,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "chase_best",
+    "chase_one",
+    "chase_roll",
+    "chase_three",
+    "chase_two",
+    "one",
+    "roll",
+    "safe_best",
+    "safe_one",
+    "safe_roll",
+    "safe_three",
+    "safe_two",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": null,
+    "matches": 0,
+    "upcoming": 0
+   },
+   "crowd_is_null": false,
+   "gw9_xp_top5": {
+    "Murillo": 3.75,
+    "Gibbs-White": 3.77,
+    "Palacios": 3.57,
+    "N.Williams": 3.55,
+    "McAtee": 3.49
+   },
+   "players_xp_changed": 372,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [],
+   "top_keys_changed": [
+    "accuracy",
+    "afg",
+    "gw_info",
+    "lineup",
+    "meta",
+    "plans",
+    "rating",
+    "review",
+    "sources",
+    "teams"
+   ]
+  },
+  {
+   "scenario": "shape__crowd/latest.json__{}",
+   "mode": "shape",
+   "input": "crowd/latest.json",
+   "content": "{}",
+   "exit_code": 0,
+   "crashed": false,
+   "wall_secs": 7.6,
+   "stdout_notes": [
+    "no previous deploy to compare set pieces: URLError"
+   ],
+   "build_secs": 7.2,
+   "n_players": 457,
+   "plan_keys": [
+    "best",
+    "one",
+    "roll",
+    "three",
+    "two"
+   ],
+   "meta_odds": {
+    "built": "2026-10-23T20:11:56Z",
+    "matches": 80,
+    "upcoming": 10
+   },
+   "crowd_is_null": true,
+   "gw9_xp_top5": {
+    "Murillo": 3.69,
+    "Gibbs-White": 3.71,
+    "Palacios": 3.7,
+    "N.Williams": 3.48,
+    "McAtee": 3.45
+   },
+   "players_xp_changed": 0,
+   "players_dropped": 0,
+   "players_added": 0,
+   "top_keys_nulled_or_empty": [
+    "crowd"
+   ],
+   "top_keys_changed": [
+    "crowd",
+    "live",
+    "plans",
+    "rating",
+    "sources"
+   ]
+  },
+  {
+   "scenario": "shape__crowd/latest.json__{\"near\": {}}",
+   "mode": "shape",
+   "input": "crowd/latest.json",
+   "content": "{\"near\": {}}",
+   "exit_code": 1,
+   "crashed": true,
+   "wall_secs": 6.1,
+   "stdout_notes": [],
+   "last_error": "KeyError: 'gw'",
+   "traceback_tail": [
+    "  File \"<frozen runpy>\", line 98, in _run_module_code",
+    "  File \"<frozen runpy>\", line 88, in _run_code",
+    "  File \"/tmp/claude-0/robust/build.py\", line 600, in <module>",
+    "    G = crowd[\"gw\"]",
+    "        ~~~~~^^^^^^",
+    "KeyError: 'gw'"
+   ]
+  }
+ ]
+}
