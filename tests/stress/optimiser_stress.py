@@ -132,7 +132,8 @@ case_B("lock non-ok (owned)", run("locked non-ok player already owned (should be
 # banned owned non-ok
 case_B("ban owned player", run("banned an owned player (forced sale)", banned=[PAL]), banned=[PAL])
 # extras
-lockpool = min((i for i, p in PL.items() if p["ok"] and i not in SQUAD and p["pos"] == "MID" and sum(p["xp"].values()) < 1), key=lambda i: PL[i]["price"], default=None)
+_mids = sorted((i for i, p in PL.items() if p["ok"] and i not in SQUAD and p["pos"] == "MID"), key=lambda i: -sum(PL[i]["xp"].values()))
+lockpool = _mids[60]   # ranked 61st MID by xP: outside both pools (python 45, browser 30)
 rec = run("locked cheap low-xP ok player outside the candidate pool", locked=[lockpool])
 if rec[0] is not None:
     held = [any(lockpool in (w["xi"] + w["bench"]) for w in rec[0]["weeks"][k:k + 1]) for k in range(len(GWS))]
