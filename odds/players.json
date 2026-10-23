@@ -1,0 +1,1 @@
+{"last_error":{"at":"2026-10-23T14:48:01+00:00","message":"HTTP 401 from https://api.the-odds-api.com/v4/sports/soccer_epl/events: {\"message\":\"API key is not valid. Get an API key at https://the-odds-api.com\",\"error_code\":\"INVALID_KEY\",\"details_url\":\"https://the-odds-api.com/liveapi/guides/v4/api-error-codes.html#invalid-key\"}\n"}}
