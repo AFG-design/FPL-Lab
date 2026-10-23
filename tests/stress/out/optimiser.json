@@ -1,0 +1,5440 @@
+{
+ "A_input": {
+  "gws": [
+   8,
+   9,
+   10,
+   11,
+   12
+  ],
+  "squad": [
+   "Raya",
+   "Calafiori",
+   "Konsa",
+   "Muharemovi\u0107",
+   "Gibbs-White",
+   "Rogers",
+   "Gro\u00df",
+   "Palmer",
+   "Calvert-Lewin",
+   "Jo\u00e3o Pedro",
+   "Haaland",
+   "Dubravka",
+   "De Cuyper",
+   "Slater",
+   "van Ewijk"
+  ],
+  "squad_value": 101.0,
+  "bank": 0.5,
+  "players": 668,
+  "not_ok": 373
+ },
+ "B_hostile": [
+  {
+   "label": "lock+ban same player (in squad: Haaland)",
+   "returned": "None",
+   "secs": 0.24,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "lock+ban same player (outside squad)",
+   "returned": "plan",
+   "xp_total": 253.15,
+   "secs": 0.76,
+   "issues": [
+    "GW8: locked Crooks missing",
+    "GW9: locked Crooks missing",
+    "GW10: locked Crooks missing",
+    "GW11: locked Crooks missing",
+    "GW12: locked Crooks missing"
+   ],
+   "verdict": "PLAN BREAKS RULES"
+  },
+  {
+   "label": "4 locked players from one club (team 6)",
+   "returned": "None",
+   "secs": 0.22,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "4 locked from one club, none owned",
+   "returned": "None",
+   "secs": 0.22,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "bank = -15.0 (illegal start, can be repaired by selling)",
+   "returned": "plan",
+   "xp_total": 237.48,
+   "secs": 1.51,
+   "issues": [],
+   "verdict": "legal plan returned"
+  },
+  {
+   "label": "bank = -60 (cannot be repaired)",
+   "returned": "None",
+   "secs": 0.23,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "locked 15 most expensive players (value 123.1m, bank 0.5)",
+   "returned": "None",
+   "secs": 0.17,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "locked non-ok player not owned (Saka, status i)",
+   "returned": "plan",
+   "xp_total": 253.15,
+   "secs": 1.14,
+   "issues": [
+    "GW8: locked Saka missing",
+    "GW9: locked Saka missing",
+    "GW10: locked Saka missing",
+    "GW11: locked Saka missing",
+    "GW12: locked Saka missing"
+   ],
+   "verdict": "PLAN BREAKS RULES"
+  },
+  {
+   "label": "locked non-ok player already owned (should be a legal hold)",
+   "returned": "plan",
+   "xp_total": 253.15,
+   "secs": 0.88,
+   "issues": [],
+   "verdict": "legal plan returned"
+  },
+  {
+   "label": "banned an owned player (forced sale)",
+   "returned": "plan",
+   "xp_total": 250.88,
+   "secs": 1.08,
+   "issues": [],
+   "verdict": "legal plan returned"
+  },
+  {
+   "label": "locked cheap low-xP ok player outside the candidate pool",
+   "returned": "plan",
+   "xp_total": 253.15,
+   "secs": 0.88,
+   "locked_player_held_each_week": [
+    false,
+    false,
+    false,
+    false,
+    false
+   ],
+   "note": "if any False the lock was silently ignored",
+   "issues": [
+    "GW8: locked Okafor missing",
+    "GW9: locked Okafor missing",
+    "GW10: locked Okafor missing",
+    "GW11: locked Okafor missing",
+    "GW12: locked Okafor missing"
+   ],
+   "verdict": "PLAN BREAKS RULES"
+  },
+  {
+   "label": "week1_moves=5 (> max_moves_week 4)",
+   "returned": "None",
+   "secs": 0.14,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "ft0=7 (above FPL cap)",
+   "returned": "None",
+   "secs": 0.17,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "ft0=-1",
+   "returned": "None",
+   "secs": 0.11,
+   "verdict": "clean failure"
+  },
+  {
+   "label": "squad contains id missing from players dict",
+   "returned": "EXCEPTION KeyError",
+   "error": "99999",
+   "secs": 0.0,
+   "verdict": "EXCEPTION KeyError"
+  },
+  {
+   "label": "14-player squad (one slot empty)",
+   "returned": "plan",
+   "xp_total": 248.28,
+   "secs": 3.42,
+   "issues": [
+    "GW8: in/out mismatch"
+   ],
+   "verdict": "PLAN BREAKS RULES"
+  },
+  {
+   "label": "duplicate id in squad list",
+   "returned": "plan",
+   "xp_total": 248.28,
+   "secs": 3.36,
+   "issues": [
+    "GW8: in/out mismatch",
+    "GW8: squad size 16",
+    "GW8: shape {'GKP': 3, 'DEF': 5, 'MID': 5, 'FWD': 3}",
+    "GW8: >3 per club {1: 4, 13: 2, 18: 1, 6: 2, 5: 2, 15: 1, 19: 1, 11: 1, 7: 1, 3: 1}",
+    "GW9: squad size 16",
+    "GW9: shape {'GKP': 3, 'DEF': 5, 'MID': 5, 'FWD': 3}",
+    "GW9: >3 per club {1: 4, 13: 2, 18: 1, 5: 2, 6: 1, 15: 1, 19: 1, 11: 1, 7: 1, 3: 1, 16: 1}",
+    "GW10: squad size 16",
+    "GW10: shape {'GKP': 3, 'DEF': 5, 'MID': 5, 'FWD': 3}",
+    "GW10: >3 per club {1: 4, 13: 2, 18: 1, 5: 2, 6: 1, 15: 1, 19: 1, 11: 1, 7: 1, 3: 1, 16: 1}",
+    "GW11: squad size 16",
+    "GW11: shape {'GKP': 3, 'DEF': 5, 'MID': 5, 'FWD': 3}",
+    "GW11: >3 per club {1: 4, 13: 2, 18: 1, 5: 2, 6: 1, 15: 1, 19: 1, 11: 1, 7: 1, 3: 1, 16: 1}",
+    "GW12: squad size 16",
+    "GW12: shape {'GKP': 3, 'DEF': 5, 'MID': 5, 'FWD': 3}",
+    "GW12: >3 per club {1: 4, 13: 2, 18: 1, 5: 2, 6: 1, 15: 1, 19: 1, 11: 1, 7: 1, 3: 1, 16: 1}"
+   ],
+   "verdict": "PLAN BREAKS RULES"
+  },
+  {
+   "label": "empty gws list",
+   "returned": "plan",
+   "xp_total": 0,
+   "secs": 0.01,
+   "issues": [],
+   "verdict": "legal plan returned"
+  },
+  {
+   "label": "time_limit=0 (no time to find an incumbent)",
+   "returned": "plan",
+   "xp_total": 253.73,
+   "secs": 0.27,
+   "issues": [
+    "GW9: bank -0.6 < 0",
+    "GW9: solver bank 0 vs replay -0.6",
+    "GW10: bank -0.6 < 0",
+    "GW10: solver bank 0 vs replay -0.6",
+    "GW11: bank -0.6 < 0",
+    "GW11: solver bank 0 vs replay -0.6",
+    "GW12: bank -0.6 < 0",
+    "GW12: solver bank 0 vs replay -0.6"
+   ],
+   "verdict": "PLAN BREAKS RULES"
+  },
+  {
+   "label": "max_moves_week=0 with week1_moves=1",
+   "returned": "None",
+   "secs": 0.29,
+   "verdict": "clean failure"
+  }
+ ],
+ "C_ft_grid": {
+  "runs": 20,
+  "mismatches": 0,
+  "rows": [
+   {
+    "ft0": 0,
+    "week1_moves": 0,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 0,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 0,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 0,
+    "week1_moves": 1,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 0,
+      "n": 1,
+      "hits": 1,
+      "rule_ft": 0,
+      "rule_hits": 1
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 0,
+    "week1_moves": 2,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 0,
+      "n": 2,
+      "hits": 2,
+      "rule_ft": 0,
+      "rule_hits": 2
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 0,
+    "week1_moves": 3,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 0,
+      "n": 3,
+      "hits": 3,
+      "rule_ft": 0,
+      "rule_hits": 3
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 0,
+    "week1_moves": 4,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 0,
+      "n": 4,
+      "hits": 4,
+      "rule_ft": 0,
+      "rule_hits": 4
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 1,
+    "week1_moves": 0,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 2,
+      "n": 2,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 1,
+    "week1_moves": 1,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 1,
+    "week1_moves": 2,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 1,
+      "n": 2,
+      "hits": 1,
+      "rule_ft": 1,
+      "rule_hits": 1
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 1,
+    "week1_moves": 3,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 1,
+      "n": 3,
+      "hits": 2,
+      "rule_ft": 1,
+      "rule_hits": 2
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 1,
+    "week1_moves": 4,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 1,
+      "n": 4,
+      "hits": 3,
+      "rule_ft": 1,
+      "rule_hits": 3
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 2,
+    "week1_moves": 0,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 3,
+      "n": 3,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 2,
+    "week1_moves": 1,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 2,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 2,
+      "n": 2,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 2,
+    "week1_moves": 2,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 2,
+      "n": 2,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 2,
+    "week1_moves": 3,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 2,
+      "n": 3,
+      "hits": 1,
+      "rule_ft": 2,
+      "rule_hits": 1
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 2,
+    "week1_moves": 4,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 2,
+      "n": 4,
+      "hits": 2,
+      "rule_ft": 2,
+      "rule_hits": 2
+     },
+     {
+      "gw": 9,
+      "ft": 1,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 1,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 1,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 4,
+    "rule_ft_left": 4,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 5,
+    "week1_moves": 0,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 5,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 5,
+      "n": 4,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 5,
+    "week1_moves": 1,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 5,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 5,
+      "n": 4,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 5,
+    "week1_moves": 2,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 5,
+      "n": 2,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 4,
+      "n": 3,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 5,
+    "week1_moves": 3,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 5,
+      "n": 3,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 3,
+      "n": 2,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   },
+   {
+    "ft0": 5,
+    "week1_moves": 4,
+    "returned": "plan",
+    "weeks": [
+     {
+      "gw": 8,
+      "ft": 5,
+      "n": 4,
+      "hits": 0,
+      "rule_ft": 5,
+      "rule_hits": 0
+     },
+     {
+      "gw": 9,
+      "ft": 2,
+      "n": 1,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 10,
+      "ft": 2,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 2,
+      "rule_hits": 0
+     },
+     {
+      "gw": 11,
+      "ft": 3,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 3,
+      "rule_hits": 0
+     },
+     {
+      "gw": 12,
+      "ft": 4,
+      "n": 0,
+      "hits": 0,
+      "rule_ft": 4,
+      "rule_hits": 0
+     }
+    ],
+    "ft_left": 5,
+    "rule_ft_left": 5,
+    "issues": [],
+    "mismatch": false
+   }
+  ]
+ },
+ "C_example_ft2_4moves": {
+  "weeks": [
+   {
+    "gw": 8,
+    "ft": 2,
+    "hits": 2,
+    "n": 4
+   },
+   {
+    "gw": 9,
+    "ft": 1,
+    "hits": 0,
+    "n": 1
+   },
+   {
+    "gw": 10,
+    "ft": 1,
+    "hits": 0,
+    "n": 0
+   },
+   {
+    "gw": 11,
+    "ft": 2,
+    "hits": 0,
+    "n": 0
+   },
+   {
+    "gw": 12,
+    "ft": 3,
+    "hits": 0,
+    "n": 0
+   }
+  ],
+  "issues": []
+ },
+ "C_ft_value_exploit": [
+  {
+   "ft_value": 1.5,
+   "hits": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "moves": [
+    1,
+    1,
+    0,
+    0,
+    0
+   ],
+   "ft": [
+    1,
+    1,
+    1,
+    2,
+    3
+   ],
+   "ft_left": 4,
+   "rule_violations": []
+  },
+  {
+   "ft_value": 3.9,
+   "hits": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "moves": [
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "ft": [
+    1,
+    1,
+    2,
+    3,
+    4
+   ],
+   "ft_left": 5,
+   "rule_violations": []
+  },
+  {
+   "ft_value": 4.1,
+   "hits": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "moves": [
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "ft": [
+    1,
+    1,
+    2,
+    3,
+    4
+   ],
+   "ft_left": 5,
+   "rule_violations": []
+  },
+  {
+   "ft_value": 6,
+   "hits": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "moves": [
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "ft": [
+    1,
+    1,
+    2,
+    3,
+    4
+   ],
+   "ft_left": 5,
+   "rule_violations": []
+  },
+  {
+   "ft_value": 10,
+   "hits": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "moves": [
+    1,
+    0,
+    0,
+    0,
+    0
+   ],
+   "ft": [
+    1,
+    1,
+    2,
+    3,
+    4
+   ],
+   "ft_left": 5,
+   "rule_violations": []
+  }
+ ],
+ "C_ft5_cap": [
+  5,
+  5,
+  2,
+  3,
+  4,
+  5
+ ],
+ "D_selling": {
+  "profit_players": {
+   "Raya": {
+    "now": 6.1,
+    "bought": 6.0,
+    "sell": 6.0
+   },
+   "Calafiori": {
+    "now": 6.0,
+    "bought": 5.5,
+    "sell": 5.7
+   },
+   "Konsa": {
+    "now": 4.6,
+    "bought": 4.5,
+    "sell": 4.5
+   },
+   "Rogers": {
+    "now": 8.0,
+    "bought": 7.5,
+    "sell": 7.7
+   },
+   "Gro\u00df": {
+    "now": 6.2,
+    "bought": 5.5,
+    "sell": 5.8
+   },
+   "Palmer": {
+    "now": 9.8,
+    "bought": 9.5,
+    "sell": 9.6
+   },
+   "Calvert-Lewin": {
+    "now": 6.1,
+    "bought": 6.0,
+    "sell": 6.0
+   },
+   "Jo\u00e3o Pedro": {
+    "now": 7.9,
+    "bought": 7.5,
+    "sell": 7.7
+   },
+   "Haaland": {
+    "now": 15.7,
+    "bought": 15.5,
+    "sell": 15.6
+   },
+   "De Cuyper": {
+    "now": 5.3,
+    "bought": 4.5,
+    "sell": 4.9
+   }
+  },
+  "ban Haaland (profit 0.2)": {
+   "issues": [],
+   "bank": [
+    4.4,
+    3.3,
+    3.3,
+    3.3,
+    3.3
+   ],
+   "moves": [
+    [
+     [
+      "Calafiori",
+      "Gabriel"
+     ],
+     [
+      "Slater",
+      "Mbeumo"
+     ],
+     [
+      "Haaland",
+      "Gonzalo"
+     ]
+    ],
+    [
+     [
+      "van Ewijk",
+      "Silva"
+     ]
+    ],
+    [],
+    [],
+    []
+   ]
+  },
+  "ban Palmer+Rogers+Gro\u00df": {
+   "issues": [],
+   "bank": [
+    1.2,
+    0.1,
+    0.1,
+    0.1,
+    0.1
+   ],
+   "moves": [
+    [
+     [
+      "Rogers",
+      "Rudoni"
+     ],
+     [
+      "Gro\u00df",
+      "B.Fernandes"
+     ],
+     [
+      "Palmer",
+      "E.Le F\u00e9e"
+     ]
+    ],
+    [
+     [
+      "van Ewijk",
+      "Silva"
+     ]
+    ],
+    [],
+    [],
+    []
+   ]
+  },
+  "chains_python": {
+   "buy-in-plan then sell (A out, B in GW8; B out, C in GW9)": {
+    "optimise_py": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ],
+    "fpl_rule": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ],
+    "moves": [
+     [
+      8,
+      "Haaland",
+      "Isak"
+     ],
+     [
+      9,
+      "Isak",
+      "Gy\u00f6keres"
+     ]
+    ]
+   },
+   "sell profit player (Haaland out, GW8)": {
+    "optimise_py": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "fpl_rule": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "moves": [
+     [
+      8,
+      "Haaland",
+      "Isak"
+     ]
+    ]
+   },
+   "sell-rebuy-sell original profit player (Haaland out GW8, back GW9, out GW10)": {
+    "optimise_py": [
+     7.1,
+     0.4,
+     7.0,
+     7.0,
+     7.0
+    ],
+    "fpl_rule": [
+     7.1,
+     0.4,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "moves": [
+     [
+      8,
+      "Haaland",
+      "Isak"
+     ],
+     [
+      9,
+      "Isak",
+      "Haaland"
+     ],
+     [
+      10,
+      "Haaland",
+      "Isak"
+     ]
+    ]
+   }
+  }
+ },
+ "_chains_for_node": {
+  "buy-in-plan then sell (A out, B in GW8; B out, C in GW9)": [
+   [
+    8,
+    "Haaland",
+    "Isak"
+   ],
+   [
+    9,
+    "Isak",
+    "Gy\u00f6keres"
+   ]
+  ],
+  "sell profit player (Haaland out, GW8)": [
+   [
+    8,
+    "Haaland",
+    "Isak"
+   ]
+  ],
+  "sell-rebuy-sell original profit player (Haaland out GW8, back GW9, out GW10)": [
+   [
+    8,
+    "Haaland",
+    "Isak"
+   ],
+   [
+    9,
+    "Isak",
+    "Haaland"
+   ],
+   [
+    10,
+    "Haaland",
+    "Isak"
+   ]
+  ]
+ },
+ "E_time_limit": [
+  {
+   "mode": "balanced",
+   "ft0": 1,
+   "time_limit": 40,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.79
+   },
+   "secs": 0.85,
+   "returned": "plan",
+   "objective": 249.49,
+   "xp_total": 304.44,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "balanced",
+   "ft0": 1,
+   "time_limit": 3,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.97
+   },
+   "secs": 1.14,
+   "returned": "plan",
+   "objective": 249.49,
+   "xp_total": 304.44,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "balanced",
+   "ft0": 1,
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.85
+   },
+   "secs": 1.03,
+   "returned": "plan",
+   "objective": 249.49,
+   "xp_total": 304.44,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "balanced",
+   "ft0": 3,
+   "time_limit": 40,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 3.38
+   },
+   "secs": 3.46,
+   "returned": "plan",
+   "objective": 254.23,
+   "xp_total": 309.61,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "balanced",
+   "ft0": 3,
+   "time_limit": 3,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 2.43
+   },
+   "secs": 2.48,
+   "returned": "plan",
+   "objective": 254.23,
+   "xp_total": 309.61,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "balanced",
+   "ft0": 3,
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 2,
+    "secs": 1.04
+   },
+   "secs": 1.09,
+   "returned": "plan",
+   "objective": 251.53,
+   "xp_total": 308.85,
+   "result_has_status_field": false,
+   "issues": [
+    "GW9: ft 1 != rule 2",
+    "GW10: ft 1 != rule 2",
+    "GW11: ft 1 != rule 2",
+    "GW12: ft 2 != rule 3",
+    "GW13: ft 3 != rule 4",
+    "ft_left 4 != rule 5"
+   ],
+   "gap_vs_full": 2.7
+  },
+  {
+   "mode": "chase",
+   "ft0": 1,
+   "time_limit": 40,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 1.0
+   },
+   "secs": 1.08,
+   "returned": "plan",
+   "objective": 292.59,
+   "xp_total": 304.85,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "chase",
+   "ft0": 1,
+   "time_limit": 3,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 1.35
+   },
+   "secs": 1.47,
+   "returned": "plan",
+   "objective": 292.59,
+   "xp_total": 304.85,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "chase",
+   "ft0": 1,
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 2,
+    "secs": 1.0
+   },
+   "secs": 1.09,
+   "returned": "plan",
+   "objective": 292.1,
+   "xp_total": 306.15,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.49
+  },
+  {
+   "mode": "chase",
+   "ft0": 3,
+   "time_limit": 40,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.77
+   },
+   "secs": 0.86,
+   "returned": "plan",
+   "objective": 299.51,
+   "xp_total": 308.78,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "chase",
+   "ft0": 3,
+   "time_limit": 3,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.77
+   },
+   "secs": 0.89,
+   "returned": "plan",
+   "objective": 299.51,
+   "xp_total": 308.78,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "chase",
+   "ft0": 3,
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.59
+   },
+   "secs": 0.68,
+   "returned": "plan",
+   "objective": 299.51,
+   "xp_total": 308.78,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "safe",
+   "ft0": 1,
+   "time_limit": 40,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.66
+   },
+   "secs": 0.72,
+   "returned": "plan",
+   "objective": 250.82,
+   "xp_total": 305.0,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "safe",
+   "ft0": 1,
+   "time_limit": 3,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.65
+   },
+   "secs": 0.74,
+   "returned": "plan",
+   "objective": 250.82,
+   "xp_total": 305.0,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "safe",
+   "ft0": 1,
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 0.86
+   },
+   "secs": 0.92,
+   "returned": "plan",
+   "objective": 250.82,
+   "xp_total": 305.0,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "safe",
+   "ft0": 3,
+   "time_limit": 40,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 1.61
+   },
+   "secs": 1.69,
+   "returned": "plan",
+   "objective": 254.88,
+   "xp_total": 308.77,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "safe",
+   "ft0": 3,
+   "time_limit": 3,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 1,
+    "secs": 1.53
+   },
+   "secs": 1.63,
+   "returned": "plan",
+   "objective": 254.88,
+   "xp_total": 308.77,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  },
+  {
+   "mode": "safe",
+   "ft0": 3,
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 2,
+    "secs": 1.01
+   },
+   "secs": 1.1,
+   "returned": "plan",
+   "objective": 254.88,
+   "xp_total": 308.77,
+   "result_has_status_field": false,
+   "issues": [],
+   "gap_vs_full": 0.0
+  }
+ ],
+ "F_py_vs_js": [
+  {
+   "case": "balanced_ft1",
+   "py_default_pool": {
+    "secs": 0.66,
+    "obj_reeval": 217.246,
+    "obj_reported": 217.25,
+    "plain_xp": 253.15,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      480,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.45,
+    "obj_reeval": 217.246,
+    "obj_reported": 217.25,
+    "plain_xp": 253.15,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      480,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "js": {
+    "status": "Optimal",
+    "secs": 3.275,
+    "obj_reeval": 217.246,
+    "obj_highs": 217.246,
+    "plain_xp": 253.15,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      480,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [],
+    "pool": 85
+   }
+  },
+  {
+   "case": "balanced_ft2",
+   "py_default_pool": {
+    "secs": 1.18,
+    "obj_reeval": 219.609,
+    "obj_reported": 219.61,
+    "plain_xp": 255.73,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.56,
+    "obj_reeval": 219.609,
+    "obj_reported": 219.61,
+    "plain_xp": 255.73,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "js": {
+    "status": "Optimal",
+    "secs": 3.441,
+    "obj_reeval": 219.609,
+    "obj_highs": 219.609,
+    "plain_xp": 255.73,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [],
+    "pool": 85
+   }
+  },
+  {
+   "case": "balanced_ft5",
+   "py_default_pool": {
+    "secs": 1.04,
+    "obj_reeval": 225.038,
+    "obj_reported": 225.04,
+    "plain_xp": 260.6,
+    "moves": [
+     [
+      8,
+      8,
+      4
+     ],
+     [
+      8,
+      115,
+      173
+     ],
+     [
+      8,
+      124,
+      183
+     ],
+     [
+      8,
+      175,
+      566
+     ],
+     [
+      9,
+      40,
+      427
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     4,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      31,
+      40,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      183,
+      334,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      183,
+      346,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      480,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.74,
+    "obj_reeval": 225.038,
+    "obj_reported": 225.04,
+    "plain_xp": 260.6,
+    "moves": [
+     [
+      8,
+      8,
+      4
+     ],
+     [
+      8,
+      115,
+      173
+     ],
+     [
+      8,
+      124,
+      183
+     ],
+     [
+      8,
+      175,
+      566
+     ],
+     [
+      9,
+      40,
+      427
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     4,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      31,
+      40,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      183,
+      334,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      183,
+      346,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      480,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": []
+   },
+   "js": {
+    "status": "Optimal",
+    "secs": 4.111,
+    "obj_reeval": 225.038,
+    "obj_highs": 225.038,
+    "plain_xp": 260.6,
+    "moves": [
+     [
+      8,
+      8,
+      4
+     ],
+     [
+      8,
+      115,
+      566
+     ],
+     [
+      8,
+      124,
+      183
+     ],
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      9,
+      40,
+      427
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     4,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      31,
+      40,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      183,
+      334,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      183,
+      346,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      31,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      480,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": [],
+    "pool": 85
+   }
+  },
+  {
+   "case": "chase_ft1",
+   "py_default_pool": {
+    "secs": 1.39,
+    "obj_reeval": 254.011,
+    "obj_reported": 254.01,
+    "plain_xp": 255.08,
+    "moves": [
+     [
+      8,
+      124,
+      183
+     ],
+     [
+      9,
+      175,
+      566
+     ],
+     [
+      10,
+      40,
+      427
+     ],
+     [
+      11,
+      31,
+      504
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     411,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      154,
+      165,
+      183,
+      334,
+      411,
+      480
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      183,
+      334,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      115,
+      154,
+      165,
+      334,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      115,
+      154,
+      183,
+      346,
+      411,
+      427,
+      480,
+      504,
+      566
+     ],
+     [
+      1,
+      8,
+      115,
+      154,
+      334,
+      346,
+      411,
+      427,
+      480,
+      504,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 2,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 1.0,
+    "obj_reeval": 254.011,
+    "obj_reported": 254.01,
+    "plain_xp": 255.08,
+    "moves": [
+     [
+      8,
+      124,
+      183
+     ],
+     [
+      9,
+      175,
+      566
+     ],
+     [
+      10,
+      40,
+      427
+     ],
+     [
+      11,
+      31,
+      504
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     411,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      154,
+      165,
+      183,
+      334,
+      411,
+      480
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      183,
+      334,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      115,
+      154,
+      165,
+      334,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      115,
+      154,
+      183,
+      346,
+      411,
+      427,
+      480,
+      504,
+      566
+     ],
+     [
+      1,
+      8,
+      115,
+      154,
+      334,
+      346,
+      411,
+      427,
+      480,
+      504,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 2,
+    "issues": []
+   },
+   "js": {
+    "status": "Optimal",
+    "secs": 2.704,
+    "obj_reeval": 254.011,
+    "obj_highs": 254.011,
+    "plain_xp": 255.08,
+    "moves": [
+     [
+      8,
+      124,
+      183
+     ],
+     [
+      9,
+      175,
+      566
+     ],
+     [
+      10,
+      40,
+      427
+     ],
+     [
+      11,
+      31,
+      504
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     411,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      154,
+      165,
+      183,
+      334,
+      411,
+      480
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      183,
+      334,
+      411,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      115,
+      154,
+      165,
+      334,
+      411,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      8,
+      115,
+      154,
+      183,
+      346,
+      411,
+      427,
+      480,
+      504,
+      566
+     ],
+     [
+      1,
+      8,
+      115,
+      154,
+      334,
+      346,
+      411,
+      427,
+      480,
+      504,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 2,
+    "issues": [],
+    "pool": 85
+   }
+  },
+  {
+   "case": "chase_ft2",
+   "py_default_pool": {
+    "secs": 1.65,
+    "obj_reeval": 257.491,
+    "obj_reported": 257.49,
+    "plain_xp": 256.01,
+    "moves": [
+     [
+      8,
+      31,
+      4
+     ],
+     [
+      8,
+      480,
+      183
+     ],
+     [
+      9,
+      175,
+      173
+     ],
+     [
+      10,
+      40,
+      427
+     ]
+    ],
+    "captains": [
+     4,
+     411,
+     4,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      8,
+      40,
+      115,
+      124,
+      154,
+      165,
+      183,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      8,
+      40,
+      115,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      173,
+      183,
+      346,
+      411,
+      427
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 3,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 1.36,
+    "obj_reeval": 257.491,
+    "obj_reported": 257.49,
+    "plain_xp": 256.01,
+    "moves": [
+     [
+      8,
+      31,
+      4
+     ],
+     [
+      8,
+      480,
+      183
+     ],
+     [
+      9,
+      175,
+      173
+     ],
+     [
+      10,
+      40,
+      427
+     ]
+    ],
+    "captains": [
+     4,
+     411,
+     4,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      8,
+      40,
+      115,
+      124,
+      154,
+      165,
+      183,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      8,
+      40,
+      115,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      165,
+      173,
+      183,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      173,
+      183,
+      346,
+      411,
+      427
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 3,
+    "issues": []
+   },
+   "js": {
+    "error": "Unable to solve the problem. HiGHS error RuntimeError: Aborted(). Build with -sASSERTIONS for more info.",
+    "status": null
+   }
+  },
+  {
+   "case": "chase_ft5",
+   "py_default_pool": {
+    "secs": 0.7,
+    "obj_reeval": 266.014,
+    "obj_reported": 266.01,
+    "plain_xp": 259.8,
+    "moves": [
+     [
+      8,
+      31,
+      4
+     ],
+     [
+      8,
+      40,
+      183
+     ],
+     [
+      8,
+      346,
+      569
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      165,
+      249
+     ],
+     [
+      9,
+      175,
+      566
+     ]
+    ],
+    "captains": [
+     4,
+     411,
+     4,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      165,
+      183,
+      334,
+      411,
+      427,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      154,
+      183,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      183,
+      249,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      4,
+      115,
+      124,
+      154,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.47,
+    "obj_reeval": 266.014,
+    "obj_reported": 266.01,
+    "plain_xp": 259.8,
+    "moves": [
+     [
+      8,
+      31,
+      4
+     ],
+     [
+      8,
+      40,
+      183
+     ],
+     [
+      8,
+      346,
+      569
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      165,
+      249
+     ],
+     [
+      9,
+      175,
+      566
+     ]
+    ],
+    "captains": [
+     4,
+     411,
+     4,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      165,
+      183,
+      334,
+      411,
+      427,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      154,
+      183,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      183,
+      249,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      4,
+      115,
+      124,
+      154,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: memory access out of bounds",
+    "status": null
+   }
+  },
+  {
+   "case": "safe_ft1",
+   "py_default_pool": {
+    "secs": 1.2,
+    "obj_reeval": 218.694,
+    "obj_reported": 218.69,
+    "plain_xp": 251.61,
+    "moves": [
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      175,
+      173
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.79,
+    "obj_reeval": 218.694,
+    "obj_reported": 218.69,
+    "plain_xp": 251.61,
+    "moves": [
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      175,
+      173
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": []
+   },
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "status": null
+   }
+  },
+  {
+   "case": "safe_ft2",
+   "py_default_pool": {
+    "secs": 0.57,
+    "obj_reeval": 220.958,
+    "obj_reported": 220.96,
+    "plain_xp": 252.56,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.42,
+    "obj_reeval": 220.958,
+    "obj_reported": 220.96,
+    "plain_xp": 252.56,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": []
+   },
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "status": null
+   }
+  },
+  {
+   "case": "safe_ft5",
+   "py_default_pool": {
+    "secs": 1.85,
+    "obj_reeval": 225.146,
+    "obj_reported": 225.15,
+    "plain_xp": 256.12,
+    "moves": [
+     [
+      8,
+      115,
+      173
+     ],
+     [
+      8,
+      346,
+      569
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      8,
+      497,
+      199
+     ],
+     [
+      9,
+      175,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      173,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      173,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 1.74,
+    "obj_reeval": 225.146,
+    "obj_reported": 225.15,
+    "plain_xp": 256.12,
+    "moves": [
+     [
+      8,
+      115,
+      173
+     ],
+     [
+      8,
+      346,
+      569
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      8,
+      497,
+      199
+     ],
+     [
+      9,
+      175,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      173,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      173,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": []
+   },
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "status": null
+   }
+  },
+  {
+   "case": "balanced_lock154_ban411",
+   "py_default_pool": {
+    "secs": 0.71,
+    "obj_reeval": 213.167,
+    "obj_reported": 213.17,
+    "plain_xp": 250.33,
+    "moves": [
+     [
+      8,
+      290,
+      427
+     ],
+     [
+      8,
+      411,
+      569
+     ],
+     [
+      9,
+      175,
+      566
+     ],
+     [
+      10,
+      8,
+      4
+     ]
+    ],
+    "captains": [
+     31,
+     566,
+     4,
+     4,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      334,
+      427,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      334,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      334,
+      427,
+      480,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      165,
+      346,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      115,
+      124,
+      154,
+      334,
+      346,
+      427,
+      480,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 3,
+    "issues": []
+   },
+   "py_js_pool": {
+    "secs": 0.45,
+    "obj_reeval": 213.167,
+    "obj_reported": 213.17,
+    "plain_xp": 250.33,
+    "moves": [
+     [
+      8,
+      290,
+      427
+     ],
+     [
+      8,
+      411,
+      569
+     ],
+     [
+      9,
+      175,
+      566
+     ],
+     [
+      10,
+      8,
+      4
+     ]
+    ],
+    "captains": [
+     31,
+     566,
+     4,
+     4,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      334,
+      427,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      334,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      334,
+      427,
+      480,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      165,
+      346,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      115,
+      124,
+      154,
+      334,
+      346,
+      427,
+      480,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 3,
+    "issues": []
+   },
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "status": null
+   }
+  },
+  {
+   "case": "balanced_lockpool",
+   "py_default_pool": {
+    "secs": 0.99,
+    "obj_reeval": 219.609,
+    "obj_reported": 219.61,
+    "plain_xp": 255.73,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [
+     "GW8: locked Okafor missing",
+     "GW9: locked Okafor missing",
+     "GW10: locked Okafor missing",
+     "GW11: locked Okafor missing",
+     "GW12: locked Okafor missing"
+    ]
+   },
+   "py_js_pool": {
+    "secs": 0.67,
+    "obj_reeval": 219.609,
+    "obj_reported": 219.61,
+    "plain_xp": 255.73,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      115,
+      566
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      8,
+      31,
+      124,
+      154,
+      173,
+      334,
+      346,
+      411,
+      427,
+      566
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [
+     "GW8: locked Okafor missing",
+     "GW9: locked Okafor missing",
+     "GW10: locked Okafor missing",
+     "GW11: locked Okafor missing",
+     "GW12: locked Okafor missing"
+    ]
+   },
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "status": null
+   }
+  },
+  {
+   "case": "balanced_lock4club",
+   "py_default_pool": null,
+   "py_js_pool": null,
+   "js": {
+    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "status": null
+   }
+  }
+ ],
+ "F_js_hostile": {
+  "js_maxHits0_ft1": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.004
+  },
+  "js_lock_ban_same": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.006
+  },
+  "js_4club": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.004
+  },
+  "js_bank_-60": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.003
+  },
+  "js_lock_notok": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.004
+  },
+  "js_prem": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.009
+  },
+  "js_14man": {
+   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+   "secs": 0.007
+  }
+ },
+ "G_frontend": {
+  "consts": {
+   "LAM": {
+    "balanced": 0,
+    "safe": 0.02,
+    "chase": -0.03
+   },
+   "STRAT": {
+    "balanced": {},
+    "safe": {
+     "hitMargin": 2,
+     "nailW": 0.5
+    },
+    "chase": {
+     "haulW": 10
+    }
+   }
+  },
+  "per_mode_plan_replay": {
+   "balanced": {
+    "weeks": 80,
+    "cap_diff": 18,
+    "xi_set_diff": 1,
+    "pts_diff": 16,
+    "ft_diff": 0,
+    "hits_diff": 0,
+    "bank_diff": 0,
+    "examples": [
+     {
+      "plan": "ft1_best",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft1_roll",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft1_one",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft1_two",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft2_best",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft2_roll",
+      "gw": 10,
+      "optimiser_cap": "Gabriel",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Gabriel",
+      "xp_opt": 5.44,
+      "xp_page": 4.85
+     }
+    ],
+    "tot_gap_max": 0.59,
+    "tot_gap_mean": 0.286
+   },
+   "safe": {
+    "weeks": 80,
+    "cap_diff": 32,
+    "xi_set_diff": 39,
+    "pts_diff": 48,
+    "ft_diff": 0,
+    "hits_diff": 0,
+    "bank_diff": 0,
+    "examples": [
+     {
+      "plan": "ft1_best",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft1_best",
+      "gw": 12,
+      "optimiser_cap": "Muharemovi\u0107",
+      "optimiser_pos": "DEF",
+      "page_cap": "Calvert-Lewin",
+      "page_swapped": "Muharemovi\u0107",
+      "xp_opt": 4.56,
+      "xp_page": 4.56
+     },
+     {
+      "plan": "ft1_roll",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft1_roll",
+      "gw": 12,
+      "optimiser_cap": "Muharemovi\u0107",
+      "optimiser_pos": "DEF",
+      "page_cap": "Calvert-Lewin",
+      "page_swapped": "Muharemovi\u0107",
+      "xp_opt": 4.56,
+      "xp_page": 4.56
+     },
+     {
+      "plan": "ft1_one",
+      "gw": 10,
+      "optimiser_cap": "Calafiori",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Calafiori",
+      "xp_opt": 4.9,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft1_one",
+      "gw": 12,
+      "optimiser_cap": "Muharemovi\u0107",
+      "optimiser_pos": "DEF",
+      "page_cap": "Calvert-Lewin",
+      "page_swapped": "Muharemovi\u0107",
+      "xp_opt": 4.56,
+      "xp_page": 4.56
+     }
+    ],
+    "tot_gap_max": -1.36,
+    "tot_gap_mean": -0.908
+   },
+   "chase": {
+    "weeks": 80,
+    "cap_diff": 28,
+    "xi_set_diff": 31,
+    "pts_diff": 38,
+    "ft_diff": 0,
+    "hits_diff": 0,
+    "bank_diff": 0,
+    "examples": [
+     {
+      "plan": "ft1_best",
+      "gw": 9,
+      "optimiser_cap": "Haaland",
+      "optimiser_pos": "FWD",
+      "page_cap": "Rudoni",
+      "page_swapped": "Silva",
+      "xp_opt": 5.05,
+      "xp_page": 4.1
+     },
+     {
+      "plan": "ft1_roll",
+      "gw": 9,
+      "optimiser_cap": "Haaland",
+      "optimiser_pos": "FWD",
+      "page_cap": "Silva",
+      "page_swapped": null,
+      "xp_opt": 5.05,
+      "xp_page": 4.37
+     },
+     {
+      "plan": "ft1_one",
+      "gw": 9,
+      "optimiser_cap": "Haaland",
+      "optimiser_pos": "FWD",
+      "page_cap": "Rudoni",
+      "page_swapped": "Silva",
+      "xp_opt": 5.05,
+      "xp_page": 4.1
+     },
+     {
+      "plan": "ft1_two",
+      "gw": 9,
+      "optimiser_cap": "Haaland",
+      "optimiser_pos": "FWD",
+      "page_cap": "Rudoni",
+      "page_swapped": "Thomas",
+      "xp_opt": 5.05,
+      "xp_page": 4.1
+     },
+     {
+      "plan": "ft1_two",
+      "gw": 10,
+      "optimiser_cap": "Gabriel",
+      "optimiser_pos": "DEF",
+      "page_cap": "Haaland",
+      "page_swapped": "Gabriel",
+      "xp_opt": 5.44,
+      "xp_page": 4.85
+     },
+     {
+      "plan": "ft2_best",
+      "gw": 9,
+      "optimiser_cap": "Haaland",
+      "optimiser_pos": "FWD",
+      "page_cap": "Rudoni",
+      "page_swapped": "Thomas",
+      "xp_opt": 5.05,
+      "xp_page": 4.1
+     }
+    ],
+    "tot_gap_max": 2.11,
+    "tot_gap_mean": 1.197
+   }
+  },
+  "capPick_census_random_squads": {
+   "squad_weeks": 1500,
+   "swaps": 840,
+   "pct": 56.0,
+   "xp_given_up_mean": 0.295,
+   "xp_given_up_max": 0.6,
+   "captain_differs_from_optimiser_rule": 840
+  },
+  "capPick_census_plan_squads": {
+   "squad_weeks": 80,
+   "swaps": 32,
+   "pct": 40.0,
+   "xp_given_up_mean": 0.143,
+   "xp_given_up_max": 0.59,
+   "captain_differs_from_optimiser_rule": 32,
+   "optimiser_chose_GKP_or_DEF_captain": 18
+  },
+  "bank_probes": [
+   {
+    "name": "buy-in-plan then sell (A out, B in GW8; B out, C in GW9)",
+    "bank": [
+     7.2,
+     9.2,
+     9.2,
+     9.2,
+     9.2
+    ]
+   },
+   {
+    "name": "sell profit player (Haaland out, GW8)",
+    "bank": [
+     7.2,
+     7.2,
+     7.2,
+     7.2,
+     7.2
+    ]
+   },
+   {
+    "name": "sell-rebuy-sell original profit player (Haaland out GW8, back GW9, out GW10)",
+    "bank": [
+     7.2,
+     0.5,
+     7.2,
+     7.2,
+     7.2
+    ]
+   }
+  ],
+  "python_bank_models": {
+   "buy-in-plan then sell (A out, B in GW8; B out, C in GW9)": {
+    "optimise_py": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ],
+    "fpl_rule": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ]
+   },
+   "sell profit player (Haaland out, GW8)": {
+    "optimise_py": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "fpl_rule": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ]
+   },
+   "sell-rebuy-sell original profit player (Haaland out GW8, back GW9, out GW10)": {
+    "optimise_py": [
+     7.1,
+     0.4,
+     7.0,
+     7.0,
+     7.0
+    ],
+    "fpl_rule": [
+     7.1,
+     0.4,
+     7.1,
+     7.1,
+     7.1
+    ]
+   }
+  },
+  "bank_compare_profit_sell_map": [
+   {
+    "chain": "buy-in-plan then sell (A out, B in GW8; B out, C in GW9)",
+    "plan_js_bankAt": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ],
+    "optimise_py_rule": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ],
+    "fpl_rule": [
+     7.1,
+     9.1,
+     9.1,
+     9.1,
+     9.1
+    ]
+   },
+   {
+    "chain": "sell profit player (Haaland out, GW8)",
+    "plan_js_bankAt": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "optimise_py_rule": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "fpl_rule": [
+     7.1,
+     7.1,
+     7.1,
+     7.1,
+     7.1
+    ]
+   },
+   {
+    "chain": "sell-rebuy-sell original profit player (Haaland out GW8, back GW9, out GW10)",
+    "plan_js_bankAt": [
+     7.1,
+     0.4,
+     7.1,
+     7.1,
+     7.1
+    ],
+    "optimise_py_rule": [
+     7.1,
+     0.4,
+     7.0,
+     7.0,
+     7.0
+    ],
+    "fpl_rule": [
+     7.1,
+     0.4,
+     7.1,
+     7.1,
+     7.1
+    ]
+   }
+  ],
+  "ftTable_vs_rule": {
+   "cases": 175,
+   "mismatches": [],
+   "n_mismatch": 0
+  }
+ },
+ "G_constants": {
+  "build.py_MODES_lam": [
+   [
+    "balanced",
+    "0.0"
+   ],
+   [
+    "safe",
+    "0.02"
+   ],
+   [
+    "chase",
+    "-0.03"
+   ],
+   [
+    "balanced",
+    "0.0"
+   ]
+  ],
+  "build.py_STRATEGY": "{\"safe\": {\"hit_margin\": 2.0, \"nail_w\": 0.5}, \"chase\": {\"haul_w\": 10.0}}",
+  "model.js_LAM": "{ balanced: 0, safe: 0.02, chase: -0.03 }",
+  "model.js_STRAT": "{ balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 10 } }",
+  "build.py_slope_literal": "0.86",
+  "fplmodel_cal_slope": 0.86,
+  "fplmodel_cal_int": 0.33,
+  "optimise_defaults": {
+   "decay": 0.9,
+   "bench_w": 0.1,
+   "ft_value": 1.5,
+   "hit": 4,
+   "max_moves_week": 4,
+   "eo_weeks": 2,
+   "POOL": {
+    "GKP": 14,
+    "DEF": 40,
+    "MID": 45,
+    "FWD": 25
+   }
+  },
+  "plan-solver_defaults": {
+   "decay": 0.9,
+   "benchW": 0.1,
+   "ftValue": 1.5,
+   "hit": 4,
+   "maxMovesWeek": 4,
+   "eoWeeks": 2,
+   "POOL": {
+    "GKP": 10,
+    "DEF": 26,
+    "MID": 30,
+    "FWD": 16
+   }
+  },
+  "xp_minus_slope_x_detail_sum_GW8_squad": [
+   0.33,
+   0.33,
+   0.33,
+   0.33,
+   0.33,
+   0.33,
+   0.33,
+   0.33,
+   0.17,
+   0.3,
+   0.33,
+   0.0,
+   0.33,
+   0.33,
+   0.3
+  ]
+ }
+}

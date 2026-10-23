@@ -16,13 +16,15 @@ const input = JSON.parse(fs.readFileSync(inFile, "utf8"));
 async function solverTask() {
   const FPLSolver = require(path.join(ROOT, "site/plan-solver.js"));
   const HighsFactory = require(path.join(ROOT, "site/vendor/highs.js"));
-  const highs = await HighsFactory({ locateFile: f => path.join(ROOT, "site/vendor", f) });
+  // a fresh wasm instance per case: after one Abort() the shared instance is unusable ("null function signature mismatch")
+  const fresh = () => HighsFactory({ locateFile: f => path.join(ROOT, "site/vendor", f) });
   const out = {};
   for (const c of input.cases) {
     const inp = { ...c.opts, players: input.players, squad: c.squad, sell: c.sell, bank: c.bank, ft0: c.ft0, gws: c.gws };
     const rec = { name: c.name };
     const t0 = Date.now();
     try {
+      const highs = await fresh();
       const { lp, ids } = FPLSolver.buildLP(inp);
       const sol = highs.solve(lp, { mip_rel_gap: 0.001, time_limit: 25, presolve: "on" });
       rec.status = sol && sol.Status;
