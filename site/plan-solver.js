@@ -118,11 +118,36 @@
     return { moves, weeks, objective: sol.ObjectiveValue };
   }
 
-  async function solve(highs, inp) {
+  // HiGHS (wasm) sometimes aborts or runs off its memory on a real input; the module can't be trusted after that,
+  // so each retry gets a fresh instance (makeHighs) and different options.
+  const TRIES = [
+    { mip_rel_gap: 0.001, time_limit: 25, presolve: "on" },
+    { mip_rel_gap: 0.001, time_limit: 25, presolve: "on", random_seed: 7 },
+    { mip_rel_gap: 0.01, time_limit: 25, presolve: "on", random_seed: 7 },
+  ];
+  const complete = r => r.weeks.length > 0 && r.weeks.every(w => w.xi.length === 11 && w.captain != null && w.xi.includes(w.captain));
+  // Optimal, or out of time but still holding a full plan; anything else is a failure
+  function accept(inp, ids, sol) {
+    if (!sol || !/^(Optimal|Time limit)/i.test(sol.Status)) throw new Error("No plan found (" + (sol && sol.Status) + ")");
+    const r = readSolution(inp, ids, sol);
+    if (!complete(r) || !Number.isFinite(r.objective)) throw new Error("No plan found (" + sol.Status + ", no full lineup)");
+    return r;
+  }
+  async function solve(highs, inp, makeHighs) {
     const { lp, ids } = buildLP(inp);
-    const sol = highs.solve(lp, { mip_rel_gap: 0.001, time_limit: 25, presolve: "on" });
-    if (!sol || !/Optimal|Time limit/i.test(sol.Status)) throw new Error("No plan found (" + (sol && sol.Status) + ")");
-    return readSolution(inp, ids, sol);
+    let err;
+    for (let t = 0; t < TRIES.length; t++) {
+      try {
+        if (t && makeHighs) highs = await makeHighs();
+        const r = accept(inp, ids, highs.solve(lp, TRIES[t]));
+        r.attempts = t + 1;
+        return r;
+      } catch (e) {
+        err = e;
+        if (/^No plan found/.test(e.message || "")) throw e;  // solved but unusable: another seed won't help
+      }
+    }
+    throw err;
   }
 
   const api = { buildLP, readSolution, solve };

@@ -353,7 +353,7 @@ async function runReplan() {
       ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: SB.rules.locked, banned: SB.rules.banned, captains,
       maxHits: SB.rules.maxHits, eo: LAM[S.mode] ? eoFrac : null, lam: LAM[S.mode] || 0, poolExtra: SB.moves.map(m => m.in),
       ...STRAT[S.mode],
-    });
+    }, () => { SOLVE.highs = null; return getHighs(); });
     const before = scoreMoves(SB.moves).tot;
     setPlan(res.moves, "replan:" + S.mode);
     const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;

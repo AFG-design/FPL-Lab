@@ -47,6 +47,20 @@ next_ev = next((e for e in events if e["is_next"]), None)
 cur_gw = cur_ev["id"] if cur_ev else 0
 next_gw = next_ev["id"] if next_ev else None
 live = {g: get(f"/event/{g}/live/") for g in range(1, cur_gw + 1)}
+
+
+def finished_only(g, data):
+    """A gameweek's live rows for the model: only players whose club has finished all its matches that week.
+    Mid-gameweek, players yet to play show 0 minutes, which the model would read as being dropped."""
+    pending = {t for f in fixtures if f["event"] == g and not (f.get("finished") or f.get("finished_provisional"))
+               for t in (f["team_h"], f["team_a"])}
+    if not pending:
+        return data
+    team = {e["id"]: e["team"] for e in boot["elements"]}
+    return dict(data, elements=[x for x in data["elements"] if team.get(x["id"]) not in pending])
+
+
+model_live = {g: finished_only(g, d) for g, d in live.items()}
 picks_gw = entry.get("current_event") or cur_gw
 picks = get(f"/entry/{TEAM_ID}/event/{picks_gw}/picks/") if picks_gw else None
 try:
@@ -71,18 +85,28 @@ except Exception:
 # injury / suspension log: each player's status at every deadline, so the model can tell
 # "injured" from "dropped" later in the season (FPL keeps no history of this)
 STATUS_LOG = os.path.join(HERE, "history", "status.json")
+status_ok = True
 try:
     status_log = json.load(open(STATUS_LOG))
-except Exception:
+    if not isinstance(status_log.get("gws"), dict):
+        raise ValueError("no 'gws' table")
+except FileNotFoundError:
     status_log = {"gws": {}}
-if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
+except Exception as ex:
+    # never overwrite a log that failed to load: it can't be rebuilt
+    print("history/status.json unreadable, not updating it:", ex)
+    status_log, status_ok = {"gws": {}}, False
+if status_ok and next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
     # latest status before this deadline; only players not fully available, to keep it small
     status_log["gws"][str(next_gw)] = {str(e["id"]): [e["status"], e["chance_of_playing_next_round"]]
                                        for e in boot["elements"] if e["status"] != "a"}
     status_log["updated"] = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     os.makedirs(os.path.dirname(STATUS_LOG), exist_ok=True)
-    json.dump(status_log, open(STATUS_LOG, "w"), separators=(",", ":"))
-ctx = prepare(boot, fixtures, live, priors, market, sp_data, status_log)
+    tmp = STATUS_LOG + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(status_log, f, separators=(",", ":"))
+    os.replace(tmp, STATUS_LOG)   # atomic: a crash mid-write can't leave a half-written log
+ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match
 congestion, euro_flags = {}, {}
@@ -596,6 +620,10 @@ try:
     crowd = json.load(open(os.path.join(HERE, "crowd", "latest.json")))
 except Exception:
     crowd = None
+if crowd and not (all(k in crowd for k in ("gw", "built", "near", "top10k", "leagues", "rivals"))
+                  and all(isinstance(crowd[k], dict) and "eo" in crowd[k] for k in ("near", "top10k"))):
+    print("crowd/latest.json is missing fields, ignoring it")
+    crowd = None
 if crowd:
     G = crowd["gw"]
     lv = {x["id"]: x["stats"]["total_points"] for x in live[G]["elements"]} if G in live else {}
@@ -900,7 +928,7 @@ try:
     import afg
     season = f"{events[0]['deadline_time'][:4]}-{str(int(events[0]['deadline_time'][:4]) + 1)[2:]}"
     afg_rec = afg.load_records()
-    afg_R = afg.merge(afg_rec, afg.summarise(afg.residuals(afg.live_rows(boot, fixtures, live, season))))
+    afg_R = afg.merge(afg_rec, afg.summarise(afg.residuals(afg.live_rows(boot, fixtures, model_live, season))))
     afg_teams = {tid: {"name": afg.canon(t["name"]), "short": t["short_name"]} for tid, t in teams.items()}
     afg_A = afg.suggest(afg_R, players, upcoming, afg_teams, next_gw, season, euro_flags, afg.load_manual()) if next_gw else {}
     afg_pk = afg.picks(squad_ids, sell, bank, players, afg_A) if squad_ids and afg_A else None

@@ -86,9 +86,8 @@ function vWeek() {
   const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
   const capEO = F ? (F.cap[me.cap] || 0) : null;
   const cV = capEO != null && capEO >= 50 && capGap > -0.3 ? { t: "Safe pick", c: "good" }
-    : me.swapped ? { t: "Coin flip", c: "mut" } : verdict(capGap, 1, 0.4);
-  const capNote = me.capMine ? `Your choice, set in the planner. The model's pick would be ${esc(P[capPick(me.xi, g).cap].name)}.` : me.swapped
-    ? `${esc(P[me.swapped].name)} projects ${f1(xpg(me.swapped, g) - xpg(me.cap, g))} more on clean-sheet odds, but that's too small a gap to give up ${esc(P[me.cap].name)}'s much higher ceiling.`
+    : verdict(capGap, 1, 0.4);
+  const capNote = me.capMine ? `Your choice, set in the planner. The model's pick would be ${esc(P[capPick(me.xi, g).cap].name)}.`
     : `${f1(capGap)} pts ahead of ${esc(P[me.vice].name)}.`;
   const haul = i => P[i]?.dist?.[g]?.[0];
   const capHaul = haul(me.cap) != null && haul(me.vice) != null
