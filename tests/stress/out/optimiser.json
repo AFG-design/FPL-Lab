@@ -33,14 +33,14 @@
   {
    "label": "lock+ban same player (in squad: Haaland)",
    "returned": "None",
-   "secs": 0.12,
+   "secs": 0.16,
    "verdict": "clean failure"
   },
   {
    "label": "lock+ban same player (outside squad)",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.59,
+   "secs": 0.63,
    "issues": [
     "GW8: locked Crooks missing",
     "GW9: locked Crooks missing",
@@ -59,34 +59,34 @@
   {
    "label": "4 locked from one club, none owned",
    "returned": "None",
-   "secs": 0.12,
+   "secs": 0.13,
    "verdict": "clean failure"
   },
   {
    "label": "bank = -15.0 (illegal start, can be repaired by selling)",
    "returned": "plan",
    "xp_total": 237.48,
-   "secs": 0.93,
+   "secs": 0.91,
    "issues": [],
    "verdict": "legal plan returned"
   },
   {
    "label": "bank = -60 (cannot be repaired)",
    "returned": "None",
-   "secs": 0.13,
+   "secs": 0.12,
    "verdict": "clean failure"
   },
   {
    "label": "locked 15 most expensive players (value 123.1m, bank 0.5)",
    "returned": "None",
-   "secs": 0.12,
+   "secs": 0.16,
    "verdict": "clean failure"
   },
   {
    "label": "locked non-ok player not owned (Saka, status i)",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.52,
+   "secs": 0.64,
    "issues": [
     "GW8: locked Saka missing",
     "GW9: locked Saka missing",
@@ -100,7 +100,7 @@
    "label": "locked non-ok player already owned (should be a legal hold)",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.51,
+   "secs": 0.68,
    "issues": [],
    "verdict": "legal plan returned"
   },
@@ -108,7 +108,7 @@
    "label": "banned an owned player (forced sale)",
    "returned": "plan",
    "xp_total": 250.88,
-   "secs": 0.57,
+   "secs": 0.63,
    "issues": [],
    "verdict": "legal plan returned"
   },
@@ -116,7 +116,7 @@
    "label": "locked cheap low-xP ok player outside the candidate pool",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.66,
+   "secs": 0.6,
    "locked_player_held_each_week": [
     false,
     false,
@@ -163,7 +163,7 @@
    "label": "14-player squad (one slot empty)",
    "returned": "plan",
    "xp_total": 248.28,
-   "secs": 2.65,
+   "secs": 2.63,
    "issues": [
     "GW8: in/out mismatch"
    ],
@@ -173,7 +173,7 @@
    "label": "duplicate id in squad list",
    "returned": "plan",
    "xp_total": 248.28,
-   "secs": 2.12,
+   "secs": 2.6,
    "issues": [
     "GW8: in/out mismatch",
     "GW8: squad size 16",
@@ -198,7 +198,7 @@
    "label": "empty gws list",
    "returned": "plan",
    "xp_total": 0,
-   "secs": 0.01,
+   "secs": 0.0,
    "issues": [],
    "verdict": "legal plan returned"
   },
@@ -206,7 +206,7 @@
    "label": "time_limit=0 (no time to find an incumbent)",
    "returned": "plan",
    "xp_total": 253.73,
-   "secs": 0.22,
+   "secs": 0.18,
    "issues": [
     "GW9: bank -0.6 < 0",
     "GW9: solver bank 0 vs replay -0.6",
@@ -222,7 +222,7 @@
   {
    "label": "max_moves_week=0 with week1_moves=1",
    "returned": "None",
-   "secs": 0.13,
+   "secs": 0.12,
    "verdict": "clean failure"
   }
  ],
@@ -1675,6 +1675,91 @@
    ]
   ]
  },
+ "E_tiny_limits_6gw_ft3": [
+  {
+   "time_limit": 0,
+   "solver": {
+    "lp_status": "Not Solved",
+    "sol_status": 0,
+    "secs": 0.19
+   },
+   "returned": "plan",
+   "xp_total": 311.12,
+   "objective": 254.65,
+   "issues": [
+    "GW8: solver bank 0 vs replay 0.8",
+    "GW9: bank -1.1 < 0",
+    "GW9: solver bank 0 vs replay -1.1",
+    "GW10: bank -1.1 < 0"
+   ]
+  },
+  {
+   "time_limit": 0.05,
+   "solver": {
+    "lp_status": "Not Solved",
+    "sol_status": 0,
+    "secs": 0.18
+   },
+   "returned": "plan",
+   "xp_total": 311.12,
+   "objective": 254.65,
+   "issues": [
+    "GW8: solver bank 0 vs replay 0.8",
+    "GW9: bank -1.1 < 0",
+    "GW9: solver bank 0 vs replay -1.1",
+    "GW10: bank -1.1 < 0"
+   ]
+  },
+  {
+   "time_limit": 0.2,
+   "solver": {
+    "lp_status": "Not Solved",
+    "sol_status": 0,
+    "secs": 0.27
+   },
+   "returned": "plan",
+   "xp_total": 311.12,
+   "objective": 254.65,
+   "issues": [
+    "GW8: solver bank 0 vs replay 0.8",
+    "GW9: bank -1.1 < 0",
+    "GW9: solver bank 0 vs replay -1.1",
+    "GW10: bank -1.1 < 0"
+   ]
+  },
+  {
+   "time_limit": 0.5,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 2,
+    "secs": 0.52
+   },
+   "returned": "plan",
+   "xp_total": 305.44,
+   "objective": 249.96,
+   "issues": [
+    "GW9: ft 1 != rule 2",
+    "GW9: hits 1 != rule 0 (n=2, ft=2)"
+   ]
+  },
+  {
+   "time_limit": 1,
+   "solver": {
+    "lp_status": "Optimal",
+    "sol_status": 2,
+    "secs": 1.01
+   },
+   "returned": "plan",
+   "xp_total": 308.85,
+   "objective": 251.53,
+   "issues": [
+    "GW9: ft 1 != rule 2",
+    "GW10: ft 1 != rule 2",
+    "GW11: ft 1 != rule 2",
+    "GW12: ft 2 != rule 3"
+   ]
+  }
+ ],
  "E_time_limit": [
   {
    "mode": "balanced",
@@ -1683,9 +1768,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.57
+    "secs": 0.64
    },
-   "secs": 0.66,
+   "secs": 0.72,
    "returned": "plan",
    "objective": 249.49,
    "xp_total": 304.44,
@@ -1719,7 +1804,7 @@
     "sol_status": 1,
     "secs": 0.66
    },
-   "secs": 0.74,
+   "secs": 0.75,
    "returned": "plan",
    "objective": 249.49,
    "xp_total": 304.44,
@@ -1734,9 +1819,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 2.66
+    "secs": 2.64
    },
-   "secs": 2.73,
+   "secs": 2.71,
    "returned": "plan",
    "objective": 254.23,
    "xp_total": 309.61,
@@ -1751,9 +1836,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 2.39
+    "secs": 2.62
    },
-   "secs": 2.49,
+   "secs": 2.72,
    "returned": "plan",
    "objective": 254.23,
    "xp_total": 309.61,
@@ -1768,9 +1853,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 2,
-    "secs": 1.02
+    "secs": 0.99
    },
-   "secs": 1.1,
+   "secs": 1.07,
    "returned": "plan",
    "objective": 251.53,
    "xp_total": 308.85,
@@ -1792,9 +1877,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.94
+    "secs": 1.0
    },
-   "secs": 1.03,
+   "secs": 1.09,
    "returned": "plan",
    "objective": 292.59,
    "xp_total": 304.85,
@@ -1809,9 +1894,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 1.08
+    "secs": 0.85
    },
-   "secs": 1.16,
+   "secs": 0.93,
    "returned": "plan",
    "objective": 292.59,
    "xp_total": 304.85,
@@ -1825,16 +1910,16 @@
    "time_limit": 1,
    "solver": {
     "lp_status": "Optimal",
-    "sol_status": 1,
-    "secs": 0.96
+    "sol_status": 2,
+    "secs": 1.0
    },
-   "secs": 1.02,
+   "secs": 1.13,
    "returned": "plan",
-   "objective": 292.59,
-   "xp_total": 304.85,
+   "objective": 292.1,
+   "xp_total": 306.15,
    "result_has_status_field": false,
    "issues": [],
-   "gap_vs_full": 0.0
+   "gap_vs_full": 0.49
   },
   {
    "mode": "chase",
@@ -1843,9 +1928,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.8
+    "secs": 0.67
    },
-   "secs": 0.88,
+   "secs": 0.75,
    "returned": "plan",
    "objective": 299.51,
    "xp_total": 308.78,
@@ -1862,7 +1947,7 @@
     "sol_status": 1,
     "secs": 0.77
    },
-   "secs": 0.85,
+   "secs": 0.86,
    "returned": "plan",
    "objective": 299.51,
    "xp_total": 308.78,
@@ -1877,9 +1962,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.8
+    "secs": 0.75
    },
-   "secs": 0.88,
+   "secs": 0.82,
    "returned": "plan",
    "objective": 299.51,
    "xp_total": 308.78,
@@ -1894,9 +1979,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.81
+    "secs": 0.93
    },
-   "secs": 0.89,
+   "secs": 1.03,
    "returned": "plan",
    "objective": 250.82,
    "xp_total": 305.0,
@@ -1911,9 +1996,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.85
+    "secs": 0.92
    },
-   "secs": 0.93,
+   "secs": 1.01,
    "returned": "plan",
    "objective": 250.82,
    "xp_total": 305.0,
@@ -1930,7 +2015,7 @@
     "sol_status": 1,
     "secs": 0.86
    },
-   "secs": 0.94,
+   "secs": 0.93,
    "returned": "plan",
    "objective": 250.82,
    "xp_total": 305.0,
@@ -1945,9 +2030,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 1.48
+    "secs": 1.47
    },
-   "secs": 1.57,
+   "secs": 1.54,
    "returned": "plan",
    "objective": 254.88,
    "xp_total": 308.77,
@@ -1962,9 +2047,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 1.53
+    "secs": 1.39
    },
-   "secs": 1.61,
+   "secs": 1.47,
    "returned": "plan",
    "objective": 254.88,
    "xp_total": 308.77,
@@ -1979,9 +2064,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 2,
-    "secs": 0.98
+    "secs": 0.99
    },
-   "secs": 1.05,
+   "secs": 1.08,
    "returned": "plan",
    "objective": 254.88,
    "xp_total": 308.77,
@@ -1994,7 +2079,7 @@
   {
    "case": "balanced_ft1",
    "py_default_pool": {
-    "secs": 0.66,
+    "secs": 0.61,
     "obj_reeval": 217.246,
     "obj_reported": 217.25,
     "plain_xp": 253.15,
@@ -2095,7 +2180,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.46,
+    "secs": 0.47,
     "obj_reeval": 217.246,
     "obj_reported": 217.25,
     "plain_xp": 253.15,
@@ -2197,7 +2282,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 2.284,
+    "secs": 2.311,
     "obj_reeval": 217.246,
     "obj_highs": 217.246,
     "plain_xp": 253.15,
@@ -2302,7 +2387,7 @@
   {
    "case": "balanced_ft2",
    "py_default_pool": {
-    "secs": 1.05,
+    "secs": 1.15,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -2408,7 +2493,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.72,
+    "secs": 0.6,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -2515,7 +2600,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 3.142,
+    "secs": 3.596,
     "obj_reeval": 219.609,
     "obj_highs": 219.609,
     "plain_xp": 255.73,
@@ -2625,7 +2710,7 @@
   {
    "case": "balanced_ft5",
    "py_default_pool": {
-    "secs": 1.02,
+    "secs": 0.81,
     "obj_reeval": 225.038,
     "obj_reported": 225.04,
     "plain_xp": 260.6,
@@ -2741,7 +2826,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.78,
+    "secs": 0.71,
     "obj_reeval": 225.038,
     "obj_reported": 225.04,
     "plain_xp": 260.6,
@@ -2858,7 +2943,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 3.919,
+    "secs": 4.258,
     "obj_reeval": 225.038,
     "obj_highs": 225.038,
     "plain_xp": 260.6,
@@ -2978,7 +3063,7 @@
   {
    "case": "chase_ft1",
    "py_default_pool": {
-    "secs": 1.41,
+    "secs": 1.43,
     "obj_reeval": 254.011,
     "obj_reported": 254.01,
     "plain_xp": 255.08,
@@ -3089,7 +3174,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.87,
+    "secs": 0.98,
     "obj_reeval": 254.011,
     "obj_reported": 254.01,
     "plain_xp": 255.08,
@@ -3201,7 +3286,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 2.866,
+    "secs": 2.649,
     "obj_reeval": 254.011,
     "obj_highs": 254.011,
     "plain_xp": 255.08,
@@ -3316,7 +3401,7 @@
   {
    "case": "chase_ft2",
    "py_default_pool": {
-    "secs": 1.62,
+    "secs": 1.56,
     "obj_reeval": 257.491,
     "obj_reported": 257.49,
     "plain_xp": 256.01,
@@ -3427,7 +3512,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 1.42,
+    "secs": 1.38,
     "obj_reeval": 257.491,
     "obj_reported": 257.49,
     "plain_xp": 256.01,
@@ -3545,7 +3630,7 @@
   {
    "case": "chase_ft5",
    "py_default_pool": {
-    "secs": 0.74,
+    "secs": 0.71,
     "obj_reeval": 266.014,
     "obj_reported": 266.01,
     "plain_xp": 259.8,
@@ -3666,7 +3751,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.52,
+    "secs": 0.48,
     "obj_reeval": 266.014,
     "obj_reported": 266.01,
     "plain_xp": 259.8,
@@ -3788,7 +3873,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 1.445,
+    "secs": 1.339,
     "obj_reeval": 266.014,
     "obj_highs": 266.014,
     "plain_xp": 259.8,
@@ -3913,7 +3998,7 @@
   {
    "case": "safe_ft1",
    "py_default_pool": {
-    "secs": 1.23,
+    "secs": 1.3,
     "obj_reeval": 218.694,
     "obj_reported": 218.69,
     "plain_xp": 251.61,
@@ -4116,7 +4201,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 0.271,
+    "secs": 0.294,
     "obj_reeval": 218.694,
     "obj_highs": 218.694,
     "plain_xp": 251.61,
@@ -4221,7 +4306,7 @@
   {
    "case": "safe_ft2",
    "py_default_pool": {
-    "secs": 0.56,
+    "secs": 0.58,
     "obj_reeval": 220.958,
     "obj_reported": 220.96,
     "plain_xp": 252.56,
@@ -4322,7 +4407,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.33,
+    "secs": 0.43,
     "obj_reeval": 220.958,
     "obj_reported": 220.96,
     "plain_xp": 252.56,
@@ -4424,7 +4509,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 0.192,
+    "secs": 0.182,
     "obj_reeval": 220.958,
     "obj_highs": 220.958,
     "plain_xp": 252.56,
@@ -4529,7 +4614,7 @@
   {
    "case": "safe_ft5",
    "py_default_pool": {
-    "secs": 1.78,
+    "secs": 1.93,
     "obj_reeval": 225.146,
     "obj_reported": 225.15,
     "plain_xp": 256.12,
@@ -4768,7 +4853,7 @@
   {
    "case": "balanced_lock154_ban411",
    "py_default_pool": {
-    "secs": 0.66,
+    "secs": 0.7,
     "obj_reeval": 213.167,
     "obj_reported": 213.17,
     "plain_xp": 250.33,
@@ -4879,7 +4964,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.47,
+    "secs": 0.41,
     "obj_reeval": 213.167,
     "obj_reported": 213.17,
     "plain_xp": 250.33,
@@ -4991,7 +5076,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 0.471,
+    "secs": 0.414,
     "obj_reeval": 213.167,
     "obj_highs": 213.167,
     "plain_xp": 250.33,
@@ -5106,7 +5191,7 @@
   {
    "case": "balanced_lockpool",
    "py_default_pool": {
-    "secs": 1.0,
+    "secs": 1.02,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -5218,7 +5303,7 @@
     ]
    },
    "py_js_pool": {
-    "secs": 0.77,
+    "secs": 0.78,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -5331,7 +5416,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 3.551,
+    "secs": 3.463,
     "obj_reeval": 216.622,
     "obj_highs": 216.622,
     "plain_xp": 252.89,
@@ -5451,42 +5536,118 @@
  "F_js_hostile": {
   "js_maxHits0_ft1": {
    "status": "Optimal",
-   "secs": 0.233,
+   "secs": 0.227,
    "accepted": true,
    "plan_issues": []
   },
   "js_lock_ban_same": {
    "status": "Infeasible",
-   "secs": 0.081,
+   "secs": 0.067,
    "accepted": false
   },
   "js_4club": {
    "status": "Infeasible",
-   "secs": 0.084,
+   "secs": 0.092,
    "accepted": false
   },
   "js_bank_-60": {
    "status": "Infeasible",
-   "secs": 0.078,
+   "secs": 0.07,
    "accepted": false
   },
   "js_lock_notok": {
    "status": "Infeasible",
-   "secs": 0.095,
+   "secs": 0.066,
    "accepted": false
   },
   "js_prem": {
    "status": "Infeasible",
-   "secs": 0.094,
+   "secs": 0.077,
    "accepted": false
   },
   "js_14man": {
    "status": "Optimal",
-   "secs": 4.562,
+   "secs": 4.481,
    "accepted": true,
    "plan_issues": [
     "GW8: in/out mismatch"
    ]
+  },
+  "js_tl_0.02": {
+   "status": "Time limit reached",
+   "secs": 0.13,
+   "accepted": true,
+   "plan_issues": [
+    "GW8: solver bank 0 vs replay 0.5",
+    "GW8: XI not 11 squad players",
+    "GW8: formation {}",
+    "GW8: formation {}",
+    "GW8: formation {}",
+    "GW8: formation {}",
+    "GW8: captain not in XI",
+    "GW8: ft 0 != rule 2",
+    "GW9: solver bank 0 vs replay 0.5",
+    "GW9: XI not 11 squad players",
+    "GW9: formation {}",
+    "GW9: formation {}",
+    "GW9: formation {}",
+    "GW9: formation {}",
+    "GW9: captain not in XI",
+    "GW9: ft 0 != rule 3",
+    "GW10: solver bank 0 vs replay 0.5",
+    "GW10: XI not 11 squad players",
+    "GW10: formation {}",
+    "GW10: formation {}",
+    "GW10: formation {}",
+    "GW10: formation {}",
+    "GW10: captain not in XI",
+    "GW10: ft 0 != rule 4",
+    "GW11: solver bank 0 vs replay 0.5",
+    "GW11: XI not 11 squad players",
+    "GW11: formation {}",
+    "GW11: formation {}",
+    "GW11: formation {}",
+    "GW11: formation {}",
+    "GW11: captain not in XI",
+    "GW11: ft 0 != rule 5",
+    "GW12: solver bank 0 vs replay 0.5",
+    "GW12: XI not 11 squad players",
+    "GW12: formation {}",
+    "GW12: formation {}",
+    "GW12: formation {}",
+    "GW12: formation {}",
+    "GW12: captain not in XI",
+    "GW12: ft 0 != rule 5",
+    "ft_left 0 != rule 5"
+   ]
+  },
+  "js_tl_0.3": {
+   "status": "Time limit reached",
+   "secs": 0.411,
+   "accepted": true,
+   "plan_issues": [
+    "GW10: hits 1 != rule 0 (n=1, ft=1)",
+    "GW11: ft 2 != rule 1",
+    "GW12: ft 3 != rule 2",
+    "ft_left 4 != rule 3"
+   ]
+  },
+  "js_tl_1": {
+   "status": "Time limit reached",
+   "secs": 1.117,
+   "accepted": true,
+   "plan_issues": [
+    "GW10: hits 1 != rule 0 (n=1, ft=1)",
+    "GW11: ft 2 != rule 1",
+    "GW12: ft 3 != rule 2",
+    "ft_left 4 != rule 3"
+   ]
+  },
+  "js_ft0_7": {
+   "status": "Optimal",
+   "secs": 4.301,
+   "accepted": true,
+   "plan_issues": []
   }
  },
  "G_frontend": {
