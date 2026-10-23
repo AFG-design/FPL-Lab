@@ -132,3 +132,35 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 .lg-team { font-size: var(--fs-xs); }
 td.lg-best { color: var(--hi-text); font-weight: 700; }
 tr.is-rival td { background: var(--accent-soft); }
+
+/* ---------- AFG suggestion ---------- */
+.afg-hero p { max-width: 75ch; }
+.afg-why { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+.afg-why li { display: grid; gap: 1px; font-size: var(--fs-sm); padding-left: 10px; border-left: 2px solid var(--line); }
+.afg-k { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.afg-k b.up { color: var(--good); }
+.afg-k b.down { color: var(--bad); }
+.afg-t { color: var(--fg); }
+.afg-why.compact li { font-size: var(--fs-xs); }
+.afg-row { border-top: 1px solid var(--line); }
+.afg-row:first-of-type { border-top: 0; }
+.afg-row > summary {
+  list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px;
+  align-items: center; padding: 9px 2px;
+  width: auto; color: var(--fg); font-size: var(--fs-md); font-weight: 400; border-radius: var(--r-sm);
+}
+.afg-row > summary::before { display: none; }
+.afg-row > summary:hover { background: var(--raised); }
+.afg-row > summary::-webkit-details-marker { display: none; }
+.afg-row > summary:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; border-radius: var(--r-sm); }
+.afg-row[open] { padding-bottom: 10px; }
+.afg-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.afg-name .pname { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.afg-fx { display: inline-flex; gap: 2px; flex: none; }
+.afg-nums { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.afg-d.up { color: var(--good); }
+.afg-d.down { color: var(--bad); }
+.afg-sub { grid-column: 1 / 3; font-size: var(--fs-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.afg-row[open] .afg-sub { display: none; }
+.afg-v { font-size: var(--fs-lg); font-weight: 500; }
+.sg-gain.up { color: var(--good); }

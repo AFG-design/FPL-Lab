@@ -834,6 +834,51 @@ for tid, t in teams.items():
                      "far": sorted([gg, opp, home] for (gg, opp, home, f) in ctx["team_fix"][tid]
                                    if next_gw and gg and next_gw <= gg < next_gw + 12)}
 
+# ---------------------------------------------------------------- AFG suggestion (fan-factor punt layer; the model is unchanged)
+afg_out = None
+try:
+    import afg
+    season = f"{events[0]['deadline_time'][:4]}-{str(int(events[0]['deadline_time'][:4]) + 1)[2:]}"
+    afg_rec = afg.load_records()
+    afg_R = afg.merge(afg_rec, afg.summarise(afg.residuals(afg.live_rows(boot, fixtures, live, season))))
+    afg_teams = {tid: {"name": afg.canon(t["name"]), "short": t["short_name"]} for tid, t in teams.items()}
+    afg_A = afg.suggest(afg_R, players, upcoming, afg_teams, next_gw, season, euro_flags, afg.load_manual()) if next_gw else {}
+    afg_pk = afg.picks(squad_ids, sell, bank, players, afg_A) if squad_ids and afg_A else None
+    if afg_pk:
+        for m in afg_pk["punts"]:
+            m["alt"] = afg.model_alt(m["out"], squad_ids, sell, bank, players, next_gw)
+        # this week's calls, saved until the deadline so the scoreboard can mark them afterwards
+        if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
+            json.dump({"gw": next_gw, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                       "afg_cap": afg_pk["cap"], "afg_xi": afg_pk["xi"], "model_cap": lineup.get("captain"),
+                       "model_xi": lineup.get("xi", []), "punts": afg_pk["punts"],
+                       "players": {str(i): [a["m"], a["x"]] for i, a in afg_A.items()}},
+                      open(os.path.join(HIST, f"afg_gw{next_gw}.json"), "w"), separators=(",", ":"))
+    afg_board = []
+    for g in finished_gws:
+        fpath = os.path.join(HIST, f"afg_gw{g}.json")
+        if os.path.exists(fpath):
+            afg_board.append(afg.score_week(
+                json.load(open(fpath)), lambda i, g=g: ctx["pts_gw"].get(i, {}).get(g, 0) if i else 0,
+                lambda i, g=g: any(pstats.get(i, {}).get(k, {}).get("minutes", 0) > 0 for k in range(g - 3, g))))
+    try:
+        afg_bt = json.load(open(os.path.join(HERE, "afg", "backtest.json")))
+        afg_bt.pop("weeks", None)
+    except Exception:
+        afg_bt = None
+    afg_show = {i: a for i, a in afg_A.items() if i in squad_ids or a["m"] >= 2 or abs(a["n"]) >= 0.3}
+    afg_out = {"gw": next_gw, "season": season, "records_built": afg_rec.get("built"), "seasons": afg_rec.get("seasons", []),
+               "p": {i: {"x": a["x"], "m": a["m"], "n": a["n"], "why": a["why"]} for i, a in afg_show.items()},
+               "picks": afg_pk, "board": afg_board, "backtest": afg_bt,
+               "set": {k: afg.SET[k] for k in ("hot", "euro", "new_mgr", "cap")}}
+    keep_extra |= set(afg_show)
+    keep_extra |= {m[k] for m in (afg_pk or {}).get("punts", []) for k in ("in", "out", "alt") if m.get(k)}
+    keep_extra |= {x for w in afg_board for x in [w["afg_cap"], w["model_cap"]] + [m[k] for m in w["punts"] for k in ("in", "out", "alt")] if x}
+except Exception as ex:
+    import traceback
+    traceback.print_exc()
+    print("AFG suggestion skipped:", ex)
+
 keep = {i for i, p in players.items() if p["mins"] > 0 or p["xp5"] > 3 or i in squad_ids}
 keep |= {t["element_in"] for t in transfers} | {t["element_out"] for t in transfers}
 keep |= {w[k] for w in review["weeks"] for k in ("captain", "best_cap", "model_cap") if w.get(k)}
@@ -1022,7 +1067,7 @@ out = {
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "setpieces": setpieces,
-    "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
+    "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }
 # ---------------------------------------------------------------- shot maps (separate file, loaded when a player is opened)

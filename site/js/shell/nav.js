@@ -39,11 +39,12 @@ function header() {
 /* ---------- navigation: sidebar on desktop, bottom bar + sheet on phones ---------- */
 const NAV = [
   ["Matchday", [["week", "This week"], ["planner", "Planner"], ["rivals", "Rivals"], ["deadlines", "Deadlines"]]],
+  ["AFG", [["afg", "AFG suggestion"]]],
   ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"], ["stats", "Stats"]]],
   ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"]]],
 ];
 const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"]];
-const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
+const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["afg", "AFG"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
 $("#sidenav").innerHTML = NAV.map(([g, items]) => `<div class="navgroup"><span class="navhead">${g}</span>${items.map(([v, l]) => `<button type="button" data-v="${v}">${icon(v)}<span>${l}</span></button>`).join("")}</div>`).join("");
 $("#bottomnav").innerHTML = BOTTOM.map(([v, l]) => `<button type="button" data-v="${v}" ${v === "more" ? 'aria-haspopup="menu" aria-expanded="false" id="moreBottom"' : ""}>${icon(v)}<span>${l}</span></button>`).join("");
 function moreItems() { return MORE.map(([v, l, d]) => `<button role="menuitem" data-v="${v}" aria-current="${S.view === v ? "page" : "false"}">${icon(v)}<b>${l}</b><span>${d}</span></button>`).join(""); }
@@ -68,7 +69,7 @@ function setView(v, { push = true } = {}) {
 // back/forward buttons and links like #fixtures
 addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) setView(v, { push: false }); });
 
-const VIEW_FN = () => ({ deadlines: vDeadlines, week: vWeek, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
+const VIEW_FN = () => ({ deadlines: vDeadlines, week: vWeek, afg: vAfg, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
 function render() {
   const inMore = MORE.some(m => m[0] === S.view);
   document.querySelectorAll("#sidenav [data-v], #bottomnav [data-v]").forEach(b => {

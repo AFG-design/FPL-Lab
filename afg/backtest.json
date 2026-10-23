@@ -1,0 +1,261 @@
+{
+ "season": "2025-26",
+ "gws": 35,
+ "built": "2026-10-23",
+ "mae_model": 1.887,
+ "mae_afg": 1.899,
+ "cap_model": 460,
+ "cap_afg": 454,
+ "cap_diff_weeks": 17,
+ "top10_model": 1736,
+ "top10_afg": 1625,
+ "calls": 2589,
+ "calls_right": 1299,
+ "weeks": [
+  {
+   "gw": 4,
+   "cap_model": 26,
+   "cap_afg": 26,
+   "top10_model": 58,
+   "top10_afg": 57
+  },
+  {
+   "gw": 5,
+   "cap_model": 10,
+   "cap_afg": 10,
+   "top10_model": 47,
+   "top10_afg": 47
+  },
+  {
+   "gw": 6,
+   "cap_model": 32,
+   "cap_afg": 32,
+   "top10_model": 55,
+   "top10_afg": 40
+  },
+  {
+   "gw": 7,
+   "cap_model": 16,
+   "cap_afg": 4,
+   "top10_model": 53,
+   "top10_afg": 60
+  },
+  {
+   "gw": 8,
+   "cap_model": 26,
+   "cap_afg": 4,
+   "top10_model": 71,
+   "top10_afg": 55
+  },
+  {
+   "gw": 9,
+   "cap_model": 6,
+   "cap_afg": 4,
+   "top10_model": 38,
+   "top10_afg": 41
+  },
+  {
+   "gw": 10,
+   "cap_model": 24,
+   "cap_afg": 24,
+   "top10_model": 62,
+   "top10_afg": 70
+  },
+  {
+   "gw": 11,
+   "cap_model": 2,
+   "cap_afg": 2,
+   "top10_model": 37,
+   "top10_afg": 31
+  },
+  {
+   "gw": 12,
+   "cap_model": 4,
+   "cap_afg": 8,
+   "top10_model": 30,
+   "top10_afg": 47
+  },
+  {
+   "gw": 13,
+   "cap_model": 4,
+   "cap_afg": 4,
+   "top10_model": 59,
+   "top10_afg": 29
+  },
+  {
+   "gw": 14,
+   "cap_model": 12,
+   "cap_afg": 12,
+   "top10_model": 60,
+   "top10_afg": 73
+  },
+  {
+   "gw": 15,
+   "cap_model": 4,
+   "cap_afg": 4,
+   "top10_model": 57,
+   "top10_afg": 35
+  },
+  {
+   "gw": 16,
+   "cap_model": 26,
+   "cap_afg": 26,
+   "top10_model": 50,
+   "top10_afg": 43
+  },
+  {
+   "gw": 17,
+   "cap_model": 32,
+   "cap_afg": 32,
+   "top10_model": 63,
+   "top10_afg": 53
+  },
+  {
+   "gw": 18,
+   "cap_model": 14,
+   "cap_afg": 16,
+   "top10_model": 36,
+   "top10_afg": 35
+  },
+  {
+   "gw": 19,
+   "cap_model": 12,
+   "cap_afg": 2,
+   "top10_model": 28,
+   "top10_afg": 38
+  },
+  {
+   "gw": 20,
+   "cap_model": 8,
+   "cap_afg": 4,
+   "top10_model": 34,
+   "top10_afg": 42
+  },
+  {
+   "gw": 21,
+   "cap_model": 12,
+   "cap_afg": 12,
+   "top10_model": 34,
+   "top10_afg": 36
+  },
+  {
+   "gw": 22,
+   "cap_model": 20,
+   "cap_afg": 16,
+   "top10_model": 39,
+   "top10_afg": 33
+  },
+  {
+   "gw": 23,
+   "cap_model": 2,
+   "cap_afg": 2,
+   "top10_model": 30,
+   "top10_afg": 31
+  },
+  {
+   "gw": 24,
+   "cap_model": 20,
+   "cap_afg": 0,
+   "top10_model": 66,
+   "top10_afg": 46
+  },
+  {
+   "gw": 25,
+   "cap_model": 12,
+   "cap_afg": 20,
+   "top10_model": 47,
+   "top10_afg": 39
+  },
+  {
+   "gw": 26,
+   "cap_model": 14,
+   "cap_afg": 14,
+   "top10_model": 55,
+   "top10_afg": 58
+  },
+  {
+   "gw": 27,
+   "cap_model": 6,
+   "cap_afg": 6,
+   "top10_model": 36,
+   "top10_afg": 26
+  },
+  {
+   "gw": 28,
+   "cap_model": 4,
+   "cap_afg": 4,
+   "top10_model": 57,
+   "top10_afg": 44
+  },
+  {
+   "gw": 29,
+   "cap_model": 18,
+   "cap_afg": 30,
+   "top10_model": 69,
+   "top10_afg": 51
+  },
+  {
+   "gw": 30,
+   "cap_model": 2,
+   "cap_afg": 20,
+   "top10_model": 44,
+   "top10_afg": 43
+  },
+  {
+   "gw": 31,
+   "cap_model": 26,
+   "cap_afg": 26,
+   "top10_model": 38,
+   "top10_afg": 43
+  },
+  {
+   "gw": 32,
+   "cap_model": 8,
+   "cap_afg": 8,
+   "top10_model": 53,
+   "top10_afg": 44
+  },
+  {
+   "gw": 33,
+   "cap_model": 4,
+   "cap_afg": 26,
+   "top10_model": 74,
+   "top10_afg": 88
+  },
+  {
+   "gw": 34,
+   "cap_model": 10,
+   "cap_afg": 16,
+   "top10_model": 44,
+   "top10_afg": 37
+  },
+  {
+   "gw": 35,
+   "cap_model": 10,
+   "cap_afg": 12,
+   "top10_model": 46,
+   "top10_afg": 50
+  },
+  {
+   "gw": 36,
+   "cap_model": 22,
+   "cap_afg": 22,
+   "top10_model": 80,
+   "top10_afg": 90
+  },
+  {
+   "gw": 37,
+   "cap_model": 12,
+   "cap_afg": 4,
+   "top10_model": 55,
+   "top10_afg": 36
+  },
+  {
+   "gw": 38,
+   "cap_model": 0,
+   "cap_afg": 2,
+   "top10_model": 31,
+   "top10_afg": 34
+  }
+ ]
+}

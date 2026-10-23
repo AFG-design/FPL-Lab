@@ -14,6 +14,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 - **Planner:** tap a player to make him captain or vice, bench or start him, lock him or replace him. **Re-plan** runs the optimiser in your browser (HiGHS, in `site/vendor/`) with your locks, bans, captains and hit limit.
 - **Planner extras:** plan length (3, 5 or 6 GWs), pair suggestions where one sale funds a bigger upgrade, and up to 3 saved drafts compared side by side.
 - **Planner (moves):** tap players to plan transfers over 5 gameweeks, with budget, club limits, free transfers and hits worked out live. Load the optimiser's plans as a starting point.
+- **AFG suggestion:** its own tab. A fan's-eye punt layer on top of the model: record against the opponent and at the ground, home and away form, head-to-heads, hot runs, Europe and new managers. Gives its own captain, lineup and punt transfers, and a scoreboard that marks AFG against the model every gameweek. The rest of the app still follows the model.
 - **Rivals:** what the top 10k and managers around your rank own and captain, the biggest threats and your differentials, and your mini-leagues with a rival-by-rival comparison.
 - **Fixtures, Players, Stats, Chips, Season:** a fixture ticker, a player explorer with price-change progress, underlying form (xGI/90), over- and under-performers, team xG trends, player charts, chip planning and rank history.
 - **Review:** each gameweek's captain, bench, transfers and model check, plus season totals and your best and worst transfers.
@@ -36,6 +37,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `odds.py` | Betting-market expected goals per match from football-data.co.uk (match result and over/under odds), blended into team ratings and fixture projections |
 | `odds_players.py` | Player odds (anytime goalscorer, 1+ assist) from The Odds API at 72 h, 24 h and 3 h before each deadline, into `odds/players.json` and `history/player_odds_gw*.json`. Saves derived chances only. Collected for testing; not yet used by the model |
 | `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page. `status.json` logs every flagged player's injury/suspension status before each deadline, so the model can tell an injured player from a dropped one |
+| `afg.py` | The AFG suggestion: venue, opponent and home/away records since 2019/20 (summarised weekly into `afg/records.json`), the nudges on top of the model, the week's picks and the scoreboard (`history/afg_gw*.json`). `python3 afg.py backtest` re-runs it on 2025/26. Hand-edited inputs (new managers, extra derbies) go in `afg_manual.json` |
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
 | `site/` | The web app (see **Front end** below) |
@@ -99,7 +101,7 @@ site/
     shell/theme.js        dark/light toggle, saved per device
     shell/nav.js          header stats, sidebar/bottom nav, hash routing, render() with a per-view error boundary
     shell/events.js       event wiring after each render
-    views/*.js            one file per screen: week, planner, rivals, players, fixtures, stats, chips, review, model
+    views/*.js            one file per screen: week, afg, planner, rivals, players, fixtures, stats, chips, review, model
   vendor/                 HiGHS solver and the self-hosted Inter font (with licences)
 ```
 

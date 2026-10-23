@@ -51,6 +51,15 @@ function bind() {
     });
     render();
   });
+  on("[data-afgmove]", b => {
+    const [o, n] = b.dataset.afgmove.split(":").map(Number), g = D.meta.next_gw;
+    SB.prev = { moves: SB.moves.slice(), source: SB.source };
+    editPlan(() => {
+      const same = SB.moves.find(m => m.gw === g && m.in === o);
+      if (same) same.in = n; else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === o)); SB.moves.push({ gw: g, out: o, in: n }); }
+    });
+    render();
+  });
   on("[data-unrule]", b => { const [kind, id] = b.dataset.unrule.split(":"); SB.rules[kind] = SB.rules[kind].filter(x => x !== +id); saveSandbox(); render(); });
   const hs = $("#hitsSel"); if (hs) hs.onchange = e => { SB.rules.maxHits = e.target.value === "" ? null : +e.target.value; saveSandbox(); };
   on("[data-act]", b => {
