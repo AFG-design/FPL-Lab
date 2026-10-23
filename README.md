@@ -34,6 +34,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/` (workflow every 3 hours) |
 | `site/plan-solver.js` | The browser version of the optimiser |
 | `odds.py` | Betting-market expected goals per match from football-data.co.uk (match result and over/under odds), blended into team ratings and fixture projections |
+| `odds_players.py` | Player odds (anytime goalscorer, 1+ assist) from The Odds API at 72 h, 24 h and 3 h before each deadline, into `odds/players.json` and `history/player_odds_gw*.json`. Saves derived chances only. Collected for testing; not yet used by the model |
 | `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page. `status.json` logs every flagged player's injury/suspension status before each deadline, so the model can tell an injured player from a dropped one |
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
@@ -44,6 +45,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 ## Settings
 
 - **Team ID:** repository variable `FPL_TEAM_ID` (Settings → Secrets and variables → Actions → Variables). Default 8122679.
+- **Player odds:** repository secret `ODDS_API_KEY` (a free key from the-odds-api.com, 500 credits a month). About 20 credits per refresh, 3 refreshes per gameweek. Without the secret the step is skipped.
 - **Refresh now:** Actions → "Refresh FPL data" → Run workflow, or the button on the dashboard.
 - **Compare any team:** `watch.json` lists extra team IDs to fetch each refresh (`{"teams": [{"id": 123456, "label": "Friend"}]}`, up to 20). The overall leader is always included. The Rivals page adds and removes teams in one tap if Sync is set up; editing the file triggers a rebuild.
 - **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's live panel stays current. GitHub can start scheduled runs a few minutes late.

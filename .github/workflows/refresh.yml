@@ -65,6 +65,11 @@ jobs:
       - name: Update betting-market odds (football-data.co.uk)
         continue-on-error: true
         run: python3 odds.py
+      - name: Update player odds (The Odds API; only at 72 h, 24 h and 3 h before each deadline)
+        continue-on-error: true
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python3 odds_players.py
       - name: Build data.json from the FPL API
         env:
           FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
