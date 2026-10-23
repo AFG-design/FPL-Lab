@@ -1,0 +1,1581 @@
+{
+ "task1": {
+  "n_players_ge15": 410,
+  "n_abs_t_gt2": 45,
+  "n_under": 6,
+  "n_over": 39,
+  "null_perm_mean": 32.46,
+  "null_perm_p95": 41.0,
+  "null_signflip_mean": 20.866,
+  "null_signflip_p95": 29.0,
+  "p_value_perm": 0.008,
+  "halves_corr_player_resid": 0.04,
+  "halves_n": 345,
+  "flagged_H1_n": 32,
+  "flagged_H1_mean_signed_resid_in_H2": 0.06,
+  "most_under": [
+   {
+    "player": "Gabriel",
+    "id": 5,
+    "n": 30,
+    "bias": 2.08,
+    "se": 0.84,
+    "t": 2.48
+   },
+   {
+    "player": "Gibbs-White",
+    "id": 515,
+    "n": 35,
+    "bias": 1.68,
+    "se": 0.69,
+    "t": 2.43
+   },
+   {
+    "player": "B.Fernandes",
+    "id": 449,
+    "n": 34,
+    "bias": 1.77,
+    "se": 0.79,
+    "t": 2.23
+   },
+   {
+    "player": "Bruno G.",
+    "id": 488,
+    "n": 31,
+    "bias": 1.65,
+    "se": 0.74,
+    "t": 2.21
+   },
+   {
+    "player": "Semenyo",
+    "id": 82,
+    "n": 33,
+    "bias": 1.54,
+    "se": 0.72,
+    "t": 2.16
+   },
+   {
+    "player": "Wilson",
+    "id": 329,
+    "n": 35,
+    "bias": 1.46,
+    "se": 0.68,
+    "t": 2.15
+   }
+  ],
+  "most_over": [
+   {
+    "player": "Johnson",
+    "id": 580,
+    "n": 34,
+    "bias": -0.93,
+    "se": 0.2,
+    "t": -4.62
+   },
+   {
+    "player": "Bruun Larsen",
+    "id": 202,
+    "n": 32,
+    "bias": -0.66,
+    "se": 0.15,
+    "t": -4.4
+   },
+   {
+    "player": "Muniz",
+    "id": 338,
+    "n": 22,
+    "bias": -0.84,
+    "se": 0.21,
+    "t": -4.11
+   },
+   {
+    "player": "Sadiki",
+    "id": 552,
+    "n": 32,
+    "bias": -0.72,
+    "se": 0.19,
+    "t": -3.75
+   },
+   {
+    "player": "Doherty",
+    "id": 632,
+    "n": 21,
+    "bias": -0.78,
+    "se": 0.21,
+    "t": -3.69
+   },
+   {
+    "player": "Johnstone",
+    "id": 627,
+    "n": 15,
+    "bias": -1.28,
+    "se": 0.36,
+    "t": -3.57
+   },
+   {
+    "player": "Gudmundsson",
+    "id": 347,
+    "n": 32,
+    "bias": -1.32,
+    "se": 0.37,
+    "t": -3.52
+   },
+   {
+    "player": "Agbadou",
+    "id": 631,
+    "n": 19,
+    "bias": -1.11,
+    "se": 0.33,
+    "t": -3.4
+   },
+   {
+    "player": "James",
+    "id": 353,
+    "n": 23,
+    "bias": -0.5,
+    "se": 0.15,
+    "t": -3.35
+   },
+   {
+    "player": "Hato",
+    "id": 672,
+    "n": 24,
+    "bias": -0.89,
+    "se": 0.27,
+    "t": -3.24
+   },
+   {
+    "player": "Kilman",
+    "id": 605,
+    "n": 24,
+    "bias": -0.98,
+    "se": 0.31,
+    "t": -3.18
+   },
+   {
+    "player": "Mundle",
+    "id": 548,
+    "n": 17,
+    "bias": -0.49,
+    "se": 0.15,
+    "t": -3.15
+   },
+   {
+    "player": "Elanga",
+    "id": 486,
+    "n": 33,
+    "bias": -0.6,
+    "se": 0.2,
+    "t": -2.96
+   },
+   {
+    "player": "Toti",
+    "id": 637,
+    "n": 22,
+    "bias": -0.86,
+    "se": 0.29,
+    "t": -2.91
+   },
+   {
+    "player": "Kalimuendo",
+    "id": 696,
+    "n": 18,
+    "bias": -0.37,
+    "se": 0.13,
+    "t": -2.88
+   }
+  ],
+  "haaland": [
+   {
+    "player": "Haaland",
+    "id": 430,
+    "n": 33,
+    "bias": 1.55,
+    "se": 0.84,
+    "t": 1.84
+   }
+  ]
+ },
+ "archetypes": {
+  "set_piece (corner/IFK/DFK order==1)": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 893,
+     "players": 28,
+     "bias": 0.376,
+     "se": 0.107,
+     "se_cl": 0.14
+    },
+    "pred>=4": {
+     "n": 115,
+     "players": 16,
+     "bias": 0.623,
+     "se": 0.377,
+     "se_cl": 0.438
+    },
+    "players": 28
+   },
+   "2026/27": {
+    "all": {
+     "n": 131,
+     "players": 27,
+     "bias": 0.058,
+     "se": 0.275,
+     "se_cl": 0.3
+    },
+    "pred>=4": {
+     "n": 31,
+     "players": 12,
+     "bias": -0.797,
+     "se": 0.659,
+     "se_cl": 0.747
+    },
+    "players": 27
+   }
+  },
+  "  corners/IFK taker only": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 609,
+     "players": 19,
+     "bias": 0.369,
+     "se": 0.127,
+     "se_cl": 0.17
+    },
+    "pred>=4": {
+     "n": 107,
+     "players": 13,
+     "bias": 0.535,
+     "se": 0.37,
+     "se_cl": 0.439
+    },
+    "players": 19
+   },
+   "2026/27": {
+    "all": {
+     "n": 98,
+     "players": 20,
+     "bias": 0.036,
+     "se": 0.332,
+     "se_cl": 0.388
+    },
+    "pred>=4": {
+     "n": 27,
+     "players": 10,
+     "bias": -0.618,
+     "se": 0.75,
+     "se_cl": 0.843
+    },
+    "players": 20
+   }
+  },
+  "  direct FK taker only": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 536,
+     "players": 17,
+     "bias": 0.611,
+     "se": 0.155,
+     "se_cl": 0.176
+    },
+    "pred>=4": {
+     "n": 68,
+     "players": 9,
+     "bias": 1.022,
+     "se": 0.546,
+     "se_cl": 0.559
+    },
+    "players": 17
+   },
+   "2026/27": {
+    "all": {
+     "n": 98,
+     "players": 20,
+     "bias": 0.166,
+     "se": 0.348,
+     "se_cl": 0.376
+    },
+    "pred>=4": {
+     "n": 29,
+     "players": 10,
+     "bias": -0.712,
+     "se": 0.702,
+     "se_cl": 0.798
+    },
+    "players": 20
+   }
+  },
+  "penalty takers (order==1)": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 404,
+     "players": 14,
+     "bias": 0.367,
+     "se": 0.176,
+     "se_cl": 0.193
+    },
+    "pred>=4": {
+     "n": 143,
+     "players": 11,
+     "bias": 0.332,
+     "se": 0.346,
+     "se_cl": 0.472
+    },
+    "players": 14
+   },
+   "2026/27": {
+    "all": {
+     "n": 88,
+     "players": 19,
+     "bias": -0.15,
+     "se": 0.327,
+     "se_cl": 0.437
+    },
+    "pred>=4": {
+     "n": 41,
+     "players": 13,
+     "bias": -0.472,
+     "se": 0.531,
+     "se_cl": 0.713
+    },
+    "players": 19
+   }
+  },
+  "penalty takers, mid/fwd only": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 404,
+     "players": 14,
+     "bias": 0.367,
+     "se": 0.176,
+     "se_cl": 0.193
+    },
+    "pred>=4": {
+     "n": 143,
+     "players": 11,
+     "bias": 0.332,
+     "se": 0.346,
+     "se_cl": 0.472
+    },
+    "players": 14
+   },
+   "2026/27": {
+    "all": {
+     "n": 88,
+     "players": 19,
+     "bias": -0.15,
+     "se": 0.327,
+     "se_cl": 0.437
+    },
+    "pred>=4": {
+     "n": 41,
+     "players": 13,
+     "bias": -0.472,
+     "se": 0.531,
+     "se_cl": 0.713
+    },
+    "players": 19
+   }
+  },
+  "box defenders (DEF xG/90 > median)": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 1719,
+     "players": 56,
+     "bias": 0.148,
+     "se": 0.081,
+     "se_cl": 0.067
+    },
+    "pred>=4": {
+     "n": 259,
+     "players": 42,
+     "bias": 0.078,
+     "se": 0.244,
+     "se_cl": 0.261
+    },
+    "players": 56
+   },
+   "2026/27": {
+    "all": {
+     "n": 203,
+     "players": 41,
+     "bias": 0.334,
+     "se": 0.234,
+     "se_cl": 0.242
+    },
+    "pred>=4": {
+     "n": 46,
+     "players": 22,
+     "bias": 0.259,
+     "se": 0.448,
+     "se_cl": 0.367
+    },
+    "players": 41
+   }
+  },
+  "  DEF xG/90 <= median": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 2112,
+     "players": 72,
+     "bias": -0.145,
+     "se": 0.059,
+     "se_cl": 0.054
+    },
+    "pred>=4": {
+     "n": 196,
+     "players": 44,
+     "bias": -0.418,
+     "se": 0.251,
+     "se_cl": 0.241
+    },
+    "players": 72
+   },
+   "2026/27": {
+    "all": {
+     "n": 263,
+     "players": 54,
+     "bias": 0.162,
+     "se": 0.187,
+     "se_cl": 0.168
+    },
+    "pred>=4": {
+     "n": 34,
+     "players": 18,
+     "bias": -0.284,
+     "se": 0.607,
+     "se_cl": 0.548
+    },
+    "players": 54
+   }
+  },
+  "rotation-heavy clubs (5 lowest regular start-rate)": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 3241,
+     "players": 142,
+     "bias": -0.178,
+     "se": 0.043,
+     "se_cl": 0.044
+    },
+    "pred>=4": {
+     "n": 99,
+     "players": 41,
+     "bias": -0.493,
+     "se": 0.383,
+     "se_cl": 0.31
+    },
+    "players": 142
+   },
+   "2026/27": {
+    "all": {
+     "n": 494,
+     "players": 114,
+     "bias": 0.092,
+     "se": 0.126,
+     "se_cl": 0.11
+    },
+    "pred>=4": {
+     "n": 31,
+     "players": 22,
+     "bias": -1.448,
+     "se": 0.481,
+     "se_cl": 0.395
+    },
+    "players": 114
+   }
+  },
+  "  non-rotation clubs": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 9606,
+     "players": 391,
+     "bias": 0.102,
+     "se": 0.029,
+     "se_cl": 0.028
+    },
+    "pred>=4": {
+     "n": 848,
+     "players": 158,
+     "bias": -0.029,
+     "se": 0.133,
+     "se_cl": 0.147
+    },
+    "players": 391
+   },
+   "2026/27": {
+    "all": {
+     "n": 1393,
+     "players": 322,
+     "bias": 0.028,
+     "se": 0.07,
+     "se_cl": 0.073
+    },
+    "pred>=4": {
+     "n": 151,
+     "players": 65,
+     "bias": 0.122,
+     "se": 0.296,
+     "se_cl": 0.305
+    },
+    "players": 322
+   }
+  },
+  "cheap enablers (now_cost < 4.5)": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 2737,
+     "players": 144,
+     "bias": -0.261,
+     "se": 0.045,
+     "se_cl": 0.041
+    },
+    "pred>=4": {
+     "n": 100,
+     "players": 38,
+     "bias": -0.662,
+     "se": 0.347,
+     "se_cl": 0.298
+    },
+    "players": 144
+   },
+   "2026/27": {
+    "all": {
+     "n": 240,
+     "players": 60,
+     "bias": -0.134,
+     "se": 0.151,
+     "se_cl": 0.117
+    },
+    "pred>=4": {
+     "n": 1,
+     "players": 0,
+     "bias": null,
+     "se": null,
+     "se_cl": null
+    },
+    "players": 60
+   }
+  },
+  "cheap MID/FWD < 6.0": {
+   "def_note": "end-of-season labels (archetype defined with hindsight)",
+   "2025/26": {
+    "all": {
+     "n": 5390,
+     "players": 239,
+     "bias": 0.03,
+     "se": 0.032,
+     "se_cl": 0.032
+    },
+    "pred>=4": {
+     "n": 106,
+     "players": 48,
+     "bias": -0.289,
+     "se": 0.337,
+     "se_cl": 0.255
+    },
+    "players": 239
+   },
+   "2026/27": {
+    "all": {
+     "n": 818,
+     "players": 193,
+     "bias": -0.092,
+     "se": 0.075,
+     "se_cl": 0.071
+    },
+    "pred>=4": {
+     "n": 14,
+     "players": 12,
+     "bias": -0.944,
+     "se": 0.605,
+     "se_cl": 0.664
+    },
+    "players": 193
+   }
+  },
+  "elite (pred>=6)": {
+   "def_note": "ex-ante by prediction",
+   "2025/26": {
+    "all": {
+     "n": 76,
+     "bias": -0.012,
+     "se": 0.493
+    },
+    "pred>=4": {
+     "n": 76,
+     "bias": -0.012,
+     "se": 0.493
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 1,
+     "bias": null,
+     "se": null
+    },
+    "pred>=4": {
+     "n": 1,
+     "bias": null,
+     "se": null
+    }
+   }
+  },
+  "pred 4-6": {
+   "def_note": "ex-ante by prediction",
+   "2025/26": {
+    "all": {
+     "n": 871,
+     "bias": -0.083,
+     "se": 0.13
+    },
+    "pred>=4": {
+     "n": 871,
+     "bias": -0.083,
+     "se": 0.13
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 181,
+     "bias": -0.161,
+     "se": 0.263
+    },
+    "pred>=4": {
+     "n": 181,
+     "bias": -0.161,
+     "se": 0.263
+    }
+   }
+  },
+  "pred 2-4": {
+   "def_note": "ex-ante by prediction",
+   "2025/26": {
+    "all": {
+     "n": 6602,
+     "bias": -0.134,
+     "se": 0.037
+    },
+    "pred>=4": {
+     "n": 0,
+     "bias": null,
+     "se": null
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 884,
+     "bias": 0.025,
+     "se": 0.104
+    },
+    "pred>=4": {
+     "n": 0,
+     "bias": null,
+     "se": null
+    }
+   }
+  },
+  "pred <2": {
+   "def_note": "ex-ante by prediction",
+   "2025/26": {
+    "all": {
+     "n": 5298,
+     "bias": 0.256,
+     "se": 0.029
+    },
+    "pred>=4": {
+     "n": 0,
+     "bias": null,
+     "se": null
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 821,
+     "bias": 0.108,
+     "se": 0.062
+    },
+    "pred>=4": {
+     "n": 0,
+     "bias": null,
+     "se": null
+    }
+   }
+  },
+  "pred>=4, pos GKP": {
+   "def_note": "ex-ante",
+   "2025/26": {
+    "all": {
+     "n": 19,
+     "bias": -0.077,
+     "se": 0.788
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 2,
+     "bias": 4.434,
+     "se": 5.549
+    }
+   }
+  },
+  "pred>=4, pos DEF": {
+   "def_note": "ex-ante",
+   "2025/26": {
+    "all": {
+     "n": 459,
+     "bias": -0.158,
+     "se": 0.175
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 81,
+     "bias": -0.016,
+     "se": 0.362
+    }
+   }
+  },
+  "pred>=4, pos MID": {
+   "def_note": "ex-ante",
+   "2025/26": {
+    "all": {
+     "n": 362,
+     "bias": 0.095,
+     "se": 0.211
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 73,
+     "bias": -0.531,
+     "se": 0.427
+    }
+   }
+  },
+  "pred>=4, pos FWD": {
+   "def_note": "ex-ante",
+   "2025/26": {
+    "all": {
+     "n": 107,
+     "bias": -0.315,
+     "se": 0.384
+    }
+   },
+   "2026/27": {
+    "all": {
+     "n": 26,
+     "bias": 0.184,
+     "se": 0.724
+    }
+   }
+  }
+ },
+ "persistence": {
+  "set_piece (corner/IFK/DFK order==1)": {
+   "H1 (GW4-20) all": {
+    "n": 421,
+    "players": 27,
+    "bias": 0.497,
+    "se": 0.161,
+    "se_cl": 0.172
+   },
+   "H2 (GW21-38) all": {
+    "n": 472,
+    "players": 28,
+    "bias": 0.268,
+    "se": 0.144,
+    "se_cl": 0.199
+   },
+   "H1 pred>=4": {
+    "n": 42,
+    "players": 9,
+    "bias": -0.189,
+    "se": 0.622,
+    "se_cl": 0.618
+   },
+   "H2 pred>=4": {
+    "n": 73,
+    "players": 15,
+    "bias": 1.09,
+    "se": 0.469,
+    "se_cl": 0.497
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 131,
+    "players": 27,
+    "bias": 0.058,
+    "se": 0.275,
+    "se_cl": 0.3
+   }
+  },
+  "  corners/IFK taker only": {
+   "H1 (GW4-20) all": {
+    "n": 289,
+    "players": 18,
+    "bias": 0.499,
+    "se": 0.191,
+    "se_cl": 0.22
+   },
+   "H2 (GW21-38) all": {
+    "n": 320,
+    "players": 19,
+    "bias": 0.252,
+    "se": 0.168,
+    "se_cl": 0.232
+   },
+   "H1 pred>=4": {
+    "n": 40,
+    "players": 8,
+    "bias": -0.114,
+    "se": 0.648,
+    "se_cl": 0.63
+   },
+   "H2 pred>=4": {
+    "n": 67,
+    "players": 12,
+    "bias": 0.923,
+    "se": 0.443,
+    "se_cl": 0.462
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 98,
+    "players": 20,
+    "bias": 0.036,
+    "se": 0.332,
+    "se_cl": 0.388
+   }
+  },
+  "  direct FK taker only": {
+   "H1 (GW4-20) all": {
+    "n": 256,
+    "players": 17,
+    "bias": 0.842,
+    "se": 0.236,
+    "se_cl": 0.208
+   },
+   "H2 (GW21-38) all": {
+    "n": 280,
+    "players": 17,
+    "bias": 0.4,
+    "se": 0.202,
+    "se_cl": 0.286
+   },
+   "H1 pred>=4": {
+    "n": 30,
+    "players": 6,
+    "bias": 0.359,
+    "se": 0.822,
+    "se_cl": 0.536
+   },
+   "H2 pred>=4": {
+    "n": 38,
+    "players": 8,
+    "bias": 1.545,
+    "se": 0.73,
+    "se_cl": 0.823
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 98,
+    "players": 20,
+    "bias": 0.166,
+    "se": 0.348,
+    "se_cl": 0.376
+   }
+  },
+  "penalty takers (order==1)": {
+   "H1 (GW4-20) all": {
+    "n": 206,
+    "players": 14,
+    "bias": 0.428,
+    "se": 0.239,
+    "se_cl": 0.262
+   },
+   "H2 (GW21-38) all": {
+    "n": 198,
+    "players": 14,
+    "bias": 0.304,
+    "se": 0.259,
+    "se_cl": 0.255
+   },
+   "H1 pred>=4": {
+    "n": 70,
+    "players": 10,
+    "bias": 0.805,
+    "se": 0.527,
+    "se_cl": 0.555
+   },
+   "H2 pred>=4": {
+    "n": 73,
+    "players": 10,
+    "bias": -0.121,
+    "se": 0.451,
+    "se_cl": 0.644
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 88,
+    "players": 19,
+    "bias": -0.15,
+    "se": 0.327,
+    "se_cl": 0.437
+   }
+  },
+  "penalty takers, mid/fwd only": {
+   "H1 (GW4-20) all": {
+    "n": 206,
+    "players": 14,
+    "bias": 0.428,
+    "se": 0.239,
+    "se_cl": 0.262
+   },
+   "H2 (GW21-38) all": {
+    "n": 198,
+    "players": 14,
+    "bias": 0.304,
+    "se": 0.259,
+    "se_cl": 0.255
+   },
+   "H1 pred>=4": {
+    "n": 70,
+    "players": 10,
+    "bias": 0.805,
+    "se": 0.527,
+    "se_cl": 0.555
+   },
+   "H2 pred>=4": {
+    "n": 73,
+    "players": 10,
+    "bias": -0.121,
+    "se": 0.451,
+    "se_cl": 0.644
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 88,
+    "players": 19,
+    "bias": -0.15,
+    "se": 0.327,
+    "se_cl": 0.437
+   }
+  },
+  "box defenders (DEF xG/90 > median)": {
+   "H1 (GW4-20) all": {
+    "n": 861,
+    "players": 55,
+    "bias": 0.173,
+    "se": 0.115,
+    "se_cl": 0.102
+   },
+   "H2 (GW21-38) all": {
+    "n": 858,
+    "players": 55,
+    "bias": 0.122,
+    "se": 0.113,
+    "se_cl": 0.095
+   },
+   "H1 pred>=4": {
+    "n": 124,
+    "players": 31,
+    "bias": 0.08,
+    "se": 0.34,
+    "se_cl": 0.305
+   },
+   "H2 pred>=4": {
+    "n": 135,
+    "players": 35,
+    "bias": 0.076,
+    "se": 0.351,
+    "se_cl": 0.338
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 203,
+    "players": 41,
+    "bias": 0.334,
+    "se": 0.234,
+    "se_cl": 0.242
+   }
+  },
+  "  DEF xG/90 <= median": {
+   "H1 (GW4-20) all": {
+    "n": 1049,
+    "players": 72,
+    "bias": -0.082,
+    "se": 0.085,
+    "se_cl": 0.083
+   },
+   "H2 (GW21-38) all": {
+    "n": 1063,
+    "players": 72,
+    "bias": -0.208,
+    "se": 0.082,
+    "se_cl": 0.079
+   },
+   "H1 pred>=4": {
+    "n": 97,
+    "players": 26,
+    "bias": -0.596,
+    "se": 0.363,
+    "se_cl": 0.226
+   },
+   "H2 pred>=4": {
+    "n": 99,
+    "players": 35,
+    "bias": -0.244,
+    "se": 0.347,
+    "se_cl": 0.385
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 263,
+    "players": 54,
+    "bias": 0.162,
+    "se": 0.187,
+    "se_cl": 0.168
+   }
+  },
+  "rotation-heavy clubs (5 lowest regular start-rate)": {
+   "H1 (GW4-20) all": {
+    "n": 1596,
+    "players": 121,
+    "bias": -0.134,
+    "se": 0.062,
+    "se_cl": 0.056
+   },
+   "H2 (GW21-38) all": {
+    "n": 1645,
+    "players": 131,
+    "bias": -0.22,
+    "se": 0.058,
+    "se_cl": 0.062
+   },
+   "H1 pred>=4": {
+    "n": 42,
+    "players": 18,
+    "bias": -0.828,
+    "se": 0.534,
+    "se_cl": 0.352
+   },
+   "H2 pred>=4": {
+    "n": 57,
+    "players": 34,
+    "bias": -0.246,
+    "se": 0.537,
+    "se_cl": 0.534
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 494,
+    "players": 114,
+    "bias": 0.092,
+    "se": 0.126,
+    "se_cl": 0.11
+   }
+  },
+  "  non-rotation clubs": {
+   "H1 (GW4-20) all": {
+    "n": 4771,
+    "players": 359,
+    "bias": 0.156,
+    "se": 0.041,
+    "se_cl": 0.041
+   },
+   "H2 (GW21-38) all": {
+    "n": 4835,
+    "players": 371,
+    "bias": 0.048,
+    "se": 0.041,
+    "se_cl": 0.038
+   },
+   "H1 pred>=4": {
+    "n": 381,
+    "players": 91,
+    "bias": 0.035,
+    "se": 0.205,
+    "se_cl": 0.212
+   },
+   "H2 pred>=4": {
+    "n": 467,
+    "players": 138,
+    "bias": -0.081,
+    "se": 0.175,
+    "se_cl": 0.178
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 1393,
+    "players": 322,
+    "bias": 0.028,
+    "se": 0.07,
+    "se_cl": 0.073
+   }
+  },
+  "cheap enablers (now_cost < 4.5)": {
+   "H1 (GW4-20) all": {
+    "n": 1330,
+    "players": 121,
+    "bias": -0.27,
+    "se": 0.066,
+    "se_cl": 0.06
+   },
+   "H2 (GW21-38) all": {
+    "n": 1407,
+    "players": 133,
+    "bias": -0.251,
+    "se": 0.063,
+    "se_cl": 0.059
+   },
+   "H1 pred>=4": {
+    "n": 37,
+    "players": 15,
+    "bias": -0.829,
+    "se": 0.643,
+    "se_cl": 0.46
+   },
+   "H2 pred>=4": {
+    "n": 63,
+    "players": 34,
+    "bias": -0.563,
+    "se": 0.405,
+    "se_cl": 0.412
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 240,
+    "players": 60,
+    "bias": -0.134,
+    "se": 0.151,
+    "se_cl": 0.117
+   }
+  },
+  "cheap MID/FWD < 6.0": {
+   "H1 (GW4-20) all": {
+    "n": 2680,
+    "players": 208,
+    "bias": 0.102,
+    "se": 0.047,
+    "se_cl": 0.045
+   },
+   "H2 (GW21-38) all": {
+    "n": 2710,
+    "players": 219,
+    "bias": -0.041,
+    "se": 0.045,
+    "se_cl": 0.043
+   },
+   "H1 pred>=4": {
+    "n": 19,
+    "players": 11,
+    "bias": -0.869,
+    "se": 0.712,
+    "se_cl": 0.472
+   },
+   "H2 pred>=4": {
+    "n": 87,
+    "players": 46,
+    "bias": -0.162,
+    "se": 0.381,
+    "se_cl": 0.3
+   },
+   "2026/27 (GW3-7) all": {
+    "n": 818,
+    "players": 193,
+    "bias": -0.092,
+    "se": 0.075,
+    "se_cl": 0.071
+   }
+  },
+  "elite (pred>=6)": {
+   "H1 (GW4-20) all": {
+    "n": 0,
+    "bias": null,
+    "se": null
+   },
+   "H2 (GW21-38) all": {
+    "n": 76,
+    "bias": -0.012,
+    "se": 0.493
+   }
+  }
+ },
+ "decision": {
+  "set_piece (corner/IFK/DFK order==1)": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 22,
+    "top5_slots_per_week": 0.63,
+    "weeks_with_member_in_top5": 21,
+    "captain_weeks": 6,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 5.83,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 1.96,
+    "slot_bias_se": 1.04,
+    "top5_member_minus_ranks6-12_nongroup_actual": 2.6,
+    "swap_weeks": 21
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 4,
+    "top5_slots_per_week": 0.8,
+    "weeks_with_member_in_top5": 3,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -3.88,
+    "slot_bias_se": 0.49,
+    "top5_member_minus_ranks6-12_nongroup_actual": -4.56,
+    "swap_weeks": 3
+   }
+  },
+  "  corners/IFK taker only": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 22,
+    "top5_slots_per_week": 0.63,
+    "weeks_with_member_in_top5": 21,
+    "captain_weeks": 6,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 5.83,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 1.96,
+    "slot_bias_se": 1.04,
+    "top5_member_minus_ranks6-12_nongroup_actual": 2.6,
+    "swap_weeks": 21
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 3,
+    "top5_slots_per_week": 0.6,
+    "weeks_with_member_in_top5": 3,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -4.11,
+    "slot_bias_se": 0.61,
+    "top5_member_minus_ranks6-12_nongroup_actual": -4.56,
+    "swap_weeks": 3
+   }
+  },
+  "  direct FK taker only": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 22,
+    "top5_slots_per_week": 0.63,
+    "weeks_with_member_in_top5": 21,
+    "captain_weeks": 6,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 5.83,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 1.96,
+    "slot_bias_se": 1.04,
+    "top5_member_minus_ranks6-12_nongroup_actual": 2.44,
+    "swap_weeks": 21
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 4,
+    "top5_slots_per_week": 0.8,
+    "weeks_with_member_in_top5": 3,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -3.88,
+    "slot_bias_se": 0.49,
+    "top5_member_minus_ranks6-12_nongroup_actual": -4.56,
+    "swap_weeks": 3
+   }
+  },
+  "penalty takers (order==1)": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 82,
+    "top5_slots_per_week": 2.34,
+    "weeks_with_member_in_top5": 34,
+    "captain_weeks": 29,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 1.76,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 0.38,
+    "slot_bias_se": 0.51,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.97,
+    "swap_weeks": 34
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 12,
+    "top5_slots_per_week": 2.4,
+    "weeks_with_member_in_top5": 5,
+    "captain_weeks": 5,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 3.4,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -0.2,
+    "slot_bias_se": 1.05,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.73,
+    "swap_weeks": 5
+   }
+  },
+  "penalty takers, mid/fwd only": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 82,
+    "top5_slots_per_week": 2.34,
+    "weeks_with_member_in_top5": 34,
+    "captain_weeks": 29,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 1.76,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 0.38,
+    "slot_bias_se": 0.51,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.97,
+    "swap_weeks": 34
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 12,
+    "top5_slots_per_week": 2.4,
+    "weeks_with_member_in_top5": 5,
+    "captain_weeks": 5,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 3.4,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -0.2,
+    "slot_bias_se": 1.05,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.73,
+    "swap_weeks": 5
+   }
+  },
+  "box defenders (DEF xG/90 > median)": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 39,
+    "top5_slots_per_week": 1.11,
+    "weeks_with_member_in_top5": 28,
+    "captain_weeks": 4,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 0.75,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 0.57,
+    "slot_bias_se": 0.8,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.2,
+    "swap_weeks": 28
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 7,
+    "top5_slots_per_week": 1.4,
+    "weeks_with_member_in_top5": 5,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": 1.15,
+    "slot_bias_se": 1.49,
+    "top5_member_minus_ranks6-12_nongroup_actual": 0.97,
+    "swap_weeks": 5
+   }
+  },
+  "  DEF xG/90 <= median": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 31,
+    "top5_slots_per_week": 0.89,
+    "weeks_with_member_in_top5": 20,
+    "captain_weeks": 1,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 5.0,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 0.19,
+    "slot_bias_se": 0.64,
+    "top5_member_minus_ranks6-12_nongroup_actual": 0.33,
+    "swap_weeks": 20
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 1,
+    "top5_slots_per_week": 0.2,
+    "weeks_with_member_in_top5": 1,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -1.81,
+    "slot_bias_se": null,
+    "top5_member_minus_ranks6-12_nongroup_actual": -4.67,
+    "swap_weeks": 1
+   }
+  },
+  "rotation-heavy clubs (5 lowest regular start-rate)": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 10,
+    "top5_slots_per_week": 0.29,
+    "weeks_with_member_in_top5": 8,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 1.74,
+    "slot_bias_se": 2.09,
+    "top5_member_minus_ranks6-12_nongroup_actual": 3.67,
+    "swap_weeks": 8
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 4,
+    "top5_slots_per_week": 0.8,
+    "weeks_with_member_in_top5": 2,
+    "captain_weeks": 1,
+    "captain_gap_vs_2nd_actual (group captain weeks)": -7.0,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": 1.14,
+    "slot_bias_se": 2.36,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.17,
+    "swap_weeks": 2
+   }
+  },
+  "  non-rotation clubs": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 165,
+    "top5_slots_per_week": 4.71,
+    "weeks_with_member_in_top5": 35,
+    "captain_weeks": 35,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 1.91,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": 0.12,
+    "slot_bias_se": 0.33,
+    "top5_member_minus_ranks6-12_nongroup_actual": 2.31,
+    "swap_weeks": 21
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 21,
+    "top5_slots_per_week": 4.2,
+    "weeks_with_member_in_top5": 5,
+    "captain_weeks": 4,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 6.0,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": 0.08,
+    "slot_bias_se": 0.89,
+    "top5_member_minus_ranks6-12_nongroup_actual": 4.43,
+    "swap_weeks": 3
+   }
+  },
+  "cheap enablers (now_cost < 4.5)": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 10,
+    "top5_slots_per_week": 0.29,
+    "weeks_with_member_in_top5": 9,
+    "captain_weeks": 1,
+    "captain_gap_vs_2nd_actual (group captain weeks)": 5.0,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": -1.18,
+    "slot_bias_se": 0.57,
+    "top5_member_minus_ranks6-12_nongroup_actual": -0.96,
+    "swap_weeks": 9
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 0,
+    "top5_slots_per_week": 0.0,
+    "weeks_with_member_in_top5": 0,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": null,
+    "slot_bias_se": null,
+    "top5_member_minus_ranks6-12_nongroup_actual": null,
+    "swap_weeks": 0
+   }
+  },
+  "cheap MID/FWD < 6.0": {
+   "2025/26": {
+    "weeks": 35,
+    "top5_slots": 1,
+    "top5_slots_per_week": 0.03,
+    "weeks_with_member_in_top5": 1,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 1.91,
+    "slot_bias_actual_minus_pred": -3.68,
+    "slot_bias_se": null,
+    "top5_member_minus_ranks6-12_nongroup_actual": -3.67,
+    "swap_weeks": 1
+   },
+   "2026/27": {
+    "weeks": 5,
+    "top5_slots": 1,
+    "top5_slots_per_week": 0.2,
+    "weeks_with_member_in_top5": 1,
+    "captain_weeks": 0,
+    "captain_gap_vs_2nd_actual (group captain weeks)": null,
+    "captain_gap_vs_2nd_actual (all weeks)": 3.4,
+    "slot_bias_actual_minus_pred": -2.41,
+    "slot_bias_se": null,
+    "top5_member_minus_ranks6-12_nongroup_actual": 1.33,
+    "swap_weeks": 1
+   }
+  }
+ },
+ "captain_picks_2025_26 [player, weeks, mean(actual-pred), mean gap vs 2nd]": [
+  [
+   "Haaland",
+   11,
+   2.19,
+   3.45
+  ],
+  [
+   "B.Fernandes",
+   6,
+   4.08,
+   5.83
+  ],
+  [
+   "M.Salah",
+   5,
+   -1.66,
+   -5.0
+  ],
+  [
+   "Saka",
+   5,
+   -0.12,
+   2.8
+  ],
+  [
+   "Gabriel",
+   4,
+   0.09,
+   0.75
+  ],
+  [
+   "Palmer",
+   2,
+   -5.39,
+   -5.5
+  ],
+  [
+   "Wirtz",
+   1,
+   5.22,
+   8.0
+  ],
+  [
+   "Bijol",
+   1,
+   0.11,
+   5.0
+  ]
+ ],
+ "rotation_clubs_lowest_regular_start_rate": {
+  "2025/26": {
+   "20": 0.589,
+   "18": 0.613,
+   "15": 0.638,
+   "3": 0.638,
+   "19": 0.644
+  },
+  "2026/27": {
+   "19": 0.67,
+   "6": 0.725,
+   "2": 0.736,
+   "8": 0.747,
+   "4": 0.758
+  }
+ }
+}

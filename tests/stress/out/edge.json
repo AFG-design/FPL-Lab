@@ -1,0 +1,67 @@
+[
+ {
+  "case": "E1 all xP finite, >= 0, <= 15",
+  "ok": true,
+  "detail": "0 bad values []; max 5.44"
+ },
+ {
+  "case": "E2 double GW ~doubles xP",
+  "ok": true,
+  "detail": "Haaland GW9 5.05 -> 9.32 (x1.84)"
+ },
+ {
+  "case": "E3 blank GW gives 0",
+  "ok": true,
+  "detail": "Haaland GW9 0.0"
+ },
+ {
+  "case": "E3b harness rebuild matches",
+  "ok": true,
+  "detail": "5.05 vs 5.05"
+ },
+ {
+  "case": "E4 0-minute players project ~0",
+  "ok": true,
+  "detail": "87 available players with 0 minutes; max xP 0.00"
+ },
+ {
+  "case": "E5 new signing with no data",
+  "ok": false,
+  "detail": "xP 0.00 (start chance 0.0) - the model gives a new signing nothing until he has played"
+ },
+ {
+  "case": "E6a dated ban uses the date",
+  "ok": true,
+  "detail": "[0.0, 0.0, 1.0, 1.0, 1.0]"
+ },
+ {
+  "case": "E6b undated 3-match ban",
+  "ok": false,
+  "detail": "[0.0, 0.0, 1.0, 1.0, 1.0] - an undated ban is assumed over after 2 games"
+ },
+ {
+  "case": "E6c injured with no chance value",
+  "ok": false,
+  "detail": "k0 availability 0.5 (FPL currently always sends 0 for status i)"
+ },
+ {
+  "case": "E6d impossible return date in news",
+  "ok": false,
+  "detail": "ValueError: day is out of range for month - one malformed FPL note would crash build.py"
+ },
+ {
+  "case": "E7 dropped keepers get low start chance",
+  "ok": true,
+  "detail": "[('Scherpen', [1, 1, 1, 1, 0, 0, 0], 0.05, 0.14)]"
+ },
+ {
+  "case": "E8 European week trims xP a little",
+  "ok": true,
+  "detail": "5.22 -> 4.95"
+ },
+ {
+  "case": "E9 odds/no-odds discontinuity small",
+  "ok": true,
+  "detail": "GW8 fixtures with odds 10, later GWs 0; mean |change| for xP>2 players 0.07; extremes (-0.23813698258685623, 'Van Hecke') (0.2610933639385351, 'Haaland')"
+ }
+]
