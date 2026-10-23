@@ -175,7 +175,7 @@ for upid, (eid, sc) in mapping.items():
     a = per.get(("a", team, p["player_name"]), {}) if team else {}
     mins = int(p["time"])
     out[str(eid)] = {
-        "us_id": upid, "match": sc, "mins": mins, "games": int(p["games"]),
+        "us_id": upid, "match": sc, "mins": mins, "games": int(p["games"]), "upos": p.get("position", ""),
         "shots": int(p["shots"]), "kp": int(p["key_passes"]), "npxg": round(float(p["npxG"]), 2),
         "xgchain": round(float(p["xGChain"]), 2), "xgbuildup": round(float(p["xGBuildup"]), 2),
         "sib": int(c.get("sib", 0)), "bc": int(c.get("bc", 0)), "bc_scored": int(c.get("bc_scored", 0)),

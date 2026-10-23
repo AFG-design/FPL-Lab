@@ -3,6 +3,7 @@ name: Refresh FPL data
 on:
   schedule:
     - cron: "7,37 * * * *"   # every 30 minutes (UTC); an external scheduler can also start it (see README)
+    - cron: "*/10 * * * *"   # every 10 minutes, but only goes ahead while a Premier League match is on (see "check")
   workflow_dispatch:          # "Run workflow" button, the dashboard's Refresh button, or an external scheduler
   push:
     branches: [main]
@@ -17,7 +18,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The 10-minute schedule is for live gameweeks: skip unless a match kicked off in the last 2.5 hours
+  # (or kicks off in the next 10 minutes). Everything else always runs.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.c.outputs.run }}
+    steps:
+      - id: c
+        env:
+          SCHED: ${{ github.event.schedule }}
+        run: |
+          if [ "$SCHED" != "*/10 * * * *" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, urllib.request, datetime as dt
+          try:
+              req = urllib.request.Request("https://fantasy.premierleague.com/api/fixtures/", headers={"User-Agent": "Mozilla/5.0 fpl-lab"})
+              fx = json.load(urllib.request.urlopen(req, timeout=20))
+          except Exception:
+              fx = []
+          now = dt.datetime.now(dt.timezone.utc)
+          live = any(f.get("kickoff_time") and -dt.timedelta(minutes=10) <= now - dt.datetime.fromisoformat(f["kickoff_time"].replace("Z", "+00:00")) <= dt.timedelta(hours=2.5) for f in fx)
+          print("run=" + ("true" if live else "false"))
+          PY
+
   build:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

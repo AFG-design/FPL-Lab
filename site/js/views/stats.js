@@ -71,7 +71,7 @@ function vStats() {
       ${trendChart}
       <p class="note">Real scores: ${tr.map(x => `${oppTxt(x)} ${x.gf}–${x.ga}`).join(" · ")}</p></div>
     <div class="panel"><h3>${term("strength", "Team strength")}</h3><p class="note" style="margin-top:0">From the model's predictions, adjusted for the opponents each team has faced. Strength = expected share of points against an average team; Attack and Defence are against the league average (100%).</p>
-      <div class="tablebox" style="max-height:460px"><table><thead><tr><th>Team</th><th class="n">Strength</th><th class="n">Win vs avg</th><th class="n">Attack</th><th class="n">Defence</th><th class="n">Next ${Math.min(6, GWS.length)} win %</th></tr></thead><tbody>${Object.values(T).map(t => ({ t, s: teamStrength(t), nx: GWS.slice(0, 6).flatMap(g => (t.fx[g] || []).map(x => wdl(x.xgf, x.xga).w)) })).sort((a, b) => b.s.pts - a.s.pts).map(({ t, s: st, nx }) => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${st.pts * 0.8}px"></span> <b>${Math.round(st.pts)}%</b></td><td class="n">${Math.round(st.win)}%</td><td class="n">${Math.round(st.att)}%</td><td class="n">${Math.round(st.def)}%</td><td class="n">${nx.length ? Math.round(100 * nx.reduce((a, b) => a + b, 0) / nx.length) + "%" : "–"}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="tablebox" style="max-height:460px"><table><thead><tr><th>Team</th><th class="n">Strength</th><th class="n">Win vs avg</th><th class="n">Attack</th><th class="n">Defence</th><th class="n">Next ${Math.min(6, GWS.length)} win %</th></tr></thead><tbody>${Object.values(T).map(t => ({ t, s: teamStrength(t), nx: GWS.slice(0, 6).flatMap(g => (t.fx[g] || []).map(x => wdl(x.xgf, x.xga).w)) })).sort((a, b) => b.s.pts - a.s.pts).map(({ t, s: st, nx }) => `<tr><td><button data-team="${t.id}" class="linkish">${t.name}</button></td><td class="n"><span class="minibar" style="width:${st.pts * 0.8}px"></span> <b>${Math.round(st.pts)}%</b></td><td class="n">${Math.round(st.win)}%</td><td class="n">${Math.round(st.att)}%</td><td class="n">${Math.round(st.def)}%</td><td class="n">${nx.length ? Math.round(100 * nx.reduce((a, b) => a + b, 0) / nx.length) + "%" : "–"}</td></tr>`).join("")}</tbody></table></div></div>
   </div>${teamSPHTML()}`;
   return nav + body;
 }
@@ -115,23 +115,9 @@ function valueHTML() {
     const list = D.players.filter(p => p.pos === pos && p.price <= caps[pos] && starters(p)).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 5);
     return `<div><h3 style="font-size:16px;margin:10px 0 6px">${pos} ≤ £${caps[pos].toFixed(1)}m</h3>${list.length ? `<div class="tablebox"><table><tbody>${list.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short} · £${p.price.toFixed(1)}m</span></td><td class="n">${nailedPill(p)}</td><td class="n"><b>${f1(xf(p.id))}</b></td><td><span class="fx sgfx">${fxChips(p, g0, 4)}</span></td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">No regular starters at this price.</p>'}</div>`;
   }).join("");
-  // rotation pairs: two cheap players from different clubs; start whichever has the better fixture each week
-  const pairsFor = (pos, cap, minEach) => {
-    const ps = D.players.filter(p => p.pos === pos && p.price <= cap && starters(p) && xf(p.id) >= minEach).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 25);
-    const out = [];
-    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
-      const a = ps[i], b = ps[j]; if (a.team === b.team) continue;
-      const tot = PG.reduce((s2, g) => s2 + Math.max(xpg(a.id, g), xpg(b.id, g)), 0);
-      out.push({ a, b, tot, cost: a.price + b.price, best1: Math.max(xf(a.id), xf(b.id)) });
-    }
-    return out.sort((x, y) => y.tot - x.tot).slice(0, 4);
-  };
-  const pairTable = (list) => list.length ? `<div class="tablebox"><table><thead><tr><th>Pair</th><th class="n">£m</th><th class="n">xP rotating</th>${PG.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${list.map(r => `<tr><td><span class="pname">${esc(r.a.name)}</span> <span class="muted">${T[r.a.team].short}</span> + <span class="pname">${esc(r.b.name)}</span> <span class="muted">${T[r.b.team].short}</span></td><td class="n">${r.cost.toFixed(1)}</td><td class="n"><b>${f1(r.tot)}</b> <span class="muted">(+${f1(r.tot - r.best1)})</span></td>${PG.map(g => { const s2 = xpg(r.a.id, g) >= xpg(r.b.id, g) ? r.a : r.b; return `<td>${esc(s2.name)}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>` : '<p class="muted">No suitable pairs.</p>';
   return `<div class="panel"><h3>Budget enablers</h3><p class="note" style="margin-top:0">The best cheap players who actually start (Nailed 70+), by projected points over ${H} GWs. Filling these spots well frees money for premiums.</p>
       <div class="statgrid">${enab}</div></div>
-    <div class="panel"><h3>Rotation pairs</h3><p class="note" style="margin-top:0">Two cheap players from different clubs: start whichever has the better fixture each week. The bracket shows how much the pair adds over just starting the better one every week.</p>
-      <h3 style="font-size:16px;margin:6px 0">Goalkeepers ≤ £5.0m each</h3>${pairTable(pairsFor("GKP", 5.0, 0))}
-      <h3 style="font-size:16px;margin:14px 0 6px">Defenders ≤ £5.0m each</h3>${pairTable(pairsFor("DEF", 5.0, 0))}</div>`;
+    ${rotationHTML()}${oopHTML()}`;
 }
 function shotsHTML() {
   const posF = S.stPos, k = S.shSort || "sib90_4";
@@ -265,8 +251,12 @@ const STAT_LABELS = {
   value: ["Value", [
     ["Budget enablers", "The best regular starters at or under each price, by projected points over your plan length."],
     ["Nailed", "How sure he is to start (85+ nailed on)."],
-    ["Pair / xP rotating", "Two cheap players from different clubs: you start whichever has the better fixture each week. xP rotating is what that pair projects, with (+) the gain over just owning the better one."],
-    ["GW columns", "Each player's projection that week; the higher one is the one you'd start."],
+    ["Rotation planner", "Pick a position and a price limit. Each pair is two regular starters from different clubs: you start whichever has the better fixture each week."],
+    ["xP rotating", "What the pair projects over your plan length, with (+) the gain over just starting the better one every week."],
+    ["GW columns", "Who you'd start that week and his projection."],
+    ["A partner for your…", "For each of your own players at that position, the best player to rotate him with, and how much that adds."],
+    ["Plays as", "Out of position tables: where Understat records him playing (D, M, F). Two letters means both."],
+    ["In box/90", "Shots from inside the penalty area per 90."],
   ]],
   prices: ["Prices", [
     ["FPL projection", "FPL's own estimate of how close a player is to a price change at the next update (around 01:30 UK). 100% means the threshold is reached; negative means a fall."],
@@ -290,4 +280,52 @@ function openStatLabels(tab) {
     ${sec(STAT_LABELS[tab] || STAT_LABELS.form)}${sec(STAT_LABELS.general)}
     <p class="note">Tap any dotted-underlined word on the site for a quick explanation too.</p>`;
   const dlg = $("#dlg"); dlg.showModal(); $("#dlgX").onclick = () => dlg.close();
+}
+
+/* ---------- rotation planner: two players who share a slot, any position and budget ---------- */
+const ROT_CAPS = { GKP: [4.5, 5.0, 5.5], DEF: [4.5, 5.0, 5.5, 6.0], MID: [5.5, 6.5, 7.5], FWD: [6.0, 7.0, 8.0] };
+function rotationHTML() {
+  const pos = ROT_CAPS[S.rotPos] ? S.rotPos : "GKP", caps = ROT_CAPS[pos], cap = caps.includes(S.rotCap) ? S.rotCap : caps[1];
+  const g0 = PG[0], xf = id => xpFrom(id, g0, PG.length), starter = p => p.ok !== false && p.nailed >= 70 && p.status === "a";
+  const both = (a, b) => PG.reduce((t, g) => t + Math.max(xpg(a.id, g), xpg(b.id, g)), 0);
+  const ps = D.players.filter(p => p.pos === pos && p.price <= cap && starter(p)).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 30);
+  const pairs = [];
+  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+    const a = ps[i], b = ps[j]; if (a.team === b.team) continue;
+    pairs.push({ a, b, tot: both(a, b), cost: a.price + b.price, best1: Math.max(xf(a.id), xf(b.id)) });
+  }
+  pairs.sort((x, y) => y.tot - x.tot);
+  // a partner for each of your own players at this position
+  const mine = D.squad.map(s2 => P[s2.id]).filter(p => p && p.pos === pos);
+  const partners = mine.map(m => { const c = ps.filter(p => p.team !== m.team && !MINE.has(p.id)).map(p => ({ p, tot: both(m, p) })).sort((x, y) => y.tot - x.tot)[0];
+    return c ? { m, ...c, gain: c.tot - xf(m.id) } : null; }).filter(Boolean).sort((x, y) => y.gain - x.gain);
+  const who = (r, g) => (xpg(r.a.id, g) >= xpg(r.b.id, g) ? r.a : r.b);
+  const tbl = list => list.length ? `<div class="tablebox"><table><thead><tr><th>Pair</th><th class="n">£m</th><th class="n">xP rotating</th>${PG.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${list.map(r => `<tr class="${MINE.has(r.a.id) || MINE.has(r.b.id) ? "mine" : ""}"><td><button data-p="${r.a.id}" class="pname linkish">${esc(r.a.name)}</button> <span class="muted">${T[r.a.team].short}</span> + <button data-p="${r.b.id}" class="pname linkish">${esc(r.b.name)}</button> <span class="muted">${T[r.b.team].short}</span></td><td class="n">${r.cost.toFixed(1)}</td><td class="n"><b>${f1(r.tot)}</b> <span class="muted">(+${f1(r.tot - r.best1)})</span></td>${PG.map(g => { const w = who(r, g); return `<td>${esc(w.name)} <span class="muted">${f1(xpg(w.id, g))}</span></td>`; }).join("")}</tr>`).join("")}</tbody></table></div>` : `<p class="muted">No regular starters at this price.</p>`;
+  return `<div class="panel"><div class="bar"><h3>Rotation planner</h3>
+      <div class="fx-controls"><div class="seg" role="group" aria-label="Position">${Object.keys(ROT_CAPS).map(k => `<button data-rotpos="${k}" aria-pressed="${pos === k}">${k}</button>`).join("")}</div>
+      <div class="seg" role="group" aria-label="Price each">${caps.map(c => `<button data-rotcap="${c}" aria-pressed="${cap === c}">≤ £${c.toFixed(1)}m</button>`).join("")}</div></div></div>
+    <p class="note" style="margin-top:0">Two players from different clubs sharing one slot: start whichever has the better fixture each week. "xP rotating" is what the pair projects over ${PG.length} GWs, with how much that beats just starting the better one every week. Regular starters (nailed 70+) only.</p>
+    ${tbl(pairs.slice(0, 6))}
+    ${partners.length ? `<h3 style="margin:14px 0 6px">A partner for your ${pos === "GKP" ? "keepers" : pos === "DEF" ? "defenders" : pos === "MID" ? "midfielders" : "forwards"}</h3>
+      <ul class="alerts">${partners.map(r => `<li class="${r.gain >= 1 ? "good" : ""}"><span><b>${esc(r.m.name)}</b> + <button data-p="${r.p.id}" class="linkish">${esc(r.p.name)}</button> <span class="muted">${T[r.p.team].short} · ${money(r.p.price)}</span> · rotating projects <b>${f1(r.tot)}</b>, <span class="${r.gain > 0 ? "up" : ""}">${sgn(r.gain)}</span> vs starting ${esc(r.m.name)} every week</span></li>`).join("")}</ul>` : ""}</div>`;
+}
+
+/* ---------- out of position: FPL position vs where they actually play ---------- */
+function oopHTML() {
+  const g0 = PG[0], xf = id => xpFrom(id, g0, PG.length);
+  const play = u => (u || "").replace(/S/g, "").trim();
+  const role = u => ({ D: "defender", M: "midfielder", F: "forward", GK: "keeper" })[play(u).split(" ").filter(Boolean)[0]] || "–";
+  const roles = u => play(u).split(" ").filter(Boolean).map(x => ({ D: "D", M: "M", F: "F" })[x] || x).join("/");
+  const defs = D.players.filter(p => p.pos === "DEF" && /[MF]/.test(play(p.upos)) && p.mins > 0).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 10);
+  const mids = D.players.filter(p => p.pos === "MID" && /F/.test(play(p.upos)) && p.mins > 0).sort((a, b) => xf(b.id) - xf(a.id)).slice(0, 10);
+  // and simply the defenders who attack most, whatever Understat calls them
+  const atk = D.players.filter(p => p.pos === "DEF" && p.nailed >= 60 && p.mins >= 270).sort((a, b) => b.xgi90 - a.xgi90).slice(0, 8);
+  const avgDef = (() => { const ds = D.players.filter(p => p.pos === "DEF" && p.mins >= 270); return ds.reduce((s2, p) => s2 + p.xgi90, 0) / Math.max(1, ds.length); })();
+  const row = p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short}</span></td><td class="n">${p.price.toFixed(1)}</td><td>${roles(p.upos) || "–"}</td><td class="n"><b>${p.xgi90.toFixed(2)}</b></td><td class="n">${p.xgi90_4.toFixed(2)}</td><td class="n">${(p.us?.sib90 ?? 0).toFixed(1)}</td><td class="n">${nailedPill(p)}</td><td class="n">${f1(xf(p.id))}</td></tr>`;
+  const tbl = list => list.length ? `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th>${term("oop", "Plays as")}</th><th class="n">xGI/90</th><th class="n">L4</th><th class="n">In box/90</th><th class="n">Nailed</th><th class="n">xP ${PG.length}</th></tr></thead><tbody>${list.map(row).join("")}</tbody></table></div>` : '<p class="muted">None this season so far.</p>';
+  return `<div class="panel"><h3>Out of position</h3>
+    <p class="note" style="margin-top:0">Players FPL lists in one position who also play further forward. Defenders who play in midfield score attacking returns but still get 4 points for a clean sheet and 6 per goal, which makes them some of the best value in the game. Positions are from Understat (D defender, M midfielder, F forward).</p>
+    <div class="statgrid"><div><h3 style="font-size:16px;margin:4px 0 6px">Defenders who play further forward</h3>${tbl(defs)}</div>
+      <div><h3 style="font-size:16px;margin:4px 0 6px">Midfielders who play up front</h3>${tbl(mids)}</div></div>
+    <h3 style="font-size:16px;margin:14px 0 6px">Most attacking defenders</h3><p class="note" style="margin-top:0">Ranked by expected goals + assists per 90 (regular starters). The average defender gets ${avgDef.toFixed(2)}.</p>${tbl(atk)}</div>`;
 }

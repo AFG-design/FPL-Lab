@@ -13,6 +13,7 @@ function searchItems(q) {
     return { p, score };
   }).filter(Boolean).sort((a, b) => b.score - a.score || b.p.xp5 - a.p.xp5).slice(0, 8);
   ps.forEach(({ p }) => out.push({ kind: "player", id: p.id, label: p.name, sub: `${T[p.team].short} · ${p.pos} · £${p.price.toFixed(1)}m · ${f1(xpg(p.id, D.meta.next_gw))} xP${MINE.has(p.id) ? " · in your team" : ""}` }));
+  Object.values(T).forEach(t => { if (fold(t.name).includes(f) || fold(t.short) === f) out.push({ kind: "club", id: t.id, label: t.name, sub: "Team profile: form, fixtures, likely XI, best picks" }); });
   const seen = new Set();
   watchTeams().forEach(w => { if (!seen.has(w.entry) && (fold(w.player).includes(f) || fold(w.team).includes(f))) { seen.add(w.entry); out.push({ kind: "team", id: w.entry, label: w.player, sub: `${w.team} · ${w.src}` }); } });
   MORE.concat([["week", "This week", "Your team and this week's decisions"], ["planner", "Planner", "Transfers, captains and strategy"], ["rivals", "Rivals", "The field and mini-leagues"], ["players", "Players", "Every player, filtered and sorted"]])
@@ -23,7 +24,7 @@ function searchList() {
   const L = $("#searchList"); if (!L) return;
   SEARCH.items = searchItems(SEARCH.q); SEARCH.sel = Math.min(SEARCH.sel, Math.max(0, SEARCH.items.length - 1));
   L.innerHTML = SEARCH.items.length ? SEARCH.items.map((it, k) => `<li role="option" id="sr${k}" aria-selected="${k === SEARCH.sel}" data-sk="${k}">
-      ${it.kind === "player" ? `<span class="sr-ic pos-${P[it.id].pos}">${P[it.id].pos}</span>` : `<span class="sr-ic">${icon(it.kind === "team" ? "rivals" : it.id)}</span>`}
+      ${it.kind === "player" ? `<span class="sr-ic pos-${P[it.id].pos}">${P[it.id].pos}</span>` : `<span class="sr-ic">${icon(it.kind === "team" ? "rivals" : it.kind === "club" ? "fixtures" : it.id)}</span>`}
       <span class="sr-txt"><b>${esc(it.label)}</b><span>${esc(it.sub)}</span></span></li>`).join("")
     : `<li class="sr-empty">${SEARCH.q.trim() ? "Nothing found. Try a surname, a club (e.g. ARS) or a team ID." : "Type a player, club, manager, team ID or section."}</li>`;
   $("#searchIn").setAttribute("aria-activedescendant", SEARCH.items.length ? "sr" + SEARCH.sel : "");
@@ -33,6 +34,7 @@ function searchGo(it) {
   $("#searchDlg").close();
   if (it.kind === "player") openPlayer(it.id);
   else if (it.kind === "view") setView(it.id);
+  else if (it.kind === "club") openTeam(it.id);
   else { S.cmpTeam = it.id; setView("rivals"); setTimeout(() => $("#cmpForm")?.closest(".panel")?.scrollIntoView({ behavior: "smooth" }), 50); }
 }
 function openSearch() {

@@ -123,7 +123,7 @@ function vWeek() {
   const sp = spreadVsField(me.mult, g);
   const step = (n, state, title, pill, doTxt, details) => `<div class="stepcard ${state}"><span class="no">${state === "ok" ? "✓" : n}</span><div class="sbody">
     <h3>${title} ${pill ? `<span class="pillwrap">${pill}</span>` : ""}</h3><div class="do">${doTxt}</div>${details ? `<details><summary>Details</summary><div class="dbody">${details}</div></details>` : ""}</div></div>`;
-  return `${dashStrip(me, g)}
+  return `${livePanel()}${dashStrip(me, g)}
   <div class="grid2">
     <div class="steps">
       <div class="bar" style="margin:0"><h2>Before the GW${g} deadline</h2><span>${term("verdict", "What the labels mean")}</span><span class="muted">${countdown(D.meta.deadline)} left</span></div>
@@ -147,5 +147,5 @@ function vWeek() {
       <p class="note">The team from your plan, also used by Planner and Rivals. ${sp != null ? `<b>±${f1(sp)}</b> is how far your score typically lands from the managers around your rank: lower means safer.` : ""}</p>
     </div>
   </div>
-  <div class="grid2">${squadRatingPanel()}${starsPanel()}</div>`;
+  <div class="grid2">${squadRatingPanel()}<div style="display:grid;gap:20px;align-content:start;min-width:0">${weekPanel()}${starsPanel()}</div></div>`;
 }

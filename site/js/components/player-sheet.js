@@ -81,17 +81,16 @@ function openPlayer(id) {
   const pills = [
     p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}">${esc(p.news || "Flagged")}</span>` : "",
     p.mflag ? `<span class="pill warn">${esc(p.mflag)}</span>` : "",
-    p.sp?.pen === 1 ? '<span class="pill good">Penalties</span>' : "",
     p.sp?.cor === 1 ? '<span class="pill good">Corners</span>' : "",
     p.sp?.fk === 1 ? '<span class="pill good">Free kicks</span>' : "",
     eu ? `<span class="pill mut">Also plays ${esc(eu.eu)}</span>` : "",
-  ].join("");
+  ].join("") + playerTags(p, 6);
 
   $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
     <div class="phead">
       <img class="photo" src="${photoURL(p)}" alt="" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=PHOTO_BASE+'/placeholder.png'}else this.remove()">
       <div class="ph-main">
-        <p class="ph-club">${esc(T[p.team].name)}, ${POS[p.pos] || p.pos}${MINE.has(id) ? ' <span class="tag">In your squad</span>' : ""}</p>
+        <p class="ph-club"><button data-team="${p.team}" class="linkish">${esc(T[p.team].name)}</button>, ${POS[p.pos] || p.pos}${MINE.has(id) ? ' <span class="tag">In your squad</span>' : ""}</p>
         <h2 id="dlgTitle">${esc(p.full)}</h2>
         <div class="ph-pills">${nailedPill(p)}<span class="note">${term("nailed", "nailed on")}</span>${pills}</div>
       </div>
@@ -113,6 +112,7 @@ function openPlayer(id) {
       <p class="note">The chip shows FPL's fixture difficulty, 1 easiest to 5 hardest. The number on the right is projected points.</p></section>
 
     ${p.price_proj?.[0] != null ? `<section class="ph-sec"><h3>Price change</h3>${priceChange(p)}</section>` : ""}
+    ${p.pos !== "GKP" ? `<section class="ph-sec" id="shotmap" data-pid="${id}"><h3>Shot map</h3><p class="note">Loading…</p></section>` : ""}
 
     <section class="ph-sec"><h3>Key stats</h3>
       <div class="brk">${tile("Season pts", p.pts)}${tile("Goals, assists", `${p.goals}, ${p.assists}`)}${tile("xG, xA", `${p.xg.toFixed(1)}, ${p.xa.toFixed(1)}`)}${tile("xGI/90 L4", p.xgi90_4.toFixed(2))}${tile("Starts", `${Math.round(p.p_start * 100)}%`)}${tile("Owned", `${p.own.toFixed(1)}%`)}${p.last ? tile(`${p.last.season} pts`, p.last.pts) : ""}${sq ? tile("Bought at", money(sq.buy)) : ""}</div>
@@ -135,6 +135,7 @@ function openPlayer(id) {
       <button class="btn" id="dlgBan">${SB.rules.banned.includes(id) ? "Allow in plans" : "Never pick in plans"}</button></div>`;
   const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "dlgTitle"); dlg.showModal();
   $("#dlgX").onclick = () => dlg.close();
+  if (p.pos !== "GKP") fillShotMap(id);
   $("#dlgCmp").onclick = () => { if (!S.cmp.includes(id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } $("#dlg").close(); setView("players"); setTimeout(() => $("#cmpPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
   $("#dlgStar").onclick = () => { toggleStar(id); const b = $("#dlgStar"), on = isStarred(id); b.classList.toggle("primary", on); b.setAttribute("aria-pressed", on); b.textContent = on ? "★ On your watchlist" : "☆ Add to watchlist"; render(); };
   $("#dlgLock").onclick = () => { SB.rules.locked = SB.rules.locked.includes(id) ? SB.rules.locked.filter(x => x !== id) : [...SB.rules.locked, id]; SB.rules.banned = SB.rules.banned.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };

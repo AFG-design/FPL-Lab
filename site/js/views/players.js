@@ -45,7 +45,7 @@ function vPlayers() {
     cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], l) : l}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
   const body = shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
       <td class="sticky-col"><span class="pcell"><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}">
-        <button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${p.chance ?? 0}%</span>` : ""}</span></td>
+        <button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${p.chance ?? 0}%</span>` : ""}${playerTags(p, 2)}</span></td>
       ${cols.map(([k, , n]) => `<td class="${n ? "n" : ""}">${cell[k](p)}</td>`).join("")}</tr>`).join("");
   return `<div class="panel explorer">
     <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
@@ -92,7 +92,7 @@ function compareHTML() {
       return `<span title="GW${x}">${f.length ? f.map(y => fdrChip(y, { gw: x })).join("") : blankChip(x)}<small>${f1(xpg(p.id, x))}</small></span>`; }).join("")}</div></td>`).join("")}</tr>`;
   const news = ps.some(p => p.status !== "a") ? `<tr><th scope="row">News</th>${ps.map(p => `<td>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}">${esc(p.news || "Flagged")}</span>` : '<span class="muted">Fit</span>'}</td>`).join("")}</tr>` : "";
   return `<div class="panel cmp-table" id="cmpPanel"><div class="bar"><h3>Comparing ${ps.length} player${ps.length > 1 ? "s" : ""}</h3><span class="muted">${ps.length < 4 ? "Tick up to 4 in the list, or press Compare in any player's panel" : "Up to 4 at a time"}</span></div>
-    <div class="tablebox"><table><thead><tr><th></th>${ps.map(p => `<th scope="col"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button><br><span class="muted">${T[p.team].short} · ${p.pos}${MINE.has(p.id) ? " · yours" : ""}</span> <button class="btn ghost sm" data-uncmp="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button></th>`).join("")}</tr></thead>
+    <div class="tablebox"><table><thead><tr><th></th>${ps.map(p => `<th scope="col"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button><br><span class="muted">${T[p.team].short} · ${p.pos}${MINE.has(p.id) ? " · yours" : ""}</span><br>${playerTags(p, 4)} <button class="btn ghost sm" data-uncmp="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button></th>`).join("")}</tr></thead>
     <tbody>${news}${fxRow}${groups.map(([h, rows]) => `<tr class="cmp-h"><th colspan="${ps.length + 1}">${h}</th></tr>${rows.map(([l, fn, dir, fmt, gk]) => `<tr><th scope="row">${gk ? term(gk, l) : l}</th>${cell(fn, dir, fmt)}</tr>`).join("")}`).join("")}</tbody></table></div>
     <p class="note">Highlighted = best of the group. Fixture chips show FPL difficulty with projected points underneath.</p></div>`;
 }

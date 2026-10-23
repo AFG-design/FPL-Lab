@@ -500,3 +500,58 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .swing-spark i { width: 5px; border-radius: 1px; background: var(--line-strong); }
 .swing-spark i.hl { background: var(--accent); }
 .swings .bad .swing-spark i.hl { background: var(--bad); }
+
+/* ---------- player tags ---------- */
+.ptags { display: inline-flex; flex-wrap: wrap; gap: 3px; vertical-align: middle; margin-left: 4px; }
+.ptag { font-size: 10.5px; font-weight: 600; line-height: 1; padding: 3px 6px; border-radius: 999px; background: var(--sunk); color: var(--muted); white-space: nowrap; }
+.t-hot, .t-easy, .t-value { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
+.t-cold, .t-tough, .t-rot, .t-ban { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.t-oop, .t-pen { background: color-mix(in srgb, var(--info) 15%, transparent); color: var(--info); }
+
+/* ---------- shot map ---------- */
+.sm-wrap { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 14px; align-items: start; }
+.shotmap { width: 100%; height: auto; display: block; }
+.sm-pitch { fill: var(--turf); }
+.sm-line { fill: none; stroke: rgb(255 255 255 / 45%); stroke-width: 1.2; }
+.sm-goal { fill: rgb(255 255 255 / 70%); }
+.sm-dot { fill: rgb(255 255 255 / 60%); }
+.sm-shot { stroke-width: 1.4; }
+.sm-g { fill: var(--hi); stroke: var(--hi); }
+.sm-s { fill: rgb(255 255 255 / 55%); stroke: #fff; }
+.sm-b, .sm-m { fill: rgb(0 0 0 / 25%); stroke: rgb(255 255 255 / 70%); }
+.sm-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 4px 0 8px; vertical-align: -1px; border: 1.4px solid; }
+.sm-key.sm-g { background: var(--hi); border-color: var(--hi); }
+.sm-key.sm-s { background: #bbb; border-color: #888; }
+.sm-key.sm-m { background: transparent; border-color: var(--muted); }
+
+@media (max-width: 560px) { .sm-wrap { grid-template-columns: 1fr; } }
+
+/* ---------- team profile ---------- */
+.tm-res { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tm-res > div { display: grid; justify-items: center; gap: 1px; padding: 6px 10px; border-radius: var(--r-sm); background: var(--sunk); font-size: var(--fs-sm); min-width: 64px; }
+.tm-res b { font-size: var(--fs-md); }
+.tm-res small { font-size: 10.5px; color: var(--muted); }
+.tm-res .r-W b { color: var(--good); }
+.tm-res .r-L b { color: var(--bad); }
+
+/* ---------- live gameweek ---------- */
+.live-panel { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.live-panel h2 { display: flex; align-items: center; gap: 8px; }
+.lv-st { font-size: var(--fs-xs); font-weight: 600; }
+.lv-done { color: var(--muted); }
+.lv-playing { color: var(--good); }
+.lv-toplay { color: var(--info); }
+.lv-blank { color: var(--bad); }
+.lv-bench td { opacity: .6; }
+.lv-fx { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; font-size: var(--fs-xs); }
+.lv-fx span { padding: 3px 8px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
+.lv-fx span.on { color: var(--good); font-weight: 600; }
+.lv-fx span.done { color: var(--fg); }
+
+/* ---------- this week ---------- */
+.week-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-sm); max-height: 360px; overflow: auto; }
+.week-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 3px 0; }
+.week-list time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.week-list .wk-day { display: block; font-weight: 700; margin-top: 8px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--fg); }
+.week-list .wk-deadline span { color: var(--hi-text); }
+.week-list .wk-eu span { color: var(--muted); }

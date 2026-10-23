@@ -265,6 +265,7 @@ for pid, e in elements.items():
         "dc90": round(r["dc90"], 1), "dc_rate": round(r["p_dc"], 2), "p_start": round(r["p_start"], 2),
         "xmin": round(r["xmin"]), "status": e["status"], "news": e["news"], "chance": e["chance_of_playing_next_round"],
         "ret": cur_gw in ctx.get("out", {}).get(pid, ()),   # missed his club's last game through injury or a ban
+        "yc": e["yellow_cards"], "rc": e["red_cards"], "upos": (US.get("players", {}).get(str(pid)) or {}).get("upos", ""),
         "psub": round(r.get("p_sub", 0), 2),
         "xp": xp, "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),
@@ -504,10 +505,41 @@ if picks and picks_gw in live:
     live_gw = {"gw": picks_gw, "finished": ev["finished"], "average": ev.get("average_entry_score"),
                "highest": ev.get("highest_score"), "points": picks["entry_history"]["points"],
                "chip": picks["active_chip"], "bench_pts": picks["entry_history"]["points_on_bench"],
+               "hits": picks["entry_history"]["event_transfers_cost"],
                "rows": [{"id": p["element"], "pos": p["position"], "mult": p["multiplier"], "cap": p["is_captain"],
                          "vice": p["is_vice_captain"], "pts": lv.get(p["element"], {}).get("total_points", 0),
                          "mins": lv.get(p["element"], {}).get("minutes", 0), "bps": lv.get(p["element"], {}).get("bps", 0),
                          "bonus": lv.get(p["element"], {}).get("bonus", 0)} for p in picks["picks"]]}
+    # live mode: fixture status, provisional bonus (top 3 BPS in each match until FPL confirms it),
+    # the other teams' players needed for the field average
+    gw_fx = [f for f in fixtures if f["event"] == picks_gw]
+    prov = {}
+    for f in gw_fx:
+        if not f["started"]:
+            continue
+        st = {x["identifier"]: x for x in f.get("stats", [])}
+        if st.get("bonus") and (st["bonus"]["h"] or st["bonus"]["a"]):
+            continue                                   # bonus confirmed: it's in total_points already
+        bps = sorted([(x["value"], x["element"]) for side in ("h", "a") for x in st.get("bps", {}).get(side, [])], reverse=True)
+        # FPL rules: ties share the higher award; awards stop once three players have bonus
+        given, rank_pts, k = 0, [3, 2, 1], 0
+        while k < len(bps) and given < 3:
+            v = bps[k][0]
+            tied = [e for (val, e) in bps if val == v]
+            award = rank_pts[given] if given < 3 else 0
+            for e in tied:
+                prov[e] = award
+            given += len(tied)
+            k += len(tied)
+    live_gw["fixtures"] = [{"id": f["id"], "h": f["team_h"], "a": f["team_a"], "ko": f["kickoff_time"], "started": bool(f["started"]),
+                            "done": bool(f["finished"] or f.get("finished_provisional")), "mins": f.get("minutes", 0),
+                            "hs": f["team_h_score"], "as": f["team_a_score"]} for f in gw_fx]
+    live_gw["in_play"] = any(f["started"] for f in gw_fx) and not ev["finished"]
+    for r in live_gw["rows"]:
+        r["team"] = elements[r["id"]]["team"]
+        r["prov"] = prov.get(r["id"], 0)
+    # every player's live points + provisional bonus, for the field average (effective ownership x points)
+    live_gw["pts_all"] = {str(i): lv[i]["total_points"] + prov.get(i, 0) for i in lv if lv[i]["total_points"] or prov.get(i)}
 
 # ---------------------------------------------------------------- the field and mini-leagues
 crowd_out = None
@@ -984,6 +1016,43 @@ out = {
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }
+# ---------------------------------------------------------------- shot maps (separate file, loaded when a player is opened)
+try:
+    shots_c = json.load(open(os.path.join(HERE, "understat", "shots.json")))
+    us_to_fpl = {v["us_id"]: int(k) for k, v in US.get("players", {}).items()}
+    RES = {"Goal": "G", "SavedShot": "S", "MissedShots": "M", "BlockedShot": "B", "ShotOnPost": "P", "OwnGoal": "O"}
+    SIT = {"OpenPlay": "O", "FromCorner": "C", "SetPiece": "S", "DirectFreekick": "F", "Penalty": "P"}
+    smap = defaultdict(list)
+    for mid, m in sorted(shots_c.get("matches", {}).items(), key=lambda kv: kv[1]["date"]):
+        for sh in m["shots"]:
+            fid = us_to_fpl.get(sh[0])
+            if fid in keep:
+                smap[fid].append([round(sh[2] * 100, 1), round(sh[3] * 100, 1), round(sh[4], 2), RES.get(sh[5], "M"),
+                                  SIT.get(sh[6], "O"), 1 if sh[9] == "Head" else 0, m["date"]])
+    json.dump({"built": out["meta"]["built"], "players": smap}, open(os.path.join(os.path.dirname(os.path.abspath(OUT)), "shots.json"), "w"), separators=(",", ":"))
+except Exception as ex:
+    print("shot maps skipped:", ex)
+
+# ---------------------------------------------------------------- this week: deadline, price updates, kick-offs, Europe
+TBS = {t["short_name"]: t["id"] for t in boot["teams"]}
+try:
+    euro = json.load(open(os.path.join(HERE, "europe.json")))
+except Exception:
+    euro = {"competitions": {}}
+if next_ev:
+    nx_fx = sorted([f for f in fixtures if f["event"] == next_gw and f["kickoff_time"]], key=lambda f: f["kickoff_time"])
+    after = next((e for e in events if e["id"] == next_gw + 1), None)
+    end = max(nx_fx[-1]["kickoff_time"][:10] if nx_fx else next_ev["deadline_time"][:10], (after or next_ev)["deadline_time"][:10])
+    start = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    out["week"] = {
+        "gw": next_gw, "deadline": next_ev["deadline_time"],
+        "price_updates": [d for d in out["meta"]["price_deadlines"] if start <= d[:10] <= end],
+        "fixtures": [[f["kickoff_time"], f["team_h"], f["team_a"]] for f in nx_fx],
+        "europe": [[c, d, [TBS[t] for t in v["teams"] if t in TBS]] for c, v in euro.get("competitions", {}).items()
+                   for d in v.get("dates", []) if start <= d <= end],
+        "deadlines": [[e["id"], e["deadline_time"]] for e in events if e["deadline_time"] and e["deadline_time"] > dt.datetime.now(dt.timezone.utc).isoformat()],
+    }
+
 out["meta"]["build_secs"] = round(time.time() - t0, 1)
 with open(OUT, "w") as f:
     json.dump(out, f, separators=(",", ":"))

@@ -41,7 +41,7 @@ function vFixtures() {
     const avg = cnt ? sum / cnt : 0;
     const avgTxt = mode === "fdr" ? avg.toFixed(1) : mode === "att" ? avg.toFixed(2) : Math.round(avg * 100) + "%";
     const strength = mode === "fdr" ? "" : `<td class="n">${Math.round(mode === "att" ? st.att : mode === "def" ? st.def : st.pts)}%</td>`;
-    return { sum: mode === "fdr" ? -avg : avg, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col">${t.name}</td>${strength}<td class="n"><b>${avgTxt}</b></td>${cells}</tr>` };
+    return { sum: mode === "fdr" ? -avg : avg, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish">${t.name}</button></td>${strength}<td class="n"><b>${avgTxt}</b></td>${cells}</tr>` };
   }).sort((a, b) => b.sum - a.sum);
   const help = {
     fdr: "FPL's official fixture difficulty for each match, 1 easiest to 5 hardest. Easiest run first.",
