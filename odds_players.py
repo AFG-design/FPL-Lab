@@ -33,8 +33,13 @@ ALIASES = {"brighton and hove albion": "brighton", "tottenham hotspur": "spurs",
            "afc bournemouth": "bournemouth", "sheffield united": "sheffield utd", "luton town": "luton"}
 
 
+TRANSLIT = str.maketrans({"ø": "o", "Ø": "O", "ß": "ss", "ı": "i", "æ": "ae", "Æ": "AE", "đ": "d", "Đ": "D",
+                          "ł": "l", "Ł": "L", "þ": "th", "ð": "d", "œ": "oe"})
+PARTICLES = {"da", "de", "do", "dos", "das", "di", "van", "von", "der", "den", "le", "la", "el", "al", "bin", "ben"}
+
+
 def norm(s):
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    s = unicodedata.normalize("NFKD", (s or "").translate(TRANSLIT)).encode("ascii", "ignore").decode().lower()
     return " ".join(s.replace("-", " ").replace(".", " ").replace("'", "").split())
 
 
@@ -70,14 +75,21 @@ def match_player(desc, squad):
         hit = [e["id"] for e in squad if (norm(f"{e['first_name']} {e['second_name']}") if key == "full" else norm(e["web_name"])) == d]
         if len(hit) == 1:
             return hit[0]
-    # 2. most name words in common, where his surname or display name must contain the bookmaker's last word
-    #    ("Gabriel Martinelli" -> Martinelli, not Gabriel Magalhães; "Joao Pedro" -> João Pedro)
+    # 2. most name words in common. He must share a surname word (or display name) with the bookmaker's name,
+    #    and either that is the bookmaker's last word or another word matches his first name. Handles full
+    #    legal names ("Marcelino Ignacio Nunez Espinoza" -> Núñez, "Ogochukwu Onyeka Frank" -> Onyeka) and
+    #    shared first names ("Gabriel Martinelli" -> Martinelli, not Gabriel Magalhães).
     best, score = [], 0
     for e in squad:
-        sur = set(norm(e["second_name"]).split()) | set(norm(e["web_name"]).split())
-        if toks[-1] not in sur:
+        sec = norm(e["second_name"]).split()
+        sur = (set(sec) | set(norm(e["web_name"]).split()) | {"".join(sec)}) - PARTICLES
+        first = set(norm(e["first_name"]).split()) - PARTICLES
+        common = set(toks) & sur
+        if not common:
             continue
-        s = len(set(toks) & (sur | set(norm(e["first_name"]).split())))
+        if not (toks[-1] in sur or (set(toks) - common) & first):
+            continue
+        s = len(set(toks) & (sur | first))
         if s > score:
             best, score = [e["id"]], s
         elif s == score:
@@ -159,6 +171,8 @@ def main():
             for m in bk.get("markets", []):
                 for o in m.get("outcomes", []):
                     desc = o.get("description") or ""
+                    if norm(desc) in ("", "no scorer", "no goalscorer", "no goal"):
+                        continue
                     if m["key"] == "player_goal_scorer_anytime" and o.get("name") in ("Yes", None):
                         score.setdefault(desc, []).append(o["price"])
                     elif m["key"] == "player_assists" and abs(float(o.get("point") or 0.5) - 0.5) < 1e-6:
@@ -191,6 +205,7 @@ def main():
 
     stamp = now.isoformat(timespec="seconds")
     state.setdefault("fetched", {})[str(gw)] = stamp
+    state.pop("last_error", None)
     state.update({"built": stamp, "gw": gw, "deadline": nxt["deadline_time"], "regions": REGIONS,
                   "credits_left": left, "credits_used": spent, "fixtures": out_fx,
                   "unmatched_players": sorted(set(unmatched)), "unmatched_teams": sorted(unmatched_teams)})
