@@ -206,5 +206,28 @@ def main():
         print("unmatched team names:", sorted(unmatched_teams))
 
 
+def record_error(msg):
+    """Save the failure in odds/players.json (committed by the workflow) so it can be read without the run log."""
+    try:
+        state = json.load(open(OUT))
+    except Exception:
+        state = {}
+    state["last_error"] = {"at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "message": msg[:500]}
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    json.dump(state, open(OUT, "w"), separators=(",", ":"))
+    print("player odds failed:", msg)
+
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except urllib.error.HTTPError as ex:
+        body = ""
+        try:
+            body = ex.read().decode("utf-8", "ignore")[:300]
+        except Exception:
+            pass
+        record_error(f"HTTP {ex.code} from {ex.url.split('?')[0]}: {body}")
+    except Exception as ex:
+        import traceback
+        record_error(f"{type(ex).__name__}: {ex} | {traceback.format_exc().splitlines()[-3]}")
