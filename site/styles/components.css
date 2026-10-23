@@ -549,9 +549,12 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .lv-fx span.done { color: var(--fg); }
 
 /* ---------- this week ---------- */
-.week-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-sm); max-height: 360px; overflow: auto; }
+.week-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .week-list li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; padding: 3px 0; }
 .week-list time { color: var(--muted); font-variant-numeric: tabular-nums; }
 .week-list .wk-day { display: block; font-weight: 700; margin-top: 8px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--fg); }
 .week-list .wk-deadline span { color: var(--hi-text); }
 .week-list .wk-eu span { color: var(--muted); }
+.dl-hero { display: grid; gap: 4px; }
+.dl-hero > b { font-size: 44px; line-height: 1.1; color: var(--hi-text); font-variant-numeric: tabular-nums; }
+.stat.deadline[data-godl] { cursor: pointer; }

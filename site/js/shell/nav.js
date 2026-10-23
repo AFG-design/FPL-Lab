@@ -20,7 +20,7 @@ function header() {
     statBadge("Overall rank", rankFmt(m.rank), { sub: move }) +
     statBadge("Points", m.points, { sub: `GW${meta.picks_gw}: ${m.gw_points ?? "–"}` }) +
     statBadge("Bank", money(m.bank), { sub: `${m.free_transfers} free transfer${m.free_transfers === 1 ? "" : "s"}` }) +
-    `<div class="stat deadline"><dt>GW${meta.next_gw} deadline</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : ""}</dd></div>`;
+    `<div class="stat deadline" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><dt>GW${meta.next_gw} deadline</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : ""}</dd></div>`;
   const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
   const when = built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   $("#meta").innerHTML = `${typeof healthBanner === "function" ? healthBanner() : ""}
@@ -31,17 +31,18 @@ function header() {
       <button class="btn ghost sm" data-sync="1">${icon("sync")}${syncToken() ? "Sync on" : "Sync plan"}</button>
     </span>
     <span class="st-msg" id="refreshMsg">${esc(REFRESH.msg)}</span><span class="st-msg" id="syncMsg">${esc(SYNC.msg || "")}</span>`;
+  const dl = $("#score [data-godl]"); if (dl) { dl.onclick = () => setView("deadlines"); dl.onkeydown = e => { if (e.key === "Enter") setView("deadlines"); }; }
   document.querySelectorAll("#meta [data-refresh]").forEach(rb => rb.onclick = () => { if (!REFRESH.busy) startRefresh(); });
   const sb2 = $("#meta [data-sync]"); if (sb2) sb2.onclick = () => openSync();
 }
 
 /* ---------- navigation: sidebar on desktop, bottom bar + sheet on phones ---------- */
 const NAV = [
-  ["Matchday", [["week", "This week"], ["planner", "Planner"], ["rivals", "Rivals"]]],
+  ["Matchday", [["week", "This week"], ["planner", "Planner"], ["rivals", "Rivals"], ["deadlines", "Deadlines"]]],
   ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"], ["stats", "Stats"]]],
   ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"]]],
 ];
-const MORE = [["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"]];
+const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"]];
 const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
 $("#sidenav").innerHTML = NAV.map(([g, items]) => `<div class="navgroup"><span class="navhead">${g}</span>${items.map(([v, l]) => `<button type="button" data-v="${v}">${icon(v)}<span>${l}</span></button>`).join("")}</div>`).join("");
 $("#bottomnav").innerHTML = BOTTOM.map(([v, l]) => `<button type="button" data-v="${v}" ${v === "more" ? 'aria-haspopup="menu" aria-expanded="false" id="moreBottom"' : ""}>${icon(v)}<span>${l}</span></button>`).join("");
@@ -67,7 +68,7 @@ function setView(v, { push = true } = {}) {
 // back/forward buttons and links like #fixtures
 addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) setView(v, { push: false }); });
 
-const VIEW_FN = () => ({ week: vWeek, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
+const VIEW_FN = () => ({ deadlines: vDeadlines, week: vWeek, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
 function render() {
   const inMore = MORE.some(m => m[0] === S.view);
   document.querySelectorAll("#sidenav [data-v], #bottomnav [data-v]").forEach(b => {

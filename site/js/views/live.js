@@ -51,23 +51,38 @@ function livePanel() {
     <p class="note">Bonus in green is provisional: the top 3 BPS in each match as it stands. Auto-subs follow FPL's rules once a starter's game is over. The field averages use their teams from this gameweek. Updates every 10 minutes during matches (GitHub can run a few minutes late). <button class="linkish" data-v-go="rivals">Live mini-league table →</button></p></div>`;
 }
 
-/* ---------- this week: deadline, price updates, kick-offs, Europe ---------- */
-function weekPanel() {
+/* ---------- Deadlines tab: countdown, this week's timeline, every deadline ahead ---------- */
+function weekTimeline() {
   const W = D.week; if (!W) return "";
   const now = Date.now(), mine = new Set(D.squad.map(s => P[s.id]?.team));
   const items = [[W.deadline, "deadline", `<b>GW${W.gw} deadline</b> · ${countdown(W.deadline)} left`]];
   W.price_updates.forEach(d => items.push([d, "price", `Price changes <span class="muted">(from about ${new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })})</span>`]));
-  W.fixtures.forEach(([ko, h, a]) => items.push([ko, "ko", `${T[h].name} v ${T[a].name}${mine.has(h) || mine.has(a) ? ' <span class="tag">your players</span>' : ""}`]));
+  W.fixtures.forEach(([ko, h, a]) => items.push([ko, "ko", `<button data-team="${h}" class="linkish">${T[h].name}</button> v <button data-team="${a}" class="linkish">${T[a].name}</button>${mine.has(h) || mine.has(a) ? ' <span class="tag">your players</span>' : ""}`]));
   W.europe.forEach(([c, d, ts]) => items.push([d + "T18:00:00Z", "eu", `${c}: ${ts.map(t => T[t]?.short).join(", ")}${ts.some(t => mine.has(t)) ? ' <span class="tag">your players</span>' : ""}`]));
   items.sort((x, y) => x[0].localeCompare(y[0]));
   const day = iso => new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Europe/London" });
   const time = (iso, k) => k === "eu" ? "Evening" : new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   let lastDay = "";
-  const list = items.filter(x => new Date(x[0]).getTime() > now - 2 * 36e5).map(([iso, k, t]) => { const d = day(iso), head = d !== lastDay ? `<li class="wk-day">${d}</li>` : ""; lastDay = d;
-    return `${head}<li class="wk-${k}"><time>${time(iso, k)}</time><span>${t}</span></li>`; }).join("");
-  return `<div class="panel"><div class="bar"><h3>This week</h3><button class="btn ghost sm" data-ics="1">Add deadlines to calendar</button></div>
-    <ul class="week-list">${list}</ul>
-    <p class="note">UK times. Price changes happen once a night, shortly after the time shown. European games are flagged for rotation risk.</p></div>`;
+  return `<ul class="week-list">${items.filter(x => new Date(x[0]).getTime() > now - 2 * 36e5).map(([iso, k, t]) => { const d = day(iso), head = d !== lastDay ? `<li class="wk-day">${d}</li>` : ""; lastDay = d;
+    return `${head}<li class="wk-${k}"><time>${time(iso, k)}</time><span>${t}</span></li>`; }).join("")}</ul>`;
+}
+function vDeadlines() {
+  const W = D.week;
+  if (!W) return stateView({ title: "No deadline ahead", body: "The season's deadlines will appear here once FPL publishes the next gameweek." });
+  const g = W.gw, nx = W.fixtures[0], ahead = (W.deadlines || []).slice(0, 8);
+  const days = iso => Math.round((new Date(iso) - Date.now()) / 864e5);
+  return `<div class="grid2">
+    <div style="display:grid;gap:20px;align-content:start;min-width:0">
+      <div class="panel dl-hero"><span class="lbl">GW${g} deadline</span><b id="dlCount">${countdown(W.deadline)}</b><span>${ukTime(W.deadline)}</span>
+        ${nx ? `<span class="muted">First kick-off ${ukTime(nx[0])}: ${T[nx[1]].name} v ${T[nx[2]].name}</span>` : ""}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn primary" data-howto="${g}">Make these moves on FPL</button><button class="btn" data-ics="1">Add all deadlines to calendar</button></div></div>
+      <div class="panel"><h3>Coming up</h3><div class="tablebox"><table><thead><tr><th>Gameweek</th><th>Deadline (UK)</th><th class="n">In</th></tr></thead>
+        <tbody>${ahead.map(([gw, d]) => `<tr><td>GW${gw}</td><td>${ukTime(d)}</td><td class="n">${new Date(d) - Date.now() < 864e5 ? countdown(d) : days(d) + " day" + (days(d) === 1 ? "" : "s")}</td></tr>`).join("")}</tbody></table></div>
+        <p class="note">The calendar file adds every remaining deadline, each with reminders 24 hours and 2 hours before. Open it on your phone to import it.</p></div>
+    </div>
+    <div class="panel"><h3>This week</h3>${weekTimeline()}
+      <p class="note">UK times. Price changes happen once a night, shortly after the time shown. European games are flagged for rotation risk. Tap a team for its profile.</p></div>
+  </div>`;
 }
 // an .ics file with every remaining deadline, each with reminders 24 hours and 2 hours before
 function deadlinesICS() {
