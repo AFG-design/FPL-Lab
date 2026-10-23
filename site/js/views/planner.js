@@ -304,6 +304,28 @@ function vsCurrentTeam() {
     <p class="note" style="margin-top:0">Over ${PG.length} GWs, after hits: ${f1(plan.tot)} projected points vs ${f1(base.tot)} if you keep your squad and just pick the best XI and captain each week.${plan.ftLeft ? ` The plan also leaves ${plan.ftLeft} free transfer${plan.ftLeft === 1 ? "" : "s"} banked at the end.` : ""}</p>
     <div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Moves</th><th class="n">Keep team</th><th class="n">Plan</th><th class="n">Gain</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
+// what the strategy did to the team: upside (haul chance), how template it is, how nailed the starters are
+function planTraits(sc) {
+  const eo = fieldEO() || {};
+  let haul = 0, eoS = 0, nail = 0, n = 0;
+  sc.weeks.forEach((w, k) => {
+    const p10 = i => P[i]?.dist?.[w.gw]?.[0] || 0;
+    w.team.xi.forEach(i => { haul += p10(i); nail += P[i]?.nailed ?? 100; n++; if (k === 0) eoS += (eo[i] || 0) / 100; });
+    haul += p10(w.team.cap);
+  });
+  return { haul, eo: eoS / 11, nailed: nail / Math.max(1, n), hits: sc.weeks.reduce((a, w) => a + w.hits, 0) };
+}
+function leanText() {
+  // compare with the Balanced optimiser plan for the same squad, so the message shows what the strategy changed
+  const balK = D.plans?.best ? "best" : null;
+  const a = balK ? planTraits(scoreMoves(planMoves(D.plans[balK]))) : planTraits(baseScore()), b = planTraits(scoreMoves(SB.moves));
+  const vs = balK ? "the Balanced plan" : "your current team", pct = (x, y) => y ? Math.round(100 * (x - y) / y) : 0;
+  const hits = b.hits ? ` ${b.hits} hit${b.hits > 1 ? "s" : ""} taken.` : " No hits.";
+  const hp = pct(b.haul, a.haul), own = `field ownership of your XI ${Math.round(b.eo * 100)}% vs ${Math.round(a.eo * 100)}%`;
+  if (S.mode === "chase") return `Chase rank vs ${vs}: chance of 10+ point hauls ${hp >= 0 ? "+" : "−"}${Math.abs(hp)}%, ${own}.${hits}`;
+  if (S.mode === "safe") return `Play safe vs ${vs}: ${own}, starters averaging ${Math.round(b.nailed)} nailed (vs ${Math.round(a.nailed)}); hits only when they gain 6+.${hits}`;
+  return `Balanced: purely the most projected points.${hits}`;
+}
 const SOLVE = { busy: false, msg: "", highs: null };
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("couldn't load " + src)); document.head.appendChild(s); }); }
 async function getHighs() {
@@ -321,7 +343,8 @@ async function runReplan() {
     SOLVE.msg = "Planning…"; render();
     await new Promise(r => setTimeout(r, 30));
     const players = {};
-    D.players.forEach(p => players[p.id] = { pos: p.pos, team: p.team, price: p.price, xp: p.xp, ok: p.ok !== false });
+    D.players.forEach(p => players[p.id] = { pos: p.pos, team: p.team, price: p.price, xp: p.xp, ok: p.ok !== false,
+      p10: Object.fromEntries(Object.entries(p.dist || {}).map(([g, d]) => [g, d[0]])), nailed: p.nailed ?? 100 });
     const eo = fieldEO(), eoFrac = eo ? Object.fromEntries(Object.entries(eo).map(([k, v]) => [k, v / 100])) : null;
     const captains = {}; Object.entries(SB.ov).forEach(([g, o]) => { if (o.cap) captains[g] = o.cap; });
     const t0 = performance.now();
@@ -329,11 +352,12 @@ async function runReplan() {
       players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
       ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: SB.rules.locked, banned: SB.rules.banned, captains,
       maxHits: SB.rules.maxHits, eo: LAM[S.mode] ? eoFrac : null, lam: LAM[S.mode] || 0, poolExtra: SB.moves.map(m => m.in),
+      ...STRAT[S.mode],
     });
     const before = scoreMoves(SB.moves).tot;
     setPlan(res.moves, "replan:" + S.mode);
     const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;
-    SOLVE.msg = `Done in ${((performance.now() - t0) / 1000).toFixed(1)}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}, ${sgn(after - cur)} vs your current team (${sgn(after - before)} vs your previous plan). Undo is in Your moves.`;
+    SOLVE.msg = `Done in ${((performance.now() - t0) / 1000).toFixed(1)}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}, ${sgn(after - cur)} vs your current team (${sgn(after - before)} vs your previous plan). ${leanText()} Undo is in Your moves.`;
   } catch (e) {
     SOLVE.msg = "Re-plan failed: " + (e.message || e) + ". Your plan hasn't changed.";
   }

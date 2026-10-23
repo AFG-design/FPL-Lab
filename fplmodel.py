@@ -125,6 +125,34 @@ def out_weeks(boot, status_log=None):
     return out
 
 
+def news_absences(boot, elements, pstats, team_fix, out):
+    """Regular starters who missed their club's latest game with no flag showing now, where FPL posted news
+    about them in the week before that deadline or since: almost always a knock that has cleared, not being
+    dropped. Returns {pid: gw}. Only the latest finished gameweek, so backtests of earlier weeks are unchanged."""
+    ev = [e for e in boot.get("events", []) if e.get("finished") and e.get("deadline_time")]
+    if not ev:
+        return {}
+    k = max(e["id"] for e in ev)
+    dl = dt.datetime.fromisoformat(next(e["deadline_time"] for e in ev if e["id"] == k).replace("Z", "+00:00"))
+    res = {}
+    for pid, e in elements.items():
+        since = e.get("news_added")
+        if e["status"] != "a" or not since or k in out.get(pid, ()):
+            continue
+        if dt.datetime.fromisoformat(since.replace("Z", "+00:00")) < dl - dt.timedelta(days=7):
+            continue
+        played = sorted({g for (g, *_r) in team_fix.get(e["team"], []) if g and g <= k})
+        if not played or played[-1] != k:
+            continue
+        gs = pstats.get(pid, {})
+        if gs.get(k, {}).get("minutes", 0) > 0:
+            continue
+        before = played[-4:-1]
+        if len(before) >= 2 and sum(1 for g in before if gs.get(g, {}).get("starts", 0) > 0) >= 2:
+            res[pid] = k
+    return res
+
+
 def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
     """Index the raw API responses once; reused across projections."""
     elements = {e["id"]: e for e in boot["elements"]}
@@ -163,11 +191,14 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
     thr.setdefault("DEF", 10)
     thr.setdefault("MID", 12)
     thr.setdefault("FWD", 12)
+    out = out_weeks(boot, status_log)
+    for pid, g in news_absences(boot, elements, pstats, team_fix, out).items():
+        out[pid].add(g)
     return {
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
-        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out_weeks(boot, status_log),
+        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out,
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
@@ -504,6 +535,7 @@ def project(ctx, as_of, horizon=6, params=None):
         ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
         per_gw, detail, dist = {}, {}, {}
+        xm_next = 0.0
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
             av = availability(e, k, ko, ret) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
@@ -520,6 +552,8 @@ def project(ctx, as_of, horizon=6, params=None):
                 ps, pb = p_start * av * cong, p_sub * av
                 pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
                 m = ps * m_start + pb * m_sub
+                if k == 0:
+                    xm_next += m          # expected minutes next gameweek, after flags, rotation and return ramp
                 p60 = ps * p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
                 if sp90:  # set-piece threat scales with how much this opponent concedes from set pieces
@@ -560,7 +594,8 @@ def project(ctx, as_of, horizon=6, params=None):
         out[pid] = {
             "xp": per_gw, "detail": detail, "dist": dist, "xg90": xg90, "xa90": xa90, "dc90": dc90, "p_dc": p_dc,
             "p_start": p_start, "p_sub": p_sub, "m_start": m_start,
-            "xmin": (p_start * m_start + p_sub * m_sub) * (availability(e, 0) if P["use_flags"] else 1.0),
+            "xmin": xm_next,
+            "xmin_base": (p_start * m_start + p_sub * m_sub) * (availability(e, 0) if P["use_flags"] else 1.0),
             "has_prior": bool(pr),
         }
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}

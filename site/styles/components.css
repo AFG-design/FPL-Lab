@@ -472,3 +472,31 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 #dlgBody section h3 { margin: 0 0 8px; }
 
 @media (max-width: 480px) { .labels { grid-template-columns: 1fr; gap: 2px; } .labels dd { margin-bottom: 8px; } }
+
+/* ---------- why this projection ---------- */
+.why { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.why li { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline; font-size: var(--fs-sm); }
+.why-k { font-weight: 600; }
+.why-t { color: var(--muted); }
+.why-t b { color: var(--fg); font-weight: 600; }
+.why-v { font-variant-numeric: tabular-nums; }
+
+@media (max-width: 480px) { .why li { grid-template-columns: minmax(0, 1fr) auto; } .why-t { grid-column: 1 / -1; grid-row: 2; } }
+
+/* ---------- player comparison ---------- */
+.cmp-table table { min-width: 520px; }
+.cmp-table thead th { vertical-align: top; text-align: right; white-space: normal; }
+.cmp-table thead th:first-child, .cmp-table tbody th { text-align: left; }
+.cmp-table tbody th { font-weight: 500; color: var(--muted); white-space: nowrap; }
+.cmp-table td.best { color: var(--good); font-weight: 700; }
+.cmp-h th { padding-top: 14px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--fg); }
+.cmp-fx { display: flex; gap: 3px; justify-content: flex-end; }
+.cmp-fx > span { display: grid; justify-items: center; gap: 1px; }
+.cmp-fx small { font-size: 10px; color: var(--muted); }
+
+/* ---------- fixture swings ---------- */
+.swings li { grid-template-columns: 8px minmax(0, 1fr) auto; }
+.swing-spark { display: flex; align-items: flex-end; gap: 2px; height: 24px; }
+.swing-spark i { width: 5px; border-radius: 1px; background: var(--line-strong); }
+.swing-spark i.hl { background: var(--accent); }
+.swings .bad .swing-spark i.hl { background: var(--bad); }

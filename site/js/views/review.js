@@ -71,6 +71,7 @@ function vReview() {
   </div>
   ${pastTeamPanel(R)}
   ${decisionPanel(R)}
+  ${templatePanel()}
   <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Pts</th><th class="n">Avg</th><th class="n">Rank</th><th>Captain</th><th class="n">Cap lost</th><th class="n">Bench</th><th class="n">Best possible</th><th class="n">Model XI</th><th>Chip</th></tr></thead>
     <tbody>${R.weeks.slice().reverse().map(x => `<tr><td>${x.gw}</td><td class="n"><b>${x.pts}</b>${x.hits ? ` <span class="down">−${x.hits}</span>` : ""}</td><td class="n">${x.avg ?? "–"}</td><td class="n">${rankFmt(x.rank)}</td><td>${nm(x.captain)} <span class="muted">${x.cap_pts}</span></td><td class="n ${x.cap_lost ? "down" : ""}">${x.cap_lost ? "−" + x.cap_lost : "0"}</td><td class="n">${x.bench_pts}</td><td class="n">${x.best_possible}</td><td class="n">${x.xi_proj != null ? `${f1(x.xi_proj)} → ${x.xi_actual}` : "–"}</td><td>${x.chip ? `<span class="tag">${({ "3xc": "TC", bboost: "BB", freehit: "FH", wildcard: "WC" })[x.chip] || x.chip}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
   <div class="statgrid"><div class="panel"><h3>Best transfers</h3>${txl(best)}</div><div class="panel"><h3>Worst transfers</h3>${txl(worst)}</div></div>
@@ -103,4 +104,26 @@ function pastTeamPanel(R) {
     <div class="pitchwrap"><div class="pitch" role="group" aria-label="Starting XI, GW${w.gw}">${rows}</div><div class="bench" role="group" aria-label="Bench"><span class="lbl">Bench</span>${bench.map(card).join("")}</div>
       <div class="pitch-key"><span>Big number: points scored (doubled for the captain)</span><span>Then minutes and the projection made before that deadline</span></div></div>
     ${w.moves.length ? `<p class="note">Transfers that week: ${w.moves.map(m => `${esc(P[m.out]?.name || "?")} → ${esc(P[m.in]?.name || "?")}`).join(", ")}.</p>` : ""}</div>`;
+}
+
+/* ---------- template tracker: your team against the top-10k template ---------- */
+function templatePanel() {
+  const TT = D.template; if (!TT || !TT.length) return "";
+  const nm = id => `<button data-p="${id}" class="linkish">${esc(P[id]?.name || "?")}</button>`;
+  const tot = TT.reduce((a, t) => a + t.net, 0), back = TT.filter(t => t.source === "backfill").map(t => t.gw);
+  const rows = TT.slice().reverse().map(t => `<tr><td>GW${t.gw}${t.source === "backfill" ? '<sup title="Rebuilt from managers in the top 10k now">*</sup>' : ""}</td>
+    <td class="n"><span class="minibar" style="width:${(t.overlap * 0.5).toFixed(0)}px"></span> ${Math.round(t.overlap)}%</td><td class="n">${t.shared}/${t.tpl_size}</td>
+    <td>${t.missing.length ? t.missing.slice(0, 3).map(([i, o, pt]) => `${nm(i)} <span class="muted">${o}% · ${pt} pts</span>`).join(", ") : '<span class="muted">none</span>'}</td>
+    <td>${t.diffs.length ? t.diffs.slice(0, 3).map(([i, o, pt]) => `${nm(i)} <span class="muted">${o}% · ${pt} pts</span>`).join(", ") : '<span class="muted">none</span>'}</td>
+    <td class="n ${t.net >= 0 ? "up" : "down"}"><b>${sgn(t.net)}</b></td></tr>`).join("");
+  const lastT = TT[TT.length - 1];
+  return `<div class="panel"><div class="bar"><h3>Template tracker</h3><span class="${tot >= 0 ? "up" : "down"}"><b>${sgn(tot)}</b> vs the top 10k so far</span></div>
+    <p class="note" style="margin-top:0">How your team lined up against what the top 10,000 owned each week. <b>Overlap</b> = average top-10k ownership of your starting XI. <b>Template</b> = how many of the players owned by 40%+ of them you had. The last column is the points your ownership differences won or lost you against the top-10k average that week (captains counted twice, hits and transfers not included).</p>
+    <div class="kpis" style="margin-bottom:12px">
+      <div class="kpi"><span class="lbl">Overlap GW${lastT.gw}</span><b>${Math.round(lastT.overlap)}%</b><span class="delta muted">${lastT.overlap > 60 ? "very template" : lastT.overlap > 45 ? "fairly template" : "lots of differentials"}</span></div>
+      <div class="kpi"><span class="lbl">Won where you owned more</span><b class="up">${sgn(TT.reduce((a, t) => a + t.gain, 0))}</b><span class="delta muted">incl. captaining players they didn't</span></div>
+      <div class="kpi"><span class="lbl">Lost where they owned more</span><b class="down">${sgn(TT.reduce((a, t) => a + t.loss, 0))}</b><span class="delta muted">incl. their popular captains</span></div>
+    </div>
+    <div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Overlap</th><th class="n">Template</th><th>Template players you didn't have</th><th>Your differentials (&lt;15% owned)</th><th class="n">vs top 10k</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${back.length ? `<p class="note">* GW${back[0]}${back.length > 1 ? `–${back[back.length - 1]}` : ""} rebuilt from 500 managers who are in the top 10k now, so they flatter the picks that worked. Later weeks use the real sample of 2,000 taken after each deadline.</p>` : ""}</div>`;
 }

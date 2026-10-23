@@ -18,6 +18,8 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else "data.json"
 API = "https://fantasy.premierleague.com/api"
 HORIZON = 6
 PLAN_GWS = 5
+# Strategy extras for the optimiser (see optimise.solve); the browser Re-plan uses the same numbers (js/core/model.js)
+STRATEGY = {"safe": {"hit_margin": 2.0, "nail_w": 0.5}, "chase": {"haul_w": 10.0}}
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -262,6 +264,8 @@ for pid, e in elements.items():
         "xgi90_4": round(xgi4, 2), "xgi90_6": round(xgi6, 2), "pts4": pts4, "pts6": pts6, "mins4": m4,
         "dc90": round(r["dc90"], 1), "dc_rate": round(r["p_dc"], 2), "p_start": round(r["p_start"], 2),
         "xmin": round(r["xmin"]), "status": e["status"], "news": e["news"], "chance": e["chance_of_playing_next_round"],
+        "ret": cur_gw in ctx.get("out", {}).get(pid, ()),   # missed his club's last game through injury or a ban
+        "psub": round(r.get("p_sub", 0), 2),
         "xp": xp, "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),
         "xp_detail": {k: round(v * slope, 2) for k, v in det.items()},
@@ -273,7 +277,7 @@ for pid, e in elements.items():
         "last": {"season": pr["season"], "pts": pr["last_pts"], "mins": pr["last_mins"], "xgi": pr["last_xgi"]} if pr else None,
         "s_pts": series(pid, "total_points", int), "s_min": series(pid, "minutes", int),
         "s_xgi": series(pid, "expected_goal_involvements"),
-        "ok": bool(e["can_select"]) and e["status"] in ("a", "d") and r["xmin"] > 10,
+        "ok": bool(e["can_select"]) and e["status"] in ("a", "d") and r["xmin_base"] > 10,
         "code": e["code"], "tcode": e["team_code"], "tmp": bool(e.get("has_temporary_code")),
         "bf4": bonus_form(pid, 4), "bf6": bonus_form(pid, 6), "bps_season": e["bps"],
         "us": shot_stats(pid, m4), "dcs": dc_record(pid), "dc6": dc_record(pid, 6),
@@ -287,7 +291,8 @@ for pid, e in elements.items():
 plans = {}
 sell = {i: selling_price(i) / 10 for i in squad_ids}
 if squad_ids and proj_gws:
-    opt_players = {i: {"pos": p["pos"], "team": p["team"], "price": p["price"], "xp": p["xp"], "ok": p["ok"]}
+    opt_players = {i: {"pos": p["pos"], "team": p["team"], "price": p["price"], "xp": p["xp"], "ok": p["ok"],
+                       "p10": {int(g): d[0] for g, d in (p.get("dist") or {}).items()}, "nailed": p.get("nailed", 100)}
                    for i, p in players.items()}
     gws = proj_gws[:PLAN_GWS]
     options = [("best", None), ("roll", 0), ("one", 1), ("two", 2)]
@@ -301,11 +306,14 @@ if squad_ids and proj_gws:
         eo_field = {int(k): v / 100 for k, v in src["eo"].items()}
     except Exception:
         pass
-    MODES = {"balanced": 0.0, "safe": 0.02, "chase": -0.03} if eo_field else {"balanced": 0.0}
-    for mode, lam in MODES.items():
+    # strategy: rank-aware ownership term (lam), plus upside for Chase and caution for Play safe
+    MODES = {"balanced": {"lam": 0.0}, "safe": {"lam": 0.02, **STRATEGY["safe"]}, "chase": {"lam": -0.03, **STRATEGY["chase"]}}
+    if not eo_field:
+        MODES = {"balanced": {"lam": 0.0}}
+    for mode, mp in MODES.items():
         for key, n in options:
             r = optimise.solve(opt_players, squad_ids, sell, bank, min(ft, 5), gws, week1_moves=n,
-                               eo=eo_field or None, lam=lam)
+                               eo=eo_field or None, **mp)
             if r:
                 for wk in r["weeks"]:
                     mult = {i: 1 for i in wk["xi"]}
@@ -682,6 +690,42 @@ for w in review["weeks"]:
                   round(pr.get(p["element"], {}).get("xp", {}).get(g, 0.0), 1) if pr else None] for p in pk["picks"]]
     w["autosubs"] = [[a["element_in"], a["element_out"]] for a in pk.get("automatic_subs", [])]
 
+# ---- template tracker: your team against the top-10k template, week by week
+TPL_F = os.path.join(HERE, "crowd", "history.json")
+try:
+    TPL = json.load(open(TPL_F))
+except Exception:
+    TPL = {"gws": {}}
+if crowd and crowd.get("complete", True) and TPL["gws"].get(str(crowd["gw"]), {}).get("source") != "sample":
+    t10 = crowd["top10k"]
+    TPL["gws"][str(crowd["gw"])] = {"n": t10["n"], "source": "sample",
+                                    **{k: {i: v for i, v in t10[k].items() if v >= 0.5} for k in ("own", "eo", "cap")}}
+    json.dump(TPL, open(TPL_F, "w"), separators=(",", ":"))
+template = []
+for w in review["weeks"]:
+    g, pk, tg = w["gw"], past.get(w["gw"]), TPL["gws"].get(str(w["gw"]))
+    if not pk or not tg:
+        continue
+    own, eo = {int(k): v for k, v in tg["own"].items()}, {int(k): v / 100 for k, v in tg["eo"].items()}
+    mult = {x["element"]: x["multiplier"] for x in pk["picks"]}
+    squad15 = set(mult)
+    gain = loss = 0.0
+    for i in set(mult) | set(eo):
+        d = (min(mult.get(i, 0), 3) - eo.get(i, 0.0)) * pts_of(i, g)
+        if d > 0:
+            gain += d
+        else:
+            loss += d
+    xi = [i for i, m in mult.items() if m > 0]
+    missing = sorted([i for i, v in own.items() if v >= 40 and i not in squad15], key=lambda i: -own[i])
+    diffs = [i for i in xi if own.get(i, 0) < 15]
+    template.append({"gw": g, "source": tg["source"], "n": tg["n"],
+                     "overlap": round(sum(own.get(i, 0) for i in xi) / max(1, len(xi)), 1),
+                     "shared": sum(1 for i in squad15 if own.get(i, 0) >= 40), "tpl_size": sum(1 for v in own.values() if v >= 40),
+                     "gain": round(gain, 1), "loss": round(loss, 1), "net": round(gain + loss, 1),
+                     "missing": [[i, round(own[i]), pts_of(i, g)] for i in missing[:6]],
+                     "diffs": [[i, round(own.get(i, 0), 1), pts_of(i, g) * mult[i]] for i in sorted(diffs, key=lambda i: -pts_of(i, g))]})
+
 # season ledger: every transfer, judged on points while the new player stayed in the team
 ledger = []
 real_tx = sorted([t for t in transfers if t["event"] not in fh_set], key=lambda t: t["time"])
@@ -749,7 +793,10 @@ for tid, t in teams.items():
                              "games": int(usT["games"])} if usT else None),
                      "att": round(rating[tid]["att"], 2), "def": round(rating[tid]["def"], 2), "trend": trend,
                      "fx": {g: [{"opp": o, "home": h, "xgf": round(mf, 2), "xga": round(ma, 2), "fdr": fd, "eu": euro_flags.get((tid, g))}
-                                for (o, h, mf, ma, fd) in upcoming[tid].get(g, [])] for g in proj_gws}}
+                                for (o, h, mf, ma, fd) in upcoming[tid].get(g, [])] for g in proj_gws},
+                     # fixtures further ahead (12 GWs) for fixture-swing alerts: [gw, opponent, home]
+                     "far": sorted([gg, opp, home] for (gg, opp, home, f) in ctx["team_fix"][tid]
+                                   if next_gw and gg and next_gw <= gg < next_gw + 12)}
 
 keep = {i for i, p in players.items() if p["mins"] > 0 or p["xp5"] > 3 or i in squad_ids}
 keep |= {t["element_in"] for t in transfers} | {t["element_out"] for t in transfers}
@@ -758,6 +805,7 @@ keep |= {i for row in sp_now.values() for v in row.values() for i in v}
 keep |= {c[k] for c in sp_changes for k in ("old", "new") if c.get(k)}
 keep |= keep_extra
 keep |= {t[0] for w in review["weeks"] for t in w.get("team", [])}
+keep |= {x[0] for t in template for k in ("missing", "diffs") for x in t[k]}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
@@ -932,7 +980,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "accuracy": accuracy,
-    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "news": news_feed, "review": review, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

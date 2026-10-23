@@ -70,9 +70,30 @@ function vPlayers() {
 }
 function compareHTML() {
   if (!S.cmp.length) return "";
-  const ps = S.cmp.map(i => P[i]).filter(Boolean);
-  const stats = [["Price", p => p.price, -1, money], ["xP next", p => p.xp1, 1, f1], ["xP next 5", p => p.xp5, 1, f1], ["xGI/90 L4", p => p.xgi90_4, 1, x => x.toFixed(2)], ["xGI/90 model", p => p.xgi90, 1, x => x.toFixed(2)], ["xMins", p => p.xmin, 1, x => x], ["Points", p => p.pts, 1, x => x], ["Goals − xG", p => p.g_xg, 0, x => (x > 0 ? "+" : "") + x.toFixed(1)], ["Owned", p => p.own, 0, x => x.toFixed(1) + "%"], ["DC chance", p => p.dc_rate * 100, 1, x => x.toFixed(0) + "%"], ["In box/90", p => p.us?.sib90 ?? 0, 1, x => x.toFixed(1)], ["Big ch/90", p => p.us?.bc90 ?? 0, 1, x => x.toFixed(2)], ["Created/90", p => p.us?.cc90 ?? 0, 1, x => x.toFixed(1)], ["BPS/90 L4", p => p.bf4?.bps90 ?? 0, 1, x => x.toFixed(0)]];
-  return `<div class="compare" style="margin-bottom:12px">${ps.map(p => `<div class="cmp"><div class="bar" style="margin:0"><b>${esc(p.name)}</b><button class="btn" data-uncmp="${p.id}" aria-label="Remove">✕</button></div>
-    <span class="muted">${T[p.team].short} · ${p.pos}</span>
-    <dl>${stats.map(([l, fn, dir, fmt]) => { const vals = ps.map(fn), best = dir === 1 ? Math.max(...vals) : dir === -1 ? Math.min(...vals) : null, v = fn(p); return `<dt>${l}</dt><dd class="${ps.length > 1 && best === v ? "best" : ""}">${fmt(v)}</dd>`; }).join("")}</dl></div>`).join("")}</div>`;
+  const ps = S.cmp.map(i => P[i]).filter(Boolean), g = D.meta.next_gw, gws = GWS.slice(0, 5);
+  const t10 = p => D.crowd?.top10k?.own?.[p.id] ?? null;
+  const pct = x => x == null ? "–" : Math.round(x) + "%";
+  // [label, value fn, better: 1 higher / -1 lower / 0 neither, format, glossary key]
+  const groups = [
+    ["Projections", [["xP GW" + g, p => p.xp1, 1, f1, "xp"], [`xP next ${gws.length}`, p => p.xp5, 1, f1, "xp"],
+      ["Chance of 10+", p => (p.dist?.[g]?.[0] ?? 0) * 100, 1, pct], ["Chance of 2 or fewer", p => (p.dist?.[g]?.[2] ?? 0) * 100, -1, pct]]],
+    ["Minutes", [["Nailed", p => p.nailed, 1, x => x, "nailed"], ["Expected minutes", p => p.xmin, 1, x => x, "xmins"], [`Mins ${"L4"}`, p => p.mins4, 1, x => x, "l4"]]],
+    ["Attack", [["xGI/90 L4", p => p.xgi90_4, 1, x => x.toFixed(2), "xgi"], ["xGI/90 model", p => p.xgi90, 1, x => x.toFixed(2), "xgi"],
+      ["In box/90", p => p.us?.sib90 ?? 0, 1, x => x.toFixed(1), "inbox"], ["Big chances/90", p => p.us?.bc90 ?? 0, 1, x => x.toFixed(2), "bigchance"],
+      ["Created/90", p => p.us?.cc90 ?? 0, 1, x => x.toFixed(1), "created"], ["Goals − xG", p => p.g_xg, 0, x => (x > 0 ? "+" : "") + x.toFixed(1)]]],
+    ["Defence and bonus", [["DC chance", p => p.dc_rate * 100, 1, pct, "dc"], ["BPS/90 L4", p => p.bf4?.bps90 ?? 0, 1, x => x.toFixed(0), "bps"]]],
+    ["Season", [["Points", p => p.pts, 1, x => x], ["Goals, assists", p => p.goals + p.assists, 1, (x, p) => `${p.goals}, ${p.assists}`], ["Form", p => p.form, 1, f1]]],
+    ["Price and ownership", [["Price", p => p.price, -1, money], ["Price change tonight", p => p.price_proj?.[0] ?? 0, 0, x => (x > 0 ? "+" : "") + x.toFixed(0) + "%"],
+      ["Owned (all)", p => p.own, 0, x => x.toFixed(1) + "%"], ["Owned (top 10k)", p => t10(p) ?? -1, 0, x => x < 0 ? "–" : x.toFixed(0) + "%", "eo"]]],
+  ];
+  const cell = (fn, dir, fmt) => { const vals = ps.map(fn), best = dir === 1 ? Math.max(...vals) : dir === -1 ? Math.min(...vals) : null;
+    return ps.map((p, k) => `<td class="n ${ps.length > 1 && dir && vals[k] === best && vals.some(v => v !== best) ? "best" : ""}">${fmt(vals[k], p)}</td>`).join(""); };
+  const fxRow = `<tr><th scope="row">Next ${gws.length} fixtures</th>${ps.map(p => `<td><div class="cmp-fx">${gws.map(x => { const f = fxFor(p.team, x);
+      return `<span title="GW${x}">${f.length ? f.map(y => fdrChip(y, { gw: x })).join("") : blankChip(x)}<small>${f1(xpg(p.id, x))}</small></span>`; }).join("")}</div></td>`).join("")}</tr>`;
+  const news = ps.some(p => p.status !== "a") ? `<tr><th scope="row">News</th>${ps.map(p => `<td>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}">${esc(p.news || "Flagged")}</span>` : '<span class="muted">Fit</span>'}</td>`).join("")}</tr>` : "";
+  return `<div class="panel cmp-table" id="cmpPanel"><div class="bar"><h3>Comparing ${ps.length} player${ps.length > 1 ? "s" : ""}</h3><span class="muted">${ps.length < 4 ? "Tick up to 4 in the list, or press Compare in any player's panel" : "Up to 4 at a time"}</span></div>
+    <div class="tablebox"><table><thead><tr><th></th>${ps.map(p => `<th scope="col"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button><br><span class="muted">${T[p.team].short} · ${p.pos}${MINE.has(p.id) ? " · yours" : ""}</span> <button class="btn ghost sm" data-uncmp="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button></th>`).join("")}</tr></thead>
+    <tbody>${news}${fxRow}${groups.map(([h, rows]) => `<tr class="cmp-h"><th colspan="${ps.length + 1}">${h}</th></tr>${rows.map(([l, fn, dir, fmt, gk]) => `<tr><th scope="row">${gk ? term(gk, l) : l}</th>${cell(fn, dir, fmt)}</tr>`).join("")}`).join("")}</tbody></table></div>
+    <p class="note">Highlighted = best of the group. Fixture chips show FPL difficulty with projected points underneath.</p></div>`;
 }
+

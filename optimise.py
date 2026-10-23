@@ -39,7 +39,7 @@ def spread(players, mult, eo, gw):
 
 def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=1.5,
           hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
-          eo=None, lam=0.0, eo_weeks=2, freeze_after=None):
+          eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
     sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek.
 
@@ -47,7 +47,12 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     managers you are competing with. The variance of your score relative to theirs is
     sum_i var_i * (m_i - eo_i)^2, where m_i is your multiplier (0, 1 or 2). With m = xi + cp that
     is linear in xi and cp: var_i * (xi*(1 - 2eo) + cp*(3 - 2eo)) + const. lam > 0 penalises
-    that variance (play safe, track the field); lam < 0 rewards it (chase rank with differentials)."""
+    that variance (play safe, track the field); lam < 0 rewards it (chase rank with differentials).
+
+    Strategy extras: haul_w rewards each starter's chance of 10+ points (players[i]["p10"][gw]), double for the
+    captain, so upside can justify a move (chase); hit_margin makes the optimiser demand that many extra points
+    before taking a hit, and nail_w marks down starters who may not play (players[i]["nailed"], 0-100) (safe).
+    Reported totals are always plain projected points minus 4 per hit."""
     gws = list(gws)
     W = range(len(gws))
     # candidate pool: current squad + best options per position by projected points
@@ -113,11 +118,15 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     for w in W:
         d = decay ** w
         obj.append(d * pulp.lpSum(xp[i, w] * (xi[i][w] + cp[i][w] + bench_w * (sq[i][w] - xi[i][w])) for i in pool))
+        if haul_w:
+            obj.append(d * haul_w * pulp.lpSum(players[i].get("p10", {}).get(gws[w], 0.0) * (xi[i][w] + cp[i][w]) for i in pool))
+        if nail_w:
+            obj.append(-d * nail_w * pulp.lpSum((1 - min(100, players[i].get("nailed", 100)) / 100) * xp[i, w] * xi[i][w] for i in pool))
         if eo is not None and lam and w < eo_weeks:  # ownership data goes stale after a week or two
             obj.append(-lam * d * pulp.lpSum(
                 variance(players[i]["pos"], xp[i, w]) * (xi[i][w] * _k(1 - 2 * eo.get(i, 0.0), lam) + cp[i][w] * _k(3 - 2 * eo.get(i, 0.0), lam))
                 for i in pool if xp[i, w] > 0))
-        obj.append(-d * hit * hits[w])
+        obj.append(-d * (hit + hit_margin) * hits[w])
     obj.append(ft_value * ft[len(gws)])
     m += pulp.lpSum(obj)
     status = m.solve(pulp.PULP_CBC_CMD(msg=False, timeLimit=time_limit))

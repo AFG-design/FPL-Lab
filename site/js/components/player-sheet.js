@@ -37,6 +37,39 @@ function upcomingFixtures(p, id) {
   }).join("")}</ol>`;
 }
 
+/* ---------- why this projection: the xP for next gameweek explained in plain English ---------- */
+function whyXP(p, g) {
+  const d = p.xp_detail || {}, fx = fxFor(p.team, g), out = [];
+  if (!fx.length) return `<section class="ph-sec"><h3>Why ${f1(p.xp1)}?</h3><p class="note">${esc(T[p.team].name)} have no fixture in GW${g}.</p></section>`;
+  const v = k => d[k] || 0, opp = fx.map(x => `${T[x.opp].short} (${x.home ? "H" : "A"})`).join(" and ");
+  // minutes
+  const last = (p.s_min || []).slice(-4), played = last.filter(m => m > 0).length;
+  const mins = [`<b>${p.xmin} expected minutes</b>${fx.length > 1 ? " across his two games" : ""}.`];
+  if (p.status !== "a" || (p.chance != null && p.chance < 100)) mins.push(`FPL lists him at ${p.chance ?? 0}%${p.news ? `: ${esc(p.news)}` : ""}.`);
+  if (p.ret) mins.push(`He missed his club's last game${p.status === "a" ? " but FPL now has him available, so it's treated as a knock, not being dropped" : ""}. Players coming back start less often in their first game back, so his start chance is reduced.`);
+  else if (last.length && last[last.length - 1] === 0 && played >= 2) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
+  else if (p.p_start < 0.6 && played) mins.push(`He has started about ${Math.round(p.p_start * 100)}% of recent games${p.psub > 0.15 ? " and often comes off the bench" : ""}.`);
+  else if (p.p_start >= 0.85) mins.push(`A regular starter: minutes in his last ${last.length} were ${last.join(", ")}.`);
+  if (fx.some(x => x.eu)) mins.push(`${T[p.team].short} also play ${esc(fx.find(x => x.eu).eu)}, so some rotation is allowed for.`);
+  out.push(["Minutes", mins.join(" "), v("mins")]);
+  // attack
+  const xgf = fx.reduce((a, x) => a + x.xgf, 0), xga = fx.reduce((a, x) => a + x.xga, 0);
+  const atk = v("goals") + v("assists");
+  if (p.pos !== "GKP") out.push(["Attack", `He gets <b>${p.xgi90.toFixed(2)} expected goals + assists per 90</b> (${p.xg90.toFixed(2)} xG, ${p.xa90.toFixed(2)} xA, this season blended with last). ${T[p.team].short} are expected to score <b>${xgf.toFixed(1)}</b> against ${opp}.${p.sp?.pen === 1 ? " He's on penalties, which is included." : ""}`, atk]);
+  // defence
+  if (p.pos !== "FWD") {
+    const cs = fx.reduce((a, x) => a + Math.exp(-x.xga), 0) / fx.length;
+    const def = v("cs") + v("gc") + v("saves");
+    out.push(["Defence", `${T[p.team].short} are expected to concede <b>${xga.toFixed(1)}</b>, about a <b>${Math.round(cs * 100)}%</b> clean-sheet chance${fx.length > 1 ? " per game" : ""}.${p.pos === "GKP" && v("saves") ? ` Saves add ${v("saves").toFixed(2)}.` : ""}`, def]);
+  }
+  if (p.pos !== "GKP" && v("dc") >= 0.05) out.push(["Defensive contribution", `About a <b>${Math.round(p.dc_rate * 100)}%</b> chance per game of the defensive contribution target (2 points).`, v("dc")]);
+  if (v("bonus") >= 0.05) out.push(["Bonus", `From his BPS record${p.bf4 ? ` (${p.bf4.bps90.toFixed(0)} BPS per 90 lately)` : ""} and the returns above.`, v("bonus")]);
+  if (v("cards") <= -0.05) out.push(["Cards", "Allowance for yellow and red cards.", v("cards")]);
+  const rest = (p.xp1 || 0) - out.reduce((a, r) => a + r[2], 0);
+  return `<section class="ph-sec"><h3>Why ${f1(p.xp1)} in GW${g}?</h3>
+    <ul class="why">${out.map(([k, t, pts]) => `<li><span class="why-k">${k}</span><span class="why-t">${t}</span><b class="why-v">${pts >= 0 ? "+" : "−"}${Math.abs(pts).toFixed(1)}</b></li>`).join("")}</ul>
+    <p class="note">Points from each part add up to his projection${Math.abs(rest) >= 0.15 ? ` (with ${rest > 0 ? "+" : "−"}${Math.abs(rest).toFixed(1)} from the model's overall calibration)` : ""}. Minutes points are the 1 or 2 for playing.</p></section>`;
+}
 function openPlayer(id) {
   const p = P[id]; if (!p) return;
   const d = p.xp_detail || {}, g = D.meta.next_gw;
@@ -71,6 +104,7 @@ function openPlayer(id) {
       ${statBadge(`xP next ${Math.min(5, GWS.length)}`, f1(p.xp5), { sub: `${p.xmin} expected mins` })}
     </dl>
 
+    ${whyXP(p, g)}
     ${newsTimeline(p)}
     <section class="ph-sec"><h3>Points this season</h3>${pointsHistory(p)}
       <p class="note">Points per gameweek. Yellow bars are 10 or more.</p></section>
@@ -96,10 +130,12 @@ function openPlayer(id) {
     </section>
 
     <div class="ph-acts"><button class="btn ${isStarred(id) ? "primary" : ""}" id="dlgStar" aria-pressed="${isStarred(id)}">${isStarred(id) ? "★ On your watchlist" : "☆ Add to watchlist"}</button>${MINE.has(id) ? `<button class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}
+      <button class="btn" id="dlgCmp">${S.cmp.includes(id) ? "In comparison ✓" : "Compare"}</button>
       <button class="btn" id="dlgLock">${SB.rules.locked.includes(id) ? "Unlock in plans" : "Lock in plans"}</button>
       <button class="btn" id="dlgBan">${SB.rules.banned.includes(id) ? "Allow in plans" : "Never pick in plans"}</button></div>`;
   const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "dlgTitle"); dlg.showModal();
   $("#dlgX").onclick = () => dlg.close();
+  $("#dlgCmp").onclick = () => { if (!S.cmp.includes(id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } $("#dlg").close(); setView("players"); setTimeout(() => $("#cmpPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
   $("#dlgStar").onclick = () => { toggleStar(id); const b = $("#dlgStar"), on = isStarred(id); b.classList.toggle("primary", on); b.setAttribute("aria-pressed", on); b.textContent = on ? "★ On your watchlist" : "☆ Add to watchlist"; render(); };
   $("#dlgLock").onclick = () => { SB.rules.locked = SB.rules.locked.includes(id) ? SB.rules.locked.filter(x => x !== id) : [...SB.rules.locked, id]; SB.rules.banned = SB.rules.banned.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
   $("#dlgBan").onclick = () => { SB.rules.banned = SB.rules.banned.includes(id) ? SB.rules.banned.filter(x => x !== id) : [...SB.rules.banned, id]; SB.rules.locked = SB.rules.locked.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };

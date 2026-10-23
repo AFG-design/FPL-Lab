@@ -21,6 +21,8 @@ const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a,
 
 // strategy-aware values (same maths as the optimiser): Safe leans to what the field owns, Chase away from it
 const LAM = { balanced: 0, safe: 0.02, chase: -0.03 };
+// strategy extras for Re-plan; same numbers as STRATEGY in build.py
+const STRAT = { balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 10 } };
 function fieldEO() { const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null; return F ? F.eo : null; }
 function adjXI(i, g) {
   const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g);

@@ -10,7 +10,7 @@
 
   /* input: { players:{id:{pos,team,price,xp:{gw:x},ok}}, squad:[ids], sell:{id:£m}, bank, ft0, gws:[..],
               locked:[ids], banned:[ids], captains:{gw:id}, maxHits: 0|1|2|null(any), eo:{id:frac}|null, lam,
-              decay, benchW, ftValue, maxMovesWeek, poolExtra:[ids] } */
+              haulW, hitMargin, nailW (strategy extras), decay, benchW, ftValue, maxMovesWeek, poolExtra:[ids] } */
   function buildLP(inp) {
     const P = inp.players, gws = inp.gws, W = gws.map((_, w) => w);
     const decay = inp.decay ?? 0.9, benchW = inp.benchW ?? 0.1, ftValue = inp.ftValue ?? 1.5, hit = 4;
@@ -60,6 +60,10 @@
           cx -= inp.lam * d * v * (inp.lam < 0 ? Math.max(0, kx) : kx);
           cc -= inp.lam * d * v * (inp.lam < 0 ? Math.max(0, kc) : kc);
         }
+        // strategy extras (see optimise.py): Chase rewards the chance of 10+ points, double for the captain;
+        // Play safe marks down starters who may not play
+        if (inp.haulW) { const h = (P[i].p10 && P[i].p10[g]) || 0; cx += d * inp.haulW * h; cc += d * inp.haulW * h; }
+        if (inp.nailW) cx -= d * inp.nailW * (1 - Math.min(100, P[i].nailed ?? 100) / 100) * x;
         if (cx) obj.push(term(cx, xi(i, w)));
         if (cc) obj.push(term(cc, cp(i, w)));
         if (cs) obj.push(term(cs, sq(i, w)));
@@ -87,7 +91,7 @@
       con(` h_${w} + f_${w}` + ids.map(i => ` - ${ti(i, w)}`).join(""), ">=", 0);
       con(` f_${w + 1} - f_${w} + ${ids.map(i => ti(i, w)).join(" + ")} - h_${w}`, "<=", 1);
       if (inp.maxHits != null) con(` h_${w}`, "<=", inp.maxHits);
-      obj.push(term(-d * hit, `h_${w}`));
+      obj.push(term(-d * (hit + (inp.hitMargin || 0)), `h_${w}`));
       gen.push(`h_${w}`);
     }
     obj.push(term(ftValue, `f_${gws.length}`));
