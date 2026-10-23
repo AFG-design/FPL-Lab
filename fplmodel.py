@@ -50,6 +50,7 @@ DEFAULTS = {
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
     "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
     "use_out": True,       # skip weeks a player was injured, suspended or away when judging his minutes
+    "news_abs": True,      # count a cleared-news 0-minute week as an absence (news_absences); False = old behaviour
     "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
     "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
@@ -192,13 +193,14 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
     thr.setdefault("MID", 12)
     thr.setdefault("FWD", 12)
     out = out_weeks(boot, status_log)
-    for pid, g in news_absences(boot, elements, pstats, team_fix, out).items():
+    news_out = news_absences(boot, elements, pstats, team_fix, out)
+    for pid, g in news_out.items():
         out[pid].add(g)
     return {
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
-        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out,
+        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_news": news_out,
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
@@ -483,6 +485,8 @@ def project(ctx, as_of, horizon=6, params=None):
             # before he joined says nothing about whether he starts
             played = team_gws.get(e["team"], set())
             outw = ctx.get("out", {}).get(pid, set()) if P["use_out"] else set()
+            if not P["news_abs"] and pid in ctx.get("out_news", {}):
+                outw = outw - {ctx["out_news"][pid]}   # for checking the cleared-news rule against the old behaviour
             recent = [g for g in hist_gws if g in gs and g in played and g not in outw][-P["min_window"]:]
             # back (or coming back) from injury or a ban: he missed his club's most recent game
             club_recent = [g for g in hist_gws if g in played]

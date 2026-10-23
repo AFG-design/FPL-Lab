@@ -558,3 +558,4 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .dl-hero { display: grid; gap: 4px; }
 .dl-hero > b { font-size: 44px; line-height: 1.1; color: var(--hi-text); font-variant-numeric: tabular-nums; }
 .stat.deadline[data-godl] { cursor: pointer; }
+.st-when[data-gohealth] { cursor: pointer; }

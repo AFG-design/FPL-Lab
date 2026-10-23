@@ -397,6 +397,41 @@ for g in [g for g in finished_gws if g >= 3]:
         co, mo = corr_mae(ours); cf, mf = corr_mae(fplp)
         row["live"] = {"n": len(ours), "corr": co, "mae": mo, "fpl_corr": cf, "fpl_mae": mf}
     acc_weeks.append(row)
+# ---- check of the cleared-news absence rule (fplmodel.news_absences): snapshot both projections for the
+# gameweek after the absence, then score them against what happened once that gameweek is over
+ABS_F = lambda g: os.path.join(HIST, f"absence_gw{g}.json")
+if ctx.get("out_news"):
+    g_chk = max(ctx["out_news"].values()) + 1
+    if not os.path.exists(ABS_F(g_chk)) and g_chk in proj_gws + [cur_gw]:
+        new_ = project(ctx, g_chk, 1)["players"]
+        old_ = project(ctx, g_chk, 1, {"news_abs": False})["players"]
+        snap = {str(pid): {"fix": [round(new_[pid]["xp"].get(g_chk, 0), 2), round(new_[pid]["xmin"])],
+                           "old": [round(old_[pid]["xp"].get(g_chk, 0), 2), round(old_[pid]["xmin"])]}
+                for pid in ctx["out_news"] if pid in new_ and pid in old_}
+        json.dump({"gw": g_chk, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
+                  open(ABS_F(g_chk), "w"), separators=(",", ":"))
+absence_check = []
+for f_ in sorted(os.listdir(HIST)):
+    if not (f_.startswith("absence_gw") and f_.endswith(".json")):
+        continue
+    a = json.load(open(os.path.join(HIST, f_)))
+    g_ = a["gw"]
+    done_ = g_ in finished_gws
+    rows_ = []
+    for pid_s, v in a["players"].items():
+        pid = int(pid_s)
+        st = pstats.get(pid, {}).get(g_, {}) if done_ or g_ in live else {}
+        rows_.append({"id": pid, "xp_fix": v["fix"][0], "xp_old": v["old"][0], "min_fix": v["fix"][1], "min_old": v["old"][1],
+                      "mins": st.get("minutes"), "started": bool(st.get("starts")) if st else None,
+                      "pts": ctx["pts_gw"].get(pid, {}).get(g_) if st else None})
+        keep_extra.add(pid)
+    sc = [r for r in rows_ if r["pts"] is not None] if done_ else []
+    absence_check.append({"gw": g_, "done": done_, "rows": rows_,
+                          "err_fix": round(sum(abs(r["pts"] - r["xp_fix"]) for r in sc) / len(sc), 2) if sc else None,
+                          "err_old": round(sum(abs(r["pts"] - r["xp_old"]) for r in sc) / len(sc), 2) if sc else None,
+                          "min_err_fix": round(sum(abs(r["mins"] - r["min_fix"]) for r in sc) / len(sc)) if sc else None,
+                          "min_err_old": round(sum(abs(r["mins"] - r["min_old"]) for r in sc) / len(sc)) if sc else None})
+
 # biggest misses each gameweek, and which part of the score they came from
 CAT = {"minutes": "mins", "goals_scored": "goals", "assists": "assists", "clean_sheets": "cs", "goals_conceded": "gc",
        "saves": "saves", "defensive_contribution": "dc", "bonus": "bonus", "yellow_cards": "cards", "red_cards": "cards",
@@ -468,6 +503,7 @@ for g in [g for g in finished_gws if g >= 3][-4:]:
 if accuracy is not None:
     accuracy["weeks"] = acc_weeks
     accuracy["misses"] = misses
+    accuracy["absence"] = absence_check
 
 # ---------------------------------------------------------------- chips, gameweeks
 used = [(c["name"], c["event"]) for c in history["chips"]]
@@ -1121,6 +1157,30 @@ if next_ev:
                    for d in v.get("dates", []) if start <= d <= end],
         "deadlines": [[e["id"], e["deadline_time"]] for e in events if e["deadline_time"] and e["deadline_time"] > dt.datetime.now(dt.timezone.utc).isoformat()],
     }
+
+# ---------------------------------------------------------------- data health: when each source last updated
+def _load(path):
+    try:
+        return json.load(open(os.path.join(HERE, path)))
+    except Exception:
+        return None
+po_ = _load("odds/players.json") or {}
+cr_ = _load("crowd/latest.json") or {}
+st_ = _load("history/status.json") or {}
+out["sources"] = {
+    "fpl": {"built": out["meta"]["built"], "gw": cur_gw, "players": len(elements)},
+    "understat": US.get("meta") or None,
+    "odds": out["meta"].get("odds"),
+    "player_odds": {"built": po_.get("built"), "gw": po_.get("gw"), "fixtures": len(po_.get("fixtures") or {}),
+                    "credits_left": po_.get("credits_left"), "unmatched": len(po_.get("unmatched_players") or []),
+                    "error": (po_.get("last_error") or {}) or None} if po_ else None,
+    "crowd": {"gw": cr_.get("gw"), "built": cr_.get("built"), "top10k": (cr_.get("top10k") or {}).get("n"),
+              "near": (cr_.get("near") or {}).get("n"), "teams": len(cr_.get("teams") or []), "rivals": len(cr_.get("rivals") or {})} if cr_ else None,
+    "prices": {"nights": len(PH.get("nights", [])), "pending": len(PH.get("pending", {}))},
+    "news": {"players": len(NH)},
+    "status": {"gws": sorted(int(g) for g in (st_.get("gws") or {})), "updated": st_.get("updated")},
+    "template": {"gws": sorted(int(g) for g in TPL.get("gws", {}))},
+}
 
 out["meta"]["build_secs"] = round(time.time() - t0, 1)
 # Detail only Stats, Players and the player panel use goes in a second file the site loads in the background,

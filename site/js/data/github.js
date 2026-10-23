@@ -111,13 +111,14 @@ function openSync() {
 const HEALTH = { last: null, running: false, checked: 0 };
 async function checkHealth() {
   try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/refresh.yml/runs?per_page=8&t=${Date.now()}`, { headers: syncHeaders(true), cache: "no-store" });
+    const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/refresh.yml/runs?per_page=20&t=${Date.now()}`, { headers: syncHeaders(true), cache: "no-store" });
     if (!r.ok) return;
     const runs = (await r.json()).workflow_runs || [];
-    HEALTH.last = runs.find(x => x.status === "completed") || null;
+    HEALTH.runs = runs;
+    HEALTH.last = runs.find(x => x.status === "completed" && x.conclusion !== "skipped") || null;
     HEALTH.running = runs.some(x => x.status !== "completed" && Date.now() - new Date(x.created_at) < 3 * 36e5);
     HEALTH.checked = Date.now();
-    if (D) header();
+    if (D) { header(); if (S.view === "health") render(); }
   } catch (e) { /* offline or rate-limited: the age check still works */ }
 }
 function healthBanner() {

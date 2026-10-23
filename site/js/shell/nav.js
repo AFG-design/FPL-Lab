@@ -24,13 +24,14 @@ function header() {
   const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
   const when = built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   $("#meta").innerHTML = `${typeof healthBanner === "function" ? healthBanner() : ""}
-    <span class="st-when">${ageH > 2 ? "" : '<span class="live-dot" aria-hidden="true"></span>'}Updated ${when}</span>
+    <span class="st-when" role="link" tabindex="0" data-gohealth="1" title="Open Data health">${ageH > 2 ? "" : '<span class="live-dot" aria-hidden="true"></span>'}Updated ${when}</span>
     <span class="st-note">Your GW${meta.picks_gw} squad. Transfers made on the FPL site appear after the deadline.</span>
     <span class="st-acts">
       <button class="btn ghost sm" data-refresh="1" ${REFRESH.busy ? "aria-busy=\"true\"" : ""}>${icon("refresh")}${REFRESH.busy ? "Refreshing" : "Refresh data"}</button>
       <button class="btn ghost sm" data-sync="1">${icon("sync")}${syncToken() ? "Sync on" : "Sync plan"}</button>
     </span>
     <span class="st-msg" id="refreshMsg">${esc(REFRESH.msg)}</span><span class="st-msg" id="syncMsg">${esc(SYNC.msg || "")}</span>`;
+  const hl = $("#meta [data-gohealth]"); if (hl) { hl.onclick = () => setView("health"); hl.onkeydown = e => { if (e.key === "Enter") setView("health"); }; }
   const dl = $("#score [data-godl]"); if (dl) { dl.onclick = () => setView("deadlines"); dl.onkeydown = e => { if (e.key === "Enter") setView("deadlines"); }; }
   document.querySelectorAll("#meta [data-refresh]").forEach(rb => rb.onclick = () => { if (!REFRESH.busy) startRefresh(); });
   const sb2 = $("#meta [data-sync]"); if (sb2) sb2.onclick = () => openSync();
@@ -41,9 +42,9 @@ const NAV = [
   ["Matchday", [["week", "This week"], ["planner", "Planner"], ["rivals", "Rivals"], ["deadlines", "Deadlines"]]],
   ["AFG", [["afg", "AFG suggestion"]]],
   ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"], ["stats", "Stats"]]],
-  ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"]]],
+  ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"], ["health", "Data health"]]],
 ];
-const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"]];
+const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"], ["health", "Data health", "When each data source last updated"]];
 const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["afg", "AFG"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
 $("#sidenav").innerHTML = NAV.map(([g, items]) => `<div class="navgroup"><span class="navhead">${g}</span>${items.map(([v, l]) => `<button type="button" data-v="${v}">${icon(v)}<span>${l}</span></button>`).join("")}</div>`).join("");
 $("#bottomnav").innerHTML = BOTTOM.map(([v, l]) => `<button type="button" data-v="${v}" ${v === "more" ? 'aria-haspopup="menu" aria-expanded="false" id="moreBottom"' : ""}>${icon(v)}<span>${l}</span></button>`).join("");
@@ -69,7 +70,7 @@ function setView(v, { push = true } = {}) {
 // back/forward buttons and links like #fixtures
 addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) setView(v, { push: false }); });
 
-const VIEW_FN = () => ({ deadlines: vDeadlines, week: vWeek, afg: vAfg, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
+const VIEW_FN = () => ({ health: vHealth, deadlines: vDeadlines, week: vWeek, afg: vAfg, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
 function render() {
   const inMore = MORE.some(m => m[0] === S.view);
   document.querySelectorAll("#sidenav [data-v], #bottomnav [data-v]").forEach(b => {

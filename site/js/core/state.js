@@ -10,7 +10,7 @@ const sgn = x => (x > 0 ? "+" : x < 0 ? "−" : "±") + f1(Math.abs(x));
 const money = x => "£" + Number(x).toFixed(1) + "m";
 const rankFmt = n => n == null ? "–" : n.toLocaleString("en-GB");
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const VIEWS = ["week", "afg", "planner", "rivals", "deadlines", "review", "fixtures", "players", "stats", "chips", "model"];
+const VIEWS = ["week", "afg", "planner", "rivals", "deadlines", "review", "fixtures", "players", "stats", "chips", "model", "health"];
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
 S.ptab = ["suggest", "captains", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
