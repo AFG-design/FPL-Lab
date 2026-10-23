@@ -135,15 +135,15 @@ The script avoids the mini-league screen so other managers' names aren't publish
 
 ## Reliable automatic updates (backup scheduler)
 
-GitHub's built-in schedule can start late or not at all on new repositories. A free external scheduler keeps the data fresh:
+GitHub's built-in schedule can start late or not at all. A free external scheduler keeps the data fresh:
 
 1. Create a fine-grained GitHub token: Settings → Developer settings → Fine-grained tokens → **Only select repositories: FPL-Lab** → Permissions: **Actions: Read and write**. Copy it.
 2. Sign up at [cron-job.org](https://cron-job.org) (free) and create a cron job:
    - **URL:** `https://api.github.com/repos/AFG-design/FPL-Lab/actions/workflows/refresh.yml/dispatches`
-   - **Schedule:** every 30 minutes
+   - **Schedule:** every 10 minutes
    - **Advanced → Request method:** `POST`
-   - **Headers:** `Authorization: Bearer YOUR_TOKEN`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`
-   - **Request body:** `{"ref":"main"}`
-3. Save. Each run starts the refresh workflow (FPL data, rival samples and Understat shots) and redeploys the site.
+   - **Headers:** `Authorization: Bearer YOUR_TOKEN`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`
+   - **Request body:** `{"ref":"main","inputs":{"live_only":"true"}}`
+3. Save. Each call starts the refresh workflow; with `live_only` it rebuilds every 10 minutes while a match is on and otherwise about every half hour (other calls finish in seconds). GitHub replies 204 (no content) when it works.
 
 The dashboard's **Refresh data now** button does the same on demand when the token saved under **Sync plan** has Actions access.

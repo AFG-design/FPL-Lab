@@ -5,6 +5,11 @@ on:
     - cron: "7,37 * * * *"   # every 30 minutes (UTC); an external scheduler can also start it (see README)
     - cron: "*/10 * * * *"   # every 10 minutes, but only goes ahead while a Premier League match is on (see "check")
   workflow_dispatch:          # "Run workflow" button, the dashboard's Refresh button, or an external scheduler
+    inputs:
+      live_only:
+        description: "Only rebuild while a match is on (or on the half hour). For an external scheduler every 10 minutes."
+        required: false
+        default: "false"
   push:
     branches: [main]
 
@@ -18,8 +23,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The 10-minute schedule is for live gameweeks: skip unless a match kicked off in the last 2.5 hours
-  # (or kicks off in the next 10 minutes). Everything else always runs.
+  # The 10-minute schedule (and an external scheduler sending live_only=true) is for live gameweeks:
+  # rebuild if a match kicked off in the last 2.5 hours (or kicks off in the next 10 minutes), otherwise
+  # only on the first run of each half hour. Everything else always runs.
   check:
     runs-on: ubuntu-latest
     outputs:
@@ -28,8 +34,9 @@ jobs:
       - id: c
         env:
           SCHED: ${{ github.event.schedule }}
+          LIVE_ONLY: ${{ github.event.inputs.live_only }}
         run: |
-          if [ "$SCHED" != "*/10 * * * *" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$SCHED" != "*/10 * * * *" ] && [ "$LIVE_ONLY" != "true" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json, urllib.request, datetime as dt
           try:
@@ -39,6 +46,7 @@ jobs:
               fx = []
           now = dt.datetime.now(dt.timezone.utc)
           live = any(f.get("kickoff_time") and -dt.timedelta(minutes=10) <= now - dt.datetime.fromisoformat(f["kickoff_time"].replace("Z", "+00:00")) <= dt.timedelta(hours=2.5) for f in fx)
+          live = live or now.minute % 30 < 10      # outside matches, still rebuild about every half hour
           print("run=" + ("true" if live else "false"))
           PY
 
