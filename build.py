@@ -674,9 +674,11 @@ if crowd:
         prev_h = next((h for h in history["current"] if h["event"] == G - 1), None)
         live_gw["rank_before"] = prev_h["overall_rank"] if prev_h else None
         # same basis as the sample: overall total after this GW's hit, before this GW's points
-        live_gw["total_before"] = (entry.get("summary_overall_points") or 0) - (entry.get("summary_event_points") or 0)
-        live_gw["hit_now"] = (prev_h["total_points"] if prev_h else live_gw["total_before"]) - live_gw["total_before"]
-        live_gw["hits"] = max(live_gw.get("hits") or 0, live_gw["hit_now"])   # the picks endpoint can lag behind the hit
+        # this GW's hit as FPL records it (picks, or the history row if picks lag behind). Never infer it from
+        # /entry/ summary totals: those can be stale by a bonus adjustment and invent a hit (GW8: 519 vs 523, no hit)
+        cur_h = next((h for h in history["current"] if h["event"] == G), None)
+        live_gw["hits"] = max(live_gw.get("hits") or 0, cur_h["event_transfers_cost"] if cur_h else 0)
+        live_gw["total_before"] = (prev_h["total_points"] if prev_h else 0) - live_gw["hits"]
         live_gw["sample_n"] = len(tm)
     crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play,
                  "top10k": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["top10k"].items()},
@@ -1143,7 +1145,7 @@ out = {
              "priors_season": next(iter((priors or {}).get("players", {}).values()), {}).get("season"),
              "build_secs": None},
     "manager": {"name": f'{entry["player_first_name"]} {entry["player_last_name"]}', "team": entry["name"],
-                "points": entry["summary_overall_points"], "rank": entry["summary_overall_rank"],
+                "points": history["current"][-1]["total_points"] if history["current"] else entry["summary_overall_points"], "rank": entry["summary_overall_rank"],
                 "gw_points": entry.get("summary_event_points"), "gw_rank": entry.get("summary_event_rank"),
                 "bank": bank, "value": (picks["entry_history"]["value"] if picks else 0) / 10,
                 "free_transfers": ft, "total_players": boot["total_players"]},
