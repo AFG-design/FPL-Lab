@@ -105,16 +105,19 @@ def understat_sp(boot, fixtures, shots_cache, us_players):
 OUT_STATUS = ("i", "s", "n", "u")
 
 
-def out_weeks(boot, status_log=None):
+def out_weeks(boot, status_log=None, hindsight=True):
     """Gameweeks each player missed through injury, suspension or absence: {pid: {gw}}.
 
     Two sources: the status saved before each deadline in history/status.json (build.py), and,
-    for players flagged right now, every deadline since FPL added the current note (news_added)."""
+    for players flagged right now, every deadline since FPL added the current note (news_added).
+    hindsight=False keeps only the first (genuine, at-the-time) source."""
     out = defaultdict(set)
     for g, rows in (status_log or {}).get("gws", {}).items():
         for pid, (st, ch) in rows.items():
             if st in OUT_STATUS or (ch is not None and ch <= 25):
                 out[int(pid)].add(int(g))
+    if not hindsight:
+        return out
     deadlines = [(e["id"], e.get("deadline_time")) for e in boot.get("events", []) if e.get("deadline_time")]
     for e in boot["elements"]:
         ch, since = e.get("chance_of_playing_next_round"), e.get("news_added")
@@ -193,6 +196,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
     thr.setdefault("MID", 12)
     thr.setdefault("FWD", 12)
     out = out_weeks(boot, status_log)
+    out_log = out_weeks(boot, status_log, hindsight=False)   # flags genuinely saved at each deadline (no hindsight)
     news_out = news_absences(boot, elements, pstats, team_fix, out)
     for pid, g in news_out.items():
         out[pid].add(g)
@@ -200,7 +204,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
-        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_news": news_out,
+        "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
@@ -543,8 +547,8 @@ def project(ctx, as_of, horizon=6, params=None):
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
             av = availability(e, k, ko, ret) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
-            if not P["use_flags"] and P["hist_flags"] and g in ctx.get("out", {}).get(pid, ()):
-                av = 0.0  # backtests: the injury flag that was showing at that deadline
+            if not P["use_flags"] and P["hist_flags"] and g in ctx.get("out_log", {}).get(pid, ()):
+                av = 0.0  # backtests: the injury flag that was showing at that deadline (status log only, never hindsight)
             comp = defaultdict(float)
             sim_pts = sim_app = None
             cong = ctx.get("congestion", {}).get((tid, g), 1.0)

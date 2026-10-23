@@ -9,8 +9,13 @@ Each gameweek k is projected from data before k only. Last season comes from arc
 (no betting odds and no historical injury flags there, so both sides of any comparison run
 without them). The archive's FPL "xP" column is not a usable benchmark (mostly zeros, and
 filled in after the fact), so FPL's own projection is compared only in the live log (history/).
+
+Injury flags in this season's backtest come only from history/status.json (saved before each deadline);
+the hindsight flags in ctx["out"] are not used for them. Decisions should rest on corr / rank / picks.
+Captain (cap) and top-5 are noisy (the top two projections are ~0.2 pts apart), so a candidate's cap and
+top5 differences are only meaningful when the paired bootstrap 95% CI (over gameweeks) excludes 0.
 """
-import json, math, os, sys
+import json, math, os, random, sys
 from collections import defaultdict
 
 from fplmodel import prepare, project, POS
@@ -50,6 +55,8 @@ def score(rows_by_gw):
     P, A = [], []
     pos_pa = defaultdict(lambda: ([], []))
     spear, cap1, cap5, picks = [], [], [], []
+    per = {"cap1": {}, "cap5": {}, "picks": {}}   # per-gameweek series and captain ids, for paired CIs
+    capid = {}
     for g, rows in rows_by_gw.items():
         if not rows:
             continue
@@ -59,11 +66,13 @@ def score(rows_by_gw):
         spear.append(_corr(_ranks([r[2] for r in rows]), _ranks([r[3] for r in rows])))
         top = sorted(rows, key=lambda r: -r[2])
         cap1.append(top[0][3]); cap5.append(sum(r[3] for r in top[:5]) / 5)
+        per["cap1"][g] = cap1[-1]; per["cap5"][g] = cap5[-1]; capid[g] = top[0][0]
         tot = cnt = 0
         for pos, n in TOPN.items():
             best = [r for r in top if r[1] == pos][:n]
             tot += sum(r[3] for r in best); cnt += len(best)
         picks.append(tot / cnt)
+        per["picks"][g] = picks[-1]
     n = len(P)
     return {
         "n": n, "mae": sum(abs(p - a) for p, a in zip(P, A)) / n,
@@ -74,7 +83,7 @@ def score(rows_by_gw):
         "picks": sum(picks) / len(picks),     # avg real points of the model's top-N per position
         "cap1": sum(cap1) / len(cap1),        # avg real points of the top projected player
         "cap5": sum(cap5) / len(cap5),
-        "gws": len(rows_by_gw),
+        "gws": len(rows_by_gw), "_per": per, "_capid": capid,
     }
 
 
@@ -110,7 +119,11 @@ def current_ctx():
         market = json.load(open(os.path.join(HERE, "odds", "odds.json")))
     except Exception:
         market = None
-    _CUR["ctx"] = prepare(boot, fixtures, live, priors, market)
+    try:   # genuine at-the-time flags; grows with each build
+        status_log = json.load(open(os.path.join(HERE, "history", "status.json")))
+    except Exception:
+        status_log = None
+    _CUR["ctx"] = prepare(boot, fixtures, live, priors, market, status_log=status_log)
     _CUR["cur"] = cur
     return _CUR["ctx"]
 
@@ -160,6 +173,27 @@ def fmt(name, m):
             f"rank {m['spearman']:.3f} bias {m['bias']:+.2f} | picks {m['picks']:.2f} cap {m['cap1']:.2f} top5 {m['cap5']:.2f} | {pc}")
 
 
+def paired_ci(base, cand, n=2000, seed=1):
+    """Paired bootstrap over gameweeks of cand - base for cap1, cap5 and picks (mean diff, 95% CI),
+    plus how many gameweeks the captain changed."""
+    out = {}
+    for key in ("cap1", "cap5", "picks"):
+        a, b = base["_per"][key], cand["_per"][key]
+        d = [b[g] - a[g] for g in sorted(set(a) & set(b))]
+        rng = random.Random(seed)
+        means = sorted(sum(d[rng.randrange(len(d))] for _ in d) / len(d) for _ in range(n))
+        out[key] = (sum(d) / len(d), means[int(0.025 * n)], means[int(0.975 * n) - 1])
+    ids = sorted(set(base["_capid"]) & set(cand["_capid"]))
+    out["cap_changed"] = (sum(1 for g in ids if base["_capid"][g] != cand["_capid"][g]), len(ids))
+    return out
+
+
+def fmt_ci(ci):
+    f = lambda k: f"{ci[k][0]:+.2f} [{ci[k][1]:+.2f}, {ci[k][2]:+.2f}]" + ("" if ci[k][1] > 0 or ci[k][2] < 0 else " ~0")
+    return (f"  paired 95% CI (cand - current, bootstrap over GWs): cap {f('cap1')} top5 {f('cap5')} picks {f('picks')}"
+            f" | captain changed in {ci['cap_changed'][0]} of {ci['cap_changed'][1]} weeks")
+
+
 def compare(variants, seasons=("current", "2025-26"), quiet=False):
     """variants: {name: params}. Returns {season: {name: metrics}}."""
     res = {}
@@ -175,6 +209,11 @@ def compare(variants, seasons=("current", "2025-26"), quiet=False):
             res[s][name] = m
             if not quiet:
                 print(fmt(name, m))
+        names = list(variants)
+        for name in names[1:]:
+            ci = res[s].setdefault("_ci", {})[name] = paired_ci(res[s][names[0]], res[s][name])
+            if not quiet:
+                print(fmt_ci(ci))
     return res
 
 
