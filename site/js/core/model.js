@@ -24,26 +24,30 @@ const LAM = { balanced: 0, safe: 0.02, chase: -0.03 };
 // strategy extras for Re-plan; same numbers as STRATEGY in build.py
 const STRAT = { balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 10 } };
 function fieldEO() { const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null; return F ? F.eo : null; }
+// Strategy extras as the optimiser has them, in every week: Chase rewards the chance of 10+ points (double for the
+// captain), Play safe marks down starters who may not play (starters only). pts stays plain projected points.
+const haulP = (i, g) => P[i]?.dist?.[g]?.[0] || 0;
 function adjXI(i, g) {
-  const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g);
-  if (!lam || !eo || PG.indexOf(g) > 1) return x;
+  const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g), st = STRAT[S.mode] || {};
+  let v = x;
+  if (st.haulW) v += st.haulW * haulP(i, g);
+  if (st.nailW) v -= st.nailW * (1 - Math.min(100, P[i]?.nailed ?? 100) / 100) * x;
+  if (!lam || !eo || PG.indexOf(g) > 1) return v;
   const k = 1 - 2 * (eo[i] || 0) / 100;
   // Chase only rewards differentials; it never pushes you to drop players the field owns
-  return x - lam * variance(P[i].pos, x) * (lam < 0 ? Math.max(0, k) : k);
+  return v - lam * variance(P[i].pos, x) * (lam < 0 ? Math.max(0, k) : k);
 }
-function adjCap(i, g) {  // value of the captain's extra multiplier
-  const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g);
-  if (!lam || !eo || PG.indexOf(g) > 1) return x;
+function adjCap(i, g) {  // value of the captain's extra multiplier (no nailed term, as in the optimiser)
+  const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g), st = STRAT[S.mode] || {};
+  const v = x + (st.haulW ? st.haulW * haulP(i, g) : 0);
+  if (!lam || !eo || PG.indexOf(g) > 1) return v;
   const k = 3 - 2 * (eo[i] || 0) / 100;
-  return x - lam * variance(P[i].pos, x) * (lam < 0 ? Math.max(0, k) : k);  // matches the optimiser's captain term
+  return v - lam * variance(P[i].pos, x) * (lam < 0 ? Math.max(0, k) : k);  // matches the optimiser's captain term
 }
-// one captain rule everywhere: best value, but an attacker beats a GKP/DEF that only edges it
+// one captain rule everywhere, the optimiser's: the best value in the XI
 function capPick(xi, g) {
   const order = xi.slice().sort((a, b) => adjCap(b, g) - adjCap(a, g));
-  let cap = order[0], vice = order[1], swapped = null;
-  const att = order.find(i => ["MID", "FWD"].includes(P[i]?.pos));
-  if (att && att !== cap && ["GKP", "DEF"].includes(P[cap]?.pos) && adjCap(cap, g) - adjCap(att, g) < 0.6) { swapped = cap; vice = cap; cap = att; }
-  return { cap, vice, swapped };
+  return { cap: order[0], vice: order[1] };
 }
 function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null)) {
   const fs = new Set(ov?.start || []), fb = new Set(ov?.bench || []);
@@ -69,8 +73,8 @@ function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null)) {
   if (ov?.cap && xi.includes(ov.cap)) {
     mine = true;
     const others = xi.filter(i => i !== ov.cap).sort((a, b) => adjCap(b, g) - adjCap(a, g));
-    c = { cap: ov.cap, vice: ov.vice && xi.includes(ov.vice) && ov.vice !== ov.cap ? ov.vice : others[0], swapped: null };
+    c = { cap: ov.cap, vice: ov.vice && xi.includes(ov.vice) && ov.vice !== ov.cap ? ov.vice : others[0] };
   }
   const pts = xi.reduce((a, i) => a + xpg(i, g), 0) + (c.cap ? xpg(c.cap, g) : 0);
-  return { xi, bench, cap: c.cap, vice: c.vice, swapped: c.swapped, pts, capMine: mine };
+  return { xi, bench, cap: c.cap, vice: c.vice, pts, capMine: mine };
 }
