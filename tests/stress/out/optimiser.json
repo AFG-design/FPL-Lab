@@ -33,14 +33,14 @@
   {
    "label": "lock+ban same player (in squad: Haaland)",
    "returned": "None",
-   "secs": 0.24,
+   "secs": 0.12,
    "verdict": "clean failure"
   },
   {
    "label": "lock+ban same player (outside squad)",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.76,
+   "secs": 0.59,
    "issues": [
     "GW8: locked Crooks missing",
     "GW9: locked Crooks missing",
@@ -53,40 +53,40 @@
   {
    "label": "4 locked players from one club (team 6)",
    "returned": "None",
-   "secs": 0.22,
+   "secs": 0.12,
    "verdict": "clean failure"
   },
   {
    "label": "4 locked from one club, none owned",
    "returned": "None",
-   "secs": 0.22,
+   "secs": 0.12,
    "verdict": "clean failure"
   },
   {
    "label": "bank = -15.0 (illegal start, can be repaired by selling)",
    "returned": "plan",
    "xp_total": 237.48,
-   "secs": 1.51,
+   "secs": 0.93,
    "issues": [],
    "verdict": "legal plan returned"
   },
   {
    "label": "bank = -60 (cannot be repaired)",
    "returned": "None",
-   "secs": 0.23,
+   "secs": 0.13,
    "verdict": "clean failure"
   },
   {
    "label": "locked 15 most expensive players (value 123.1m, bank 0.5)",
    "returned": "None",
-   "secs": 0.17,
+   "secs": 0.12,
    "verdict": "clean failure"
   },
   {
    "label": "locked non-ok player not owned (Saka, status i)",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 1.14,
+   "secs": 0.52,
    "issues": [
     "GW8: locked Saka missing",
     "GW9: locked Saka missing",
@@ -100,7 +100,7 @@
    "label": "locked non-ok player already owned (should be a legal hold)",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.88,
+   "secs": 0.51,
    "issues": [],
    "verdict": "legal plan returned"
   },
@@ -108,7 +108,7 @@
    "label": "banned an owned player (forced sale)",
    "returned": "plan",
    "xp_total": 250.88,
-   "secs": 1.08,
+   "secs": 0.57,
    "issues": [],
    "verdict": "legal plan returned"
   },
@@ -116,7 +116,7 @@
    "label": "locked cheap low-xP ok player outside the candidate pool",
    "returned": "plan",
    "xp_total": 253.15,
-   "secs": 0.88,
+   "secs": 0.66,
    "locked_player_held_each_week": [
     false,
     false,
@@ -137,19 +137,19 @@
   {
    "label": "week1_moves=5 (> max_moves_week 4)",
    "returned": "None",
-   "secs": 0.14,
+   "secs": 0.12,
    "verdict": "clean failure"
   },
   {
    "label": "ft0=7 (above FPL cap)",
    "returned": "None",
-   "secs": 0.17,
+   "secs": 0.11,
    "verdict": "clean failure"
   },
   {
    "label": "ft0=-1",
    "returned": "None",
-   "secs": 0.11,
+   "secs": 0.14,
    "verdict": "clean failure"
   },
   {
@@ -163,7 +163,7 @@
    "label": "14-player squad (one slot empty)",
    "returned": "plan",
    "xp_total": 248.28,
-   "secs": 3.42,
+   "secs": 2.65,
    "issues": [
     "GW8: in/out mismatch"
    ],
@@ -173,7 +173,7 @@
    "label": "duplicate id in squad list",
    "returned": "plan",
    "xp_total": 248.28,
-   "secs": 3.36,
+   "secs": 2.12,
    "issues": [
     "GW8: in/out mismatch",
     "GW8: squad size 16",
@@ -206,7 +206,7 @@
    "label": "time_limit=0 (no time to find an incumbent)",
    "returned": "plan",
    "xp_total": 253.73,
-   "secs": 0.27,
+   "secs": 0.22,
    "issues": [
     "GW9: bank -0.6 < 0",
     "GW9: solver bank 0 vs replay -0.6",
@@ -222,7 +222,7 @@
   {
    "label": "max_moves_week=0 with week1_moves=1",
    "returned": "None",
-   "secs": 0.29,
+   "secs": 0.13,
    "verdict": "clean failure"
   }
  ],
@@ -1683,9 +1683,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.79
+    "secs": 0.57
    },
-   "secs": 0.85,
+   "secs": 0.66,
    "returned": "plan",
    "objective": 249.49,
    "xp_total": 304.44,
@@ -1700,9 +1700,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.97
+    "secs": 0.6
    },
-   "secs": 1.14,
+   "secs": 0.67,
    "returned": "plan",
    "objective": 249.49,
    "xp_total": 304.44,
@@ -1717,9 +1717,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.85
+    "secs": 0.66
    },
-   "secs": 1.03,
+   "secs": 0.74,
    "returned": "plan",
    "objective": 249.49,
    "xp_total": 304.44,
@@ -1734,9 +1734,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 3.38
+    "secs": 2.66
    },
-   "secs": 3.46,
+   "secs": 2.73,
    "returned": "plan",
    "objective": 254.23,
    "xp_total": 309.61,
@@ -1751,9 +1751,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 2.43
+    "secs": 2.39
    },
-   "secs": 2.48,
+   "secs": 2.49,
    "returned": "plan",
    "objective": 254.23,
    "xp_total": 309.61,
@@ -1768,9 +1768,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 2,
-    "secs": 1.04
+    "secs": 1.02
    },
-   "secs": 1.09,
+   "secs": 1.1,
    "returned": "plan",
    "objective": 251.53,
    "xp_total": 308.85,
@@ -1792,9 +1792,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 1.0
+    "secs": 0.94
    },
-   "secs": 1.08,
+   "secs": 1.03,
    "returned": "plan",
    "objective": 292.59,
    "xp_total": 304.85,
@@ -1809,9 +1809,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 1.35
+    "secs": 1.08
    },
-   "secs": 1.47,
+   "secs": 1.16,
    "returned": "plan",
    "objective": 292.59,
    "xp_total": 304.85,
@@ -1825,16 +1825,16 @@
    "time_limit": 1,
    "solver": {
     "lp_status": "Optimal",
-    "sol_status": 2,
-    "secs": 1.0
+    "sol_status": 1,
+    "secs": 0.96
    },
-   "secs": 1.09,
+   "secs": 1.02,
    "returned": "plan",
-   "objective": 292.1,
-   "xp_total": 306.15,
+   "objective": 292.59,
+   "xp_total": 304.85,
    "result_has_status_field": false,
    "issues": [],
-   "gap_vs_full": 0.49
+   "gap_vs_full": 0.0
   },
   {
    "mode": "chase",
@@ -1843,9 +1843,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.77
+    "secs": 0.8
    },
-   "secs": 0.86,
+   "secs": 0.88,
    "returned": "plan",
    "objective": 299.51,
    "xp_total": 308.78,
@@ -1862,7 +1862,7 @@
     "sol_status": 1,
     "secs": 0.77
    },
-   "secs": 0.89,
+   "secs": 0.85,
    "returned": "plan",
    "objective": 299.51,
    "xp_total": 308.78,
@@ -1877,9 +1877,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.59
+    "secs": 0.8
    },
-   "secs": 0.68,
+   "secs": 0.88,
    "returned": "plan",
    "objective": 299.51,
    "xp_total": 308.78,
@@ -1894,9 +1894,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.66
+    "secs": 0.81
    },
-   "secs": 0.72,
+   "secs": 0.89,
    "returned": "plan",
    "objective": 250.82,
    "xp_total": 305.0,
@@ -1911,9 +1911,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 0.65
+    "secs": 0.85
    },
-   "secs": 0.74,
+   "secs": 0.93,
    "returned": "plan",
    "objective": 250.82,
    "xp_total": 305.0,
@@ -1930,7 +1930,7 @@
     "sol_status": 1,
     "secs": 0.86
    },
-   "secs": 0.92,
+   "secs": 0.94,
    "returned": "plan",
    "objective": 250.82,
    "xp_total": 305.0,
@@ -1945,9 +1945,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 1,
-    "secs": 1.61
+    "secs": 1.48
    },
-   "secs": 1.69,
+   "secs": 1.57,
    "returned": "plan",
    "objective": 254.88,
    "xp_total": 308.77,
@@ -1964,7 +1964,7 @@
     "sol_status": 1,
     "secs": 1.53
    },
-   "secs": 1.63,
+   "secs": 1.61,
    "returned": "plan",
    "objective": 254.88,
    "xp_total": 308.77,
@@ -1979,9 +1979,9 @@
    "solver": {
     "lp_status": "Optimal",
     "sol_status": 2,
-    "secs": 1.01
+    "secs": 0.98
    },
-   "secs": 1.1,
+   "secs": 1.05,
    "returned": "plan",
    "objective": 254.88,
    "xp_total": 308.77,
@@ -2095,7 +2095,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.45,
+    "secs": 0.46,
     "obj_reeval": 217.246,
     "obj_reported": 217.25,
     "plain_xp": 253.15,
@@ -2197,7 +2197,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 3.275,
+    "secs": 2.284,
     "obj_reeval": 217.246,
     "obj_highs": 217.246,
     "plain_xp": 253.15,
@@ -2302,7 +2302,7 @@
   {
    "case": "balanced_ft2",
    "py_default_pool": {
-    "secs": 1.18,
+    "secs": 1.05,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -2408,7 +2408,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.56,
+    "secs": 0.72,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -2515,7 +2515,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 3.441,
+    "secs": 3.142,
     "obj_reeval": 219.609,
     "obj_highs": 219.609,
     "plain_xp": 255.73,
@@ -2625,7 +2625,7 @@
   {
    "case": "balanced_ft5",
    "py_default_pool": {
-    "secs": 1.04,
+    "secs": 1.02,
     "obj_reeval": 225.038,
     "obj_reported": 225.04,
     "plain_xp": 260.6,
@@ -2741,7 +2741,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.74,
+    "secs": 0.78,
     "obj_reeval": 225.038,
     "obj_reported": 225.04,
     "plain_xp": 260.6,
@@ -2858,7 +2858,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 4.111,
+    "secs": 3.919,
     "obj_reeval": 225.038,
     "obj_highs": 225.038,
     "plain_xp": 260.6,
@@ -2978,7 +2978,7 @@
   {
    "case": "chase_ft1",
    "py_default_pool": {
-    "secs": 1.39,
+    "secs": 1.41,
     "obj_reeval": 254.011,
     "obj_reported": 254.01,
     "plain_xp": 255.08,
@@ -3089,7 +3089,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 1.0,
+    "secs": 0.87,
     "obj_reeval": 254.011,
     "obj_reported": 254.01,
     "plain_xp": 255.08,
@@ -3201,7 +3201,7 @@
    },
    "js": {
     "status": "Optimal",
-    "secs": 2.704,
+    "secs": 2.866,
     "obj_reeval": 254.011,
     "obj_highs": 254.011,
     "plain_xp": 255.08,
@@ -3316,7 +3316,7 @@
   {
    "case": "chase_ft2",
    "py_default_pool": {
-    "secs": 1.65,
+    "secs": 1.62,
     "obj_reeval": 257.491,
     "obj_reported": 257.49,
     "plain_xp": 256.01,
@@ -3427,7 +3427,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 1.36,
+    "secs": 1.42,
     "obj_reeval": 257.491,
     "obj_reported": 257.49,
     "plain_xp": 256.01,
@@ -3545,7 +3545,7 @@
   {
    "case": "chase_ft5",
    "py_default_pool": {
-    "secs": 0.7,
+    "secs": 0.74,
     "obj_reeval": 266.014,
     "obj_reported": 266.01,
     "plain_xp": 259.8,
@@ -3666,7 +3666,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.47,
+    "secs": 0.52,
     "obj_reeval": 266.014,
     "obj_reported": 266.01,
     "plain_xp": 259.8,
@@ -3787,14 +3787,133 @@
     "issues": []
    },
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: memory access out of bounds",
-    "status": null
+    "status": "Optimal",
+    "secs": 1.445,
+    "obj_reeval": 266.014,
+    "obj_highs": 266.014,
+    "plain_xp": 259.8,
+    "moves": [
+     [
+      8,
+      31,
+      4
+     ],
+     [
+      8,
+      40,
+      183
+     ],
+     [
+      8,
+      346,
+      569
+     ],
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      165,
+      249
+     ],
+     [
+      9,
+      175,
+      566
+     ]
+    ],
+    "captains": [
+     4,
+     411,
+     4,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      165,
+      183,
+      334,
+      411,
+      427,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      154,
+      183,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      154,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      8,
+      115,
+      124,
+      154,
+      183,
+      249,
+      411,
+      427,
+      566
+     ],
+     [
+      1,
+      4,
+      115,
+      124,
+      154,
+      249,
+      334,
+      411,
+      427,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [],
+    "pool": 85
    }
   },
   {
    "case": "safe_ft1",
    "py_default_pool": {
-    "secs": 1.2,
+    "secs": 1.23,
     "obj_reeval": 218.694,
     "obj_reported": 218.69,
     "plain_xp": 251.61,
@@ -3895,7 +4014,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.79,
+    "secs": 0.88,
     "obj_reeval": 218.694,
     "obj_reported": 218.69,
     "plain_xp": 251.61,
@@ -3996,14 +4115,113 @@
     "issues": []
    },
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-    "status": null
+    "status": "Optimal",
+    "secs": 0.271,
+    "obj_reeval": 218.694,
+    "obj_highs": 218.694,
+    "plain_xp": 251.61,
+    "moves": [
+     [
+      8,
+      480,
+      427
+     ],
+     [
+      9,
+      175,
+      173
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [],
+    "pool": 85
    }
   },
   {
    "case": "safe_ft2",
    "py_default_pool": {
-    "secs": 0.57,
+    "secs": 0.56,
     "obj_reeval": 220.958,
     "obj_reported": 220.96,
     "plain_xp": 252.56,
@@ -4104,7 +4322,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.42,
+    "secs": 0.33,
     "obj_reeval": 220.958,
     "obj_reported": 220.96,
     "plain_xp": 252.56,
@@ -4205,14 +4423,113 @@
     "issues": []
    },
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-    "status": null
+    "status": "Optimal",
+    "secs": 0.192,
+    "obj_reeval": 220.958,
+    "obj_highs": 220.958,
+    "plain_xp": 252.56,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      427
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     8,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      173,
+      334,
+      411,
+      427
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 5,
+    "issues": [],
+    "pool": 85
    }
   },
   {
    "case": "safe_ft5",
    "py_default_pool": {
-    "secs": 1.85,
+    "secs": 1.78,
     "obj_reeval": 225.146,
     "obj_reported": 225.15,
     "plain_xp": 256.12,
@@ -4328,7 +4645,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 1.74,
+    "secs": 1.64,
     "obj_reeval": 225.146,
     "obj_reported": 225.15,
     "plain_xp": 256.12,
@@ -4444,14 +4761,14 @@
     "issues": []
    },
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
+    "error": "Unable to solve the problem. HiGHS error RuntimeError: Aborted(). Build with -sASSERTIONS for more info.",
     "status": null
    }
   },
   {
    "case": "balanced_lock154_ban411",
    "py_default_pool": {
-    "secs": 0.71,
+    "secs": 0.66,
     "obj_reeval": 213.167,
     "obj_reported": 213.17,
     "plain_xp": 250.33,
@@ -4562,7 +4879,7 @@
     "issues": []
    },
    "py_js_pool": {
-    "secs": 0.45,
+    "secs": 0.47,
     "obj_reeval": 213.167,
     "obj_reported": 213.17,
     "plain_xp": 250.33,
@@ -4673,14 +4990,123 @@
     "issues": []
    },
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-    "status": null
+    "status": "Optimal",
+    "secs": 0.471,
+    "obj_reeval": 213.167,
+    "obj_highs": 213.167,
+    "plain_xp": 250.33,
+    "moves": [
+     [
+      8,
+      290,
+      427
+     ],
+     [
+      8,
+      411,
+      569
+     ],
+     [
+      9,
+      175,
+      566
+     ],
+     [
+      10,
+      8,
+      4
+     ]
+    ],
+    "captains": [
+     31,
+     566,
+     4,
+     4,
+     346
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      334,
+      427,
+      569
+     ],
+     [
+      1,
+      8,
+      31,
+      40,
+      124,
+      154,
+      165,
+      334,
+      427,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      334,
+      427,
+      480,
+      566,
+      569
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      165,
+      346,
+      427,
+      480,
+      566
+     ],
+     [
+      1,
+      4,
+      115,
+      124,
+      154,
+      334,
+      346,
+      427,
+      480,
+      566,
+      569
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 3,
+    "issues": [],
+    "pool": 86
    }
   },
   {
    "case": "balanced_lockpool",
    "py_default_pool": {
-    "secs": 0.99,
+    "secs": 1.0,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -4792,7 +5218,7 @@
     ]
    },
    "py_js_pool": {
-    "secs": 0.67,
+    "secs": 0.77,
     "obj_reeval": 219.609,
     "obj_reported": 219.61,
     "plain_xp": 255.73,
@@ -4904,8 +5330,112 @@
     ]
    },
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-    "status": null
+    "status": "Optimal",
+    "secs": 3.551,
+    "obj_reeval": 216.622,
+    "obj_highs": 216.622,
+    "plain_xp": 252.89,
+    "moves": [
+     [
+      8,
+      175,
+      173
+     ],
+     [
+      8,
+      480,
+      336
+     ],
+     [
+      9,
+      8,
+      4
+     ]
+    ],
+    "captains": [
+     411,
+     411,
+     4,
+     411,
+     334
+    ],
+    "xi": [
+     [
+      1,
+      8,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      334,
+      411
+     ],
+     [
+      1,
+      4,
+      31,
+      40,
+      115,
+      124,
+      154,
+      165,
+      173,
+      346,
+      411
+     ],
+     [
+      1,
+      4,
+      31,
+      115,
+      124,
+      154,
+      173,
+      334,
+      336,
+      346,
+      411
+     ]
+    ],
+    "hits": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "ft_end": 4,
+    "issues": [],
+    "pool": 86
    }
   },
   {
@@ -4913,39 +5443,50 @@
    "py_default_pool": null,
    "py_js_pool": null,
    "js": {
-    "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-    "status": null
+    "error": null,
+    "status": "Infeasible"
    }
   }
  ],
  "F_js_hostile": {
   "js_maxHits0_ft1": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.004
+   "status": "Optimal",
+   "secs": 0.233,
+   "accepted": true,
+   "plan_issues": []
   },
   "js_lock_ban_same": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.006
+   "status": "Infeasible",
+   "secs": 0.081,
+   "accepted": false
   },
   "js_4club": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.004
+   "status": "Infeasible",
+   "secs": 0.084,
+   "accepted": false
   },
   "js_bank_-60": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.003
+   "status": "Infeasible",
+   "secs": 0.078,
+   "accepted": false
   },
   "js_lock_notok": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.004
+   "status": "Infeasible",
+   "secs": 0.095,
+   "accepted": false
   },
   "js_prem": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.009
+   "status": "Infeasible",
+   "secs": 0.094,
+   "accepted": false
   },
   "js_14man": {
-   "error": "Unable to read LP model (see http://web.mit.edu/lpsolve/doc/CPLEX-format.htm). HiGHS error RuntimeError: null function or function signature mismatch",
-   "secs": 0.007
+   "status": "Optimal",
+   "secs": 4.562,
+   "accepted": true,
+   "plan_issues": [
+    "GW8: in/out mismatch"
+   ]
   }
  },
  "G_frontend": {

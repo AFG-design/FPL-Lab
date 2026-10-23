@@ -266,6 +266,18 @@ for mode, kw in E_cfg:
                 r["gap_vs_full"] = round(full - r["objective"], 3)
         E_rows += rows
         print("E", mode, ft0, [(r["time_limit"], r["solver"] and r["solver"]["lp_status"], r["solver"] and r["solver"]["sol_status"], r.get("objective"), r["secs"]) for r in rows])
+# tiny limits: what does "Not Solved" return?
+pulp.LpProblem.solve = _wrap
+E_tiny = []
+for tl in (0, 0.05, 0.2, 0.5, 1):
+    rec_all.clear()
+    res, rec = run(f"tiny tl{tl}", players=PL6, gws=GW6, ft0=3, time_limit=tl)
+    row = {"time_limit": tl, "solver": dict(rec_all[-1]) if rec_all else None, "returned": rec["returned"]}
+    if res:
+        row.update(xp_total=res["xp_total"], objective=res["objective"], issues=validate(res, players=PL6, ft0=3)[:4])
+    E_tiny.append(row); print("E tiny", row)
+pulp.LpProblem.solve = _orig
+R["E_tiny_limits_6gw_ft3"] = E_tiny
 R["E_time_limit"] = E_rows
 pulp.LpProblem.solve = _orig
 
@@ -297,6 +309,9 @@ for lab, o, bank_, sq_ in (("js_lock_ban_same", {"locked": [HAL], "banned": [HAL
                            ("js_bank_-60", {}, -60.0, SQUAD), ("js_lock_notok", {"locked": [notok]}, BANK, SQUAD), ("js_prem", {"locked": prem}, BANK, SQUAD),
                            ("js_14man", {}, BANK, SQUAD[:14])):
     node_cases.append({"name": lab, "squad": sq_, "sell": {str(k): v for k, v in SELL.items()}, "bank": bank_, "ft0": 1, "gws": GWS, "opts": o})
+for lab, tl in (("js_tl_0.02", 0.02), ("js_tl_0.3", 0.3), ("js_tl_1", 1.0)):
+    node_cases.append({"name": lab, "squad": SQUAD, "sell": {str(k): v for k, v in SELL.items()}, "bank": BANK, "ft0": 2, "gws": GWS, "opts": {}, "time_limit": tl})
+node_cases.append({"name": "js_ft0_7", "squad": SQUAD, "sell": {str(k): v for k, v in SELL.items()}, "bank": BANK, "ft0": 7, "gws": GWS, "opts": {}})
 json.dump({"players": PL, "cases": node_cases}, open(out_path("_js_solver_in.json"), "w"))
 t = time.time()
 pr = subprocess.run(["node", os.path.join(HERE, "js_parity.mjs"), "solver", out_path("_js_solver_in.json"), out_path("_js_solver_out.json")], capture_output=True, text=True)
@@ -373,8 +388,8 @@ R["F_js_hostile"] = {k: {kk: v for kk, v in JSR[k].items() if kk in ("status", "
 for k in JSR:
     if k.startswith("js_") and JSR[k].get("weeks"):
         cfg = next(n for n in node_cases if n["name"] == k)
-        R["F_js_hostile"][k]["plan_issues"] = validate({"weeks": [{kk: w[kk] for kk in ("gw", "in", "out", "xi", "captain", "ft", "hits", "bank")} for w in JSR[k]["weeks"]], "ft_left": JSR[k]["ft_end"]},
-                                                      squad=cfg["squad"], bank=cfg["bank"], ft0=1, locked=cfg["opts"].get("locked", []), banned=cfg["opts"].get("banned", []))
+        R["F_js_hostile"][k]["plan_issues"] = validate({"weeks": [{kk: w.get(kk) for kk in ("gw", "in", "out", "xi", "captain", "ft", "hits", "bank")} for w in JSR[k]["weeks"]], "ft_left": JSR[k]["ft_end"]},
+                                                      squad=cfg["squad"], bank=cfg["bank"], ft0=cfg["ft0"], locked=cfg["opts"].get("locked", []), banned=cfg["opts"].get("banned", []))
 
 # ------------------------------------------------------------------ G. front-end parity (real model.js / plan.js in Node)
 def moves_of(weeks):

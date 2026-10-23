@@ -26,7 +26,7 @@ async function solverTask() {
     try {
       const highs = await fresh();
       const { lp, ids } = FPLSolver.buildLP(inp);
-      const sol = highs.solve(lp, { mip_rel_gap: 0.001, time_limit: 25, presolve: "on" });
+      const sol = highs.solve(lp, { mip_rel_gap: 0.001, time_limit: c.time_limit ?? 25, presolve: "on" });
       rec.status = sol && sol.Status;
       rec.secs = (Date.now() - t0) / 1000;
       // what the browser would do with this status
