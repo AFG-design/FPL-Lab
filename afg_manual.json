@@ -1,0 +1,5 @@
+{
+  "_help": "Hand-edited inputs for the AFG suggestion (afg.py). new_managers: club short name -> the manager's name and the last gameweek the new-manager nudge applies (usually 4 league games after he starts). derbies: extra rivalries as [\"SHORT\", \"SHORT\"] pairs, added to the built-in list.",
+  "new_managers": {},
+  "derbies": []
+}

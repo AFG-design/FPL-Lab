@@ -107,7 +107,7 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
 
 @media (max-width: 899px) {
   .bottomnav {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 35;
     background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(12px);
     border-top: 1px solid var(--line);
