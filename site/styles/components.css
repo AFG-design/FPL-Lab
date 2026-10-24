@@ -50,6 +50,7 @@ a.btn { text-decoration: none; }
 .seg { display: inline-flex; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 2px; gap: 2px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .seg button { background: none; border: 0; border-radius: 4px; padding: 5px 11px; font-size: var(--fs-sm); font-weight: 550; color: var(--muted); white-space: nowrap; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .seg button:hover { color: var(--fg); }
+.subnav { justify-self: start; margin-bottom: -6px; }
 .seg button[aria-pressed="true"] { background: var(--raised); color: var(--fg); box-shadow: 0 0 0 1px var(--line-strong); }
 .ptabs { justify-self: start; flex-wrap: wrap; overflow: visible; }
 

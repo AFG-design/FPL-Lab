@@ -56,7 +56,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     gws = list(gws)
     W = range(len(gws))
     # candidate pool: current squad + best options per position by projected points
-    pool = set(squad)
+    pool = set(squad) | {i for i in locked if i in players}  # a lock outside the shortlist must still be honoured
     for pos, n in POOL.items():
         c = [i for i, p in players.items() if p["pos"] == pos and p["ok"] and i not in banned]
         c.sort(key=lambda i: -sum(players[i]["xp"].get(g, 0) for g in gws))
@@ -130,7 +130,10 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     obj.append(ft_value * ft[len(gws)])
     m += pulp.lpSum(obj)
     status = m.solve(pulp.PULP_CBC_CMD(msg=False, timeLimit=time_limit))
-    if pulp.LpStatus[status] not in ("Optimal", "Not Solved") or m.objective is None:
+    # CBC can stop at the time limit with or without a plan, and PuLP doesn't always tell the two apart,
+    # so anything short of "no solution exists" is read back and re-checked against the rules below.
+    if m.sol_status in (pulp.LpSolutionInfeasible, pulp.LpSolutionUnbounded) or m.objective is None:
+        print(f"optimise.solve: no usable plan ({pulp.LpStatus[status]}, {pulp.LpSolution.get(m.sol_status)})")
         return None
     v = lambda x: round(x.value() or 0)
 
@@ -139,15 +142,53 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
         ins = [i for i in pool if v(tin[i][w])]
         outs = [i for i in pool if v(tout[i][w])]
         lineup = [i for i in pool if v(xi[i][w])]
-        cap = next(i for i in pool if v(cp[i][w]))
+        cap = next((i for i in pool if v(cp[i][w])), None)
+        if cap is None:
+            print("optimise.solve: no usable plan (no captain in the solution)")
+            return None
         sqd = [i for i in pool if v(sq[i][w])]
         bench = sorted([i for i in sqd if i not in lineup], key=lambda i: (players[i]["pos"] != "GKP", -xp[i, w]))
-        vice = sorted([i for i in lineup if i != cap], key=lambda i: -xp[i, w])[0]
+        vice = (sorted([i for i in lineup if i != cap], key=lambda i: -xp[i, w]) or [cap])[0]
         pts = sum(xp[i, w] for i in lineup) + xp[cap, w]
         weeks.append({
             "gw": gws[w], "in": ins, "out": outs, "xi": lineup, "bench": bench, "captain": cap, "vice": vice,
             "ft": v(ft[w]), "hits": v(hits[w]), "bank": round(bk[w].value() or 0, 1), "xp": round(pts, 2),
         })
+    problem = _check(weeks, players, squad, sp, buy, bank, init, locked, banned)
+    if problem:
+        print(f"optimise.solve: rejected plan ({problem})")
+        return None
+    optimal = m.sol_status == pulp.LpSolutionOptimal
+    if not optimal:
+        print("optimise.solve: time limit reached, using the best plan found so far")
     total = sum(wk["xp"] for wk in weeks) - hit * sum(wk["hits"] for wk in weeks)
     return {"weeks": weeks, "xp_total": round(total, 2), "objective": round(pulp.value(m.objective), 2),
-            "ft_left": v(ft[len(gws)])}
+            "ft_left": v(ft[len(gws)]), "optimal": optimal}
+
+
+def _check(weeks, players, squad, sp, buy, bank, init, locked, banned):
+    """Re-check a plan against the FPL rules independently of the solver. Returns a reason, or None if it's legal."""
+    have = {i for i, x in init.items() if x}
+    money = bank
+    for wk in weeks:
+        if not set(wk["out"]) <= have or set(wk["in"]) & have:
+            return f"GW{wk['gw']}: sells a player not owned or buys one already owned"
+        money += sum(sp[i] for i in wk["out"]) - sum(buy[i] for i in wk["in"])
+        have = (have - set(wk["out"])) | set(wk["in"])
+        if money < -0.05:
+            return f"GW{wk['gw']}: over budget by £{-money:.1f}m"
+        if set(wk["xi"]) | set(wk["bench"]) != have:
+            return f"GW{wk['gw']}: lineup doesn't match the squad"
+        for pos, n in SHAPE.items():
+            if sum(1 for i in have if players[i]["pos"] == pos) != n:
+                return f"GW{wk['gw']}: wrong number of {pos}"
+        clubs = {}
+        for i in have:
+            clubs[players[i]["team"]] = clubs.get(players[i]["team"], 0) + 1
+        if max(clubs.values()) > 3:
+            return f"GW{wk['gw']}: more than 3 from one club"
+        if len(wk["xi"]) != 11 or wk["captain"] not in wk["xi"]:
+            return f"GW{wk['gw']}: invalid starting XI or captain"
+        if any(i not in have for i in locked if i in players) or have & set(banned):
+            return f"GW{wk['gw']}: breaks a lock or ban"
+    return None
