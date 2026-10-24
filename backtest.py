@@ -4,11 +4,65 @@ data before k only and compare with real points."""
 import json, math, sys
 from fplmodel import prepare, project
 
+# Return bands, as in the OpenFPL paper (Groos 2025), so figures line up with published ones
+BANDS = [("zero", "Didn't play"), ("blank", "Played, 2 pts or fewer"), ("ticker", "3-4 pts"), ("haul", "5+ pts")]
+
+
+def band(pts, mins):
+    if mins <= 0:
+        return "zero"
+    return "blank" if pts <= 2 else "ticker" if pts <= 4 else "haul"
+
+
+def errors(rows):
+    """rows: (predicted, actual, band). Overall and per-band MAE, RMSE and bias."""
+    def stats(rs):
+        n = len(rs)
+        if not n:
+            return {"n": 0, "mae": None, "rmse": None, "bias": None}
+        return {"n": n, "mae": sum(abs(p - a) for p, a, _ in rs) / n,
+                "rmse": math.sqrt(sum((p - a) ** 2 for p, a, _ in rs) / n),
+                "bias": sum(p - a for p, a, _ in rs) / n}
+    out = stats(rows)
+    out["bands"] = {b: stats([r for r in rows if r[2] == b]) for b, _ in BANDS}
+    return out
+
+
+def corr(xs, ys):
+    n = len(xs)
+    if n < 3:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs); syy = sum((y - my) ** 2 for y in ys)
+    if not sxx or not syy:
+        return None
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / math.sqrt(sxx * syy)
+
+
+def head_to_head(rows):
+    """rows: dicts with ours, fpl, pts, band. Both projections scored on the same players."""
+    out = {"n": len(rows)}
+    for key in ("ours", "fpl"):
+        e = errors([(r[key], r["pts"], r["band"]) for r in rows])
+        e["corr"] = corr([r[key] for r in rows], [r["pts"] for r in rows])
+        out[key] = e
+    return out
+
+
+def _mins(ctx, pid, g):
+    return ctx["pstats"].get(pid, {}).get(g, {}).get("minutes", 0)
+
+
+def _in_pool(ctx, pid, k):
+    """a-priori pool: anyone who played in the previous 3 gameweeks"""
+    return any(_mins(ctx, pid, g) > 0 for g in range(k - 3, k))
+
 
 def evaluate(ctx, gws, params=None, verbose=False):
     pred, act = [], []
     buckets = {}
     top_hits = []
+    pool_rows, all_rows = [], []
     for k in gws:
         res = project(ctx, k, horizon=1, params=dict(params or {}, use_flags=False))
         rows = []
@@ -17,9 +71,11 @@ def evaluate(ctx, gws, params=None, verbose=False):
             a = ctx["pts_gw"].get(pid, {}).get(k)
             if a is None:
                 continue
-            # a-priori pool: anyone who played in the previous 3 gameweeks
-            if not any(ctx["pstats"].get(pid, {}).get(g, {}).get("minutes", 0) > 0 for g in range(k - 3, k)):
+            bd = band(a, _mins(ctx, pid, k))
+            all_rows.append((x, a, bd))
+            if not _in_pool(ctx, pid, k):
                 continue
+            pool_rows.append((x, a, bd))
             pred.append(x)
             act.append(a)
             rows.append((x, a))
@@ -37,30 +93,43 @@ def evaluate(ctx, gws, params=None, verbose=False):
     corr = cov / math.sqrt(sum((p - mp) ** 2 for p in pred) * sum((a - ma) ** 2 for a in act))
     out = {"n": n, "mae": mae, "rmse": rmse, "corr": corr, "bias": mp - ma,
            "buckets": {b: (c, px / c, pa / c) for b, (c, px, pa) in sorted(buckets.items())},
-           "top30": top_hits}
+           "top30": top_hits, "pool": errors(pool_rows), "all": errors(all_rows)}
     if verbose:
         print(f"n={n} MAE={mae:.3f} RMSE={rmse:.3f} corr={corr:.3f} bias={mp-ma:+.3f}")
         for b, (c, px, pa) in out["buckets"].items():
             print(f"  xP {b}-{b+1}: n={c:4d} predicted {px:.2f} actual {pa:.2f}")
         for k, a, x in top_hits:
             print(f"  GW{k} top-30 projected: predicted {x:.2f} actual {a:.2f}")
+        for key, label in (("pool", "Played in the last 3 GWs"), ("all", "Every player")):
+            e = out[key]
+            print(f"  {label}: n={e['n']} MAE={e['mae']:.3f} RMSE={e['rmse']:.3f}")
+            for b, name in BANDS:
+                x = e["bands"][b]
+                if x["n"]:
+                    print(f"    {name:24} n={x['n']:5d} RMSE={x['rmse']:.3f} MAE={x['mae']:.3f} bias={x['bias']:+.2f}")
     return out
 
 def baseline(ctx, gws):
+    """Average of each player's points over the previous 4 gameweeks."""
     pred, act = [], []
+    pool_rows, all_rows = [], []
     for k in gws:
         for pid, pg in ctx["pts_gw"].items():
             if k not in pg:
                 continue
-            if not any(ctx["pstats"][pid].get(g, {}).get("minutes", 0) > 0 for g in range(k - 3, k)):
-                continue
             prev = [pg.get(g, 0) for g in range(max(1, k - 4), k)]
-            pred.append(sum(prev) / len(prev)); act.append(pg[k])
+            x, a = sum(prev) / len(prev), pg[k]
+            bd = band(a, _mins(ctx, pid, k))
+            all_rows.append((x, a, bd))
+            if not _in_pool(ctx, pid, k):
+                continue
+            pool_rows.append((x, a, bd))
+            pred.append(x); act.append(a)
     n = len(pred); mp, ma = sum(pred) / n, sum(act) / n
     cov = sum((p - mp) * (a - ma) for p, a in zip(pred, act))
     corr = cov / math.sqrt(sum((p - mp) ** 2 for p in pred) * sum((a - ma) ** 2 for a in act))
     rmse = math.sqrt(sum((p - a) ** 2 for p, a in zip(pred, act)) / n)
-    return {"n": n, "corr": corr, "rmse": rmse}
+    return {"n": n, "corr": corr, "rmse": rmse, "pool": errors(pool_rows), "all": errors(all_rows)}
 
 
 
