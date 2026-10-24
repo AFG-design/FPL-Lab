@@ -20,7 +20,8 @@ function rankSpark(hist) {
     <path d="${d}" fill="none" stroke="var(--accent-text)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${x(pts.length - 1)}" cy="${y(last.rank)}" r="3.5" fill="var(--accent-text)"/></svg>`;
 }
-function dashStrip(me, g) {
+let WEEK_INTRO_DONE = false;
+function dashStrip(me, g, intro = false) {
   const L = D.live, h = D.history, last = h[h.length - 1], prev = h[h.length - 2];
   let score = "";
   if (L && L.points != null) {
@@ -42,7 +43,7 @@ function dashStrip(me, g) {
   const top = xpg(picks[0], g) || 1;
   const caps = `<div class="dash-tile dash-caps">
       <h3>Top captain picks, GW${g}</h3>
-      <ol>${picks.map(i => `<li class="${i === me.cap ? "is-cap" : ""}">
+      <ol>${picks.map(i => `<li class="${i === me.cap ? "is-cap" : ""}" style="--club:${clubCol(P[i])}">
         <button type="button" class="dash-cap" data-p="${i}">
           <span class="dc-name">${i === me.cap ? '<span class="badge inline" aria-label="Your captain">C</span>' : i === me.vice ? '<span class="badge v inline" aria-label="Vice captain">V</span>' : ""}${esc(P[i].name)}</span>
           <span class="dc-fx">${fxFor(P[i].team, g).map(x => fdrChip(x, { gw: g })).join("") || blankChip(g)}</span>
@@ -51,7 +52,7 @@ function dashStrip(me, g) {
         </button></li>`).join("")}</ol>
       <p class="dash-sub">Projected points as captain (doubled).${F && F.cap[me.cap] != null ? ` ${F.cap[me.cap].toFixed(0)}% of managers ${F === D.crowd.near ? "around your rank" : "in the top 10k"} captained ${esc(P[me.cap].name)} last week.` : ""}</p>
     </div>`;
-  return `<div class="dash">${score}${rank}${caps}</div>`;
+  return `<div class="dash${intro ? " intro" : ""}">${score}${rank}${caps}</div>`;
 }
 /* ---------- hero: this week's call in one headline ---------- */
 const rankShort = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
@@ -62,7 +63,7 @@ function liveFold() {
   const head = st
     ? `<span class="live-dot" aria-hidden="true"></span>GW${L.gw} live · <b>${st.total} pts</b> · ${st.left} yet to play${st.rank ? ` · live rank ~${rankShort(st.rank.r)}` : ""}`
     : `GW${L?.gw ?? ""} results${L?.points != null ? ` · <b>${L.points} pts</b>` : ""}`;
-  return `<details class="livefold"><summary><span class="lf-head">${head}</span><span class="lf-go">Scores ›</span></summary><div class="lf-body">${strip}${panel}</div></details>`;
+  return `<details class="livefold"><summary><span class="lf-head">${head}</span><span class="lf-go">${st ? "Watch the scores ›" : "Scores ›"}</span></summary><div class="lf-body">${strip}${panel}</div></details>`;
 }
 function vWeek() {
   const g = D.meta.next_gw, pl = D.plans || {};
@@ -134,22 +135,23 @@ function vWeek() {
   const capName = esc(P[me.cap].name);
   const headT = moves0.length
     ? (moves0.length === 1 ? `Bring in ${esc(P[moves0[0].in].name)}.` : `Make ${moves0.length} transfers.`)
-    : `Roll your transfer${ft > 1 ? "s" : ""}.`;
-  const heroWhy = moves0.length ? t1why : `No transfer beats keeping your ${ft} free one${ft > 1 ? "s" : ""} this week.`;
-  const doubt = benches[0] != null && P[benches[0]].chance != null && P[benches[0]].chance < 100 ? `, who is a ${P[benches[0]].chance}% doubt` : "";
+    : `Sit tight.`;
+  const heroWhy = moves0.length ? t1why : `Nothing on the market is worth a transfer yet, so bank ${ft > 1 ? "them" : "it"}: you'll have ${Math.min(5, ft + 1)} next week.`;
+  const doubt = benches[0] != null && P[benches[0]].chance != null && P[benches[0]].chance < 100 ? `, who's a ${P[benches[0]].chance}% doubt` : "";
   const heroLine = starts.length
-    ? ` Start ${esc(P[starts[0]].name)}${benches.length ? ` ahead of ${esc(P[benches[0]].name)}${doubt}` : ""}.`
+    ? ` Start ${esc(P[starts[0]].name)}${benches.length ? ` over ${esc(P[benches[0]].name)}${doubt}` : ""}.`
     : benches.length ? ` Bench ${esc(P[benches[0]].name)}${doubt}.` : "";
-  const hero = `<section class="hero" role="region" aria-label="This week's call">
+  const intro = !WEEK_INTRO_DONE; WEEK_INTRO_DONE = true; // entrance motion plays on the first draw of this view only
+  const hero = `<section class="hero${intro ? " intro" : ""}" role="region" aria-label="This week's call">
     <p class="eyebrow">GW${g} · Deadline ${ukTime(D.meta.deadline)} · <em>${countdown(D.meta.deadline)} left</em></p>
-    <h1>${headT} Captain <span class="cap">${capName}</span>.</h1>
+    <h1>${headT} <span class="cap">${capName}</span> wears the armband.</h1>
     <p class="hero-why">${heroWhy}${heroLine}</p>
     <div class="hero-verdicts"><span><span class="hv-l">Transfers</span>${vPill(tV)}</span><span><span class="hv-l">Captain</span>${vPill(cV)}</span><span><span class="hv-l">Lineup</span>${vPill(lV)}</span></div>
   </section>`;
   const sp = spreadVsField(me.mult, g);
   const step = (n, state, title, pill, doTxt, details) => `<div class="stepcard ${state}"><span class="no">${state === "ok" ? "✓" : n}</span><div class="sbody">
     <h3>${title} ${pill ? `<span class="pillwrap">${pill}</span>` : ""}</h3><div class="do">${doTxt}</div>${details ? `<details><summary>Details</summary><div class="dbody">${details}</div></details>` : ""}</div></div>`;
-  return `${hero}${liveFold()}${dashStrip(me, g)}
+  return `${hero}${liveFold()}${dashStrip(me, g, intro)}
   <div class="grid2">
     <div class="steps">
       <div class="bar" style="margin:0"><h2>Before the GW${g} deadline</h2><span>${term("verdict", "What the labels mean")}</span><span class="muted">${countdown(D.meta.deadline)} left</span></div>

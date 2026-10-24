@@ -1,5 +1,10 @@
 // Event binding after each render.
 /* ---------- events ---------- */
+// one-off highlight on the move just added in "Your moves" (the flash is CSS and is off for reduced motion)
+function flashMove(g, inId) {
+  const row = $(`#app .move[data-mv="${g}:${inId}"]`); if (!row) return;
+  row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1000);
+}
 function bind() {
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
   on("[data-p]", b => openPlayer(+b.dataset.p));
@@ -44,12 +49,15 @@ function bind() {
   on("[data-ptab]", b => { S.ptab = b.dataset.ptab; store.set("fpl.ptab", S.ptab); render(); });
   on("[data-sugg]", b => {
     const [o, n] = b.dataset.sugg.split(":").map(Number), g = SB.gw;
+    const gainTxt = (b.closest(".sugg")?.querySelector(".sg-gain")?.textContent || "").trim();
     SB.prev = { moves: SB.moves.slice(), source: SB.source };
     editPlan(() => {
       const same = SB.moves.find(m => m.gw === g && m.in === o);
       if (same) same.in = n; else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === o)); SB.moves.push({ gw: g, out: o, in: n }); }
     });
     render();
+    flashMove(g, n);
+    toast(`${P[n].name} is in for ${P[o].name}.${/^\+\d/.test(gainTxt) ? ` ${gainTxt} over ${PG.length} GWs.` : ""}`);
   });
   on("[data-afgmove]", b => {
     const [o, n] = b.dataset.afgmove.split(":").map(Number), g = D.meta.next_gw;

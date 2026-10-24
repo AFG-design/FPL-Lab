@@ -14,7 +14,7 @@
 .dash-cap {
   all: unset; box-sizing: border-box; cursor: pointer; width: 100%;
   display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(40px, 1fr) 42px; gap: 10px; align-items: center;
-  padding: 6px 8px; border-radius: var(--r-sm); transition: background var(--t-fast) var(--ease);
+  padding: 6px 8px; border-radius: var(--r-sm); box-shadow: inset 3px 0 0 var(--club, var(--line-strong)); transition: background var(--t-fast) var(--ease);
 }
 .dash-cap:hover { background: var(--raised); }
 .dash-cap:focus-visible { outline: 2px solid var(--hi); }
@@ -165,19 +165,34 @@ tr.is-rival td { background: var(--accent-soft); }
 .afg-v { font-size: var(--fs-lg); font-weight: 500; }
 .sg-gain.up { color: var(--good); }
 
-/* ---------- This week: hero ---------- */
-.hero { display: grid; gap: 12px; justify-items: start; padding: 4px 0 6px; }
-.eyebrow { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: var(--ls-eyebrow); text-transform: uppercase; color: var(--muted); }
-.eyebrow em { font-style: normal; color: var(--hi-text); }
-.hero h1 { font-family: var(--display); font-size: 60px; font-weight: 700; line-height: .98; letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; max-width: 20ch; }
-.hero h1 .cap { color: var(--hi-text); }
-.hero-why { margin: 0; max-width: 60ch; font-size: 15px; color: var(--muted); }
-.hero-why b { color: var(--fg); }
+/* ---------- This week: hero (a pitch panel; the turf is dark green in both themes) ---------- */
+.hero {
+  position: relative; display: grid; gap: 12px; justify-items: start; overflow: hidden; isolation: isolate;
+  padding: 26px 20px 20px; border-radius: 16px; color: var(--on-turf);
+  background:
+    radial-gradient(120% 90% at 85% -10%, rgb(255 255 255 / 10%), transparent 55%),
+    repeating-linear-gradient(90deg, var(--turf) 0 56px, var(--turf-2) 56px 112px);
+}
+.hero::before, .hero::after { content: ""; position: absolute; pointer-events: none; z-index: -1; }
+.hero::before { width: 220px; height: 220px; right: -90px; top: 50%; margin-top: -110px; border: 1.5px solid var(--on-turf-line); border-radius: 50%; }
+.hero::after { top: 0; bottom: 0; right: 20px; width: 0; border-left: 1.5px solid var(--on-turf-line); }
+.eyebrow { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: var(--ls-eyebrow); text-transform: uppercase; color: var(--on-turf-muted); }
+.eyebrow em { font-style: normal; color: var(--armband); }
+.hero h1 { font-family: var(--display); font-size: 60px; font-weight: 700; line-height: .98; letter-spacing: .01em; text-transform: uppercase; text-wrap: balance; max-width: 20ch; color: var(--on-turf); }
+.hero h1 .cap { color: var(--armband); }
+.hero-why { margin: 0; max-width: 60ch; font-size: 15px; color: var(--on-turf-muted); }
+.hero-why b { color: var(--on-turf); }
 .hero-verdicts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 4px; }
 .hero-verdicts > span { display: inline-flex; align-items: center; gap: 8px; }
-.hv-l { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.hv-l { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--on-turf-muted); }
+.hero .pill { background: var(--on-turf-glass); color: var(--on-turf); gap: 6px; }
+.hero .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--on-turf-muted); }
+.hero .pill.good::before { background: var(--on-turf-good); }
+.hero .pill.warn::before { background: var(--on-turf-warn); }
+.hero .pill.bad::before { background: var(--on-turf-bad); }
 
 @media (max-width: 520px) {
+  .hero { padding: 22px 16px 16px; }
   .hero h1 { font-size: 44px; }
 }
 
@@ -192,3 +207,29 @@ tr.is-rival td { background: var(--accent-soft); }
 .lf-go { flex: none; color: var(--accent-text); font-weight: 600; white-space: nowrap; }
 .livefold[open] .lf-go { opacity: .8; }
 .lf-body { display: grid; gap: 20px; padding: 4px 14px 14px; color: var(--fg); font-size: var(--fs-md); }
+
+/* ---------- club colour accents (thin edges and dots, never a fill) ---------- */
+.club-dot { display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; background: var(--club, var(--line-strong)); box-shadow: 0 0 0 1px var(--line-strong); vertical-align: -0.5px; }
+
+/* ---------- motion: entrance, once per page load (transform and opacity only; all off for reduced motion) ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@keyframes nudge { 0% { transform: translateY(0); } 40% { transform: translateY(-4px); } 100% { transform: translateY(0); } }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+@keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero.intro > * { animation: rise 320ms var(--ease) both; }
+  .hero.intro > :nth-child(2) { animation-delay: 50ms; }
+  .hero.intro > :nth-child(3) { animation-delay: 100ms; }
+  .hero.intro > :nth-child(4) { animation-delay: 150ms; }
+  .dash.intro .dc-bar i { transform-origin: left; animation: grow 500ms var(--ease) 200ms both; }
+  .stat-sub .nudge { display: inline-block; animation: nudge 500ms var(--ease) 300ms 1; }
+  .stat.deadline.soon dd#cd { animation: pulse 2.4s ease-in-out infinite; }
+  .move.flash { position: relative; }
+  .move.flash::after { content: ""; position: absolute; inset: -3px -6px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--accent) 30%, transparent); pointer-events: none; animation: flash 900ms ease-out both; }
+}

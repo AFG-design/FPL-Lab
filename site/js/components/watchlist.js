@@ -37,7 +37,7 @@ function newsFor(days = 7) {
 function starsPanel() {
   const g = D.meta.next_gw, ids = Object.keys(STARS.ids).map(Number).filter(i => P[i]);
   const news = newsFor();
-  if (!ids.length && !news.length) return `<div class="panel"><h3>Watchlist</h3><p class="muted" style="margin:0">Star players from their info panel (tap any name) to follow their price, news and fixtures here.</p></div>`;
+  if (!ids.length && !news.length) return `<div class="panel"><h3>Watchlist</h3><p class="muted" style="margin:0">Nobody on your radar yet. Star a player from his info panel to keep tabs on him.</p></div>`;
   const rows = ids.sort((a, b) => xpFrom(b, g, 5) - xpFrom(a, g, 5)).map(i => {
     const p = P[i], s = STARS.ids[i], dp = s.price != null ? Math.round((p.price - s.price) * 10) / 10 : 0;
     const pr = p.price_proj?.[0], last = p.newsh?.[p.newsh.length - 1], fresh = last && Date.now() - new Date(last[0]) < 3 * 864e5;
@@ -48,6 +48,6 @@ function starsPanel() {
   }).join("");
   return `<div class="panel"><div class="bar"><h3>Watchlist</h3><span class="muted">${ids.length} player${ids.length === 1 ? "" : "s"}</span></div>
     ${ids.length ? `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Price</th><th>Next 3</th><th class="n">xP GW${g}</th><th class="n">Next 5</th></tr></thead><tbody>${rows}</tbody></table></div>
-      <p class="note">Price arrows show the change since you starred him; the % is FPL's progress towards tonight's price change.</p>` : `<p class="muted">Star players from their info panel to follow them here.</p>`}
+      <p class="note">Price arrows show the change since you starred him; the % is FPL's progress towards tonight's price change.</p>` : `<p class="muted">Nobody on your radar yet. Star a player from his info panel to keep tabs on him.</p>`}
     ${news.length ? `<h3 style="margin:14px 0 6px">News this week</h3><ul class="alerts">${news.slice(0, 10).map(([t, id, prev, cur]) => `<li class="${newsCls(cur[0])}"><span><button data-p="${id}" class="pname linkish">${esc(P[id].name)}</button>${MINE.has(id) ? ' <span class="tag">Yours</span>' : isStarred(id) ? ' <span class="tag">★</span>' : ' <span class="tag">Plan</span>'}: ${newsLine(cur)}${prev ? ` <span class="muted">(was ${newsLine(prev).toLowerCase()})</span>` : ""} <span class="muted">· ${agoTxt(t)}</span></span></li>`).join("")}</ul>` : ""}</div>`;
 }
