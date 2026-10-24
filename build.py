@@ -379,6 +379,14 @@ if len(finished_gws) >= 4:
                 "buckets": [[b, c, round(px, 2), round(pa, 2)] for b, (c, px, pa) in ev["buckets"].items()],
                 "top30": [[k, round(x, 2), round(a, 2)] for k, a, x in ev["top30"]]}
 
+    def _err(e):  # MAE / RMSE overall and by return band (OpenFPL bands), rounded for the page
+        r = lambda v: None if v is None else round(v, 2)
+        return {"n": e["n"], "mae": r(e["mae"]), "rmse": r(e["rmse"]),
+                "bands": {b: {"n": x["n"], "mae": r(x["mae"]), "rmse": r(x["rmse"]), "bias": r(x["bias"])}
+                          for b, x in e["bands"].items()}}
+    accuracy["compare"] = {"pool": _err(ev["pool"]), "all": _err(ev["all"]),
+                           "base_pool": _err(bl["pool"]), "base_all": _err(bl["all"])}
+
 # ---------------------------------------------------------------- weekly accuracy log
 HIST = os.path.join(HERE, "history")
 os.makedirs(HIST, exist_ok=True)

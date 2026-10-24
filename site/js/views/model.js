@@ -17,7 +17,7 @@ function vModel() {
       <div class="tablebox" style="margin-top:10px"><table><thead><tr><th>GW</th><th class="n">Players</th><th class="n">Correlation</th><th class="n">Avg miss</th><th class="n">Top 30: projected → actual</th><th class="n">Live corr</th><th class="n">FPL's corr</th><th class="n">Live miss / FPL's</th></tr></thead>
       <tbody>${A.weeks.slice().reverse().map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.n}</td><td class="n"><b>${w.corr.toFixed(2)}</b></td><td class="n">${w.mae.toFixed(2)}</td><td class="n">${w.top_pred.toFixed(1)} → ${w.top_act.toFixed(1)}</td><td class="n">${w.live?.corr != null ? w.live.corr.toFixed(2) : "–"}</td><td class="n">${w.live?.fpl_corr != null ? w.live.fpl_corr.toFixed(2) : "–"}</td><td class="n">${w.live?.mae != null ? `${w.live.mae.toFixed(2)} / ${w.live.fpl_mae.toFixed(2)}` : "–"}</td></tr>`).join("")}</tbody></table></div>
       <p class="note">Live figures start from GW8, the first week the snapshot was saved before the deadline.</p></div>` : ""}` : "";
-  return `${missesPanel()}${acc}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
+  return `${missesPanel()}${acc}${comparePanel()}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
     <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
     <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In testing on GW3–7 this lifted the correlation with real points from 0.40 to 0.42.</li>
@@ -45,4 +45,25 @@ function missesPanel() {
     <div class="capbars" style="margin:6px 0 14px">${Object.entries(m.blame).map(([k, v]) => `<div class="cb"><span class="pname">${esc(k)}</span><div class="track"><div class="fill" style="width:${v / mx * 100}%"></div></div><span class="val">${v}%</span></div>`).join("")}</div>
     <div class="statgrid"><div><h3 style="margin-bottom:8px">Scored less than projected</h3>${tbl(m.over)}</div><div><h3 style="margin-bottom:8px">Scored more than projected</h3>${tbl(m.under)}</div></div>
     <p class="note">Share of the total miss across all players, by part of the score. Attack misses (goals from low xG) are mostly luck; minutes misses are where better team news would help most.</p></div>`;
+}
+
+/* ---------- accuracy in the same terms other sites publish ---------- */
+// FPL Review's Massive Data Model, one GW ahead, 2024/25 GW32-38 (RMSE), from Groos (2025), the OpenFPL paper
+const PUBLISHED_RMSE = { zero: 0.69, blank: 1.19, ticker: 1.59, haul: 5.17 };
+const BAND_NAMES = { zero: "Didn't play", blank: "Played, 2 pts or fewer", ticker: "3–4 pts", haul: "5+ pts" };
+function comparePanel() {
+  const C = D.accuracy?.compare; if (!C) return "";
+  const m = C.all, b = C.base_all, d = v => v == null ? "–" : v.toFixed(2);
+  const rows = Object.keys(BAND_NAMES).map(k => {
+    const x = m.bands[k], y = b.bands[k], better = x.rmse != null && x.rmse <= PUBLISHED_RMSE[k];
+    return `<tr><td>${BAND_NAMES[k]}</td><td class="n"><b>${d(x.rmse)}</b></td><td class="n">${PUBLISHED_RMSE[k].toFixed(2)}${better ? ' <span class="up">✓</span>' : ""}</td><td class="n">${d(y.rmse)}</td><td class="n">${x.bias == null ? "–" : sgn(x.bias)}</td><td class="n">${x.n.toLocaleString("en-GB")}</td></tr>`;
+  }).join("");
+  return `<div class="panel"><h2 style="margin-bottom:10px">Compared with other sites</h2>
+    <p class="note" style="margin-top:0">The figures above only count players who played in the previous 3 gameweeks. Other sites usually score every player, including the many who sit out, which makes their average miss look smaller. These are the same re-run projections scored both ways.</p>
+    <div class="kpis"><div class="kpi"><span class="lbl">Average miss, every player</span><b>${d(m.mae)}</b><span class="delta muted">recent-points average: ${d(b.mae)} · ${m.n.toLocaleString("en-GB")} player-weeks</span></div>
+      <div class="kpi"><span class="lbl">Typical miss (RMSE), every player</span><b>${d(m.rmse)}</b><span class="delta muted">recent-points average: ${d(b.rmse)}</span></div>
+      <div class="kpi"><span class="lbl">Average miss, recent players</span><b>${d(C.pool.mae)}</b><span class="delta muted">recent-points average: ${d(C.base_pool.mae)}</span></div></div>
+    <h3 style="margin:16px 0 6px">Typical miss by outcome</h3>
+    <div class="tablebox"><table><thead><tr><th>Outcome</th><th class="n">FPL Lab</th><th class="n">FPL Review</th><th class="n">Recent-points avg</th><th class="n">FPL Lab bias</th><th class="n">Player-weeks</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Lower is better; ✓ marks a band where FPL Lab's miss is no bigger than FPL Review's. Bias is projected minus actual: positive means the model expected more. FPL Review's figures are published results from an independent test on 2024/25 GW32–38 (Groos, 2025, the OpenFPL paper), so this is a guide, not a head-to-head. The re-run uses no injury flags, which inflates the "Didn't play" and low-score misses compared with the live projections.</p></div>`;
 }
