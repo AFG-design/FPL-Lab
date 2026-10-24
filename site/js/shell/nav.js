@@ -55,14 +55,21 @@ function header() {
 const NAV = [
   ["Matchday", [["week", "This week"], ["planner", "Planner"], ["rivals", "Rivals"], ["deadlines", "Deadlines"]]],
   ["AFG", [["afg", "AFG suggestion"]]],
-  ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"], ["stats", "Stats"]]],
-  ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"], ["health", "Data health"]]],
+  ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"]]],
+  ["Season", [["chips", "Chips"], ["review", "Review"], ["model", "Model"]]],
 ];
-const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["stats", "Stats", "Form, shots, set pieces, defence, bonus, value, prices"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are"], ["health", "Data health", "When each data source last updated"]];
-const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["afg", "AFG"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
+const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["model", "Model", "How accurate the projections are, and data health"], ["afg", "AFG suggestion", "A fan's-eye punt on top of the model"]];
+const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
+// Pages reached from a sibling's tabs rather than their own nav entry: Stats sits with Players, Data health with Model.
+const SUBNAV = [[["players", "Players"], ["stats", "Stats"]], [["model", "Model"], ["health", "Data health"]]];
+const PARENT = { stats: "players", health: "model" };
+function subNav(v) {
+  const grp = SUBNAV.find(g => g.some(([x]) => x === v));
+  return grp ? `<div class="seg subnav" role="group" aria-label="Section">${grp.map(([x, l]) => `<button type="button" data-v-go="${x}" aria-pressed="${x === v}">${l}</button>`).join("")}</div>` : "";
+}
 $("#sidenav").innerHTML = NAV.map(([g, items]) => `<div class="navgroup"><span class="navhead">${g}</span>${items.map(([v, l]) => `<button type="button" data-v="${v}">${icon(v)}<span>${l}</span></button>`).join("")}</div>`).join("");
 $("#bottomnav").innerHTML = BOTTOM.map(([v, l]) => `<button type="button" data-v="${v}" ${v === "more" ? 'aria-haspopup="menu" aria-expanded="false" id="moreBottom"' : ""}>${icon(v)}<span>${l}</span></button>`).join("");
-function moreItems() { return MORE.map(([v, l, d]) => `<button role="menuitem" data-v="${v}" aria-current="${S.view === v ? "page" : "false"}">${icon(v)}<b>${l}</b><span>${d}</span></button>`).join(""); }
+function moreItems() { return MORE.map(([v, l, d]) => `<button role="menuitem" data-v="${v}" aria-current="${(PARENT[S.view] || S.view) === v ? "page" : "false"}">${icon(v)}<b>${l}</b><span>${d}</span></button>`).join(""); }
 function closeMore() { $("#moreSheet").hidden = true; $("#moreBottom").setAttribute("aria-expanded", "false"); }
 function openMore() {
   const sh = $("#moreSheet"); sh.querySelector(".sheetbody").innerHTML = moreItems(); sh.hidden = false;
@@ -86,9 +93,9 @@ addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIE
 
 const VIEW_FN = () => ({ health: vHealth, deadlines: vDeadlines, week: vWeek, afg: vAfg, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, chips: vChips, season: vReview, model: vModel });
 function render() {
-  const inMore = MORE.some(m => m[0] === S.view);
+  const navV = PARENT[S.view] || S.view, inMore = MORE.some(m => m[0] === navV);
   document.querySelectorAll("#sidenav [data-v], #bottomnav [data-v]").forEach(b => {
-    const on = b.dataset.v === S.view || (b.dataset.v === "more" && inMore);
+    const on = b.dataset.v === navV || (b.dataset.v === "more" && inMore);
     if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
   if (!D) return;
@@ -99,7 +106,7 @@ function render() {
     console.error(e);
     html = stateView({ kind: "error", title: "This section couldn't be drawn", body: "Something in the latest data didn't match what this page expects. Other sections should still work, and the next data refresh may fix it.", action: `<button class="btn" data-v-go="week">Go to This week</button>` });
   }
-  $("#app").innerHTML = `<section class="view view-${S.view}">${html}</section>`;
+  $("#app").innerHTML = `<section class="view view-${S.view}">${subNav(S.view)}${html}</section>`;
   // wide tables scroll sideways: make them reachable by keyboard
   document.querySelectorAll("#app .tablebox").forEach(t => { t.tabIndex = 0; t.setAttribute("role", "region"); t.setAttribute("aria-label", t.closest(".panel")?.querySelector("h2, h3")?.textContent || "Table"); });
   const go = $("#app [data-v-go]"); if (go) go.onclick = () => setView(go.dataset.vGo);
