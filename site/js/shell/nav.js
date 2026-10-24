@@ -9,6 +9,9 @@ function countdown(iso) {
 const ukTime = iso => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
 
+const deadlineSoon = iso => { const ms = iso ? new Date(iso) - new Date() : 0; return ms > 0 && ms < 3 * 36e5; };
+let RANK_INTRO_DONE = false;
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function header() {
   const m = D.manager, meta = D.meta;
   $("#teamName").textContent = m.team;
@@ -17,10 +20,21 @@ function header() {
   const mv = prev && last ? prev.rank - last.rank : 0;
   const move = mv ? `<span class="${mv > 0 ? "up" : "down"}">${mv > 0 ? "▲" : "▼"} ${rankFmt(Math.abs(mv))}</span>` : `<span class="muted">No change</span>`;
   $("#score").innerHTML =
-    statBadge("Overall rank", rankFmt(m.rank), { sub: move }) +
+    statBadge("Overall rank", `<span id="rankNum">${rankFmt(m.rank)}</span>`, { sub: move }) +
     statBadge("Points", m.points, { sub: `GW${meta.picks_gw}: ${m.gw_points ?? "–"}` }) +
     statBadge("Bank", money(m.bank), { sub: `${m.free_transfers} free transfer${m.free_transfers === 1 ? "" : "s"}` }) +
-    `<div class="stat deadline" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><dt>GW${meta.next_gw} deadline</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : ""}</dd></div>`;
+    `<div class="stat deadline${deadlineSoon(meta.deadline) ? " soon" : ""}" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><dt>GW${meta.next_gw} deadline</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : ""}</dd></div>`;
+  // first load only: the rank arrow nudges up and the rank counts in from last week's figure
+  if (!RANK_INTRO_DONE) {
+    RANK_INTRO_DONE = true;
+    const rn = $("#rankNum");
+    if (rn && !calm() && mv && m.rank != null) {
+      const arrow = $("#score .stat-sub .up, #score .stat-sub .down"); if (arrow) arrow.classList.add("nudge");
+      const from = m.rank + mv, to = m.rank, t0 = performance.now();
+      const step = now => { const k = Math.min(1, (now - t0) / 700), e = 1 - Math.pow(1 - k, 3); rn.textContent = rankFmt(Math.round(from + (to - from) * e)); if (k < 1) requestAnimationFrame(step); };
+      rn.textContent = rankFmt(from); requestAnimationFrame(step);
+    }
+  }
   const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
   const when = built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   $("#meta").innerHTML = `${typeof healthBanner === "function" ? healthBanner() : ""}

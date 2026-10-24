@@ -144,7 +144,7 @@ function suggestionsHTML(g) {
     const v = s2.hit ? (s2.gain >= 3 ? { t: "Worth the hit", c: "good" } : { t: "Not worth the hit", c: "bad" }) : verdict(s2.gain, 3, 1);
     const po = P[s2.out], pi = P[s2.in];
     return `<div class="sugg">
-      <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" style="all:unset;cursor:pointer">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · ${T[pi.team].short}</span></div>
+      <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" style="all:unset;cursor:pointer">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · <span class="club-dot" style="--club:${clubCol(pi)}" aria-hidden="true"></span>${T[pi.team].short}</span></div>
         <span class="sg-gain ${s2.gain > 0.05 ? "up" : "down"}">${sgn(s2.gain)}</span></div>
       <div class="sg-meta">${vPill(v)}${s2.hit ? ' <span class="pill bad">−4 hit</span>' : ""}<span class="fx sgfx">${fxChips(pi, g, 4)}</span></div>
       <div class="sg-why"><b>Out:</b> ${whyOut(s2.out, g)}<br><b>In:</b> ${whyIn(s2.in, g)}</div>
@@ -225,7 +225,7 @@ function vPlanner() {
   const fresh = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
   const problems = sum.weeks.filter(w => w.bank < 0 || w.over.length);
   const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
-  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or pick an optimiser plan.</p>`;
+  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
   const delta = sum.tot - sum.baseTot;
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
   const sp = spreadVsField(mult, g);
@@ -233,7 +233,7 @@ function vPlanner() {
   const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["plans", "Optimiser plans"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
   const right = SB.sel ? selPanel() : tab === "plans" ? planCards() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
   return `
-  <header class="page-title"><h1>Planner</h1><p>${MODE_HELP[S.mode]}</p></header>
+  <header class="page-title"><h1>Planner</h1><p>Plan transfers, captains and your lineup over the next ${PG.length} gameweeks.</p></header>
   <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
     <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]}${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs the managers around your rank")}.` : ""}</p>

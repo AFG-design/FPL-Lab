@@ -9,6 +9,9 @@ const f1 = x => (Math.round((x || 0) * 10) / 10).toFixed(1);
 const sgn = x => (x > 0 ? "+" : x < 0 ? "−" : "±") + f1(Math.abs(x));
 const money = x => "£" + Number(x).toFixed(1) + "m";
 const rankFmt = n => n == null ? "–" : n.toLocaleString("en-GB");
+// Club colours: an accent only (thin edges and dots), never a fill. Keyed by team short name.
+const CLUB_COL = { ARS: "#db0007", AVL: "#670e36", BOU: "#da291c", BRE: "#e30613", BHA: "#0057b8", CHE: "#034694", COV: "#6cc5ef", CRY: "#1b458f", EVE: "#003399", FUL: "#8c8c8c", HUL: "#f5a12d", IPS: "#3a64a3", LEE: "#ffcd00", LIV: "#c8102e", MCI: "#6cabdd", MUN: "#da291c", NEW: "#8c8c8c", NFO: "#dd0000", SUN: "#eb172b", TOT: "#7a8bb0", WOL: "#fdb913", WHU: "#7a263a", BUR: "#6c1d45" };
+const clubCol = p => CLUB_COL[T[p.team]?.short] || "var(--line-strong)";
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 const VIEWS = ["week", "afg", "planner", "rivals", "deadlines", "review", "fixtures", "players", "stats", "chips", "model", "health"];
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }

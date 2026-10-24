@@ -48,6 +48,18 @@
   --chalk: rgb(255 255 255 / 20%);
   --floodlight: rgb(190 255 220 / 9%);
 
+  /* text and marks on the turf (the turf is dark green in both themes, so these do not change) */
+  --on-turf: #fff;
+  --on-turf-muted: rgb(255 255 255 / 80%);
+  --on-turf-glass: rgb(0 0 0 / 34%);
+  --on-turf-line: rgb(255 255 255 / 18%);
+  --on-turf-good: #6fe0a2;
+  --on-turf-warn: #ffc857;
+  --on-turf-bad: #ff9a8f;
+  --armband: #ffd23f;
+  --armband-fg: #1d1600;
+  --armband-vice: #dfe5e1;
+
   /* type */
   --font: "Inter", system-ui, -apple-system, "Segoe UI", roboto, sans-serif;
   --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;

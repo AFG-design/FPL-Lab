@@ -14,9 +14,9 @@ function planMoves(pl) {
 }
 const MODES = { balanced: "Balanced", safe: "Play safe", chase: "Chase rank" };
 const MODE_HELP = {
-  balanced: "Maximises your projected points.",
-  safe: "Sticks closer to what managers around your rank own, so a big haul for a popular player doesn't sink you. Prefers nailed starters, and only takes a hit when it gains at least 6 points. Good for protecting a rank.",
-  chase: "Favours differentials and players with a real chance of a 10+ haul (counted double for your captain), while keeping the popular players you already have. A hit is fine when it buys enough upside. More swing, up or down. Good when you need to climb.",
+  balanced: "Goes for the most points.",
+  safe: "Sticks close to what managers around your rank own, so one popular haul can't sink you. Good for protecting a rank.",
+  chase: "Backs differentials the managers around you don't own, and keeps the popular players you already have. More swing for slightly fewer projected points. Good when you need to climb.",
 };
 const mk = (k, mode = S.mode) => mode === "balanced" || !D.plans[`${mode}_${k}`] ? k : `${mode}_${k}`;
 const planLabel = key => { const [m, k] = key.includes("_") ? key.split("_") : ["balanced", key]; return (m === "balanced" ? "" : MODES[m] + ": ") + PLAN_LABEL[k]; };
