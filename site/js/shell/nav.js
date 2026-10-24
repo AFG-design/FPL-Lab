@@ -90,5 +90,6 @@ function render() {
   document.querySelectorAll("#app .tablebox").forEach(t => { t.tabIndex = 0; t.setAttribute("role", "region"); t.setAttribute("aria-label", t.closest(".panel")?.querySelector("h2, h3")?.textContent || "Table"); });
   const go = $("#app [data-v-go]"); if (go) go.onclick = () => setView(go.dataset.vGo);
   if (S.view === "week" && typeof railToNow === "function") railToNow();
+  const fold = $("#app .livefold"); if (fold) fold.addEventListener("toggle", () => { if (fold.open && typeof railToNow === "function") railToNow(); });
   bind();
 }

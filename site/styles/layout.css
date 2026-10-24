@@ -57,10 +57,11 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
 }
 .team { display: grid; gap: 2px; min-width: 0; margin-right: auto; }
 .team .wordmark { font-size: 12px; margin-bottom: 6px; }
-.team h1 { font-size: var(--fs-xl); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team h1 { font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1.05; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .team .sub { font-size: var(--fs-sm); color: var(--muted); }
 .score { display: flex; gap: 8px 28px; flex-wrap: wrap; margin: 0; }
-.score .stat dd:first-of-type { font-size: var(--fs-xl); }
+.score .stat dd:first-of-type { font-family: var(--display); font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: .01em; white-space: nowrap; }
+.score .stat dt { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
 .deadline dd#cd { color: var(--hi-text); }
 
 @media (min-width: 900px) {
@@ -71,8 +72,10 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
   .topbar { gap: 14px; }
   .team { grid-template-columns: minmax(0, 1fr); flex: 1 1 0; }
   .score { order: 3; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .score .stat dd:first-of-type { font-size: var(--fs-lg); }
-  .score .stat dt, .score .stat-sub { font-size: 11px; }
+  .team h1 { font-size: 26px; }
+  .score .stat dd:first-of-type { font-size: 23px; }
+  .score .stat dt { white-space: normal; font-size: 9.5px; letter-spacing: .05em; line-height: 1.25; }
+  .score .stat-sub { font-size: 11px; }
 }
 
 @media (max-width: 340px) {
@@ -80,7 +83,8 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
 }
 
 @media (max-width: 420px) {
-  .score .stat dd:first-of-type { font-size: 15px; }
+  .team h1 { font-size: 24px; }
+  .score .stat dd:first-of-type { font-size: 22px; }
   .score .stat-sub { white-space: normal; }
 }
 
