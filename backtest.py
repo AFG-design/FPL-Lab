@@ -28,6 +28,27 @@ def errors(rows):
     return out
 
 
+def corr(xs, ys):
+    n = len(xs)
+    if n < 3:
+        return None
+    mx, my = sum(xs) / n, sum(ys) / n
+    sxx = sum((x - mx) ** 2 for x in xs); syy = sum((y - my) ** 2 for y in ys)
+    if not sxx or not syy:
+        return None
+    return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / math.sqrt(sxx * syy)
+
+
+def head_to_head(rows):
+    """rows: dicts with ours, fpl, pts, band. Both projections scored on the same players."""
+    out = {"n": len(rows)}
+    for key in ("ours", "fpl"):
+        e = errors([(r[key], r["pts"], r["band"]) for r in rows])
+        e["corr"] = corr([r[key] for r in rows], [r["pts"] for r in rows])
+        out[key] = e
+    return out
+
+
 def _mins(ctx, pid, g):
     return ctx["pstats"].get(pid, {}).get(g, {}).get("minutes", 0)
 

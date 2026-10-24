@@ -10,7 +10,7 @@ import json, os, sys, time, urllib.request, datetime as dt
 from collections import defaultdict
 
 from fplmodel import prepare, project, POS
-from backtest import evaluate, baseline
+from backtest import evaluate, baseline, band, head_to_head
 import optimise
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
@@ -392,7 +392,9 @@ HIST = os.path.join(HERE, "history")
 os.makedirs(HIST, exist_ok=True)
 # snapshot this gameweek's projections (ours and FPL's own) until its deadline passes
 if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
-    snap = {str(i): [round(p["xp"].get(next_gw, 0), 2), p["ep_fpl"]] for i, p in players.items() if p["xp"].get(next_gw, 0) > 0 or p["ep_fpl"] > 0}
+    # [our xP, FPL's ep_next, FPL status, chance of playing] as known before the deadline
+    snap = {str(i): [round(p["xp"].get(next_gw, 0), 2), p["ep_fpl"], p["status"], p["chance"]]
+            for i, p in players.items() if p["xp"].get(next_gw, 0) > 0 or p["ep_fpl"] > 0}
     json.dump({"gw": next_gw, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
               open(os.path.join(HIST, f"proj_gw{next_gw}.json"), "w"), separators=(",", ":"))
 
@@ -420,8 +422,8 @@ for g in [g for g in finished_gws if g >= 3]:
     if os.path.exists(fpath):
         snap = json.load(open(fpath))["players"]
         ours, fplp = [], []
-        for pid_s, (xo, xf) in snap.items():
-            pid = int(pid_s)
+        for pid_s, v in snap.items():
+            pid, xo, xf = int(pid_s), v[0], v[1]
             a = ctx["pts_gw"].get(pid, {}).get(g)
             if a is None or not any(pstats.get(pid, {}).get(k, {}).get("minutes", 0) > 0 for k in range(g - 3, g)):
                 continue
@@ -429,6 +431,62 @@ for g in [g for g in finished_gws if g >= 3]:
         co, mo = corr_mae(ours); cf, mf = corr_mae(fplp)
         row["live"] = {"n": len(ours), "corr": co, "mae": mo, "fpl_corr": cf, "fpl_mae": mf}
     acc_weeks.append(row)
+
+# ---- head to head: our live projections v FPL's own, as saved before each deadline, scored after the GW.
+# Every player in the snapshot plus anyone who played in the previous 3 GWs (missing = projected 0 by both).
+POS_OF = lambda pid: POS[elements[pid]["element_type"]] if pid in elements else ""
+h2h_rows = []
+for g in finished_gws:
+    fpath = os.path.join(HIST, f"proj_gw{g}.json")
+    if not os.path.exists(fpath):
+        continue
+    snap = json.load(open(fpath))["players"]
+    ids = {int(k) for k in snap} | {pid for pid in ctx["pts_gw"] if g in ctx["pts_gw"][pid]
+                                    and any(pstats.get(pid, {}).get(k, {}).get("minutes", 0) > 0 for k in range(g - 3, g))}
+    for pid in sorted(ids):
+        a = ctx["pts_gw"].get(pid, {}).get(g)
+        if a is None or pid not in elements:
+            continue
+        v = snap.get(str(pid), [0, 0])
+        s_ = pstats.get(pid, {}).get(g, {})
+        mins = s_.get("minutes", 0)
+        h2h_rows.append({
+            "gw": g, "id": pid, "name": elements[pid]["web_name"], "team": teams[elements[pid]["team"]]["short_name"],
+            "pos": POS_OF(pid), "ours": float(v[0]), "fpl": float(v[1]), "pts": a, "mins": mins,
+            "started": int(bool(s_.get("starts"))), "band": band(a, mins),
+            "pool": int(any(pstats.get(pid, {}).get(k, {}).get("minutes", 0) > 0 for k in range(g - 3, g))),
+            "status": v[2] if len(v) > 2 else "", "chance": v[3] if len(v) > 3 and v[3] is not None else ""})
+H2H_CSV = os.path.join(HIST, "head_to_head.csv")
+if h2h_rows:
+    import csv
+    cols = ["gw", "id", "name", "team", "pos", "ours", "fpl", "pts", "mins", "started", "band", "pool", "status", "chance"]
+    with open(H2H_CSV, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=cols, lineterminator="\n")
+        w.writeheader()
+        for r in h2h_rows:
+            w.writerow({**r, "ours": f'{r["ours"]:.2f}', "fpl": f'{r["fpl"]:.2f}'})
+
+
+def _h2h(rows):
+    h = head_to_head(rows)
+    r2 = lambda v: None if v is None else round(v, 2)
+    side = lambda e: {"corr": None if e["corr"] is None else round(e["corr"], 3), "mae": r2(e["mae"]), "rmse": r2(e["rmse"]),
+                      "bands": {b: {"n": x["n"], "rmse": r2(x["rmse"]), "bias": r2(x["bias"])} for b, x in e["bands"].items()}}
+    return {"n": h["n"], "ours": side(h["ours"]), "fpl": side(h["fpl"])}
+
+
+h2h = None
+if h2h_rows:
+    pool = [r for r in h2h_rows if r["pool"]]
+    weeks = []
+    for g in sorted({r["gw"] for r in pool}):
+        wk = _h2h([r for r in pool if r["gw"] == g])
+        wk["gw"] = g
+        wk["all_mae"] = {k: round(sum(abs(r[k] - r["pts"]) for r in h2h_rows if r["gw"] == g) /
+                                  max(1, sum(1 for r in h2h_rows if r["gw"] == g)), 2) for k in ("ours", "fpl")}
+        weeks.append(wk)
+    h2h = {"weeks": weeks, "season": _h2h(pool), "rows": len(h2h_rows),
+           "csv": "https://raw.githubusercontent.com/AFG-design/FPL-Lab/main/history/head_to_head.csv"}
 # ---- check of the cleared-news absence rule (fplmodel.news_absences): snapshot both projections for the
 # gameweek after the absence, then score them against what happened once that gameweek is over
 ABS_F = lambda g: os.path.join(HIST, f"absence_gw{g}.json")
@@ -534,6 +592,9 @@ for g in [g for g in finished_gws if g >= 3][-4:]:
         keep_extra.add(r["id"])
 if accuracy is not None:
     accuracy["weeks"] = acc_weeks
+    accuracy["h2h"] = h2h
+    accuracy["h2h_next"] = min((int(f[7:-5]) for f in os.listdir(HIST) if f.startswith("proj_gw") and f.endswith(".json")
+                                and int(f[7:-5]) not in finished_gws), default=None)
     accuracy["misses"] = misses
     accuracy["absence"] = absence_check
 

@@ -17,7 +17,7 @@ function vModel() {
       <div class="tablebox" style="margin-top:10px"><table><thead><tr><th>GW</th><th class="n">Players</th><th class="n">Correlation</th><th class="n">Avg miss</th><th class="n">Top 30: projected → actual</th><th class="n">Live corr</th><th class="n">FPL's corr</th><th class="n">Live miss / FPL's</th></tr></thead>
       <tbody>${A.weeks.slice().reverse().map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.n}</td><td class="n"><b>${w.corr.toFixed(2)}</b></td><td class="n">${w.mae.toFixed(2)}</td><td class="n">${w.top_pred.toFixed(1)} → ${w.top_act.toFixed(1)}</td><td class="n">${w.live?.corr != null ? w.live.corr.toFixed(2) : "–"}</td><td class="n">${w.live?.fpl_corr != null ? w.live.fpl_corr.toFixed(2) : "–"}</td><td class="n">${w.live?.mae != null ? `${w.live.mae.toFixed(2)} / ${w.live.fpl_mae.toFixed(2)}` : "–"}</td></tr>`).join("")}</tbody></table></div>
       <p class="note">Live figures start from GW8, the first week the snapshot was saved before the deadline.</p></div>` : ""}` : "";
-  return `${missesPanel()}${acc}${comparePanel()}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
+  return `${h2hPanel()}${missesPanel()}${acc}${comparePanel()}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
     <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
     <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In testing on GW3–7 this lifted the correlation with real points from 0.40 to 0.42.</li>
@@ -66,4 +66,39 @@ function comparePanel() {
     <h3 style="margin:16px 0 6px">Typical miss by outcome</h3>
     <div class="tablebox"><table><thead><tr><th>Outcome</th><th class="n">FPL Lab</th><th class="n">FPL Review</th><th class="n">Recent-points avg</th><th class="n">FPL Lab bias</th><th class="n">Player-weeks</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="note">Lower is better; ✓ marks a band where FPL Lab's miss is no bigger than FPL Review's. Bias is projected minus actual: positive means the model expected more. FPL Review's figures are published results from an independent test on 2024/25 GW32–38 (Groos, 2025, the OpenFPL paper), so this is a guide, not a head-to-head. The re-run uses no injury flags, which inflates the "Didn't play" and low-score misses compared with the live projections.</p></div>`;
+}
+
+/* ---------- head to head: the projections shown before each deadline v FPL's own ---------- */
+function h2hPanel() {
+  const A = D.accuracy; if (!A) return "";
+  const H = A.h2h, W = H?.weeks || [], d = v => v == null ? "–" : v.toFixed(2);
+  const head = `<h2 style="margin-bottom:10px">Head to head: FPL Lab v FPL's own projection</h2>
+    <p class="note" style="margin-top:0">Both sets of projections are saved just before each deadline, exactly as shown, then marked against real points once the gameweek is over. Same players, same week, both knowing the injury news at the time.</p>`;
+  if (!W.length) return A.h2h_next ? `<div class="panel">${head}${stateView({ kind: "empty", title: `First result after GW${A.h2h_next}`, body: `GW${A.h2h_next}'s projections are saved. The comparison appears here automatically once its last match is played.` })}</div>` : "";
+  const S = H.season, won = W.filter(w => w.ours.mae < w.fpl.mae).length, lost = W.filter(w => w.ours.mae > w.fpl.mae).length;
+  const lead = won > lost ? "up" : won < lost ? "down" : "";
+  const kpi = (lbl, o, f, low = true) => {
+    const better = o != null && f != null && (low ? o < f : o > f);
+    return `<div class="kpi"><span class="lbl">${lbl}</span><b class="${better ? "up" : ""}">${lbl.startsWith("Corr") ? (o ?? 0).toFixed(2) : d(o)}</b><span class="delta muted">FPL's own: ${lbl.startsWith("Corr") ? (f ?? 0).toFixed(2) : d(f)}</span></div>`;
+  };
+  const names = { zero: "Didn't play", blank: "Played, 2 pts or fewer", ticker: "3–4 pts", haul: "5+ pts" };
+  const bandRows = Object.keys(names).map(k => {
+    const o = S.ours.bands[k], f = S.fpl.bands[k];
+    return `<tr><td>${names[k]}</td><td class="n"><b class="${o.rmse != null && o.rmse < f.rmse ? "up" : ""}">${d(o.rmse)}</b></td><td class="n">${d(f.rmse)}</td><td class="n">${o.n.toLocaleString("en-GB")}</td></tr>`;
+  }).join("");
+  const weekRows = W.slice().reverse().map(w => {
+    const res = w.ours.mae < w.fpl.mae ? '<span class="pill good">FPL Lab</span>' : w.ours.mae > w.fpl.mae ? '<span class="pill warn">FPL</span>' : '<span class="pill mut">Level</span>';
+    return `<tr><td>GW${w.gw}</td><td class="n"><b>${d(w.ours.mae)}</b></td><td class="n">${d(w.fpl.mae)}</td><td>${res}</td><td class="n">${w.ours.corr != null ? w.ours.corr.toFixed(2) : "–"}</td><td class="n">${w.fpl.corr != null ? w.fpl.corr.toFixed(2) : "–"}</td><td class="n">${w.n}</td></tr>`;
+  }).join("");
+  return `<div class="panel">${head}
+    <p style="margin:0 0 12px"><b class="${lead}">FPL Lab closer in ${won} of ${W.length} gameweek${W.length === 1 ? "" : "s"}</b>${W.length < 4 ? ' <span class="muted">· too early to judge: give it 4–6 weeks</span>' : ""}</p>
+    <div class="kpis">${kpi("Average miss, season", S.ours.mae, S.fpl.mae)}${kpi("Typical miss (RMSE), season", S.ours.rmse, S.fpl.rmse)}${kpi("Correlation, season", S.ours.corr, S.fpl.corr, false)}</div>
+    ${W.length > 1 ? `${lineChart([{ cls: "s1", vals: W.map(w => w.ours.corr) }, { cls: "s4", vals: W.map(w => w.fpl.corr), dash: true }], W.map(w => "GW" + w.gw), { h: 160, yfmt: v => v.toFixed(1), title: "Correlation with real points each gameweek" })}
+      <div class="legend"><span><i class="s1"></i>FPL Lab correlation</span><span><i class="s4"></i>FPL's own</span></div>` : ""}
+    <div class="statgrid" style="margin-top:12px"><div><h3 style="margin-bottom:8px">Week by week</h3>
+      <div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FPL Lab miss</th><th class="n">FPL miss</th><th>Closer</th><th class="n">FPL Lab corr</th><th class="n">FPL corr</th><th class="n">Players</th></tr></thead><tbody>${weekRows}</tbody></table></div></div>
+      <div><h3 style="margin-bottom:8px">Typical miss by outcome, season</h3>
+      <div class="tablebox"><table><thead><tr><th>Outcome</th><th class="n">FPL Lab</th><th class="n">FPL's own</th><th class="n">Player-weeks</th></tr></thead><tbody>${bandRows}</tbody></table></div></div></div>
+    <p class="note">Lower miss is better, higher correlation is better; green marks where FPL Lab is ahead. Players: anyone who played in the previous 3 gameweeks.
+      <a href="${H.csv}" target="_blank" rel="noopener">Every player, every week (CSV)</a>: both projections, points, minutes and the injury flag at the deadline. In Google Sheets, <code style="overflow-wrap:anywhere">=IMPORTDATA("${H.csv}")</code> keeps a sheet up to date on its own.</p></div>`;
 }
