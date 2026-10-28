@@ -132,6 +132,43 @@ def baseline(ctx, gws):
     return {"n": n, "corr": corr, "rmse": rmse, "pool": errors(pool_rows), "all": errors(all_rows)}
 
 
+def evaluate_horizons(ctx, gws, horizons=(1, 2, 3), params=None):
+    """Accuracy 1, 2 and 3 gameweeks ahead. Each origin gameweek k is projected once (from data before k,
+    horizon = max(horizons)); target k+h-1 is scored for each h. Every horizon is scored on the same target
+    weeks (those in `gws`), over every player with a points entry that week. The Last-5 baseline is the mean of
+    the player's points over the 5 gameweeks before the origin, i.e. what was known when the projection was made.
+    Returns {h: {"model": errors + corr, "base": errors + corr}}."""
+    hmax = max(horizons)
+    gws = {t for t in gws if t - hmax + 1 >= 3}   # targets every horizon can reach from an origin of GW3+
+    if not gws:
+        return {}
+    rows ={h: {"model": [], "base": []} for h in horizons}
+    xs = {h: {"model": ([], []), "base": ([], [])} for h in horizons}
+    for k in range(max(3, min(gws) - hmax + 1), max(gws) + 1):
+        if not any(k + h - 1 in gws for h in horizons):
+            continue
+        res = project(ctx, k, horizon=hmax, params=dict(params or {}, use_flags=False))["players"]
+        for pid, pg in ctx["pts_gw"].items():
+            prev = [pg.get(g, 0) for g in range(max(1, k - 5), k)]
+            b5 = sum(prev) / len(prev) if prev else 0.0
+            xp = res[pid]["xp"] if pid in res else {}
+            for h in horizons:
+                t = k + h - 1
+                if t not in gws or t not in pg:
+                    continue
+                a, bd = pg[t], band(pg[t], _mins(ctx, pid, t))
+                for key, x in (("model", xp.get(t, 0.0)), ("base", b5)):
+                    rows[h][key].append((x, a, bd))
+                    xs[h][key][0].append(x); xs[h][key][1].append(a)
+    out = {}
+    for h in horizons:
+        out[h] = {}
+        for key in ("model", "base"):
+            e = errors(rows[h][key])
+            e["corr"] = corr(*xs[h][key])
+            out[h][key] = e
+    return out
+
 
 if __name__ == "__main__":
     raw = sys.argv[1] if len(sys.argv) > 1 else "raw"

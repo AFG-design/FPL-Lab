@@ -59,6 +59,8 @@ def _priors(season, code_to_id):
         except Exception:
             continue
         for r in rows:
+            if r.get("element_type") == "5":   # assistant managers (2024/25 on)
+                continue
             pid = code_to_id.get(r["code"])
             m = _num(r["minutes"])
             if not pid or m < 1:
@@ -89,7 +91,7 @@ def load_season(season, scoring_from):
     """scoring_from: a current bootstrap-static (for game_config scoring rules)."""
     teams = {int(r["id"]): r for r in _rows(season, "teams.csv")}
     name_to_id = {r["name"]: tid for tid, r in teams.items()}
-    praw = {int(r["id"]): r for r in _rows(season, "players_raw.csv")}
+    praw = {int(r["id"]): r for r in _rows(season, "players_raw.csv") if r.get("element_type") != "5"}  # skip assistant managers
     gw_rows = _rows(season, "gws/merged_gw.csv")
 
     fixtures = []
