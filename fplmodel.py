@@ -31,6 +31,9 @@ DEFAULTS = {
     "cs_k": 0.9,           # P(clean sheet) = exp(-cs_k * mu); real CS rates beat a plain Poisson
     "cal_slope": 0.86,     # final calibration: xP = slope * raw + intercept * P(appears)
     "cal_int": 0.33,
+    "resid_w": 0.0,        # player prior from last season's (actual - projected): weight (0 = off; needs ctx["resid_prior"])
+    "resid_k": 20.0,       # pseudo-rows of shrinkage toward zero for that prior
+    "resid_bonus_only": False,  # use the bonus-only residual table (ctx["resid_prior_bonus"]) instead
     "sim_sigma": 0.5,      # uncertainty in each player's true scoring rate (log scale) in the simulation
     "sim_match": True,     # shift simulated scores so their average equals the projection
     "sim": 0,              # simulated outcomes per fixture for points distributions (0 = off; build.py uses 4000).
@@ -544,6 +547,10 @@ def project(ctx, as_of, horizon=6, params=None):
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
         per_gw, detail, dist = {}, {}, {}
         xm_next = 0.0
+        rp = 0.0
+        if P["resid_w"]:   # shrunk per-row residual from the previous season (see player_prior.py)
+            sr, nr = ctx.get("resid_prior_bonus" if P["resid_bonus_only"] else "resid_prior", {}).get(pid, (0.0, 0))
+            rp = sr / (nr + P["resid_k"])
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
             av = availability(e, k, ko, ret) if P["use_flags"] else (0.0 if e["status"] == "u" else 1.0)
@@ -595,6 +602,8 @@ def project(ctx, as_of, horizon=6, params=None):
             nfx = len(upcoming[tid].get(g, []))
             pplay = min(1.0, (p_start + p_sub) * av)
             per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
+            if nfx and rp:
+                per_gw[g] += P["resid_w"] * rp * pplay * nfx
             detail[g] = dict(comp)
             if sim_pts is not None:  # same calibration as the projection, applied to every simulated outcome
                 dist[g] = _dist(sim_pts, sim_app > 0, per_gw[g] if P["sim_match"] else None,
