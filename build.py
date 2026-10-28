@@ -680,6 +680,14 @@ if picks and picks_gw in live:
     for r in live_gw["rows"]:
         r["team"] = elements[r["id"]]["team"]
         r["prov"] = prov.get(r["id"], 0)
+    # what we projected for this gameweek before its deadline (the snapshot above stops updating at the deadline)
+    snap_f = os.path.join(HIST, f"proj_gw{picks_gw}.json")
+    if os.path.exists(snap_f):
+        snap_gw = json.load(open(snap_f))
+        if snap_gw.get("gw") == picks_gw:
+            for r in live_gw["rows"]:
+                r["xp"] = snap_gw["players"].get(str(r["id"]), [0])[0]
+            live_gw["xp_built"] = snap_gw.get("built")
     # every player's live points + provisional bonus, for the field average (effective ownership x points)
     live_gw["pts_all"] = {str(i): lv[i]["total_points"] + prov.get(i, 0) for i in lv if lv[i]["total_points"] or prov.get(i)}
 

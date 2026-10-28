@@ -25,6 +25,9 @@ function liveState() {
   const mult = r => r.cap ? (capOut ? 1 : (L.chip === "3xc" ? 3 : 2)) : r.vice && capOut && r.mins > 0 ? (L.chip === "3xc" ? 3 : 2) : 1;
   const total = xi.reduce((a, r) => a + r.live * mult(r), 0) - (L.hits || 0);
   const left = xi.filter(r => r.st === "to play").length, playing = xi.filter(r => r.st === "playing").length;
+  // projected before the deadline: the team as picked (captain doubled, bench out), less any hit
+  const hasXp = rows.some(r => r.xp != null);
+  const proj = hasXp ? rows.reduce((a, r) => a + (r.xp || 0) * r.mult, 0) - (L.hits || 0) : null;
   // field: effective ownership x live points (with provisional bonus)
   const F = D.crowd && D.crowd.gw === L.gw ? D.crowd : null, all = L.pts_all || {};
   const fieldAvg = src => src ? Object.entries(src.eo).reduce((a, [i, e]) => a + e / 100 * (all[i] || 0), 0) : null;
@@ -40,7 +43,7 @@ function liveState() {
       if (T <= p1 && T >= p2) { const f = p1 === p2 ? 0.5 : (p1 - T) / (p1 - p2); rank = { r: Math.round(Math.exp(Math.log(r1) + f * (Math.log(r2) - Math.log(r1)))) }; break; }
     }
   }
-  return { L, rows, xi, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing, rank,
+  return { L, rows, xi, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing, rank, hasXp, proj,
     top10k: F ? fieldAvg(F.top10k) : null, near: F && F.near?.n >= 100 ? fieldAvg(F.near) : null };
 }
 function livePanel() {
@@ -48,12 +51,12 @@ function livePanel() {
   const s = liveState(); if (!s) return "";
   const stTxt = { done: "Finished", playing: "Playing", "to play": "Yet to play", blank: "No game" };
   const row = r => `<tr class="${s.xi.includes(r) ? "" : "lv-bench"}"><td><button data-p="${r.id}" class="pname linkish">${esc(P[r.id]?.name || r.id)}</button>${r.cap && !s.capOut ? ' <span class="pill warn">C</span>' : ""}${r.vice && s.capOut && r.mins > 0 ? ' <span class="pill warn">C (vice)</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}</td>
-    <td><span class="lv-st lv-${r.st.replace(" ", "")}">${stTxt[r.st]}</span></td><td class="n">${r.mins}'</td><td class="n">${r.bps}</td><td class="n">${r.prov ? `<b class="up">+${r.prov}</b>` : r.bonus ? r.bonus : "–"}</td><td class="n"><b>${s.xi.includes(r) ? r.live * s.mult(r) : r.live}</b></td></tr>`;
+    <td><span class="lv-st lv-${r.st.replace(" ", "")}">${stTxt[r.st]}</span></td><td class="n">${r.mins}'</td><td class="n">${r.bps}</td><td class="n">${r.prov ? `<b class="up">+${r.prov}</b>` : r.bonus ? r.bonus : "–"}</td>${s.hasXp ? `<td class="n muted">${f1((r.xp || 0) * (s.xi.includes(r) ? s.mult(r) : 1))}</td>` : ""}<td class="n"><b>${s.xi.includes(r) ? r.live * s.mult(r) : r.live}</b></td></tr>`;
   const vs = (lbl, v) => v == null ? "" : `<div class="kpi"><span class="lbl">${lbl}</span><b>${f1(v)}</b><span class="delta ${s.total >= v ? "up" : "down"}">you're ${f1(Math.abs(s.total - v))} ${s.total >= v ? "ahead" : "behind"}</span></div>`;
   const fx = L.fixtures.slice().sort((a, b) => (a.ko || "").localeCompare(b.ko || ""));
   return `<div class="panel live-panel"><div class="bar"><h2><span class="live-dot" aria-hidden="true"></span>GW${L.gw} live</h2><span class="muted">updated ${new Date(D.meta.built).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span></div>
     <div class="kpis" style="margin-bottom:12px">
-      <div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px">${s.total}</b><span class="delta muted">${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>
+      <div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px">${s.total}</b><span class="delta muted">${s.proj != null ? `of ${f1(s.proj)} projected · ` : ""}${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>
       ${s.rank ? (() => { const rr = s.rank.r, b = L.rank_before, mv = b ? b - rr : 0;
         const big = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
         return `<div class="kpi"><span class="lbl">${term("liverank", "Live rank")} (estimate)</span><b>${s.rank.edge === "above" ? "Top " : s.rank.edge === "below" ? "Below " : "~"}${big(rr)}</b><span class="delta ${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}">${b ? `${mv > 0 ? "▲" : mv < 0 ? "▼" : ""} ${big(Math.abs(mv))} from ${big(b)}` : ""}</span></div>`; })() : ""}
@@ -61,8 +64,8 @@ function livePanel() {
       ${L.average ? `<div class="kpi"><span class="lbl">Overall average</span><b>${L.average}</b><span class="delta muted">from FPL</span></div>` : ""}
     </div>
     ${s.subs.length ? `<ul class="alerts" style="margin-bottom:10px">${s.subs.map(x => `<li class="good"><span>Auto-sub: <b>${esc(P[x.in.id]?.name)}</b> on for ${esc(P[x.out.id]?.name)}${x.sure ? "" : " (if he plays)"}.</span></li>`).join("")}${s.capOut ? `<li class="warn"><span>${esc(P[s.cap.id]?.name)} didn't play: the armband passes to ${esc(P[s.vice?.id]?.name || "your vice")}.</span></li>` : ""}</ul>` : ""}
-    <div class="tablebox"><table><thead><tr><th>Player</th><th>Status</th><th class="n">Mins</th><th class="n">${term("bps", "BPS")}</th><th class="n">Bonus</th><th class="n">Pts</th></tr></thead><tbody>${s.xi.map(row).join("")}${s.bench.map(row).join("")}</tbody></table></div>
-    <p class="note">Bonus in green is provisional: the top 3 BPS in each match as it stands. Auto-subs follow FPL's rules once a starter's game is over. The field averages use their teams from this gameweek. Updates every 10 minutes during matches (GitHub can run a few minutes late). <button class="linkish" data-v-go="rivals">Live mini-league table →</button></p></div>`;
+    <div class="tablebox"><table><thead><tr><th>Player</th><th>Status</th><th class="n">Mins</th><th class="n">${term("bps", "BPS")}</th><th class="n">Bonus</th>${s.hasXp ? `<th class="n">${term("xp", "xP")}</th>` : ""}<th class="n">Pts</th></tr></thead><tbody>${s.xi.map(row).join("")}${s.bench.map(row).join("")}</tbody></table></div>
+    <p class="note">${s.hasXp ? "xP is what we projected for each player before the deadline, doubled for your captain like Pts. " : ""}Bonus in green is provisional: the top 3 BPS in each match as it stands. Auto-subs follow FPL's rules once a starter's game is over. The field averages use their teams from this gameweek. Updates every 10 minutes during matches (GitHub can run a few minutes late). <button class="linkish" data-v-go="rivals">Live mini-league table →</button></p></div>`;
 }
 
 /* ---------- Deadlines tab: countdown, this week's timeline, every deadline ahead ---------- */
