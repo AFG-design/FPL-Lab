@@ -54,6 +54,9 @@ DEFAULTS = {
     "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
     "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
+    "fdr_cs": 0.0,         # hard fixtures (FDR > 3): opponent-goals mu_a *= exp(fdr_cs * (fdr - 3)) for clean sheet, goals conceded, saves
+    "fdr_att": 0.0,        # hard fixtures (FDR > 3): attack (goals, assists) and bonus *= exp(-fdr_att * (fdr - 3))
+    "cs_curve": None,      # None, or (a, b, c): P(clean sheet) = sigmoid(a + b*ln(mu_a) + c*(fdr - 3)) instead of exp(-cs_k*mu_a)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -557,6 +560,10 @@ def project(ctx, as_of, horizon=6, params=None):
                 j = k - (1 if still_out else 0)
                 cong *= ramp[j] if 0 <= j < len(ramp) else (ramp[0] if j < 0 else 1.0)
             for (opp, home, mu_f, mu_a, fdr) in upcoming[tid].get(g, []):
+                hard = max(0, (fdr or 3) - 3)
+                if P["fdr_cs"] and hard:
+                    mu_a = mu_a * math.exp(P["fdr_cs"] * hard)
+                fa_ = math.exp(-P["fdr_att"] * hard) if P["fdr_att"] and hard else 1.0
                 ps, pb = p_start * av * cong, p_sub * av
                 pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
                 m = ps * m_start + pb * m_sub
@@ -565,22 +572,26 @@ def project(ctx, as_of, horizon=6, params=None):
                 p60 = ps * p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
                 if sp90:  # set-piece threat scales with how much this opponent concedes from set pieces
-                    eg = P["goal_mult"] * ((xg90 - sp90) * atk + sp90 * sp_fac.get(opp, 1.0) ** P["sp_match"]) * m / 90
+                    eg = P["goal_mult"] * ((xg90 - sp90) * atk + sp90 * sp_fac.get(opp, 1.0) ** P["sp_match"]) * m / 90 * fa_
                 else:
-                    eg = P["goal_mult"] * xg90 * atk * m / 90
-                ea = P["assist_mult"] * xa90 * atk * m / 90
+                    eg = P["goal_mult"] * xg90 * atk * m / 90 * fa_
+                ea = P["assist_mult"] * xa90 * atk * m / 90 * fa_
                 comp["mins"] += (ps + pb) * scoring["short_play"] + p60 * (scoring["long_play"] - scoring["short_play"])
                 comp["goals"] += eg * scoring["goals_scored"][pos]
                 comp["assists"] += ea * scoring["assists"]
                 pcs = math.exp(-P["cs_k"] * mu_a)
-                comp["cs"] += pcs * p60 * scoring["clean_sheets"][pos]
+                pcs_cs = pcs
+                if P["cs_curve"]:
+                    ca, cb, cc = P["cs_curve"]
+                    pcs_cs = 1 / (1 + math.exp(-(ca + cb * math.log(max(mu_a, 0.05)) + cc * ((fdr or 3) - 3))))
+                comp["cs"] += pcs_cs * p60 * scoring["clean_sheets"][pos]
                 if scoring["goals_conceded"][pos]:
                     comp["gc"] += scoring["goals_conceded"][pos] * exp_floor_div(P["cs_k"] * mu_a, 2) * m / 90
                 if pos == "GKP":
                     sv = sv90 * (mu_a / league) ** 0.6 * m / 90
                     comp["saves"] += sum((j // 3) * poisson(j, sv) for j in range(20)) * scoring["saves"]
                 comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
-                comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
+                comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * fa_
                 comp["cards"] -= yc90 * m / 90
                 if P["sim"] and (ps + pb) > 0.01:
                     rng = np.random.default_rng(pid * 1000 + g * 10 + len(detail))
