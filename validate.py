@@ -9,6 +9,8 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - next gameweek's xP breakdown (xp_detail) not adding up to xP within 0.05
   - NaN, infinite or negative xP
   - a probability outside 0-1 (p_start, psub, dc_rate, chance of 10+/6+/blank, chance of playing)
+  - a real-starts record (st5) with more starts than games
+  - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
@@ -60,6 +62,9 @@ def main(path):
         det = (extra.get(str(p["id"])) or {}).get("xp_detail", p.get("xp_detail"))
         if det and xp.get(gk) is not None and abs(sum(det.values()) - xp[gk]) > 0.05:
             errors.append(f"{name(p)}: xp_detail adds up to {sum(det.values()):.2f}, xP GW{g} is {xp[gk]:.2f}")
+        st5 = p.get("st5")
+        if st5 is not None and not (len(st5) == 2 and 0 <= st5[0] <= st5[1]):
+            errors.append(f"{name(p)}: st5 = {st5} (starts must be between 0 and games)")
         mins = p.get("mins") or 0
         if mins >= 300 and str(p["id"]) not in us and p["id"] not in ov.values():
             warnings.append(f"{name(p)}: {mins} minutes but no Understat match (add to understat_overrides.json)")
@@ -74,6 +79,12 @@ def main(path):
     dup_fpl += [int(k) for k, v in us.items() if int(k) in ov.values() and ov.get(v["us_id"]) != int(k)]
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
+
+    # Review: "projected before the deadline" must be the saved snapshot wherever one exists
+    for w in (D.get("review") or {}).get("weeks", []):
+        if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')) and w.get("xi_proj") is not None:
+            if w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
+                errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but the review re-ran the model')
 
     # odds for next gameweek
     odds = load(os.path.join(HERE, "odds", "odds.json")) or {}
