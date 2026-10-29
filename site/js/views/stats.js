@@ -179,8 +179,9 @@ function pricesHTML() {
     ...buys.filter(p => pr(p) >= 75).map(p => priceTonight(pr(p))
       ? ["warn", `<b>${esc(p.name)}</b> is in your plan and is projected to rise at the next update (${when}). Making the transfer before then saves £0.1m.`]
       : ["info", `<b>${esc(p.name)}</b> is in your plan and is ${priceMove(pr(p))}${recNote(pr(p))}.`]),
-    ...D.squad.map(s => P[s.id]).filter(p => p && pr(p) <= -75).map(p => priceTonight(pr(p))
-      ? ["bad", `<b>${esc(p.name)}</b> is projected to fall at the next update (${when}). If you're selling him anyway, sell before then.`]
+    // only when the fall would cut your selling price (FPL's half-profit rule often absorbs a £0.1m drop)
+    ...D.squad.map(s => P[s.id]).filter(p => p && pr(p) <= -75 && fallCostsYou(p.id)).map(p => priceTonight(pr(p))
+      ? ["bad", `<b>${esc(p.name)}</b> is projected to fall at the next update (${when}), which would cut your selling price to ${money(sellPrice(p.id) - 0.1)}. If you're selling him anyway, sell before then.`]
       : ["info", `<b>${esc(p.name)}</b> is ${priceMove(pr(p))}${recNote(pr(p))}.`]),
   ];
   const last = PR?.last;

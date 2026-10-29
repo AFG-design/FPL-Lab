@@ -119,7 +119,7 @@ function vWeek() {
     const p = P[i]; if (!p) return;
     if (p.status !== "a") risks.push(["bad", `<b>${esc(p.name)}</b>: ${esc(p.news || "flagged")}`]);
     const pr = p.price_proj?.[0];
-    if (pr != null && pr <= -80) risks.push([priceTonight(pr) ? "warn" : "info", `<b>${esc(p.name)}</b> ${priceTonight(pr) ? `may drop in price tonight (${pr.toFixed(0)}% of the way)` : priceMove(pr)}.`]);
+    if (pr != null && pr <= -80 && fallCostsYou(i)) risks.push([priceTonight(pr) ? "warn" : "info", `<b>${esc(p.name)}</b> ${priceTonight(pr) ? `may drop in price tonight (${pr.toFixed(0)}% of the way)` : priceMove(pr)}.`]);
     if (newXI.has(i) && p.mflag && p.mflag.startsWith("Dropped")) risks.push(["warn", `<b>${esc(p.name)}</b>: ${esc(p.mflag)}.`]);
     else if (newXI.has(i) && p.status === "a" && p.nailed < 60) risks.push(["warn", `<b>${esc(p.name)}</b> is starting but isn't nailed on (${p.nailed}/100).`]);
     const eu = fxFor(p.team, g).find(x => x.eu);

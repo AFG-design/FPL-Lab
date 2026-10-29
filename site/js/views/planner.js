@@ -124,7 +124,7 @@ function whyOut(o, g) {
   if (p.status !== "a") bits.push(p.news || "flagged");
   if (p.mflag) bits.push(p.mflag.toLowerCase());
   else if (p.nailed < 60) bits.push(`not nailed (${p.nailed})`);
-  if ((p.price_proj?.[0] ?? 0) <= -80) bits.push(priceMove(p.price_proj[0]));
+  if ((p.price_proj?.[0] ?? 0) <= -80 && fallCostsYou(o)) bits.push(priceMove(p.price_proj[0]));
   bits.push(`${f1(xpFrom(o, g, PG.length))} xP over ${PG.length} GWs`);
   return bits.join(" · ");
 }

@@ -4,12 +4,12 @@ function movesForGW(g) {
   return { w, t: w.team, moves: SB.moves.filter(m => m.gw === w.gw) };
 }
 function formation(xi) { const c = { DEF: 0, MID: 0, FWD: 0 }; xi.forEach(i => { if (c[P[i].pos] != null) c[P[i].pos]++; }); return `${c.DEF}-${c.MID}-${c.FWD}`; }
-// order note for a transfer: "tonight" only at FPL's 100% threshold
+// order note for a transfer: "tonight" only at FPL's 100% threshold; a fall only matters if it cuts your selling price
 function priceNoteFor(prIn, prOut, out) {
   if (prIn >= 100) return "may rise tonight: do this first";
-  if (prOut <= -100) return "may fall tonight: sell first";
+  if (prOut <= -100 && fallCostsYou(out)) return "may fall tonight: sell first";
   if (prIn >= 75) return "rising, not likely tonight";
-  if (prOut <= -75) return "falling, not likely tonight";
+  if (prOut <= -75 && fallCostsYou(out)) return "falling, not likely tonight";
   return "";
 }
 function movesSummaryData(g) {
