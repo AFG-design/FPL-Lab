@@ -37,6 +37,9 @@ function vHealth() {
     <div class="panel"><h3>Sources</h3><div class="tablebox"><table><thead><tr><th>Source</th><th>Updated</th><th>Details</th><th>How often</th><th>Status</th></tr></thead><tbody>
       ${rows.map(([n, at, det, ok, warn, how]) => `<tr><td><b>${n}</b></td><td>${ageTxt(at)}</td><td class="muted">${esc(det)}</td><td class="muted">${how}</td><td>${pill(ok, warn)}</td></tr>`).join("")}</tbody></table></div>
       ${poErr ? `<p class="verdict" style="border-color:var(--bad);margin-top:10px">Player odds failed at ${ukTime(po.error.at)}: ${esc(poErr.slice(0, 160))}</p>` : ""}</div>
+    ${D.health ? `<div class="panel"><div class="bar"><h3>Data checks</h3>${pill(D.health.ok && !D.health.warnings.length, D.health.ok)}</div>
+      ${D.health.warnings.length ? `<ul class="alerts">${D.health.warnings.map(w => `<li><span>${esc(w)}</span></li>`).join("")}</ul>` : `<p class="muted" style="margin:0">All checks passed.</p>`}
+      <p class="note">Run on every build (validate.py). A failed hard check stops the refresh, so the last good data stays live; warnings are listed here.</p></div>` : ""}
     <div class="grid2">
       <div class="panel"><h3>Recent refresh runs</h3>${runs.length ? `<div class="tablebox"><table><thead><tr><th>Started (UK)</th><th>Triggered by</th><th>Result</th><th class="n">Took</th><th></th></tr></thead><tbody>${runRows}</tbody></table></div>` : `<p class="muted">Couldn't reach GitHub just now. It's checked every 10 minutes.</p>`}
         <p class="note">Runs that take about a minute are the 10-minute checks outside match times: they look for live matches and stop without rebuilding.</p></div>
