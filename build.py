@@ -106,6 +106,13 @@ if status_ok and next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.from
     with open(tmp, "w") as f:
         json.dump(status_log, f, separators=(",", ":"))
     os.replace(tmp, STATUS_LOG)   # atomic: a crash mid-write can't leave a half-written log
+# transfer-count log for the next deadline (cadence and format in transfer_log.py); never breaks the build
+try:
+    import transfer_log
+    transfer_log.update(boot, next_ev, dt.datetime.now(dt.timezone.utc),
+                        os.path.join(HERE, "history", f"transfers_gw{next_ev['id']}.json") if next_ev else None)
+except Exception as ex:
+    print("transfer log skipped:", ex)
 ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match
