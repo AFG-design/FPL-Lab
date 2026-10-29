@@ -4,6 +4,14 @@ function movesForGW(g) {
   return { w, t: w.team, moves: SB.moves.filter(m => m.gw === w.gw) };
 }
 function formation(xi) { const c = { DEF: 0, MID: 0, FWD: 0 }; xi.forEach(i => { if (c[P[i].pos] != null) c[P[i].pos]++; }); return `${c.DEF}-${c.MID}-${c.FWD}`; }
+// order note for a transfer: "tonight" only at FPL's 100% threshold
+function priceNoteFor(prIn, prOut, out) {
+  if (prIn >= 100) return "may rise tonight: do this first";
+  if (prOut <= -100) return "may fall tonight: sell first";
+  if (prIn >= 75) return "rising, not likely tonight";
+  if (prOut <= -75) return "falling, not likely tonight";
+  return "";
+}
 function movesSummaryData(g) {
   const { w, t, moves } = movesForGW(g), isNext = w.gw === D.meta.next_gw;
   const pr = id => isNext ? P[id].price_proj?.[0] : null;
@@ -11,7 +19,7 @@ function movesSummaryData(g) {
   const urgent = m => Math.max(pr(m.in) ?? 0, -(pr(m.out) ?? 0));
   const tx = moves.slice().sort((a, b) => urgent(b) - urgent(a)).map(m => ({
     out: m.out, in: m.in, sell: D.squad.some(s => s.id === m.out) && !SB.moves.some(x => x.in === m.out && x.gw < w.gw) ? sellPrice(m.out) : P[m.out].price,
-    buy: P[m.in].price, note: (pr(m.in) ?? 0) >= 75 ? "may rise tonight: do this first" : (pr(m.out) ?? 0) <= -75 ? "may fall tonight: sell first" : "" }));
+    buy: P[m.in].price, note: priceNoteFor(pr(m.in) ?? 0, pr(m.out) ?? 0, m.out) }));
   const lines = ["GKP", "DEF", "MID", "FWD"].map(pos => [pos, t.xi.filter(i => P[i].pos === pos)]);
   return { gw: w.gw, w, t, tx, lines, isNext };
 }

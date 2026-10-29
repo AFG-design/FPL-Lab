@@ -86,6 +86,13 @@ function squadAt(gw, moves = SB.moves) {
   return s;
 }
 function sellPrice(id) { const s = D.squad.find(x => x.id === id); return s ? s.sell : P[id].price; }
+// price-move wording, the same on every page. FPL's projection reaches the change threshold at 100%; our track record
+// has almost every 100%+ player moving that night and none from 75–99%, so only 100%+ is called "tonight".
+function priceTonight(pr) { return pr != null && Math.abs(pr) >= 100; }
+function priceMove(pr) {
+  const dir = pr >= 0 ? "rise" : "fall";
+  return priceTonight(pr) ? `may ${dir} in price tonight` : `${dir === "rise" ? "rising" : "falling"} in price (${Math.abs(pr).toFixed(0)}% of the way), not likely tonight`;
+}
 function bankAt(gw, moves = SB.moves) {
   let b = D.manager.bank;
   const base = new Set(D.squad.map(x => x.id)), bought = new Set();

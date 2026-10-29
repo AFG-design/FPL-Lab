@@ -119,7 +119,7 @@ function vWeek() {
     const p = P[i]; if (!p) return;
     if (p.status !== "a") risks.push(["bad", `<b>${esc(p.name)}</b>: ${esc(p.news || "flagged")}`]);
     const pr = p.price_proj?.[0];
-    if (pr != null && pr <= -80) risks.push(["warn", `<b>${esc(p.name)}</b> may drop in price tonight (${pr.toFixed(0)}% of the way).`]);
+    if (pr != null && pr <= -80) risks.push([priceTonight(pr) ? "warn" : "info", `<b>${esc(p.name)}</b> ${priceTonight(pr) ? `may drop in price tonight (${pr.toFixed(0)}% of the way)` : priceMove(pr)}.`]);
     if (newXI.has(i) && p.mflag && p.mflag.startsWith("Dropped")) risks.push(["warn", `<b>${esc(p.name)}</b>: ${esc(p.mflag)}.`]);
     else if (newXI.has(i) && p.status === "a" && p.nailed < 60) risks.push(["warn", `<b>${esc(p.name)}</b> is starting but isn't nailed on (${p.nailed}/100).`]);
     const eu = fxFor(p.team, g).find(x => x.eu);
@@ -128,7 +128,7 @@ function vWeek() {
   if (w0.bank < 0) risks.push(["bad", `Your plan is ${money(-w0.bank)} over budget in GW${g}.`]);
   if (w0.over.length) risks.push(["bad", `Your plan has more than 3 players from ${w0.over.join(", ")}.`]);
   threats(2).forEach(r => risks.push(["warn", `<b>${esc(P[r.id].name)}</b> is in ${r.own.toFixed(0)}% of top-10k teams and not in yours. If he hauls, you lose ground (${sgn(r.impact)} projected).`]));
-  moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.`]); });
+  moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", priceTonight(pr) ? `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.` : `<b>${esc(P[m.in].name)}</b> is ${priceMove(pr)}.`]); });
   const bad = risks.filter(r => r[0] === "bad" || r[0] === "warn").length;
 
   // hero
