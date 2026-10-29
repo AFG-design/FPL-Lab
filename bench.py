@@ -194,7 +194,7 @@ def fmt_ci(ci):
             f" | captain changed in {ci['cap_changed'][0]} of {ci['cap_changed'][1]} weeks")
 
 
-def compare(variants, seasons=("current", "2025-26"), quiet=False):
+def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
     """variants: {name: params}. Returns {season: {name: metrics}}."""
     res = {}
     for s in seasons:

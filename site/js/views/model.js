@@ -48,15 +48,18 @@ function missesPanel() {
 }
 
 /* ---------- accuracy in the same terms other sites publish ---------- */
-// FPL Review's Massive Data Model, one GW ahead, 2024/25 GW32-38 (RMSE), from Groos (2025), the OpenFPL paper
-const PUBLISHED_RMSE = { zero: 0.69, blank: 1.19, ticker: 1.59, haul: 5.17 };
-const BAND_NAMES = { zero: "Didn't play", blank: "Played, 2 pts or fewer", ticker: "3–4 pts", haul: "5+ pts" };
+// FPL Review's Massive Data Model and its Last-5 baseline, one GW ahead, 2024/25 GW32-38 (RMSE), from Groos (2025), the OpenFPL paper
+const PUBLISHED_RMSE = { zero: [0.791, 0.689], blank: [1.400, 1.189], ticker: [2.136, 1.594], haul: [5.613, 5.172] };  // [Last 5, FPL Review]
+const BAND_NAMES = { zero: "Didn't play", blank: "Played, ≤2 pts", ticker: "3–4 pts", haul: "5+ pts" };
 function comparePanel() {
   const C = D.accuracy?.compare; if (!C) return "";
   const m = C.all, b = C.base_all, d = v => v == null ? "–" : v.toFixed(2);
+  const pct = g => g == null ? "–" : `${g < 0 ? "−" : "+"}${Math.abs(Math.round(g * 100))}%`;
   const rows = Object.keys(BAND_NAMES).map(k => {
-    const x = m.bands[k], y = b.bands[k], better = x.rmse != null && x.rmse <= PUBLISHED_RMSE[k];
-    return `<tr><td>${BAND_NAMES[k]}</td><td class="n"><b>${d(x.rmse)}</b></td><td class="n">${PUBLISHED_RMSE[k].toFixed(2)}${better ? ' <span class="up">✓</span>' : ""}</td><td class="n">${d(y.rmse)}</td><td class="n">${x.bias == null ? "–" : sgn(x.bias)}</td><td class="n">${x.n.toLocaleString("en-GB")}</td></tr>`;
+    const x = m.bands[k], y = b.bands[k], [l5, fr] = PUBLISHED_RMSE[k];
+    const mine = x.rmse != null && y.rmse ? x.rmse / y.rmse - 1 : null, theirs = fr / l5 - 1;
+    const better = mine != null && Math.round(mine * 100) <= Math.round(theirs * 100);
+    return `<tr><td>${BAND_NAMES[k]}</td><td class="n"><b>${d(x.rmse)}</b></td><td class="n">${pct(mine)}${better ? ' <span class="up">✓</span>' : ""}</td><td class="n">${pct(theirs)}</td><td class="n">${x.n.toLocaleString("en-GB")}</td></tr>`;
   }).join("");
   return `<div class="panel"><h2 style="margin-bottom:10px">Compared with other sites</h2>
     <p class="note" style="margin-top:0">The figures above only count players who played in the previous 3 gameweeks. Other sites usually score every player, including the many who sit out, which makes their average miss look smaller. These are the same re-run projections scored both ways.</p>
@@ -64,8 +67,23 @@ function comparePanel() {
       <div class="kpi"><span class="lbl">Typical miss (RMSE), every player</span><b>${d(m.rmse)}</b><span class="delta muted">recent-points average: ${d(b.rmse)}</span></div>
       <div class="kpi"><span class="lbl">Average miss, recent players</span><b>${d(C.pool.mae)}</b><span class="delta muted">recent-points average: ${d(C.base_pool.mae)}</span></div></div>
     <h3 style="margin:16px 0 6px">Typical miss by outcome</h3>
-    <div class="tablebox"><table><thead><tr><th>Outcome</th><th class="n">FPL Lab</th><th class="n">FPL Review</th><th class="n">Recent-points avg</th><th class="n">FPL Lab bias</th><th class="n">Player-weeks</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="note">Lower is better; ✓ marks a band where FPL Lab's miss is no bigger than FPL Review's. Bias is projected minus actual: positive means the model expected more. FPL Review's figures are published results from an independent test on 2024/25 GW32–38 (Groos, 2025, the OpenFPL paper), so this is a guide, not a head-to-head. The re-run uses no injury flags, which inflates the "Didn't play" and low-score misses compared with the live projections.</p></div>`;
+    <div class="tablebox"><table><thead><tr><th>Outcome</th><th class="n">RMSE</th><th class="n">Lab gain</th><th class="n">Review gain</th><th class="n">Weeks</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Raw misses can't be compared across different seasons and player samples, so each model is shown against its own recent-points baseline: the change in RMSE compared with simply using the player's recent average points (FPL Lab: last four gameweeks; the paper's baseline: last five). "Lab gain" (FPL Lab) and "Review gain" (FPL Review) are that change in RMSE and "Weeks" counts player-weeks; more negative is better. ✓ marks a band where FPL Lab's gain is at least as large as FPL Review's. FPL Review's figures are from an independent test on 2024/25 GW32–38 (Groos, 2025, the OpenFPL paper), so this is a guide, not a head-to-head. The re-run uses no injury flags, which inflates the "Didn't play" and low-score misses compared with the live projections.</p></div>${horizonsPanel()}`;
+}
+
+/* ---------- accuracy 1, 2 and 3 gameweeks ahead ---------- */
+function horizonsPanel() {
+  const H = D.accuracy?.horizons; if (!H) return "";
+  const d = v => v == null ? "–" : v.toFixed(2);
+  const pct = (x, y) => x == null || !y ? "–" : `${x < y ? "−" : "+"}${Math.abs(Math.round((x / y - 1) * 100))}%`;
+  const rows = Object.keys(H).map(h => {
+    const m = H[h].model, b = H[h].base;
+    return `<tr><td>${h} GW</td><td class="n"><b>${d(m.rmse)}</b></td><td class="n">${pct(m.rmse, b.rmse)}</td><td class="n">${d(m.bands.zero.rmse)}</td><td class="n">${d(m.corr)}</td></tr>`;
+  }).join("");
+  return `<div class="panel"><h2 style="margin-bottom:10px">Accuracy further ahead</h2>
+    <p class="note" style="margin-top:0">The same re-run, but projecting 1, 2 and 3 gameweeks ahead from the data available at the time. Every player is scored. Gain compares the typical miss (RMSE) with using the player's average over the five gameweeks before the projection; "Didn't play" is the RMSE for players who ended up not playing.</p>
+    <div class="tablebox"><table><thead><tr><th>Ahead</th><th class="n">RMSE</th><th class="n">Gain</th><th class="n">Didn't play</th><th class="n">Corr</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">The planner looks up to six weeks ahead. Misses grow mainly for players who end up not playing, because injuries and rotation are harder to see further out.</p></div>`;
 }
 
 /* ---------- head to head: the projections shown before each deadline v FPL's own ---------- */
@@ -81,7 +99,7 @@ function h2hPanel() {
     const better = o != null && f != null && (low ? o < f : o > f);
     return `<div class="kpi"><span class="lbl">${lbl}</span><b class="${better ? "up" : ""}">${lbl.startsWith("Corr") ? (o ?? 0).toFixed(2) : d(o)}</b><span class="delta muted">FPL's own: ${lbl.startsWith("Corr") ? (f ?? 0).toFixed(2) : d(f)}</span></div>`;
   };
-  const names = { zero: "Didn't play", blank: "Played, 2 pts or fewer", ticker: "3–4 pts", haul: "5+ pts" };
+  const names = { zero: "Didn't play", blank: "Played, ≤2 pts", ticker: "3–4 pts", haul: "5+ pts" };
   const bandRows = Object.keys(names).map(k => {
     const o = S.ours.bands[k], f = S.fpl.bands[k];
     return `<tr><td>${names[k]}</td><td class="n"><b class="${o.rmse != null && o.rmse < f.rmse ? "up" : ""}">${d(o.rmse)}</b></td><td class="n">${d(f.rmse)}</td><td class="n">${o.n.toLocaleString("en-GB")}</td></tr>`;

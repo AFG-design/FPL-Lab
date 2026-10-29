@@ -10,7 +10,7 @@ import json, os, sys, time, urllib.request, datetime as dt
 from collections import defaultdict
 
 from fplmodel import prepare, project, POS
-from backtest import evaluate, baseline, band, head_to_head
+from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
@@ -393,6 +393,13 @@ if len(finished_gws) >= 4:
                           for b, x in e["bands"].items()}}
     accuracy["compare"] = {"pool": _err(ev["pool"]), "all": _err(ev["all"]),
                            "base_pool": _err(bl["pool"]), "base_all": _err(bl["all"])}
+
+    def _herr(e):
+        o = _err(e)
+        o["corr"] = None if e["corr"] is None else round(e["corr"], 3)
+        return o
+    accuracy["horizons"] = {str(h): {"model": _herr(v["model"]), "base": _herr(v["base"])}
+                            for h, v in evaluate_horizons(ctx, test).items()}
 
 # ---------------------------------------------------------------- weekly accuracy log
 HIST = os.path.join(HERE, "history")
