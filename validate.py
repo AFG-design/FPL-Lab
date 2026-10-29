@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Check a freshly built data.json before it is published.
+
+Usage: python3 validate.py [site/data.json]
+
+Hard failures (exit 1, so the Refresh workflow stops before uploading and the last good site stays live):
+  - a player FPL lists at 0% for next gameweek with more than 0.5 xP that week
+  - an Understat id used for two FPL players, or an FPL id claimed by two Understat ids (incl. overrides)
+  - next gameweek's xP breakdown (xp_detail) not adding up to xP within 0.05
+  - NaN, infinite or negative xP
+  - a probability outside 0-1 (p_start, psub, dc_rate, chance of 10+/6+/blank, chance of playing)
+Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
+  - a player with 300+ minutes and no Understat row (and no manual override)
+  - no betting odds for any of next gameweek's fixtures
+"""
+import json, math, os, sys
+from collections import Counter
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def load(path):
+    try:
+        return json.load(open(path))
+    except FileNotFoundError:
+        return None
+
+
+def is_bad(x):
+    return x is None or not isinstance(x, (int, float)) or math.isnan(x) or math.isinf(x)
+
+
+def main(path):
+    D = json.load(open(path))
+    extra = (load(os.path.join(os.path.dirname(os.path.abspath(path)), "data-extra.json")) or {}).get("players", {})
+    us = (load(os.path.join(HERE, "understat", "fpl_players.json")) or {}).get("players", {})
+    ov = {int(k): int(v) for k, v in (load(os.path.join(HERE, "understat_overrides.json")) or {}).items() if not k.startswith("_")}
+    g = D["meta"].get("next_gw")
+    gk = str(g)
+    errors, warnings = [], []
+    name = lambda p: f'{p["name"]} ({p["id"]})'
+
+    for p in D["players"]:
+        xp = p.get("xp") or {}
+        for gw, v in xp.items():
+            if is_bad(v) or v < 0:
+                errors.append(f"{name(p)}: xP GW{gw} = {v}")
+        nxt = xp.get(gk, 0) or 0
+        if p.get("chance") == 0 and not is_bad(nxt) and nxt > 0.5:
+            errors.append(f"{name(p)}: {nxt:.2f} xP in GW{g} but FPL has him at 0% ({p.get('news') or p.get('status')})")
+        probs = {"p_start": p.get("p_start"), "psub": p.get("psub"), "dc_rate": p.get("dc_rate")}
+        if p.get("chance") is not None:
+            probs["chance"] = p["chance"] / 100
+        for gw, d in (p.get("dist") or {}).items():
+            for i, lab in enumerate(("p10", "p6", "blank")):
+                probs[f"dist GW{gw} {lab}"] = d[i]
+        for k, v in probs.items():
+            if v is not None and (is_bad(v) or not 0 <= v <= 1):
+                errors.append(f"{name(p)}: {k} = {v} (not a probability)")
+        det = (extra.get(str(p["id"])) or {}).get("xp_detail", p.get("xp_detail"))
+        if det and xp.get(gk) is not None and abs(sum(det.values()) - xp[gk]) > 0.05:
+            errors.append(f"{name(p)}: xp_detail adds up to {sum(det.values()):.2f}, xP GW{g} is {xp[gk]:.2f}")
+        mins = p.get("mins") or 0
+        if mins >= 300 and str(p["id"]) not in us and p["id"] not in ov.values():
+            warnings.append(f"{name(p)}: {mins} minutes but no Understat match (add to understat_overrides.json)")
+
+    # Understat: one-to-one both ways
+    dup_us = [u for u, n in Counter(v["us_id"] for v in us.values()).items() if n > 1]
+    if dup_us:
+        errors.append(f"Understat ids used for more than one FPL player: {dup_us}")
+    dup_fpl = [f for f, n in Counter(ov.values()).items() if n > 1]
+    by_us = {v["us_id"]: int(k) for k, v in us.items()}
+    dup_fpl += [f for u, f in ov.items() if u in by_us and by_us[u] != f]
+    dup_fpl += [int(k) for k, v in us.items() if int(k) in ov.values() and ov.get(v["us_id"]) != int(k)]
+    if dup_fpl:
+        errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
+
+    # odds for next gameweek
+    odds = load(os.path.join(HERE, "odds", "odds.json")) or {}
+    if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
+        warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
+
+    D["health"] = {"checked": D["meta"].get("built"), "ok": not errors, "errors": errors[:50], "warnings": warnings}
+    with open(path, "w") as f:
+        json.dump(D, f, separators=(",", ":"))
+    for w in warnings:
+        print("warning:", w)
+    for e in errors:
+        print("ERROR:", e)
+    print(f"validate: {len(D['players'])} players, GW{g}: {len(errors)} errors, {len(warnings)} warnings")
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else os.path.join("site", "data.json")))

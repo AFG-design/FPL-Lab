@@ -82,6 +82,10 @@ jobs:
         env:
           FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
         run: python3 build.py "$FPL_TEAM_ID" site/data.json
+      # Hard-fails on impossible or contradictory data (validate.py). A failure stops this job here: nothing is
+      # committed or uploaded and the deploy job doesn't run, so the last good data.json stays live.
+      - name: Validate data.json
+        run: python3 validate.py site/data.json
       - name: Save sampled data to the repository
         continue-on-error: true
         run: |

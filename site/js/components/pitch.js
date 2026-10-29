@@ -5,11 +5,11 @@ function card(id, g, o = {}) {
   const role = o.cap === id ? "captain" : o.vice === id ? "vice-captain" : "";
   const badge = role === "captain" ? `<span class="armband" aria-hidden="true">CAPT</span>` : role ? `<span class="armband v" aria-hidden="true">VICE</span>` : "";
   const cls = ["pc", o.sel === id ? "sel" : "", o.fresh?.has(id) ? "newin" : "", role === "captain" ? "is-capt" : ""].join(" ");
-  const label = `${p.name}, ${T[p.team].name}, ${money(p.price)}, form ${f1(p.form)}, ${f1(xpg(id, g))} projected points${role ? `, ${role}` : ""}${o.fresh?.has(id) ? ", new signing in your plan" : ""}${p.status !== "a" ? `, ${p.news || "flagged"}` : ""}`;
+  const label = `${p.name}, ${T[p.team].name}, ${money(p.price)}, form ${f1(p.form)}, ${f1(xpg(id, g))} projected points${isAsm(id, g) ? " (assumed, no official data)" : ""}${role ? `, ${role}` : ""}${o.fresh?.has(id) ? ", new signing in your plan" : ""}${p.status !== "a" ? `, ${p.news || "flagged"}` : ""}`;
   return `<button class="${cls}" data-${o.act || "p"}="${id}" style="--club:${clubCol(p)}" aria-label="${esc(label)}">${flag(p)}${badge}
     <img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">
     <span class="nm">${esc(p.name)}</span>
-    <span class="xp">${f1(xpg(id, g))}</span>
+    <span class="xp${isAsm(id, g) ? " asm" : ""}"${asmAttr(id, g)}>${f1(xpg(id, g))}</span>
     <span class="pc-meta"><span>£${p.price.toFixed(1)}m</span><span class="pc-form" title="Form">${f1(p.form)}</span></span>
     <span class="fx">${fxChips(p, g, 3)}</span></button>`;
 }

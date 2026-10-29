@@ -9,7 +9,7 @@ Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 import json, os, sys, time, urllib.request, datetime as dt
 from collections import defaultdict
 
-from fplmodel import prepare, project, POS
+from fplmodel import prepare, project, POS, DEFAULTS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 
@@ -115,12 +115,17 @@ except Exception as ex:
     print("transfer log skipped:", ex)
 ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
 
-# European midweek congestion: small rotation risk for league games within ~3 days of a European match
-congestion, euro_flags = {}, {}
+# European midweek congestion: small rotation risk for league games within ~3 days of a European match.
+# A competition marked "confirmed": false in europe.json (dates or teams guessed) is skipped: no rotation
+# allowance and no "also plays" flag until someone confirms it.
+congestion, euro_flags, euro_skipped = {}, {}, []
 try:
     europe = json.load(open(os.path.join(HERE, "europe.json")))["competitions"]
     short_to_id = {t["short_name"]: t["id"] for t in boot["teams"]}
     for comp, c in europe.items():
+        if c.get("confirmed") is False:
+            euro_skipped.append(comp)
+            continue
         edates = [dt.date.fromisoformat(x) for x in c["dates"]]
         for short in c["teams"]:
             tid = short_to_id.get(short)
@@ -286,7 +291,10 @@ for pid, e in elements.items():
     m6, xgi6, pts6 = rolling(pid, 6)
     pr = (priors or {}).get("players", {}).get(str(pid))
     det = r["detail"].get(next_gw, {})
-    slope = 0.86
+    slope = DEFAULTS["cal_slope"]
+    det_r = {k: round(v * slope, 2) for k, v in det.items()}
+    # the calibration intercept (cal_int x chance he plays) and rounding: the line that makes the parts add up to xP
+    det_r["appear_adj"] = round(xp.get(next_gw, 0) - sum(det_r.values()), 2)
     players[pid] = {
         "id": pid, "name": e["web_name"], "full": f'{e["first_name"]} {e["second_name"]}',
         "team": e["team"], "pos": pos, "price": e["now_cost"] / 10, "own": float(e["selected_by_percent"]),
@@ -302,9 +310,10 @@ for pid, e in elements.items():
         "ret": cur_gw in ctx.get("out", {}).get(pid, ()),   # missed his club's last game through injury or a ban
         "yc": e["yellow_cards"], "rc": e["red_cards"], "upos": (US.get("players", {}).get(str(pid)) or {}).get("upos", ""),
         "psub": round(r.get("p_sub", 0), 2),
-        "xp": xp, "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
+        "xp": xp, "assumed": r.get("assumed") or [],   # gameweeks whose xP rests on our defaults, not FPL data
+        "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),
-        "xp_detail": {k: round(v * slope, 2) for k, v in det.items()},
+        "xp_detail": det_r,
         # simulated outcomes per gameweek: [chance of 10+, chance of 6+, chance of 2 or fewer, low (10th pct), high (90th pct)]
         "dist": {g: [d["p10"], d["p6"], d["blank"], d["q10"], d["q90"]] for g, d in r.get("dist", {}).items()},
         "price_proj": [float(x["projected_percent"]) for x in (e.get("price_change_projections") or [])],
@@ -505,13 +514,13 @@ if h2h_rows:
 # gameweek after the absence, then score them against what happened once that gameweek is over
 ABS_F = lambda g: os.path.join(HIST, f"absence_gw{g}.json")
 if ctx.get("out_news"):
-    g_chk = max(ctx["out_news"].values()) + 1
+    g_chk = max(max(v) for v in ctx["out_news"].values()) + 1
     if not os.path.exists(ABS_F(g_chk)) and g_chk in proj_gws + [cur_gw]:
         new_ = project(ctx, g_chk, 1)["players"]
         old_ = project(ctx, g_chk, 1, {"news_abs": False})["players"]
         snap = {str(pid): {"fix": [round(new_[pid]["xp"].get(g_chk, 0), 2), round(new_[pid]["xmin"])],
                            "old": [round(old_[pid]["xp"].get(g_chk, 0), 2), round(old_[pid]["xmin"])]}
-                for pid in ctx["out_news"] if pid in new_ and pid in old_}
+                for pid, gs_ in ctx["out_news"].items() if g_chk - 1 in gs_ and pid in new_ and pid in old_}
         json.dump({"gw": g_chk, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
                   open(ABS_F(g_chk), "w"), separators=(",", ":"))
 absence_check = []
@@ -1308,8 +1317,8 @@ if next_ev:
         "gw": next_gw, "deadline": next_ev["deadline_time"],
         "price_updates": [d for d in out["meta"]["price_deadlines"] if start <= d[:10] <= end],
         "fixtures": [[f["kickoff_time"], f["team_h"], f["team_a"]] for f in nx_fx],
-        "europe": [[c, d, [TBS[t] for t in v["teams"] if t in TBS]] for c, v in euro.get("competitions", {}).items()
-                   for d in v.get("dates", []) if start <= d <= end],
+        "europe": [[c + (" (dates unconfirmed)" if v.get("confirmed") is False else ""), d, [TBS[t] for t in v["teams"] if t in TBS]]
+                   for c, v in euro.get("competitions", {}).items() for d in v.get("dates", []) if start <= d <= end],
         "deadlines": [[e["id"], e["deadline_time"]] for e in events if e["deadline_time"] and e["deadline_time"] > dt.datetime.now(dt.timezone.utc).isoformat()],
     }
 

@@ -34,7 +34,7 @@ function vPlayers() {
   const cell = {
     team: p => T[p.team].short, pos: p => p.pos, price: p => p.price.toFixed(1), form: p => f1(p.form), pts: p => p.pts,
     xg: p => (p.xg ?? 0).toFixed(1), xa: p => (p.xa ?? 0).toFixed(1), xgi90_4: p => p.xgi90_4.toFixed(2), own: p => p.own.toFixed(1),
-    t10k: p => D.crowd ? t10(p).toFixed(0) + "%" : "–", nailed: p => nailedPill(p), xmin: p => p.xmin, xp1: p => f1(p.xp1),
+    t10k: p => D.crowd ? t10(p).toFixed(0) + "%" : "–", nailed: p => nailedPill(p), xmin: p => p.xmin, xp1: p => xpCell(p.id, D.meta.next_gw),
     xp5: p => `<b>${f1(p.xp5)}</b>`, val: p => (p.xp5 / p.price).toFixed(2), pc: p => priceCell(p),
   };
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${String(S.team) === String(t.id) ? "selected" : ""}>${t.name}</option>`).join("");
@@ -66,7 +66,7 @@ function vPlayers() {
     ${compareHTML()}
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
       : stateView({ title: "No players match", body: "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-fclear="1">Clear filters</button>` })}
-    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. Price change = progress towards a change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}.</p></div>`;
+    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}.</p></div>`;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";
@@ -89,7 +89,7 @@ function compareHTML() {
   const cell = (fn, dir, fmt) => { const vals = ps.map(fn), best = dir === 1 ? Math.max(...vals) : dir === -1 ? Math.min(...vals) : null;
     return ps.map((p, k) => `<td class="n ${ps.length > 1 && dir && vals[k] === best && vals.some(v => v !== best) ? "best" : ""}">${fmt(vals[k], p)}</td>`).join(""); };
   const fxRow = `<tr><th scope="row">Next ${gws.length} fixtures</th>${ps.map(p => `<td><div class="cmp-fx">${gws.map(x => { const f = fxFor(p.team, x);
-      return `<span title="GW${x}">${f.length ? f.map(y => fdrChip(y, { gw: x })).join("") : blankChip(x)}<small>${f1(xpg(p.id, x))}</small></span>`; }).join("")}</div></td>`).join("")}</tr>`;
+      return `<span title="GW${x}">${f.length ? f.map(y => fdrChip(y, { gw: x })).join("") : blankChip(x)}<small>${xpCell(p.id, x)}</small></span>`; }).join("")}</div></td>`).join("")}</tr>`;
   const news = ps.some(p => p.status !== "a") ? `<tr><th scope="row">News</th>${ps.map(p => `<td>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}">${esc(p.news || "Flagged")}</span>` : '<span class="muted">Fit</span>'}</td>`).join("")}</tr>` : "";
   return `<div class="panel cmp-table" id="cmpPanel"><div class="bar"><h3>Comparing ${ps.length} player${ps.length > 1 ? "s" : ""}</h3><span class="muted">${ps.length < 4 ? "Tick up to 4 in the list, or press Compare in any player's panel" : "Up to 4 at a time"}</span></div>
     <div class="tablebox"><table><thead><tr><th></th>${ps.map(p => `<th scope="col"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button><br><span class="muted">${T[p.team].short} · ${p.pos}${MINE.has(p.id) ? " · yours" : ""}</span><br>${playerTags(p, 4)} <button class="btn ghost sm" data-uncmp="${p.id}" aria-label="Remove ${esc(p.name)}">✕</button></th>`).join("")}</tr></thead>
