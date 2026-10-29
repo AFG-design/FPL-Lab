@@ -9,7 +9,7 @@ Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 import json, os, sys, time, urllib.request, datetime as dt
 from collections import defaultdict
 
-from fplmodel import prepare, project, POS
+from fplmodel import prepare, project, POS, DEFAULTS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 
@@ -291,7 +291,10 @@ for pid, e in elements.items():
     m6, xgi6, pts6 = rolling(pid, 6)
     pr = (priors or {}).get("players", {}).get(str(pid))
     det = r["detail"].get(next_gw, {})
-    slope = 0.86
+    slope = DEFAULTS["cal_slope"]
+    det_r = {k: round(v * slope, 2) for k, v in det.items()}
+    # the calibration intercept (cal_int x chance he plays) and rounding: the line that makes the parts add up to xP
+    det_r["appear_adj"] = round(xp.get(next_gw, 0) - sum(det_r.values()), 2)
     players[pid] = {
         "id": pid, "name": e["web_name"], "full": f'{e["first_name"]} {e["second_name"]}',
         "team": e["team"], "pos": pos, "price": e["now_cost"] / 10, "own": float(e["selected_by_percent"]),
@@ -310,7 +313,7 @@ for pid, e in elements.items():
         "xp": xp, "assumed": r.get("assumed") or [],   # gameweeks whose xP rests on our defaults, not FPL data
         "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),
-        "xp_detail": {k: round(v * slope, 2) for k, v in det.items()},
+        "xp_detail": det_r,
         # simulated outcomes per gameweek: [chance of 10+, chance of 6+, chance of 2 or fewer, low (10th pct), high (90th pct)]
         "dist": {g: [d["p10"], d["p6"], d["blank"], d["q10"], d["q90"]] for g, d in r.get("dist", {}).items()},
         "price_proj": [float(x["projected_percent"]) for x in (e.get("price_change_projections") or [])],

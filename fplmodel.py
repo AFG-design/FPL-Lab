@@ -11,6 +11,7 @@ from collections import defaultdict
 P_UNKNOWN_WEEKS = 6  # 'Unknown return date': availability climbs over 6 gameweeks rather than 3
 
 POS = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
+DC_THR = {"DEF": 10, "MID": 12, "FWD": 12}   # FPL 2025/26+ rules: defensive contributions needed for 2 points
 
 DEFAULTS = {
     # tuned by backtest.py / tune.py on GW3-7 of 2026/27; recency and minutes re-tested with bench.py
@@ -193,8 +194,10 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         if t:
             for g, s in gws.items():
                 team_gw_xg[t][g] += float(s["expected_goals"])
-    # DC thresholds observed from the data (smallest raw count that earned points)
-    thr = {}
+    # DC thresholds from FPL's rules. The data is only a check: the smallest count that earned points should
+    # equal the rule (a single forward hit at 16 once set FWD to 16 when this was read from the data).
+    thr = dict(DC_THR)
+    seen = {}
     for pid, gws in dc_hit.items():
         e = elements.get(pid)
         if not e:
@@ -202,11 +205,10 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         pos = POS[e["element_type"]]
         for g, hit in gws.items():
             if hit:
-                c = pstats[pid][g]["defensive_contribution"]
-                thr[pos] = min(thr.get(pos, 99), c)
-    thr.setdefault("DEF", 10)
-    thr.setdefault("MID", 12)
-    thr.setdefault("FWD", 12)
+                seen[pos] = min(seen.get(pos, 99), pstats[pid][g]["defensive_contribution"])
+    odd = {p: v for p, v in seen.items() if p in thr and v < thr[p]}
+    if odd:
+        print("DC check: points awarded below the rule threshold", odd, "rules", thr)
     out = out_weeks(boot, status_log)
     out_log = out_weeks(boot, status_log, hindsight=False)   # flags genuinely saved at each deadline (no hindsight)
     news_out = news_absences(boot, elements, pstats, team_fix, out)

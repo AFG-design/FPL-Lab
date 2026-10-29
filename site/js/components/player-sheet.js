@@ -75,7 +75,7 @@ function openPlayer(id) {
   if (!EXTRA.ready) { withExtra(() => openPlayer(id)); return; }
   const p = P[id]; if (!p) return;
   const d = p.xp_detail || {}, g = D.meta.next_gw;
-  const labels = { mins: "Appearance", goals: "Goals", assists: "Assists", cs: "Clean sheet", gc: "Conceded", saves: "Saves", dc: "Def. contrib.", bonus: "Bonus", cards: "Cards" };
+  const labels = { mins: "Appearance", goals: "Goals", assists: "Assists", cs: "Clean sheet", gc: "Conceded", saves: "Saves", dc: "Def. contrib.", bonus: "Bonus", cards: "Cards", appear_adj: "Appearance adj." };
   const sq = D.squad.find(s => s.id === id);
   const POS = { GKP: "Goalkeeper", DEF: "Defender", MID: "Midfielder", FWD: "Forward" };
   const tile = (l, v) => `<div><span>${l}</span><b>${v}</b></div>`;
