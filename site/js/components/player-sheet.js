@@ -48,7 +48,10 @@ function whyXP(p, g) {
   if (p.status !== "a" || (p.chance != null && p.chance < 100)) mins.push(`FPL lists him at ${p.chance ?? 0}%${p.news ? `: ${esc(p.news)}` : ""}.`);
   if ((p.assumed || []).length) mins.push(`<span class="asm" title="${ASM_TIP}">Projections for GW${p.assumed.join(", GW")} are assumed: FPL gives no return date or chance, so a gradual return is pencilled in.</span>`);
   if (p.ret) mins.push(`He missed his club's last game${p.status === "a" ? " but FPL now has him available, so it's treated as a knock, not being dropped" : ""}. Players coming back start less often in their first game back, so his start chance is reduced.`);
-  else if (last.length && last[last.length - 1] === 0 && played >= 2) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
+  else if (last.length && last[last.length - 1] === 0 && played >= 2) {
+    if (p.status === "a" && !p.news) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
+    else mins.push(`He missed his club's last game (FPL news since: ${p.news ? esc(p.news) : `flagged at ${p.chance ?? 0}%`}).`);
+  }
   else if (p.p_start < 0.6 && played) mins.push(`He has started about ${Math.round(p.p_start * 100)}% of recent games${p.psub > 0.15 ? " and often comes off the bench" : ""}.`);
   else if (p.p_start >= 0.85) mins.push(`A regular starter: minutes in his last ${last.length} were ${last.join(", ")}.`);
   if (fx.some(x => x.eu)) mins.push(`${T[p.team].short} also play ${esc(fx.find(x => x.eu).eu)}, so some rotation is allowed for.`);
