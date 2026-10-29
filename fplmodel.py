@@ -54,6 +54,10 @@ DEFAULTS = {
     "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
     "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
+    "abs_alpha_att": 0.0,  # experimental (absence.py): scale goals conceded by the opponent's attack-presence factor ** this.
+                           # Needs ctx["team_adj"] = {(team, gw): {"att": a, "def": d}}; off (0) = no effect
+    "abs_alpha_def": 0.0,  # ... and the opponent's defence factor on goals scored, and (unless abs_alpha_own is set) our own on goals conceded
+    "abs_alpha_own": None, # own defence factor on goals conceded; None = same as abs_alpha_def
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -353,6 +357,8 @@ def project(ctx, as_of, horizon=6, params=None):
     gws = [g for g in range(as_of, as_of + horizon) if g <= 38]
     upcoming = defaultdict(lambda: defaultdict(list))
     dw = P.get("direct_w", 0.0)
+    ta, aa, ad = ctx.get("team_adj"), P["abs_alpha_att"], P["abs_alpha_def"]
+    ao = ad if P["abs_alpha_own"] is None else P["abs_alpha_own"]
     for tid, lst in ctx["team_fix"].items():
         for (g, opp, home, f) in lst:
             if g in gws:
@@ -362,6 +368,13 @@ def project(ctx, as_of, horizon=6, params=None):
                 if mk:  # this fixture's own odds: blend the market's expected goals in
                     lf, la = (mk[0], mk[1]) if home else (mk[1], mk[0])
                     mf, ma_ = (1 - dw) * mf + dw * lf, (1 - dw) * ma_ + dw * la
+                if ta and (aa or ad or ao):  # absence adjustment (experimental, see absence.py)
+                    o_, s_ = ta.get((opp, g)), ta.get((tid, g))
+                    if o_:
+                        ma_ *= o_["att"] ** aa   # opponent missing attackers: fewer conceded
+                        mf *= o_["def"] ** ad    # opponent missing defenders: more scored
+                    if s_:
+                        ma_ *= s_["def"] ** ao   # own missing defenders / keeper: more conceded
                 upcoming[tid][g].append((opp, home, mf, ma_, fdr))
 
     hist_gws = [g for g in range(1, as_of)]
