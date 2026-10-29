@@ -53,7 +53,7 @@ function whyXP(p, g) {
   const mins = [`<b>${p.xmin} expected minutes</b>${fx.length > 1 ? " across his two games" : ""}.`];
   if (p.status !== "a" || (p.chance != null && p.chance < 100)) mins.push(`FPL lists him at ${p.chance ?? 0}%${p.news ? `: ${esc(p.news)}` : ""}.`);
   if ((p.assumed || []).length) mins.push(`<span class="asm" title="${ASM_TIP}">Projections for GW${p.assumed.join(", GW")} are assumed: FPL gives no return date or chance, so a gradual return is pencilled in.</span>`);
-  if (p.ret) mins.push(`He missed his club's last game${p.status === "a" ? " but FPL now has him available, so it's treated as a knock, not being dropped" : ""}. Players coming back start less often in their first game back, so his start chance is reduced.`);
+  if (p.ret) mins.push(`${last.length && last[last.length - 1] > 0 ? `He played only ${last[last.length - 1]} minutes in his club's last game, with injury news since, so it's treated as a knock, not being dropped` : `He missed his club's last game${p.status === "a" ? " but FPL now has him available, so it's treated as a knock, not being dropped" : ""}`}. Players coming back start less often in their first game back, so his start chance is reduced.`);
   else if (last.length && last[last.length - 1] === 0 && played >= 2) {
     if (p.status === "a" && !p.news) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
     else mins.push(`He missed his club's last game (FPL news since: ${p.news ? esc(p.news) : `flagged at ${p.chance ?? 0}%`}).`);
