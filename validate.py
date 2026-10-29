@@ -11,9 +11,11 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - a probability outside 0-1 (p_start, psub, dc_rate, chance of 10+/6+/blank, chance of playing)
   - a real-starts record (st5) with more starts than games
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
+  - meta.model_params missing or unlabelled, or a tuned model setting outside its fplmodel.TUNABLE bounds
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
+  - model settings are the hand-set defaults (no model_params.json yet)
 """
 import json, math, os, sys
 from collections import Counter
@@ -85,6 +87,21 @@ def main(path):
         if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')) and w.get("xi_proj") is not None:
             if w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
                 errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but the review re-ran the model')
+
+    # model settings (fplmodel / model_params.json): labelled, and every tuned value within its bounds
+    mp = D["meta"].get("model_params")
+    if not isinstance(mp, dict) or not mp.get("source"):
+        errors.append("meta.model_params missing: can't tell which model settings this build used")
+    else:
+        from fplmodel import TUNABLE
+        for k, v in (mp.get("values") or {}).items():
+            lo, hi = TUNABLE.get(k, (None, None))
+            if lo is None or is_bad(v) or not lo <= v <= hi:
+                errors.append(f"model setting {k} = {v} is not tunable or outside its bounds {lo}-{hi}")
+        if mp.get("assumed"):
+            warnings.append("Model settings are the hand-set defaults: no model_params.json yet (not retuned)")
+        elif not mp.get("values"):
+            errors.append(f"meta.model_params says {mp['source']} but lists no values")
 
     # odds for next gameweek
     odds = load(os.path.join(HERE, "odds", "odds.json")) or {}

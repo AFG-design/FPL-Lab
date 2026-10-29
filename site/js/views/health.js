@@ -22,6 +22,11 @@ function vHealth() {
     ["Injury status", S_.status?.gws?.length ? `GW${S_.status.gws.join(", GW")}` : "–", "Tells injured from dropped in the model"],
     ["Top-10k template", S_.template?.gws?.length ? `GW${S_.template.gws[0]}–${S_.template.gws[S_.template.gws.length - 1]}` : "–", "Review → Template tracker"],
   ];
+  // weekly retune (retune.py): which settings this build used, and the last decision
+  const MP = D.meta.model_params, LR = MP?.last_retune;
+  if (MP) logs.push(["Model settings", (MP.assumed ? "defaults (not yet retuned)" : `last retuned ${ukTime(MP.tuned_at)} (through GW${MP.through_gw})`)
+    + (LR ? ` · last check GW${LR.through_gw ?? "–"}: ${LR.decision}${LR.decision === "accepted" ? "" : ` (${LR.reason.split("; ")[0]})`}` : ""),
+    "Weekly retune, kept only if it beats the current settings on held-out gameweeks"]);
   // recent refresh runs (public GitHub API, checked every 10 minutes)
   const runs = (HEALTH.runs || []).slice(0, 15);
   const trig = r => r.event === "schedule" ? "GitHub schedule" : r.event === "workflow_dispatch" ? "cron-job.org / Refresh button" : r.event === "push" ? "Site update" : r.event;

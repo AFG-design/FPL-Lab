@@ -64,7 +64,7 @@ npm run dev                               # serves site/ at http://localhost:800
 
 `build.py` also updates files in `history/`; discard those changes (`git checkout -- history/`) unless you mean to commit them. The site needs no build step: GitHub Pages publishes `site/` exactly as it is.
 
-Before changing the model, run `python3 bench.py` (needs `raw/` from a local build: `bootstrap.json`, `fixtures.json`, `live1.json`…) and keep a change only if it helps on both seasons.
+Before changing the model, run `python3 bench.py` (needs `raw/`: `python3 tools/fetch_raw.py` writes `bootstrap.json`, `fixtures.json`, `live1.json`…) and keep a change only if it helps on both seasons.
 
 Before committing front-end changes:
 
@@ -74,6 +74,30 @@ npm run sw      # after adding or removing a script or stylesheet: refreshes the
 ```
 
 `npm run check` reads every script in page order to catch names that are used but never defined (or defined twice), confirms every file the page, manifest and service worker refer to exists, and that each one is cached for offline use.
+
+## Weekly model retune
+
+Every Tuesday at 06:13 UTC (after Monday's games) the **Weekly model retune** workflow runs `retune.py`, which refits
+16 of the model's scalar settings (recency weights, home advantage, goal/assist/bonus multipliers, clean-sheet
+curve, calibration, betting-market weights…; bounds in `fplmodel.TUNABLE`) against this season's results. New
+values go in `model_params.json`, which `fplmodel.py` loads over its hand-set `DEFAULTS`; the next Refresh build
+uses them. Guardrails:
+
+- **Small steps.** Each value can move at most 15% a week and never outside its hard bounds.
+- **Out of sample.** For each of the last 3 finished gameweeks the settings are refitted on the weeks before it and
+  scored on it. The refit must beat the current settings on that held-out MAE by at least 0.01 with no loss of
+  correlation.
+- **No segment worse.** Before/after backtests, with and without the status log, must pass `backtest.py --compare`
+  (no position, price band, flag, top-30 or gameweek segment with n ≥ 30 worse by 0.05 MAE or with bias moved 0.2).
+- **Enough, final data.** It skips (and says why) with fewer than 6 gameweeks from GW3, before FPL marks the week
+  `data_checked`, or if priors, odds or the deadline status log are missing. A gameweek is only tuned once.
+- **Checked build.** A build with new settings must pass `validate.py` before they are committed. A malformed
+  `model_params.json` or out-of-bounds value stops the build; no file means the hand-set defaults, shown as such on
+  the Health page.
+
+Every run's decision (accepted, rejected or skipped, the reason, old and new values, held-out scores, flagged
+segments) is appended to `history/retune_log.json`; the Health page shows the latest. To go back to the hand-set
+values, delete `model_params.json`. Locally: `python3 tools/fetch_raw.py && python3 retune.py --dry-run`.
 
 ## Front end
 

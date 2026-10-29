@@ -4,7 +4,7 @@ project(ctx, as_of, params) projects expected points for every player for the
 gameweeks starting at `as_of`, using only information from gameweeks before it.
 That makes the same code usable for live projections and for backtests.
 """
-import math, re, datetime as dt
+import json, math, os, re, datetime as dt
 import numpy as np
 from collections import defaultdict
 
@@ -60,6 +60,55 @@ DEFAULTS = {
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
+
+
+# ---------------------------------------------------------------- weekly retune (retune.py, model_params.json)
+# Scalar parameters retune.py may refit each week, with hard bounds. A tuned value outside these is an error,
+# not something to clamp. Bounds are wide but keep each value in a range where it still means what the
+# comment in DEFAULTS says (e.g. min_recency must stay > 0: 0 means "use recency").
+TUNABLE = {
+    "recency": (0.5, 0.98), "team_recency": (0.7, 1.0), "xg_weight": (0.0, 1.0), "home": (1.0, 1.2),
+    "w_pos": (50.0, 2000.0), "w_last": (0.0, 3000.0), "bonus_scale": (0.3, 1.5), "assist_mult": (0.6, 1.8),
+    "goal_mult": (0.5, 1.4), "cs_k": (0.5, 1.5), "cal_slope": (0.5, 1.3), "cal_int": (0.0, 1.0),
+    "mkt_w": (0.0, 1.0), "direct_w": (0.0, 1.0), "opp_adj": (0.0, 1.5), "min_recency": (0.1, 0.95),
+}
+HAND_DEFAULTS = dict(DEFAULTS)   # the hand-set values above, before model_params.json
+MODEL_PARAMS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_params.json")
+
+
+def check_params(values, where="model_params.json"):
+    """Raise ValueError unless every key is tunable and every value a finite number within its bounds."""
+    if not isinstance(values, dict):
+        raise ValueError(f"{where}: 'params' must be an object")
+    for k, v in values.items():
+        if k not in TUNABLE:
+            raise ValueError(f"{where}: {k!r} is not a tunable parameter ({', '.join(TUNABLE)})")
+        lo, hi = TUNABLE[k]
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not lo <= v <= hi:
+            raise ValueError(f"{where}: {k} = {v!r} outside its bounds {lo}-{hi}")
+
+
+def load_model_params(path=MODEL_PARAMS_PATH):
+    """Tuned overrides for DEFAULTS. Missing file: the hand-set DEFAULTS, labelled as assumed (not an error:
+    a fresh clone, or before the first accepted retune). Malformed file or out-of-bounds value: raises, so
+    build.py (and the Refresh workflow) stops rather than publishing projections from bad settings."""
+    if not os.path.exists(path):
+        return {}, {"source": "assumed: defaults (no model_params.json)", "assumed": True, "values": {}}
+    with open(path) as f:
+        mp = json.load(f)   # malformed JSON raises here
+    if not isinstance(mp, dict) or "params" not in mp:
+        raise ValueError(f"{path}: no 'params' object")
+    check_params(mp["params"], path)
+    tg = mp.get("through_gw")
+    if not isinstance(tg, int) or isinstance(tg, bool):
+        raise ValueError(f"{path}: through_gw must be a gameweek number, got {tg!r}")
+    return dict(mp["params"]), {"source": "model_params.json", "assumed": False, "values": dict(mp["params"]),
+                                "tuned_at": mp.get("tuned_at"), "through_gw": tg, "fit_gws": mp.get("fit_gws"),
+                                "held_out": mp.get("held_out")}
+
+
+_TUNED, MODEL_PARAMS = load_model_params()
+DEFAULTS.update(_TUNED)
 
 
 def poisson(k, mu):
