@@ -27,6 +27,9 @@ DEFAULTS = {
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
     "bonus_scale": 0.8,
+    "bonus_att_pow": 0.5,  # MID/FWD bonus elasticity to attacking fixture factor
+    "bonus_own_pow": 0.0,  # GKP/DEF bonus falls as own-team expected goals rise: (mu_f/league)**-pow
+    "bonus_def_pow": 0.3,  # GKP/DEF bonus elasticity to clean-sheet chance
     "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections)
     "goal_mult": 0.88,
     "cs_k": 0.9,           # P(clean sheet) = exp(-cs_k * mu); real CS rates beat a plain Poisson
@@ -598,11 +601,13 @@ def project(ctx, as_of, horizon=6, params=None):
                     sv = sv90 * (mu_a / league) ** 0.6 * m / 90
                     comp["saves"] += sum((j // 3) * poisson(j, sv) for j in range(20)) * scoring["saves"]
                 comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
-                comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
+                bfac = (atk ** P["bonus_att_pow"] if pos in ("MID", "FWD")
+                        else (pcs / 0.3) ** P["bonus_def_pow"] * (max(mu_f, 0.05) / league) ** (-P["bonus_own_pow"]))
+                comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * bfac
                 comp["cards"] -= yc90 * m / 90
                 if P["sim"] and (ps + pb) > 0.01:
                     rng = np.random.default_rng(pid * 1000 + g * 10 + len(detail))
-                    bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
+                    bexp = P["bonus_scale"] * bo90 * bfac * m / 90
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
                                             p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
                                             P["assist_mult"] * xa90 * atk, mu_f, mu_a,
