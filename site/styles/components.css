@@ -118,6 +118,7 @@ a.btn { text-decoration: none; }
 .pc-form { color: var(--accent-text); background: var(--accent-soft); border-radius: 3px; padding: 0 4px; }
 .pc .nm { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pc .xp { font-family: var(--display); font-weight: 700; font-size: 21px; line-height: 1.05; letter-spacing: .01em; }
+.pc .xp.asm { color: var(--on-turf-muted); }
 .pc .fx { display: flex !important; gap: 2px; justify-content: center; margin-top: 4px; }
 .pc .fx .fdr { flex: 1 1 0; padding: 1px 3px; gap: 2px; font-size: 10px; }
 .pc .fx .fdr:nth-child(n+3) { display: none; } /* cards show the next two fixtures; the detail sheet shows them all */

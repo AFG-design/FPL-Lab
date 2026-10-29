@@ -17,6 +17,11 @@ function flag(p) {
   return `<span class="flag ${p.status}" title="${esc(p.news)}">${p.chance != null ? p.chance + "%" : "!"}</span>`;
 }
 const xpg = (id, g) => (P[id]?.xp[g]) || 0;
+// projections resting on our defaults (unknown return date, no chance given) rather than FPL data
+const ASM_TIP = "Assumed — no official data";
+const isAsm = (id, g) => !!P[id]?.assumed?.includes(+g);
+const asmAttr = (id, g) => isAsm(id, g) ? ` title="${ASM_TIP}"` : "";
+const xpCell = (id, g) => isAsm(id, g) ? `<span class="asm" title="${ASM_TIP}">${f1(xpg(id, g))}</span>` : f1(xpg(id, g));
 const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a, x) => a + xpg(id, x), 0);
 
 // strategy-aware values (same maths as the optimiser): Safe leans to what the field owns, Chase away from it

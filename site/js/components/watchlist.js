@@ -44,7 +44,7 @@ function starsPanel() {
     return `<tr><td><button data-p="${i}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}">${p.chance ?? 0}%</span>` : ""}${fresh ? ` <span class="pill mut" title="${esc(newsLine(last.slice(1)))}">news ${agoTxt(last[0])}</span>` : ""}</td>
       <td class="n">${p.price.toFixed(1)}${dp ? ` <span class="${dp > 0 ? "up" : "down"}">${dp > 0 ? "▲" : "▼"}${Math.abs(dp).toFixed(1)}</span>` : ""}</td>
       <td class="n ${pr >= 75 ? "up" : pr <= -75 ? "down" : "muted"}">${pr != null ? `${pr.toFixed(0)}%` : "–"}</td>
-      <td><span class="fx">${fxChips(p, g, 3)}</span></td><td class="n"><b>${f1(xpg(i, g))}</b></td><td class="n">${f1(xpFrom(i, g, 5))}</td></tr>`;
+      <td><span class="fx">${fxChips(p, g, 3)}</span></td><td class="n"><b>${xpCell(i, g)}</b></td><td class="n">${f1(xpFrom(i, g, 5))}</td></tr>`;
   }).join("");
   return `<div class="panel"><div class="bar"><h3>Watchlist</h3><span class="muted">${ids.length} player${ids.length === 1 ? "" : "s"}</span></div>
     ${ids.length ? `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Price</th><th>Next 3</th><th class="n">xP GW${g}</th><th class="n">Next 5</th></tr></thead><tbody>${rows}</tbody></table></div>

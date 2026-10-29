@@ -115,12 +115,17 @@ except Exception as ex:
     print("transfer log skipped:", ex)
 ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
 
-# European midweek congestion: small rotation risk for league games within ~3 days of a European match
-congestion, euro_flags = {}, {}
+# European midweek congestion: small rotation risk for league games within ~3 days of a European match.
+# A competition marked "confirmed": false in europe.json (dates or teams guessed) is skipped: no rotation
+# allowance and no "also plays" flag until someone confirms it.
+congestion, euro_flags, euro_skipped = {}, {}, []
 try:
     europe = json.load(open(os.path.join(HERE, "europe.json")))["competitions"]
     short_to_id = {t["short_name"]: t["id"] for t in boot["teams"]}
     for comp, c in europe.items():
+        if c.get("confirmed") is False:
+            euro_skipped.append(comp)
+            continue
         edates = [dt.date.fromisoformat(x) for x in c["dates"]]
         for short in c["teams"]:
             tid = short_to_id.get(short)
@@ -302,7 +307,8 @@ for pid, e in elements.items():
         "ret": cur_gw in ctx.get("out", {}).get(pid, ()),   # missed his club's last game through injury or a ban
         "yc": e["yellow_cards"], "rc": e["red_cards"], "upos": (US.get("players", {}).get(str(pid)) or {}).get("upos", ""),
         "psub": round(r.get("p_sub", 0), 2),
-        "xp": xp, "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
+        "xp": xp, "assumed": r.get("assumed") or [],   # gameweeks whose xP rests on our defaults, not FPL data
+        "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),
         "xp_detail": {k: round(v * slope, 2) for k, v in det.items()},
         # simulated outcomes per gameweek: [chance of 10+, chance of 6+, chance of 2 or fewer, low (10th pct), high (90th pct)]
@@ -1308,8 +1314,8 @@ if next_ev:
         "gw": next_gw, "deadline": next_ev["deadline_time"],
         "price_updates": [d for d in out["meta"]["price_deadlines"] if start <= d[:10] <= end],
         "fixtures": [[f["kickoff_time"], f["team_h"], f["team_a"]] for f in nx_fx],
-        "europe": [[c, d, [TBS[t] for t in v["teams"] if t in TBS]] for c, v in euro.get("competitions", {}).items()
-                   for d in v.get("dates", []) if start <= d <= end],
+        "europe": [[c + (" (dates unconfirmed)" if v.get("confirmed") is False else ""), d, [TBS[t] for t in v["teams"] if t in TBS]]
+                   for c, v in euro.get("competitions", {}).items() for d in v.get("dates", []) if start <= d <= end],
         "deadlines": [[e["id"], e["deadline_time"]] for e in events if e["deadline_time"] and e["deadline_time"] > dt.datetime.now(dt.timezone.utc).isoformat()],
     }
 

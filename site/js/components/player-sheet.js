@@ -33,7 +33,7 @@ function upcomingFixtures(p, id) {
       <span class="un-fx">${fx.length ? fx.map(x => fdrChip(x, { gw: g })).join("") : blankChip(g)}</span>
       <span class="un-opp">${fx.map(x => `${esc(T[x.opp].name)} ${x.home ? "(H)" : "(A)"}`).join(", ") || "No fixture"}</span>
       <span class="un-bar"><i style="width:${(xpg(id, g) / mx * 100).toFixed(0)}%"></i></span>
-      <b>${f1(xpg(id, g))}</b></li>`;
+      <b>${xpCell(id, g)}</b></li>`;
   }).join("")}</ol>`;
 }
 
@@ -46,6 +46,7 @@ function whyXP(p, g) {
   const last = (p.s_min || []).slice(-4), played = last.filter(m => m > 0).length;
   const mins = [`<b>${p.xmin} expected minutes</b>${fx.length > 1 ? " across his two games" : ""}.`];
   if (p.status !== "a" || (p.chance != null && p.chance < 100)) mins.push(`FPL lists him at ${p.chance ?? 0}%${p.news ? `: ${esc(p.news)}` : ""}.`);
+  if ((p.assumed || []).length) mins.push(`<span class="asm" title="${ASM_TIP}">Projections for GW${p.assumed.join(", GW")} are assumed: FPL gives no return date or chance, so a gradual return is pencilled in.</span>`);
   if (p.ret) mins.push(`He missed his club's last game${p.status === "a" ? " but FPL now has him available, so it's treated as a knock, not being dropped" : ""}. Players coming back start less often in their first game back, so his start chance is reduced.`);
   else if (last.length && last[last.length - 1] === 0 && played >= 2) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
   else if (p.p_start < 0.6 && played) mins.push(`He has started about ${Math.round(p.p_start * 100)}% of recent games${p.psub > 0.15 ? " and often comes off the bench" : ""}.`);

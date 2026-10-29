@@ -30,6 +30,9 @@ button { cursor: pointer; }
 /* every number in the app lines up */
 .num, td, th, .stat dd, b { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
+
+/* projection resting on our defaults, not FPL data (title: "Assumed — no official data") */
+.asm { color: var(--muted); font-style: italic; cursor: help; }
 .up { color: var(--good); }
 .down { color: var(--bad); }
 
