@@ -27,7 +27,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | --- | --- |
 | `fplmodel.py` | Projection model: team ratings from xG, minutes, per-90 rates blended with last season, FPL scoring, calibration |
 | `optimise.py` | Multi-gameweek transfer optimiser (integer programme, CBC via PuLP) |
-| `backtest.py` / `tune.py` | Re-projects past gameweeks to measure and tune the model |
+| `backtest.py` / `tune.py` | Re-projects past gameweeks to measure and tune the model. `backtest.py` also prints a segment breakdown; `--status-log`, `--json` and `--compare` are for before/after checks (see `CLAUDE.md`) |
 | `bench.py` | Test bench for model changes: re-projects every gameweek of this season and of 2025/26, and scores accuracy plus the picks and captains the app would make. `python3 bench.py '{"recency":0.85}'` compares a parameter set with the current model |
 | `archive.py` | Rebuilds a past season (default 2025/26) in the live API's shape from the public vaastav/Fantasy-Premier-League archive, for `bench.py`. Cached in `archive/` (not committed) |
 | `crowd.py` | Samples 2,000 top-10k teams, 500 around your rank and your mini-league rivals once per gameweek into `crowd/latest.json` |
