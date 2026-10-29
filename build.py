@@ -188,6 +188,15 @@ def series(pid, key, cast=float):
     return [round(cast(pstats[pid][g][key]), 2) if g in pstats.get(pid, {}) else 0 for g in range(1, cur_gw + 1)]
 
 
+def starts_record(pid, e, n=5):
+    """[starts, games] over his club's last n finished gameweeks (a double counts each game): real starts, for the
+    player sheet, which used to print the model's start chance as if it were a share of games."""
+    gws = sorted({x[0] for x in ctx["team_fix"].get(e["team"], []) if x[0] and x[0] <= cur_gw})[-n:]
+    s = pstats.get(pid, {})
+    games = sum(sum(1 for x in ctx["team_fix"][e["team"]] if x[0] == g) for g in gws)
+    return [min(games, sum(s[g]["starts"] for g in gws if g in s)), games]
+
+
 def rolling(pid, n):
     gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1)]
     s = pstats.get(pid, {})
@@ -309,7 +318,7 @@ for pid, e in elements.items():
         "xmin": round(r["xmin"]), "status": e["status"], "news": e["news"], "chance": e["chance_of_playing_next_round"],
         "ret": cur_gw in ctx.get("out", {}).get(pid, ()),   # missed his club's last game through injury or a ban
         "yc": e["yellow_cards"], "rc": e["red_cards"], "upos": (US.get("players", {}).get(str(pid)) or {}).get("upos", ""),
-        "psub": round(r.get("p_sub", 0), 2),
+        "psub": round(r.get("p_sub", 0), 2), "st5": starts_record(pid, e),
         "xp": xp, "assumed": r.get("assumed") or [],   # gameweeks whose xP rests on our defaults, not FPL data
         "xp1": round(sum(vals[:1]), 2), "xp3": round(sum(vals[:3]), 2),
         "xp5": round(sum(vals[:5]), 2), "xp6": round(sum(vals[:6]), 2),

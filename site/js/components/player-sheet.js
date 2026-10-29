@@ -37,6 +37,12 @@ function upcomingFixtures(p, id) {
   }).join("")}</ol>`;
 }
 
+// real starts in his club's last 5 gameweeks (st5 = [starts, games]), not the model's start chance
+function startsText(p) {
+  const [n, of] = p.st5 || [];
+  return of ? `He started ${n} of his club's last ${of} games.` : "";
+}
+
 /* ---------- why this projection: the xP for next gameweek explained in plain English ---------- */
 function whyXP(p, g) {
   const d = p.xp_detail || {}, fx = fxFor(p.team, g), out = [];
@@ -52,7 +58,7 @@ function whyXP(p, g) {
     if (p.status === "a" && !p.news) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
     else mins.push(`He missed his club's last game (FPL news since: ${p.news ? esc(p.news) : `flagged at ${p.chance ?? 0}%`}).`);
   }
-  else if (p.p_start < 0.6 && played) mins.push(`He has started about ${Math.round(p.p_start * 100)}% of recent games${p.psub > 0.15 ? " and often comes off the bench" : ""}.`);
+  else if (p.p_start < 0.6 && played) mins.push(`${startsText(p)}${p.psub > 0.15 ? " He often comes off the bench." : ""} The model gives him a ${Math.round(p.p_start * 100)}% chance to start next game, weighting the latest games most.`);
   else if (p.p_start >= 0.85) mins.push(`A regular starter: minutes in his last ${last.length} were ${last.join(", ")}.`);
   if (fx.some(x => x.eu)) mins.push(`${T[p.team].short} also play ${esc(fx.find(x => x.eu).eu)}, so some rotation is allowed for.`);
   out.push(["Minutes", mins.join(" "), v("mins")]);
@@ -120,7 +126,7 @@ function openPlayer(id) {
     ${p.pos !== "GKP" ? `<section class="ph-sec" id="shotmap" data-pid="${id}"><h3>Shot map</h3><p class="note">Loading…</p></section>` : ""}
 
     <section class="ph-sec"><h3>Key stats</h3>
-      <div class="brk">${tile("Season pts", p.pts)}${tile("Goals, assists", `${p.goals}, ${p.assists}`)}${tile("xG, xA", `${p.xg.toFixed(1)}, ${p.xa.toFixed(1)}`)}${tile("xGI/90 L4", p.xgi90_4.toFixed(2))}${tile("Starts", `${Math.round(p.p_start * 100)}%`)}${tile("Owned", `${p.own.toFixed(1)}%`)}${p.last ? tile(`${p.last.season} pts`, p.last.pts) : ""}${sq ? tile("Bought at", money(sq.buy)) : ""}</div>
+      <div class="brk">${tile("Season pts", p.pts)}${tile("Goals, assists", `${p.goals}, ${p.assists}`)}${tile("xG, xA", `${p.xg.toFixed(1)}, ${p.xa.toFixed(1)}`)}${tile("xGI/90 L4", p.xgi90_4.toFixed(2))}${p.st5?.[1] ? tile(`Starts, last ${p.st5[1]}`, `${p.st5[0]} of ${p.st5[1]}`) : ""}${tile("Chance to start next game", `${Math.round(p.p_start * 100)}%`)}${tile("Owned", `${p.own.toFixed(1)}%`)}${p.last ? tile(`${p.last.season} pts`, p.last.pts) : ""}${sq ? tile("Bought at", money(sq.buy)) : ""}</div>
       ${outcomeTiles(p, g, tile)}
       <details><summary>GW${g} projection breakdown</summary>
         <div class="brk dbody">${Object.entries(d).filter(([, v]) => Math.abs(v) >= 0.01).map(([k, v]) => tile(labels[k] || k, v.toFixed(2))).join("")}</div></details>
