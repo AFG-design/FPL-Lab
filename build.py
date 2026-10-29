@@ -505,13 +505,13 @@ if h2h_rows:
 # gameweek after the absence, then score them against what happened once that gameweek is over
 ABS_F = lambda g: os.path.join(HIST, f"absence_gw{g}.json")
 if ctx.get("out_news"):
-    g_chk = max(ctx["out_news"].values()) + 1
+    g_chk = max(max(v) for v in ctx["out_news"].values()) + 1
     if not os.path.exists(ABS_F(g_chk)) and g_chk in proj_gws + [cur_gw]:
         new_ = project(ctx, g_chk, 1)["players"]
         old_ = project(ctx, g_chk, 1, {"news_abs": False})["players"]
         snap = {str(pid): {"fix": [round(new_[pid]["xp"].get(g_chk, 0), 2), round(new_[pid]["xmin"])],
                            "old": [round(old_[pid]["xp"].get(g_chk, 0), 2), round(old_[pid]["xmin"])]}
-                for pid in ctx["out_news"] if pid in new_ and pid in old_}
+                for pid, gs_ in ctx["out_news"].items() if g_chk - 1 in gs_ and pid in new_ and pid in old_}
         json.dump({"gw": g_chk, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
                   open(ABS_F(g_chk), "w"), separators=(",", ":"))
 absence_check = []
