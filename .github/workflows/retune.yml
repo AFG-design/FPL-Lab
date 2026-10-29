@@ -1,0 +1,66 @@
+name: Weekly model retune
+
+# After each gameweek, refit the model's scalar settings (retune.py) and keep them only if they beat the current
+# ones on held-out gameweeks and don't hurt any backtest segment. Accepted values go in model_params.json; the
+# next Refresh run builds with them. Every run's decision is appended to history/retune_log.json.
+on:
+  schedule:
+    - cron: "13 6 * * 2"   # Tuesday 06:13 UTC, after Monday-night games; FPL marks the week data_checked by then
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Retune even if this gameweek has already been tuned"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+# Same group as Refresh: the two never run at once, so a retune commit can't race a data commit, and the next
+# Refresh starts from the new model_params.json.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  retune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      # Fails the job if the FPL API can't be reached: no partial-season tuning.
+      - name: Fetch raw FPL data
+        run: python3 tools/fetch_raw.py raw
+      # Skips (logged, nothing changed) when the gameweek isn't data_checked yet, there are fewer than 6 GWs,
+      # or the status log / odds / priors are missing. Exits without work if this GW is already tuned.
+      - name: Retune
+        env:
+          FORCE: ${{ github.event.inputs.force }}
+        run: python3 retune.py raw $([ "$FORCE" = "true" ] && echo --force)
+      # If new values were written, rebuild and run the publish checks on them before committing: a build
+      # failure or validate.py error stops the job here, so nothing is committed and the old settings stay.
+      - name: Check a build with the new settings
+        if: hashFiles('model_params.json') != ''
+        env:
+          FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
+        run: |
+          if git diff --quiet -- model_params.json && git ls-files --error-unmatch model_params.json >/dev/null 2>&1; then
+            echo "model_params.json unchanged"; exit 0
+          fi
+          # in a throwaway copy: build.py also updates history/ and site/ files, which belong to Refresh
+          cp -r . /tmp/check && cd /tmp/check
+          python3 build.py "$FPL_TEAM_ID" site/data.json
+          python3 validate.py site/data.json
+      - name: Commit
+        run: |
+          git config user.name "fpl-lab-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add history/retune_log.json
+          [ -f model_params.json ] && git add model_params.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Weekly model retune" && git pull --rebase && git push
+          fi

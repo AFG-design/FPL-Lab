@@ -1,0 +1,101 @@
+{
+ "runs": [
+  {
+   "date": "2026-10-29T23:09:37+00:00",
+   "through_gw": 8,
+   "params_source": "assumed: defaults (no model_params.json)",
+   "held_out": {
+    "gws": [
+     6,
+     7,
+     8
+    ],
+    "n": 1154,
+    "mae_current": 1.794795674638089,
+    "mae_refit": 1.8052327550353462,
+    "corr_current": 0.40305248899103896,
+    "corr_refit": 0.40265829074076415,
+    "bias_current": -0.062442576883064614,
+    "bias_refit": -0.026490808645471757,
+    "rmse_current": 2.640915994397224,
+    "rmse_refit": 2.6434208122351555,
+    "objective": "mae_bias",
+    "folds": [
+     {
+      "gw": 6,
+      "fit": "GW3-5",
+      "mae_current": 1.8363367911015787,
+      "mae_refit": 1.8482186075472973
+     },
+     {
+      "gw": 7,
+      "fit": "GW3-6",
+      "mae_current": 1.7618776924587187,
+      "mae_refit": 1.7756801881585962
+     },
+     {
+      "gw": 8,
+      "fit": "GW3-7",
+      "mae_current": 1.7874183688883507,
+      "mae_refit": 1.793247677640701
+     }
+    ]
+   },
+   "old": {
+    "recency": 0.8,
+    "team_recency": 0.93,
+    "xg_weight": 0.7,
+    "home": 1.05,
+    "w_pos": 450.0,
+    "w_last": 600.0,
+    "bonus_scale": 0.8,
+    "assist_mult": 1.2,
+    "goal_mult": 0.88,
+    "cs_k": 0.9,
+    "cal_slope": 0.86,
+    "cal_int": 0.33,
+    "mkt_w": 0.7,
+    "direct_w": 0.85,
+    "opp_adj": 0.5,
+    "min_recency": 0.4
+   },
+   "new": {
+    "recency": 0.88,
+    "team_recency": 0.7905,
+    "xg_weight": 0.595,
+    "home": 1.0,
+    "w_pos": 517.5,
+    "w_last": 510.0,
+    "bonus_scale": 0.92,
+    "assist_mult": 1.38,
+    "goal_mult": 0.924,
+    "mkt_w": 0.63,
+    "direct_w": 0.8925,
+    "opp_adj": 0.575
+   },
+   "headline": {
+    "gws": "GW3-8",
+    "n": 2284,
+    "mae": [
+     1.8062439292963859,
+     1.823804518560665
+    ],
+    "corr": [
+     0.4292931661812024,
+     0.42969002182003874
+    ],
+    "bias": [
+     -0.05795591835573485,
+     -7.843413153058e-06
+    ]
+   },
+   "flagged_segments": [
+    "status log: Top 30 projected / top 30 each GW (MAE worse, bias moved)",
+    "no status log: Top 30 projected / top 30 each GW (MAE worse, bias moved)"
+   ],
+   "decision": "rejected",
+   "reason": "held-out MAE gain -0.0104 is under 0.01; held-out corr fell 0.4031 -> 0.4027; 2 segment(s) past the backtest limits",
+   "secs": 142.7
+  }
+ ]
+}

@@ -259,8 +259,9 @@ def print_segments(seg, title):
 
 def compare(base_path, new_path):
     """Print per-segment deltas (new − base) and flag segments with n >= 30 where MAE worsens by more than 0.05
-    or bias moves by more than 0.2. Returns the number of flagged segments."""
-    A, B = json.load(open(base_path)), json.load(open(new_path))
+    or bias moves by more than 0.2. Returns the flagged segments as a list of "group / name (why)" strings
+    (empty when none: the CLI exits 1 on a non-empty list). base_path / new_path may also be the loaded dicts."""
+    A, B = (x if isinstance(x, dict) else json.load(open(x)) for x in (base_path, new_path))
     for key in ("status_log", "flag_log"):
         if A.get(key) != B.get(key):
             print(f"Warning: {key} differs ({A.get(key)} vs {B.get(key)}): the runs are not like for like")
@@ -296,7 +297,7 @@ def compare(base_path, new_path):
               + "; ".join(flagged))
     else:
         print(f"No segment past the limits (MAE +{COMPARE_MAE}, bias ±{COMPARE_BIAS}, n >= {COMPARE_N}).")
-    return len(flagged)
+    return flagged
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 import json, os, sys, time, urllib.request, datetime as dt
 from collections import defaultdict
 
-from fplmodel import prepare, project, POS, DEFAULTS
+from fplmodel import prepare, project, POS, DEFAULTS, MODEL_PARAMS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 
@@ -1261,6 +1261,14 @@ for w in wl[:20]:
         if el in players:
             keep.add(el)
 
+def _last_retune():
+    try:
+        e = json.load(open(os.path.join(HERE, "history", "retune_log.json")))["runs"][-1]
+    except FileNotFoundError:
+        return None
+    return {k: e.get(k) for k in ("date", "through_gw", "decision", "reason")}
+
+
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
              "understat": US.get("meta"),
@@ -1271,6 +1279,10 @@ out = {
                              "players": sum(len(f["players"]) for f in player_odds.get("fixtures", {}).values()),
                              "unmatched": len(player_odds.get("unmatched_players", [])),
                              "credits_left": player_odds.get("credits_left")} if player_odds else None,
+             # which model settings this build used: the weekly retune's model_params.json, or the hand-set
+             # defaults (marked assumed). The last retune decision (accepted / rejected / skipped and why) is
+             # read from history/retune_log.json for the Health page; no log yet = None.
+             "model_params": dict(MODEL_PARAMS, last_retune=_last_retune()),
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
