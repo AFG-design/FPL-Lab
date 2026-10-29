@@ -51,6 +51,8 @@ DEFAULTS = {
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
     "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
     "use_out": True,       # skip weeks a player was injured, suspended or away when judging his minutes
+    "late_abs": True,      # injury news around a gameweek, or a 'd' <=75% flag at its deadline, explains a regular's
+                           # non-start that week (late_news_absences, doubtful_absences); False = old behaviour
     "news_abs": True,      # count a cleared-news 0-minute week as an absence (news_absences); False = old behaviour
     "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
     "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
@@ -128,6 +130,68 @@ def out_weeks(boot, status_log=None, hindsight=True):
             if d > since:
                 out[e["id"]].add(g)
     return out
+
+
+def _gw_ends(fixtures, pad_days=2):
+    """End of each gameweek: its last kick-off plus pad_days (late news about a game is usually posted by then)."""
+    last = {}
+    for f in fixtures or []:
+        g, ko = f.get("event"), f.get("kickoff_time")
+        if g and ko:
+            t = dt.datetime.fromisoformat(ko.replace("Z", "+00:00"))
+            last[g] = max(last.get(g, t), t)
+    return {g: t + dt.timedelta(days=pad_days) for g, t in last.items()}
+
+
+def _regular_non_start(pid, team, k, pstats, team_fix):
+    """True when his club played in gameweek k, he didn't start it, and he started 2+ of its 3 games before."""
+    allp = sorted({g for (g, *_r) in team_fix.get(team, []) if g})
+    played = [g for g in allp if g <= k]
+    if not played or played[-1] != k:
+        return False
+    gs = pstats.get(pid, {})
+    if gs.get(k, {}).get("starts", 0) > 0:
+        return False
+    before = played[-4:-1]
+    return len(before) >= 2 and sum(1 for g in before if gs.get(g, {}).get("starts", 0) > 0) >= 2
+
+
+def late_news_absences(boot, elements, pstats, team_fix, fixtures):
+    """Regular starters flagged now (any flag, including 'd') whose news was posted around gameweek k (from a day
+    before its deadline to 2 days after its last kick-off) and who didn't start in k: the injury, picked up after
+    the deadline or in the game itself, explains the 0 or sub minutes, so it isn't read as being dropped.
+    The window opens a day early because the last saved status can be hours older than the deadline (Strand
+    Larsen's GW8 news came 30 minutes before it). The flag still cuts his next projection; this only stops the
+    absence also cutting his start chance. Returns {pid: {gw}}."""
+    ends = _gw_ends(fixtures)
+    dls = {e["id"]: dt.datetime.fromisoformat(e["deadline_time"].replace("Z", "+00:00"))
+           for e in boot.get("events", []) if e.get("deadline_time") and e.get("finished")}
+    res = defaultdict(set)
+    for pid, e in elements.items():
+        ch, since = e.get("chance_of_playing_next_round"), e.get("news_added")
+        if not since or (e["status"] == "a" and (ch is None or ch >= 100)):
+            continue
+        t = dt.datetime.fromisoformat(since.replace("Z", "+00:00"))
+        for k, d in dls.items():
+            if k in ends and d - dt.timedelta(days=1) <= t <= ends[k] and _regular_non_start(pid, e["team"], k, pstats, team_fix):
+                res[pid].add(k)
+    return dict(res)
+
+
+def doubtful_absences(status_log, elements, pstats, team_fix, max_chance=75):
+    """Regular starters flagged 'd' at max_chance% or less at the deadline (status log) who then didn't start:
+    the knock, not the manager, explains it. Of GW3-7's regular starters in this spot none started the next game
+    (n=4), and the flag that was showing already ruled the week down, so it isn't a rotation signal. {pid: {gw}}."""
+    res = defaultdict(set)
+    for g, rows in (status_log or {}).get("gws", {}).items():
+        g = int(g)
+        for pid, (st, ch) in rows.items():
+            pid = int(pid)
+            e = elements.get(pid)
+            if e and st == "d" and ch is not None and 25 < ch <= max_chance and g in pstats.get(pid, {}) \
+                    and _regular_non_start(pid, e["team"], g, pstats, team_fix):
+                res[pid].add(g)
+    return dict(res)
 
 
 def news_absences(boot, elements, pstats, team_fix, out):
@@ -211,6 +275,11 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         print("DC check: points awarded below the rule threshold", odd, "rules", thr)
     out = out_weeks(boot, status_log)
     out_log = out_weeks(boot, status_log, hindsight=False)   # flags genuinely saved at each deadline (no hindsight)
+    out_late = late_news_absences(boot, elements, pstats, team_fix, fixtures)
+    out_doubt = doubtful_absences(status_log, elements, pstats, team_fix)
+    for extra in (out_late, out_doubt):
+        for pid, g in extra.items():
+            out[pid] |= g
     news_out = news_absences(boot, elements, pstats, team_fix, out)
     for pid, g in news_out.items():
         out[pid] |= g
@@ -219,6 +288,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
+        "out_late": out_late, "out_doubt": out_doubt,
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
@@ -506,6 +576,8 @@ def project(ctx, as_of, horizon=6, params=None):
             outw = ctx.get("out", {}).get(pid, set()) if P["use_out"] else set()
             if not P["news_abs"] and pid in ctx.get("out_news", {}):
                 outw = outw - ctx["out_news"][pid]   # for checking the cleared-news rule against the old behaviour
+            if not P["late_abs"]:
+                outw = outw - ctx.get("out_late", {}).get(pid, set()) - ctx.get("out_doubt", {}).get(pid, set())
             recent = [g for g in hist_gws if g in gs and g in played and g not in outw][-P["min_window"]:]
             # back (or coming back) from injury or a ban: he missed his club's most recent game
             club_recent = [g for g in hist_gws if g in played]

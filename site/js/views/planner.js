@@ -124,7 +124,7 @@ function whyOut(o, g) {
   if (p.status !== "a") bits.push(p.news || "flagged");
   if (p.mflag) bits.push(p.mflag.toLowerCase());
   else if (p.nailed < 60) bits.push(`not nailed (${p.nailed})`);
-  if ((p.price_proj?.[0] ?? 0) <= -80) bits.push("may drop in price tonight");
+  if ((p.price_proj?.[0] ?? 0) <= -80 && fallCostsYou(o)) bits.push(priceMove(p.price_proj[0]));
   bits.push(`${f1(xpFrom(o, g, PG.length))} xP over ${PG.length} GWs`);
   return bits.join(" · ");
 }
@@ -135,7 +135,7 @@ function whyIn(i, g) {
   if (p.pos === "DEF" && p.dc_rate >= 0.3) bits.push(`${Math.round(p.dc_rate * 100)}% ${term("dc", "DC")} chance`);
   bits.push(`${term("nailed", "nailed")} ${p.nailed}`);
   const eo = fieldEO(); if (eo) { const e = eo[i] || 0; bits.push(e < 10 ? `differential (${e.toFixed(0)}% ${term("eo", "EO")})` : `${e.toFixed(0)}% ${term("eo", "EO")}`); }
-  if ((p.price_proj?.[0] ?? 0) >= 80) bits.push("may rise tonight");
+  if ((p.price_proj?.[0] ?? 0) >= 80) bits.push(priceMove(p.price_proj[0]));
   return bits.join(" · ");
 }
 function suggestionsHTML(g) {
