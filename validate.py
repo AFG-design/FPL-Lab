@@ -10,6 +10,8 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - NaN, infinite or negative xP
   - a probability outside 0-1 (p_start, psub, dc_rate, chance of 10+/6+/blank, chance of playing)
   - a real-starts record (st5) with more starts than games
+  - expected minutes (xmin) outside 0-180, or NaN
+  - the xMins minutes model switched on but any player with a next-GW fixture fell back to the old counts
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
@@ -62,12 +64,21 @@ def main(path):
         det = (extra.get(str(p["id"])) or {}).get("xp_detail", p.get("xp_detail"))
         if det and xp.get(gk) is not None and abs(sum(det.values()) - xp[gk]) > 0.05:
             errors.append(f"{name(p)}: xp_detail adds up to {sum(det.values()):.2f}, xP GW{g} is {xp[gk]:.2f}")
+        xm = p.get("xmin")
+        if xm is not None and (is_bad(xm) or not 0 <= xm <= 180):
+            errors.append(f"{name(p)}: xmin = {xm} (expected minutes must be 0-180)")
         st5 = p.get("st5")
         if st5 is not None and not (len(st5) == 2 and 0 <= st5[0] <= st5[1]):
             errors.append(f"{name(p)}: st5 = {st5} (starts must be between 0 and games)")
         mins = p.get("mins") or 0
         if mins >= 300 and str(p["id"]) not in us and p["id"] not in ov.values():
             warnings.append(f"{name(p)}: {mins} minutes but no Understat match (add to understat_overrides.json)")
+
+    # minutes model: if xMins is on, every player with a next-GW fixture must have been projected by it
+    mm = D["meta"].get("minutes_model")
+    if mm and mm.get("xmins_on") and mm.get("counts"):
+        errors.append(f"xMins minutes model is on but {mm['counts']} players with a GW{g} fixture fell back to the "
+                      f"old counts ({mm.get('xmins', 0)} used xMins)")
 
     # Understat: one-to-one both ways
     dup_us = [u for u, n in Counter(v["us_id"] for v in us.values()).items() if n > 1]

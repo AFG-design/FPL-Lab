@@ -57,6 +57,13 @@ DEFAULTS = {
     "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
     "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
+    "xmins": True,         # start chance / minutes from the external XGBoost model in xmins.py instead of the weighted
+                           # counts below; availability, Europe and the return ramp still apply on top. bench.py vs counts:
+                           # corr +0.005 / +0.016 / +0.014 (2026/27, 2025/26, 2024/25); start-chance Brier -20%.
+                           # Model files missing or xgboost not installed: project() raises (no silent fallback).
+    "xmins_combine": "B",  # B: bench chance unconditional, capped at 1 - start chance; A: conditional on not starting
+                           # (A had lower MAE but -0.1 to -0.2 points bias)
+    "xmins_skip_out": False,  # leave weeks he was out (ctx["out"]) out of the xMins history, as the counts do
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -528,6 +535,11 @@ def project(ctx, as_of, horizon=6, params=None):
             sub_pat[(t, et)] = ((a[1] + 10 * L[1] / L[0]) / (a[0] + 10), (a[2] + 10 * L[2] / L[0]) / (a[0] + 10))
         for et, L in lg.items():
             sub_pat[(None, et)] = (L[1] / L[0], L[2] / L[0]) if L[0] else (0.75, 75)
+    xm_pred = {}
+    if P["xmins"]:
+        import xmins
+        skip = ctx.get("out", {}) if P["xmins_skip_out"] else None
+        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip)
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -614,6 +626,11 @@ def project(ctx, as_of, horizon=6, params=None):
         else:
             p_start = p_sub = 0.0
             m_start, m_sub, p60_given_start = 75, 20, 0.75
+        if pid in xm_pred:
+            # p60_given_start stays from his own starts (the external model has no 60+ output)
+            xs_, xc_, xms_, xmc_ = xm_pred[pid]
+            p_start, m_start, m_sub = xs_, xms_, xmc_
+            p_sub = (1 - xs_) * xc_ if P["xmins_combine"] == "A" else min(xc_, 1 - xs_)
         # ---- DC hit probability
         thr = ctx["dc_thr"].get(pos, 99)
         hits = n60 = 0
@@ -630,7 +647,7 @@ def project(ctx, as_of, horizon=6, params=None):
         ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
         per_gw, detail, dist, assumed = {}, {}, {}, set()
-        xm_next = 0.0
+        xm_next = ps_next = p60_next = 0.0
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
             if P["use_flags"]:
@@ -651,6 +668,7 @@ def project(ctx, as_of, horizon=6, params=None):
                 pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
                 m = ps * m_start + pb * m_sub
                 if k == 0:
+                    ps_next += ps; p60_next += p60_given_start * ps
                     xm_next += m          # expected minutes next gameweek, after flags, rotation and return ramp
                 p60 = ps * p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
@@ -697,6 +715,8 @@ def project(ctx, as_of, horizon=6, params=None):
             "xmin": xm_next,
             "xmin_base": (p_start * m_start + p_sub * m_sub) * (availability(e, 0) if P["use_flags"] else 1.0),
             "has_prior": bool(pr),
+            "min_src": "xmins" if pid in xm_pred else "counts",   # counts: no fixture in the horizon for the xMins inputs
+            "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
         }
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}
 

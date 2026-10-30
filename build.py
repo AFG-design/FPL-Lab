@@ -7,7 +7,7 @@ with optimise, measures the model against past gameweeks and writes data.json.
 Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 """
 import json, os, sys, time, urllib.request, datetime as dt
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from fplmodel import prepare, project, POS, DEFAULTS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
@@ -1261,8 +1261,14 @@ for w in wl[:20]:
         if el in players:
             keep.add(el)
 
+# which minutes model fed next gameweek: validate.py fails the publish if xMins was on but players fell back to counts
+_fx_next = {t for f in fixtures if f["event"] == next_gw for t in (f["team_h"], f["team_a"])}
+_msrc = Counter(r["min_src"] for pid, r in (res["players"] if res else {}).items()
+                if elements[pid]["team"] in _fx_next)
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
+             "minutes_model": {"xmins_on": bool(DEFAULTS["xmins"]), "xmins": _msrc.get("xmins", 0),
+                               "counts": _msrc.get("counts", 0)},
              "understat": US.get("meta"),
              "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
                       "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,

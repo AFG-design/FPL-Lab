@@ -2,6 +2,7 @@
 """Backtest the projection model: for each finished gameweek k, project it from
 data before k only and compare with real points."""
 import json, math, sys
+from collections import defaultdict
 from fplmodel import prepare, project
 
 # Return bands, as in the OpenFPL paper (Groos 2025), so figures line up with published ones
@@ -170,6 +171,66 @@ def evaluate_horizons(ctx, gws, horizons=(1, 2, 3), params=None):
     return out
 
 
+# ---------------------------------------------------------------- minutes
+def minutes_eval(ctx, gws, params=None):
+    """Score the minutes part of the model directly, not through points.
+    Rows: players whose club has exactly one fixture in GW k (doubles would need per-fixture starts, which the
+    live data sums). Pools: 'pool' = played in the last 3 GWs (as evaluate()); 'all' = everyone with a fixture.
+    Metrics: MAE and bias of expected minutes vs real minutes; Brier score of start chance vs started, and of
+    60+ chance vs played 60+; and the same Brier for a no-skill reference (the pool's overall rate).
+    Segments: position, back from injury/ban ('returning'), minutes-history length, flagged at deadline."""
+    from fplmodel import POS
+    nfx = defaultdict(int)
+    for f in ctx["fixtures"]:
+        if f["event"]:
+            nfx[(f["team_h"], f["event"])] += 1; nfx[(f["team_a"], f["event"])] += 1
+    seg = defaultdict(list)
+    for k in gws:
+        res = project(ctx, k, horizon=1, params=dict(params or {}, use_flags=False))["players"]
+        for pid, r in res.items():
+            e = ctx["elements"][pid]
+            if nfx.get((e["team"], k)) != 1:
+                continue
+            s = ctx["pstats"].get(pid, {}).get(k)
+            if s is None:
+                continue
+            row = (r["xmin"], s["minutes"], min(1.0, r["ps_next"]), 1.0 if s["starts"] > 0 else 0.0,
+                   min(1.0, r["p60_next"]), 1.0 if s["minutes"] >= 60 else 0.0)
+            pool = _in_pool(ctx, pid, k)
+            for p_ in (("all",) + (("pool",) if pool else ())):
+                seg[(p_, "All", "all")].append(row)
+                if p_ == "pool":
+                    seg[(p_, "Position", POS[e["element_type"]])].append(row)
+                    seg[(p_, "Back from absence", "returning" if r.get("returning") else "not returning")].append(row)
+                    nh = r.get("n_hist", 0)
+                    seg[(p_, "Usable history", "0 GWs" if nh == 0 else "1-2 GWs" if nh <= 2 else "3+ GWs")].append(row)
+                    seg[(p_, "Gameweek", f"GW{k}")].append(row)
+            if not pool and _mins(ctx, pid, k) > 0:   # played this week without playing in the last 3: the hard cases
+                seg[("all", "Not in pool, played", "all")].append(row)
+    out = {}
+    for (p_, group, name), rows in seg.items():
+        n = len(rows)
+        rs = sum(r[3] for r in rows) / n; r6 = sum(r[5] for r in rows) / n
+        out.setdefault(p_, {}).setdefault(group, {})[name] = {
+            "n": n, "mae": sum(abs(r[0] - r[1]) for r in rows) / n,
+            "rmse": math.sqrt(sum((r[0] - r[1]) ** 2 for r in rows) / n), "bias": sum(r[0] - r[1] for r in rows) / n,
+            "brier_start": sum((r[2] - r[3]) ** 2 for r in rows) / n,
+            "brier_60": sum((r[4] - r[5]) ** 2 for r in rows) / n,
+            "ref_start": rs * (1 - rs), "ref_60": r6 * (1 - r6)}
+    return out
+
+
+def print_minutes(mn, title):
+    print(title)
+    print(f"  {'Pool':5} {'Segment':20} {'':16} {'n':>5} {'xMin MAE':>9} {'RMSE':>6} {'bias':>6} {'Brier st':>9} {'Brier 60':>9}")
+    for p_ in ("pool", "all"):
+        for group, names in mn.get(p_, {}).items():
+            for name in sorted(names):
+                s = names[name]
+                print(f"  {p_:5} {group:20} {name:16} {s['n']:5d} {s['mae']:9.2f} {s['rmse']:6.2f} {s['bias']:+6.1f} "
+                      f"{s['brier_start']:9.4f} {s['brier_60']:9.4f}")
+
+
 # ---------------------------------------------------------------- segment breakdown
 PRICE_BANDS = [("<£5.0m", 0, 50), ("£5.0–6.9m", 50, 70), ("£7.0–9.9m", 70, 100), ("£10m+", 100, 10 ** 6)]
 COMPARE_MAE, COMPARE_BIAS, COMPARE_N = 0.05, 0.2, 30   # --compare flags a segment past these with n >= 30
@@ -291,6 +352,19 @@ def compare(base_path, new_path):
         for name in names:
             if name not in B["segments"].get(group, {}):
                 print(f"  {group} / {name}: in base only")
+    ma, mb = A.get("minutes"), B.get("minutes")
+    if ma and mb:
+        print(f"Minutes (one-fixture weeks; Brier: lower is better)")
+        print(f"  {'Pool':5} {'Segment':20} {'':16} {'n':>5} {'xMin MAE':>17} {'Brier start':>19} {'Brier 60+':>19}")
+        for p_ in ("pool", "all"):
+            for group, names in mb.get(p_, {}).items():
+                for name in sorted(names):
+                    b, a = names[name], ma.get(p_, {}).get(group, {}).get(name)
+                    if not a:
+                        continue
+                    print(f"  {p_:5} {group:20} {name:16} {b['n']:5d} {a['mae']:7.2f}->{b['mae']:6.2f} {b['mae']-a['mae']:+5.2f}"
+                          f" rmse {a.get('rmse', float('nan')):5.2f}->{b.get('rmse', float('nan')):5.2f}"
+                          f" {a['brier_start']:.4f}->{b['brier_start']:.4f} {a['brier_60']:.4f}->{b['brier_60']:.4f}")
     if flagged:
         print(f"{len(flagged)} segment(s) past the limits (MAE +{COMPARE_MAE}, bias ±{COMPARE_BIAS}, n >= {COMPARE_N}): "
               + "; ".join(flagged))
@@ -307,6 +381,8 @@ if __name__ == "__main__":
                     help="pass the deadline status log to the model, as the live build does (default path "
                          "history/status.json). Without it the model sees no injury flags (the original behaviour)")
     ap.add_argument("--json", metavar="OUT", help="write the headline and segment numbers to OUT for --compare")
+    ap.add_argument("--params", default="{}", help="JSON of model params to override (e.g. '{\"xmins\": true}')")
+    ap.add_argument("--quick", action="store_true", help="skip the no-priors run and the baseline")
     ap.add_argument("--compare", nargs=2, metavar=("BASE", "NEW"), help="compare two --json files and stop")
     args = ap.parse_args()
     if args.compare:
@@ -328,11 +404,18 @@ if __name__ == "__main__":
     ctx = prepare(boot, fixtures, live, priors, market, status_log=status_log)
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
-    head = evaluate(ctx, gws, verbose=True)
-    ctx0 = prepare(boot, fixtures, live, None, status_log=status_log)
-    print("Without priors"); evaluate(ctx0, gws, verbose=True)
-    print("Baseline (average of last 4 GWs points)", baseline(ctx, gws))
-    seg = segments(ctx, gws, flag_log=flag_log)
+    params = json.loads(args.params)
+    if params:
+        print("Params:", params)
+    head = evaluate(ctx, gws, params=params, verbose=True)
+    if not args.quick:
+        ctx0 = prepare(boot, fixtures, live, None, status_log=status_log)
+        print("Without priors"); evaluate(ctx0, gws, params=params, verbose=True)
+        print("Baseline (average of last 4 GWs points)", baseline(ctx, gws))
+    seg = segments(ctx, gws, params=params, flag_log=flag_log)
+    mins = minutes_eval(ctx, gws, params=params)
+    print()
+    print_minutes(mins, "Minutes accuracy (one-fixture weeks)")
     print()
     print_segments(seg, f"Segment breakdown, with last-season priors, GW{min(gws)}-{max(gws)} "
                         f"(model status log: {args.status_log or 'none'}; bias = projected - actual)")
@@ -344,5 +427,5 @@ if __name__ == "__main__":
         with open(args.json, "w") as f:
             json.dump({"gws": list(gws), "status_log": args.status_log, "flag_log": flag_path if flag_log else None,
                        "headline": {k: head[k] for k in ("n", "mae", "rmse", "corr", "bias")},
-                       "segments": seg}, f, indent=1)
+                       "params": params, "segments": seg, "minutes": mins}, f, indent=1)
         print(f"Wrote {args.json}")
