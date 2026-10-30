@@ -37,7 +37,10 @@ segment must be called out in the PR, with the numbers. Put the before/after tab
   projected vs actual).
 
 ## Testing
-- Check the page at ~390px and ~1280px wide (`npm run dev`; `scripts/screenshots.py` for the README shots).
+- Check the page at ~390px and ~1280px wide. `npm run layout` (scripts/layout_check.py) opens every screen at
+  both widths and fails on JS errors, error cards, sideways page scroll or missing site files; the Check site
+  workflow runs it on every PR and keeps the screenshots as an artifact. `scripts/screenshots.py` is for the
+  README shots.
 
 ## GitHub
 - `gh pr create` fails in these sessions (GraphQL blocked). Open PRs with the REST API:
