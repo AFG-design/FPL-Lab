@@ -1,0 +1,30 @@
+{
+ "features": [
+  "round",
+  "was_home",
+  "history_gws",
+  "gap_prev_gw",
+  "days_since_last_pl_fixture",
+  "position_GK",
+  "position_DEF",
+  "position_MID",
+  "position_FWD",
+  "last_minutes",
+  "last_starts",
+  "last_played",
+  "minutes_avg_3",
+  "starts_avg_3",
+  "played_avg_3",
+  "minutes_avg_5",
+  "starts_avg_5",
+  "played_avg_5",
+  "minutes_avg_10",
+  "starts_avg_10",
+  "played_avg_10"
+ ],
+ "train_seasons": [
+  "2022-23",
+  "2023-24"
+ ],
+ "source": "original_xmins_model.joblib (user-supplied), boosters exported with xgboost 3.4.1"
+}
