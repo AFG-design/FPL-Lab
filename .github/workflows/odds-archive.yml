@@ -1,0 +1,39 @@
+name: Backfill archive odds
+
+# Manual only. Rebuilds odds/archive/<season>.json from football-data.co.uk for bench.py's past seasons.
+# odds_archive.py exits 1 without writing a season if any club name is unmapped, any row has no fixture, a
+# fixture matches twice or under 97% of fixtures get odds, so a broken join never reaches the bench.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: "Seasons, space-separated (vaastav archive names)"
+        required: false
+        default: "2024-25 2025-26"
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build the odds files
+        env:
+          SEASONS: ${{ github.event.inputs.seasons }}
+        run: python3 odds_archive.py $SEASONS
+      - name: Commit if changed
+        run: |
+          git config user.name "fpl-lab-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add odds/archive/
+          git diff --cached --quiet || git commit -m "Backfill archive odds ($SEASONS)"
+          git push
+        env:
+          SEASONS: ${{ github.event.inputs.seasons }}
