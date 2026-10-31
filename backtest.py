@@ -515,6 +515,9 @@ if __name__ == "__main__":
     flag_path = args.status_log or "history/status.json"
     flag_log = status_log if status_log is not None else (json.load(open(flag_path)) if os.path.exists(flag_path) else None)
     ctx = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    if os.path.exists("history/sell_hist.json"):   # selling counts for xmins_sell (selling.py); absent: it raises
+        import selling
+        ctx["sell"] = selling.from_rounds(json.load(open("history/sell_hist.json"))["rounds"])
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
     params = json.loads(args.params)
