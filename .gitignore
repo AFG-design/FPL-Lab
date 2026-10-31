@@ -6,3 +6,7 @@ node_modules/
 site/shots.json
 site/data-extra.json
 layout-shots/
+
+# FPL Review exports are paid, personal data: never commit them
+fplreview*.csv
+/fplr/

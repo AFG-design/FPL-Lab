@@ -4,6 +4,8 @@
 const COLS = [["team", "Team", 0, 1], ["pos", "Pos", 0, 1], ["price", "£m", 1, 1], ["form", "Form", 1, 1], ["pts", "Pts", 1, 1],
   ["xg", "xG", 1, 1], ["xa", "xA", 1, 1], ["xgi90_4", "xGI/90 L4", 1, 1], ["own", "Own %", 1, 1], ["t10k", "Top 10k", 1, 0],
   ["nailed", "Nailed", 1, 1], ["xmin", "xMins", 1, 0], ["xp1", "xP next", 1, 1], ["xp5", "xP 5", 1, 1], ["val", "xP5/£m", 1, 0], ["pc", "Price change", 1, 1]];
+// FPL Review columns exist only on a device that has imported an export (data/fplr.js)
+const playerCols = () => frOn() ? COLS.concat(FR_COLS) : COLS;
 const colsOn = () => { const v = store.get("fpl.cols"); return Array.isArray(v) ? v : COLS.filter(c => c[3]).map(c => c[0]); };
 function nailedPill(p) {
   const n = p.nailed ?? 0, c = n >= 85 ? "good" : n >= 60 ? "warn" : "bad";
@@ -27,15 +29,20 @@ function vPlayers() {
   else if (S.own === "mid") rows = rows.filter(p => p.own >= 5 && p.own < 20);
   else if (S.own === "template") rows = rows.filter(p => p.own >= 20);
   if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(p => (p.name + " " + p.full).toLowerCase().includes(q)); }
-  const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short
+  const g5 = GWS.slice(0, 5), lab5 = p => g5.reduce((a, g) => a + xpg(p.id, g), 0);
+  const fr = { fr1: p => frXp(p.id, D.meta.next_gw), fr5: p => frFrom(p.id, g5), frd: p => { const t = frFrom(p.id, g5); return t == null ? null : lab5(p) - t; } };
+  // players missing from the FPL Review file sort last either way, never as if they were 0
+  const val = p => fr[S.sort] ? (fr[S.sort](p) ?? (S.dir < 0 ? -1e9 : 1e9)) : S.sort === "t10k" ? t10(p) : S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short
     : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : ["name", "pos"].includes(S.sort) ? p[S.sort] : +p[S.sort] || 0;
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
-  const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = COLS.filter(c => on.has(c[0]));
+  const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = playerCols().filter(c => on.has(c[0]));
   const cell = {
     team: p => T[p.team].short, pos: p => p.pos, price: p => p.price.toFixed(1), form: p => f1(p.form), pts: p => p.pts,
     xg: p => (p.xg ?? 0).toFixed(1), xa: p => (p.xa ?? 0).toFixed(1), xgi90_4: p => p.xgi90_4.toFixed(2), own: p => p.own.toFixed(1),
     t10k: p => D.crowd ? t10(p).toFixed(0) + "%" : "–", nailed: p => nailedPill(p), xmin: p => p.xmin, xp1: p => xpCell(p.id, D.meta.next_gw),
     xp5: p => `<b>${f1(p.xp5)}</b>`, val: p => (p.xp5 / p.price).toFixed(2), pc: p => priceCell(p),
+    fr1: p => frCell(fr.fr1(p), p.id), fr5: p => frCell(fr.fr5(p), p.id),
+    frd: p => { const d = fr.frd(p); return d == null ? frCell(null, p.id) : `<span class="${d >= 1 ? "up" : d <= -1 ? "down" : ""}">${frCell(d, p.id, true)}</span>`; },
   };
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${String(S.team) === String(t.id) ? "selected" : ""}>${t.name}</option>`).join("");
   const prices = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12, 15];
@@ -60,13 +67,14 @@ function vPlayers() {
       <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
       ${active ? `<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button>` : ""}
       <details class="colpick"><summary>Columns</summary><div class="colpick-body" role="group" aria-label="Columns to show">
-        ${COLS.map(([k, l]) => `<label><input type="checkbox" data-col="${k}" ${on.has(k) ? "checked" : ""}> ${l}</label>`).join("")}
+        ${playerCols().map(([k, l]) => `<label><input type="checkbox" data-col="${k}" ${on.has(k) ? "checked" : ""}> ${l}</label>`).join("")}
         <button class="btn ghost sm" data-colreset="1">Reset columns</button></div></details>
+      ${fplrButton()}
     </div>
     ${compareHTML()}
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
       : stateView({ title: "No players match", body: "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-fclear="1">Clear filters</button>` })}
-    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}.</p></div>`;
+    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). ${frOn() ? `FPLR = your FPL Review export (this device only); LAB − FPLR = FPL LAB's ${g5.length}-GW total minus FPL Review's, so green means FPL LAB rates him higher. ` : ""}Price change = progress towards a change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}.</p></div>`;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";

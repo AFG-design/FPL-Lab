@@ -119,6 +119,7 @@ function openPlayer(id) {
     <section class="ph-sec"><h3>Points this season</h3>${pointsHistory(p)}
       <p class="note">Points per gameweek. Yellow bars are 10 or more.</p></section>
 
+    ${fplrSection(p)}
     <section class="ph-sec"><h3>Upcoming fixtures</h3>${upcomingFixtures(p, id)}
       <p class="note">The chip shows FPL's fixture difficulty, 1 easiest to 5 hardest. The number on the right is projected points.</p></section>
 
