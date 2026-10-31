@@ -22,6 +22,10 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
   - the late-selling minutes model (xMins B) off for a fault (cache missing / stale / unreadable, failed self-test,
     low coverage): next gameweek uses xMins A. Normal waits (window still open, gameweek in progress) don't warn
   - late selling "on" with 80-95% of likely starters covered
+  - player odds (history/player_odds_gw*.json) for the latest finished-deadline gameweek missing a checkpoint
+    (72, 24 or 3 h before the deadline), when that gameweek's file uses per-checkpoint snapshots. The model doesn't
+    use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
+    snapshots, e.g. with no ODDS_API_KEY.
 """
 import json, math, os, sys
 from collections import Counter
@@ -129,6 +133,19 @@ def main(path):
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 
+    # player odds history: the last gameweek whose deadline has passed should have all three checkpoints
+    po = sorted(((int(f[len("player_odds_gw"):-5]), f) for f in os.listdir(os.path.join(HERE, "history"))
+                 if f.startswith("player_odds_gw") and f.endswith(".json")), reverse=True)
+    for pg, f in po:
+        if pg >= g:   # the coming gameweek is still being collected
+            continue
+        snaps = (load(os.path.join(HERE, "history", f)) or {}).get("snapshots")
+        if snaps is not None:
+            missing = [h for h in ("72", "24", "3") if h not in snaps]
+            if missing:
+                warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "
+                                f"(check the ODDS_API_KEY secret and credits)")
+        break
     D["health"] = {"checked": D["meta"].get("built"), "ok": not errors, "errors": errors[:50], "warnings": warnings}
     with open(path, "w") as f:
         json.dump(D, f, separators=(",", ":"))
