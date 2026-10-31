@@ -72,7 +72,7 @@ function whyXP(p, g) {
     const def = v("cs") + v("gc") + v("saves");
     out.push(["Defence", `${T[p.team].short} are expected to concede <b>${xga.toFixed(1)}</b>, about a <b>${Math.round(cs * 100)}%</b> clean-sheet chance${fx.length > 1 ? " per game" : ""}.${p.pos === "GKP" && v("saves") ? ` Saves add ${v("saves").toFixed(2)}.` : ""}`, def]);
   }
-  if (p.pos !== "GKP" && v("dc") >= 0.05) out.push(["Defensive contribution", `About a <b>${Math.round(p.dc_rate * 100)}%</b> chance per game of the defensive contribution target (2 points).`, v("dc")]);
+  if (p.pos !== "GKP" && v("dc") >= 0.05) out.push(["Defensive contribution", `About a <b>${Math.round(p.dc_rate * 100)}%</b> chance of the defensive contribution target (2 points) in a game where he plays 60+ minutes.`, v("dc")]);
   if (v("bonus") >= 0.05) out.push(["Bonus", `From his BPS record${p.bf4 ? ` (${p.bf4.bps90.toFixed(0)} BPS per 90 lately)` : ""} and the returns above.`, v("bonus")]);
   if (v("cards") <= -0.05) out.push(["Cards", "Allowance for yellow and red cards.", v("cards")]);
   const rest = (p.xp1 || 0) - out.reduce((a, r) => a + r[2], 0);

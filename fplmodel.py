@@ -25,13 +25,25 @@ DEFAULTS = {
     "w_last": 600.0,       # pseudo-minutes of last-season rate
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
-    "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
-    "bonus_scale": 0.8,
+    "dc_blend": 8.0,       # pseudo-games of the count model in the DC hit-rate blend with his own hit rate (was 4;
+                           # with the negative binomial below, 8 fits 2025/26 60+ games better and holds on 2026/27)
+    "dc_disp": {"DEF": 5.0, "MID": 5.0, "FWD": 5.0},  # negative-binomial size r of a 60+ game's DC count (variance
+                           # = mu + mu^2/r). Poisson (r = inf) put the DC chance far too low for players below the
+                           # threshold: 2025/26 60+ games, mean count 7.45 DEF / 7.95 MID vs model mean 7.41 / 7.60, but
+                           # DC chance 0.255 / 0.146 vs real 0.273 / 0.186. Fitted per position on 2025/26 (log-loss of
+                           # the blended DC chance; best or tied best r = 5 for DEF, MID and FWD), checked on 2026/27
+                           # GW3-8. Position missing from the dict: Poisson.
+    "bonus_scale": 0.95,   # was 0.8 (a level fix the final calibration had been absorbing): raw bonus real/projected
+                           # 1.00 on 2025/26 (fit), 1.02 on 2024/25, 0.97 on 2026/27
     "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections)
+    "assist_pos": {"FWD": 1.8},  # extra assist multiplier by position (missing position: 1.0). Forwards' FPL assists
+                           # ran 1.85x the projection on 2025/26 (fit), 1.69x on 2024/25 and 2.44x on 2026/27 GW3-8;
+                           # DEF / MID were within 0.88-1.07 with no consistent sign, so they stay at 1.0
     "goal_mult": 0.88,
     "cs_k": 0.9,           # P(clean sheet) = exp(-cs_k * mu); real CS rates beat a plain Poisson
-    "cal_slope": 0.86,     # final calibration: xP = slope * raw + intercept * P(appears)
-    "cal_int": 0.33,
+    "cal_slope": 0.96,     # final calibration: xP = slope * raw + intercept * P(appears)
+    "cal_int": 0.0,        # refit 31 Oct 2026 (least squares, pool one-fixture weeks) on the bench window, GW3-7
+                           # of 2026/27 + GW4-38 of 2025/26, after the DC, assist and bonus level fixes (was 0.86 / 0.33)
     "sim_sigma": 0.5,      # uncertainty in each player's true scoring rate (log scale) in the simulation
     "sim_match": True,     # shift simulated scores so their average equals the projection
     "sim": 0,              # simulated outcomes per fixture for points distributions (0 = off; build.py uses 4000).
@@ -81,6 +93,22 @@ def p_at_least(mu, k):
     if mu <= 0:
         return 0.0
     return max(0.0, 1 - sum(poisson(i, mu) for i in range(k)))
+
+
+def p_at_least_nb(mu, k, r=None):
+    """P(X >= k) for a negative-binomial count with mean mu and size r (variance mu + mu^2 / r).
+    r None or <= 0: Poisson (p_at_least)."""
+    if mu <= 0:
+        return 0.0
+    if not r or r <= 0:
+        return p_at_least(mu, k)
+    p = r / (r + mu)
+    term = p ** r      # P(X = 0)
+    cdf = 0.0
+    for i in range(k):
+        cdf += term
+        term *= (i + r) / (i + 1) * (1 - p)
+    return min(1.0, max(0.0, 1 - cdf))
 
 
 US_TO_FPL = {"BRI": "BHA", "FLH": "FUL", "LED": "LEE", "NOT": "NFO"}
@@ -572,8 +600,12 @@ def project(ctx, as_of, horizon=6, params=None):
         key_last = {"xg": "xg90", "xa": "xa90", "bonus": "bonus90", "saves": "saves90", "yc": "yc90", "dc": "dc90"}
 
         def rate(k):
-            last = pr[key_last[k]] if pr else 0.0
-            return (num[k] + last * w_last / 90 + pp[k] * P["w_pos"] / 90) / (den + w_last + P["w_pos"]) * 90
+            # A prior with no figure for this stat (None: e.g. DC in seasons before 2025/26, when FPL didn't count
+            # it) gets no weight, so the rate comes from this season and the position average instead of being
+            # pulled to zero. Priors files from make_priors.py always carry a number.
+            last = pr.get(key_last[k]) if pr else None
+            wl = w_last if last is not None else 0.0
+            return (num[k] + (last or 0.0) * wl / 90 + pp[k] * P["w_pos"] / 90) / (den + wl + P["w_pos"]) * 90
 
         xg90, xa90, bo90, sv90, yc90, dc90 = (rate(k) for k in ("xg", "xa", "bonus", "saves", "yc", "dc"))
         sp90 = min(xg90, num["sp"] / (den + P["w_pos"]) * 90) if (sp and P["sp_match"]) else 0.0
@@ -639,9 +671,13 @@ def project(ctx, as_of, horizon=6, params=None):
             if s and s["minutes"] >= 60:
                 n60 += 1
                 hits += ctx["dc_hit"][pid].get(g, False)
-        p_dc_model = p_at_least(dc90 * min(90, m_start) / 90, thr) if pos != "GKP" else 0.0
+        # count model: negative binomial around his DC rate (dc_disp); DC counts vary more game to game than a
+        # Poisson allows. No DC history (new player, or a season without DC like 2024/25): dc90 comes from the
+        # position average (and last season when it recorded DC), and hits / n60 are 0, so p_dc is the model's alone.
+        p_dc_model = p_at_least_nb(dc90 * min(90, m_start) / 90, thr, P["dc_disp"].get(pos)) if pos != "GKP" else 0.0
         p_dc = (hits + p_dc_model * P["dc_blend"]) / (n60 + P["dc_blend"]) if pos != "GKP" else 0.0
 
+        amult = P["assist_mult"] * P["assist_pos"].get(pos, 1.0)
         tid = e["team"]
         ch_now = e.get("chance_of_playing_next_round")
         ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
@@ -676,7 +712,7 @@ def project(ctx, as_of, horizon=6, params=None):
                     eg = P["goal_mult"] * ((xg90 - sp90) * atk + sp90 * sp_fac.get(opp, 1.0) ** P["sp_match"]) * m / 90
                 else:
                     eg = P["goal_mult"] * xg90 * atk * m / 90
-                ea = P["assist_mult"] * xa90 * atk * m / 90
+                ea = amult * xa90 * atk * m / 90
                 comp["mins"] += (ps + pb) * scoring["short_play"] + p60 * (scoring["long_play"] - scoring["short_play"])
                 comp["goals"] += eg * scoring["goals_scored"][pos]
                 comp["assists"] += ea * scoring["assists"]
@@ -695,7 +731,7 @@ def project(ctx, as_of, horizon=6, params=None):
                     bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
                                             p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
-                                            P["assist_mult"] * xa90 * atk, mu_f, mu_a,
+                                            amult * xa90 * atk, mu_f, mu_a,
                                             sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0, p_dc, bexp, yc90)
                     sim_pts = sp_ if sim_pts is None else sim_pts + sp_
                     sim_app = sa_.astype(float) if sim_app is None else sim_app + sa_
