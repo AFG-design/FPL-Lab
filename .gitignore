@@ -2,7 +2,7 @@ site/data.json
 __pycache__/
 raw
 node_modules/
-archive/
+/archive/
 site/shots.json
 site/data-extra.json
 layout-shots/

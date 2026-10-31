@@ -7,8 +7,9 @@ FPL API, so fplmodel.prepare() and project() run on it unchanged:
     with a synthetic `explain` carrying defensive-contribution points;
   - priors are built from the two seasons before, the same way make_priors.py does;
   - team_at(pid, gw) gives the player's club at that point (January moves are handled).
-Caveats: no betting odds (football-data.co.uk is not used here), injury flags are not
-historical, and penalty order is the end-of-season order for every gameweek.
+Betting odds come separately from load_odds(season), which reads odds/archive/<season>.json (built by
+odds_archive.py from football-data.co.uk). Caveats: injury flags are not historical, and penalty order is
+the end-of-season order for every gameweek.
 Files are cached in archive/<season>/ (not committed).
 """
 import csv, json, os, urllib.request
@@ -151,3 +152,16 @@ def load_season(season, scoring_from):
         return c[max(before)] if before else c[min(c)]
 
     return boot, fixtures, live, priors, team_at
+
+
+def load_odds(season):
+    """Market odds for a past season in odds/odds.json's shape, or None if odds_archive.py hasn't been run for it.
+
+    The caller decides what None means; bench.py prints that the season is running without odds rather than
+    falling back silently.
+    """
+    path = os.path.join(HERE, "odds", "archive", f"{season}.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)

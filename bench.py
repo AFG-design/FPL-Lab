@@ -4,10 +4,12 @@ accuracy and on the decisions the app makes (who to pick, who to captain).
 
   python3 bench.py                     # current model (DEFAULTS)
   python3 bench.py '{"recency":0.8}'   # compare a parameter set against the current model
+  python3 bench.py --no-archive-odds   # past seasons without odds (the setup before odds_archive.py)
 
-Each gameweek k is projected from data before k only. Last season comes from archive.py
-(no betting odds and no historical injury flags there, so both sides of any comparison run
-without them). The archive's FPL "xP" column is not a usable benchmark (mostly zeros, and
+Each gameweek k is projected from data before k only. Past seasons come from archive.py, with betting
+odds from odds/archive/<season>.json (odds_archive.py) when present, as the live model has. A season with
+no odds file runs odds-free and says so; `--no-archive-odds` forces that, to reproduce older log figures.
+There are no historical injury flags in the archive, so both sides of any comparison run without them. The archive's FPL "xP" column is not a usable benchmark (mostly zeros, and
 filled in after the fact), so FPL's own projection is compared only in the live log (history/).
 
 Injury flags in this season's backtest come only from history/status.json (saved before each deadline);
@@ -23,6 +25,7 @@ import archive
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOPN = {"GKP": 5, "DEF": 15, "MID": 15, "FWD": 10}
+ARCHIVE_ODDS = True   # set False by --no-archive-odds
 
 
 def _corr(xs, ys):
@@ -144,7 +147,13 @@ def _season(season):
     if season not in _SEASON:
         boot_now = json.load(open(os.path.join(HERE, "raw", "bootstrap.json")))
         boot, fixtures, live, priors, team_at = archive.load_season(season, boot_now)
-        ctx = prepare(boot, fixtures, live, priors, None)
+        market = archive.load_odds(season) if ARCHIVE_ODDS else None
+        if market is None:
+            why = "--no-archive-odds" if not ARCHIVE_ODDS else f"no odds/archive/{season}.json (run odds_archive.py)"
+            print(f"[{season}] running WITHOUT betting odds: {why}")
+        else:
+            print(f"[{season}] with betting odds for {len(market['matches'])} of {market['fixtures']} fixtures")
+        ctx = prepare(boot, fixtures, live, priors, market)
         # credit each gameweek's xG to the club the player was at then
         tgx = defaultdict(lambda: defaultdict(float))
         for pid, gs in ctx["pstats"].items():
@@ -218,7 +227,11 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
 
 
 if __name__ == "__main__":
+    args = sys.argv[1:]
+    if "--no-archive-odds" in args:
+        ARCHIVE_ODDS = False
+        args.remove("--no-archive-odds")
     variants = {"current model": {}}
-    if len(sys.argv) > 1:
-        variants["candidate"] = json.loads(sys.argv[1])
+    if args:
+        variants["candidate"] = json.loads(args[0])
     compare(variants)

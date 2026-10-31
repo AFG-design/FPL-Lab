@@ -117,36 +117,52 @@ def rows_from(text, played):
     return out
 
 
-boot = fpl("/bootstrap-static/")
-fixtures = fpl("/fixtures/")
-season_start = int(min(e["deadline_time"] for e in boot["events"])[:4])
-code = f"{season_start % 100:02d}{(season_start + 1) % 100:02d}"
-past = fetch(f"{BASE}/mmz4281/{code}/E0.csv")
-upcoming = fetch(f"{BASE}/fixtures.csv")
-if not past and not upcoming:
-    print("football-data.co.uk unavailable; keeping previous odds"); sys.exit(0)
-rows = (rows_from(past, True) if past else []) + (rows_from(upcoming, False) if upcoming else [])
+def match_fixtures(rows, short_to_id, fixtures, names=NAMES):
+    """Join football-data rows to FPL fixtures (same home/away clubs, kick-off within 3 days) and fit lambdas.
 
-short_to_id = {t["short_name"]: t["id"] for t in boot["teams"]}
-fx_by = {}
-for f in fixtures:
-    if f["kickoff_time"]:
-        fx_by.setdefault((f["team_h"], f["team_a"]), []).append(f)
-out, unmatched = [], set()
-for r in rows:
-    h, a = short_to_id.get(NAMES.get(r["home"], "")), short_to_id.get(NAMES.get(r["away"], ""))
-    if not h or not a:
-        unmatched.update(x for x, t in ((r["home"], h), (r["away"], a)) if not t)
-        continue
-    cands = fx_by.get((h, a), [])
-    rd = dt.date.fromisoformat(r["date"])
-    f = min(cands, key=lambda f: abs((dt.date.fromisoformat(f["kickoff_time"][:10]) - rd).days), default=None)
-    if not f or abs((dt.date.fromisoformat(f["kickoff_time"][:10]) - rd).days) > 3:
-        continue
-    lh, la = fit_lambdas(r["p_h"], r["p_a"], r["p_over"])
-    out.append({"fixture": f["id"], "gw": f["event"], "date": r["date"], "h": h, "a": a, "lam_h": lh, "lam_a": la,
-                "p_h": r["p_h"], "p_d": r["p_d"], "p_a": r["p_a"], "p_over": r["p_over"], "played": r["played"]})
-os.makedirs(os.path.dirname(OUT), exist_ok=True)
-json.dump({"built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "season": code, "matches": out,
-           "unmatched_names": sorted(unmatched)}, open(OUT, "w"), separators=(",", ":"))
-print(f"odds for {len(out)} matches ({sum(1 for m in out if not m['played'])} upcoming); unmatched names: {sorted(unmatched)}")
+    Returns (matches, unmatched team names, rows with no fixture). Rows whose club names aren't in `names`
+    or whose fixture can't be found are left out and reported, never guessed.
+    """
+    fx_by = {}
+    for f in fixtures:
+        if f["kickoff_time"]:
+            fx_by.setdefault((f["team_h"], f["team_a"]), []).append(f)
+    out, unmatched, no_fixture = [], set(), []
+    for r in rows:
+        h, a = short_to_id.get(names.get(r["home"], "")), short_to_id.get(names.get(r["away"], ""))
+        if not h or not a:
+            unmatched.update(x for x, t in ((r["home"], h), (r["away"], a)) if not t)
+            continue
+        cands = fx_by.get((h, a), [])
+        rd = dt.date.fromisoformat(r["date"])
+        f = min(cands, key=lambda f: abs((dt.date.fromisoformat(f["kickoff_time"][:10]) - rd).days), default=None)
+        if not f or abs((dt.date.fromisoformat(f["kickoff_time"][:10]) - rd).days) > 3:
+            no_fixture.append(f'{r["date"]} {r["home"]} v {r["away"]}')
+            continue
+        lh, la = fit_lambdas(r["p_h"], r["p_a"], r["p_over"])
+        out.append({"fixture": f["id"], "gw": f["event"], "date": r["date"], "h": h, "a": a, "lam_h": lh, "lam_a": la,
+                    "p_h": r["p_h"], "p_d": r["p_d"], "p_a": r["p_a"], "p_over": r["p_over"], "played": r["played"]})
+    return out, unmatched, no_fixture
+
+
+def main():
+    boot = fpl("/bootstrap-static/")
+    fixtures = fpl("/fixtures/")
+    season_start = int(min(e["deadline_time"] for e in boot["events"])[:4])
+    code = f"{season_start % 100:02d}{(season_start + 1) % 100:02d}"
+    past = fetch(f"{BASE}/mmz4281/{code}/E0.csv")
+    upcoming = fetch(f"{BASE}/fixtures.csv")
+    if not past and not upcoming:
+        print("football-data.co.uk unavailable; keeping previous odds"); sys.exit(0)
+    rows = (rows_from(past, True) if past else []) + (rows_from(upcoming, False) if upcoming else [])
+
+    short_to_id = {t["short_name"]: t["id"] for t in boot["teams"]}
+    out, unmatched, _ = match_fixtures(rows, short_to_id, fixtures)
+    os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    json.dump({"built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "season": code, "matches": out,
+               "unmatched_names": sorted(unmatched)}, open(OUT, "w"), separators=(",", ":"))
+    print(f"odds for {len(out)} matches ({sum(1 for m in out if not m['played'])} upcoming); unmatched names: {sorted(unmatched)}")
+
+
+if __name__ == "__main__":
+    main()
