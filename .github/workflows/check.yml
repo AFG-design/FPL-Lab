@@ -1,0 +1,57 @@
+name: Check site
+
+# Runs on every pull request (and on demand): lint and the whole-app check, a fresh data build validated by
+# validate.py, then every screen opened at 390px and 1280px (scripts/layout_check.py). Screenshots are kept as a
+# downloadable artifact for 14 days, pass or fail, so a change can be looked at without running anything.
+# Builds data.json from the live FPL API rather than downloading the published one, so a PR that changes
+# build.py is checked against its own output. If the FPL API is down the build step fails and says so.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Lint and whole-app check
+        run: |
+          npm ci
+          npm test
+      - name: Install Python packages and the browser
+        run: |
+          pip install -r requirements.txt playwright
+          python3 -m playwright install --with-deps chromium
+      - name: Build data.json from the live FPL API
+        env:
+          FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
+        run: python3 build.py "$FPL_TEAM_ID" site/data.json
+      - name: Validate data.json
+        run: python3 validate.py site/data.json
+      - name: Every screen at phone and desktop width
+        run: python3 scripts/layout_check.py --out layout-shots
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: layout-screenshots
+          path: layout-shots/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -35,6 +35,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/` (workflow every 3 hours) |
 | `site/plan-solver.js` | The browser version of the optimiser |
 | `odds.py` | Betting-market expected goals per match from football-data.co.uk (match result and over/under odds), blended into team ratings and fixture projections |
+| `odds_archive.py` | The same odds for past seasons (default 2024/25 and 2025/26) into `odds/archive/`, so `bench.py` tests the archive seasons with odds as the live model runs. Fails without writing if the join is incomplete. Re-run from Actions → "Backfill archive odds" |
 | `odds_players.py` | Player odds (anytime goalscorer, 1+ assist) from The Odds API at 72 h, 24 h and 3 h before each deadline, into `odds/players.json` and `history/player_odds_gw*.json`. Saves derived chances only. Collected for testing; not yet used by the model |
 | `history/` | Projections saved before each deadline, used for the live accuracy log on the Model page. `status.json` logs every flagged player's injury/suspension status before each deadline, so the model can tell an injured player from a dropped one. `transfers_gw*.json` samples transfers in/out, ownership and injury flags for the next deadline (every 6 h, hourly inside 48 h, every 25 min inside 3 h) to test whether late selling predicts a benching; format in `transfer_log.py` |
 | `afg.py` | The AFG suggestion: venue, opponent and home/away records since 2019/20 (summarised weekly into `afg/records.json`), the nudges on top of the model, the week's picks and the scoreboard (`history/afg_gw*.json`). `python3 afg.py backtest` re-runs it on 2025/26. Hand-edited inputs (new managers, extra derbies) go in `afg_manual.json` |
@@ -70,8 +71,11 @@ Before committing front-end changes:
 
 ```
 npm test        # ESLint + Stylelint, then the whole-app check below
+npm run layout  # every screen at 390px and 1280px: JS errors, error cards, sideways scroll, missing files (needs Python Playwright and a local data.json)
 npm run sw      # after adding or removing a script or stylesheet: refreshes the offline file list in sw.js
 ```
+
+The **Check site** workflow runs `npm test`, a fresh build, `validate.py` and `npm run layout` on every pull request, and keeps the screenshots as a downloadable artifact (Actions → the run → Artifacts).
 
 `npm run check` reads every script in page order to catch names that are used but never defined (or defined twice), confirms every file the page, manifest and service worker refer to exists, and that each one is cached for offline use.
 
