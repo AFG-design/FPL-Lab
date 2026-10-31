@@ -4,6 +4,20 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-131: xmins_sell shadow re-landed (shadow only; no live change)
+
+- PR #29 (31 Oct) was closed unmerged on 12 Nov, so no shadow had been saved before any deadline. Re-landed on current
+  main: selling.py, xmins_sell/ boosters, the shadow block in build.py, tools/score_shadow.py and validate.py checks.
+  One change from #29: the `xmins_combine` switch was deleted in FL-116, so the shadow uses main's rule (bench chance
+  capped at 1 − start chance).
+- Live projections unchanged: two builds of the same data (main and branch) give identical players and plans (0 of
+  472 players differ); test_xmins_sell_shadow checks the live xP is the same with or without the selling table.
+- First shadow saved for GW11 (672 players with a fixture, 0 with missing selling inputs). Cost: one element-summary
+  call per player once per transfer window (672 calls, about 17 s).
+- Decision rule (agreed 31 Oct, unchanged): switch xmins_sell on only if, pooled over the shadow weeks, start-chance
+  Brier is lower and xP MAE is no worse, with the paired bootstrap CI over GWs of the Brier difference below 0.
+  Merged before the GW11 deadline (21 Nov), GW11-14 are scored once GW14 finishes (about 7 Dec), before GW15's
+  deadline (12 Dec).
 ## 13 Nov 2026 — FL-068: backtests without hindsight (test only; live model unchanged)
 
 - Known error (model log 23 Oct, "possible leak left: use_out"; FL-068 traced fplmodel L663, L587, L265): the backtest
