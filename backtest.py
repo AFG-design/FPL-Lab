@@ -220,6 +220,104 @@ def minutes_eval(ctx, gws, params=None):
     return out
 
 
+# ---------------------------------------------------------------- scoring parts, one at a time
+PARTS = [("mins", "Appearance"), ("goals", "Goals"), ("assists", "Assists"), ("cs", "Clean sheets"),
+         ("gc", "Goals conceded"), ("saves", "Saves"), ("dc", "Def. contribution"), ("bonus", "Bonus"),
+         ("cards", "Cards")]
+
+
+def actual_parts(s, pos, scoring, dc_hit):
+    """Real FPL points from each scoring part, from a player's live stats for one gameweek. Own goals and
+    penalties saved/missed aren't projected, so they're left out (they're in total_points only)."""
+    m = s["minutes"]
+    return {
+        "mins": (scoring["short_play"] if m > 0 else 0) + ((scoring["long_play"] - scoring["short_play"]) if m >= 60 else 0),
+        "goals": s["goals_scored"] * scoring["goals_scored"][pos],
+        "assists": s["assists"] * scoring["assists"],
+        "cs": s["clean_sheets"] * scoring["clean_sheets"][pos],
+        "gc": (s["goals_conceded"] // 2) * scoring["goals_conceded"][pos] if m > 0 else 0,
+        "saves": (s["saves"] // 3) * scoring["saves"] if pos == "GKP" else 0,
+        "dc": scoring["defensive_contribution"][pos] if dc_hit else 0,
+        "bonus": s["bonus"],
+        "cards": -s["yellow_cards"] + scoring["red_cards"] * s["red_cards"],
+    }
+
+
+def parts_eval(ctx, gws, params=None, team_at=None):
+    """Each scoring part judged on its own: projected points from that part (raw, BEFORE the final calibration
+    xP = cal_slope * raw + cal_int * P(appears)) against real points from it. A part can be badly off while the
+    total looks fine, because the calibration evens out level errors (e.g. DC chance too low, appearance too high).
+    Rows: pool players (played in the last 3 GWs), weeks where his club has exactly one fixture (doubles sum
+    the stats). team_at: archive seasons' club at each GW (bench.py). Returns {segment: {part: stats}} with
+    segments all / GKP / DEF / MID / FWD / top 30 projected each GW; stats: pred, act (means), ratio (act/pred),
+    slope (real per projected: 1 = right spread), corr, mse."""
+    from fplmodel import POS
+    nfx = defaultdict(int)
+    for f in ctx["fixtures"]:
+        if f["event"]:
+            nfx[(f["team_h"], f["event"])] += 1; nfx[(f["team_a"], f["event"])] += 1
+    rows = []
+    for k in gws:
+        cx = ctx
+        if team_at:
+            cx = dict(ctx)
+            cx["elements"] = {pid: dict(e, team=team_at(pid, k) or e["team"]) for pid, e in ctx["elements"].items()}
+        res = project(cx, k, horizon=1, params=dict(params or {}, use_flags=False))["players"]
+        week = []
+        for pid, r in res.items():
+            e = cx["elements"][pid]
+            s = cx["pstats"].get(pid, {}).get(k)
+            if s is None or nfx.get((e["team"], k)) != 1 or not _in_pool(cx, pid, k):
+                continue
+            pos = POS[e["element_type"]]
+            d = r["detail"].get(k, {})
+            week.append({"pos": pos, "xp": r["xp"].get(k, 0.0), "pred": {p: d.get(p, 0.0) for p, _ in PARTS},
+                         "act": actual_parts(s, pos, cx["scoring"], cx["dc_hit"].get(pid, {}).get(k, False))})
+        for i, row in enumerate(sorted(week, key=lambda r: -r["xp"])):
+            row["top30"] = i < 30
+        rows += week
+    segs = {"all": rows, "top 30": [r for r in rows if r["top30"]]}
+    for pos in ("GKP", "DEF", "MID", "FWD"):
+        segs[pos] = [r for r in rows if r["pos"] == pos]
+    out = {}
+    for name, rs in segs.items():
+        n = len(rs)
+        if not n:
+            continue
+        out[name] = {"n": n}
+        for part, _ in PARTS:
+            xs = [r["pred"][part] for r in rs]; ys = [r["act"][part] for r in rs]
+            mx, my = sum(xs) / n, sum(ys) / n
+            sxx = sum((x - mx) ** 2 for x in xs); syy = sum((y - my) ** 2 for y in ys)
+            sxy = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+            out[name][part] = {
+                "pred": mx, "act": my, "ratio": my / mx if abs(mx) > 1e-9 else None,
+                "slope": sxy / sxx if sxx > 1e-12 else None,
+                "corr": sxy / math.sqrt(sxx * syy) if sxx > 1e-12 and syy > 1e-12 else None,
+                "mse": sum((x - y) ** 2 for x, y in zip(xs, ys)) / n}
+    return out
+
+
+def print_parts(pt, title):
+    print(title)
+    print("  real / projected per player-week (1.00 = right level); ratios off by 15%+ marked *; parts under 0.02 pts/week shown as –")
+    segs = [s for s in ("all", "GKP", "DEF", "MID", "FWD", "top 30") if s in pt]
+    print(f"  {'Part':18}" + "".join(f"{s:>9}" for s in segs))
+    for part, label in PARTS:
+        cells = []
+        for sname in segs:
+            x = pt[sname][part]
+            if x["ratio"] is None or abs(x["pred"]) < 0.02:
+                cells.append(f"{'–':>9}")
+            else:
+                cells.append(f"{x['ratio']:8.2f}" + ("*" if abs(x["ratio"] - 1) >= 0.15 else " "))
+        print(f"  {label:18}" + "".join(cells))
+    a = pt.get("all")
+    if a:
+        print("  all players, projected / real / corr: " + "; ".join(
+            f"{label} {a[p]['pred']:.2f}/{a[p]['act']:.2f}/{_f(a[p]['corr'], '.2f')}" for p, label in PARTS))
+
+
 def print_minutes(mn, title):
     print(title)
     print(f"  {'Pool':5} {'Segment':20} {'':16} {'n':>5} {'xMin MAE':>9} {'RMSE':>6} {'bias':>6} {'Brier st':>9} {'Brier 60':>9}")
@@ -365,6 +463,21 @@ def compare(base_path, new_path):
                     print(f"  {p_:5} {group:20} {name:16} {b['n']:5d} {a['mae']:7.2f}->{b['mae']:6.2f} {b['mae']-a['mae']:+5.2f}"
                           f" rmse {a.get('rmse', float('nan')):5.2f}->{b.get('rmse', float('nan')):5.2f}"
                           f" {a['brier_start']:.4f}->{b['brier_start']:.4f} {a['brier_60']:.4f}->{b['brier_60']:.4f}")
+    pa, pb = A.get("parts"), B.get("parts")
+    if pa and pb:
+        print("Scoring parts (raw, before calibration): real/projected ratio and squared error, base -> new")
+        for sname in ("all", "GKP", "DEF", "MID", "FWD", "top 30"):
+            a_, b_ = pa.get(sname), pb.get(sname)
+            if not a_ or not b_:
+                continue
+            cells = []
+            for part, label in PARTS:
+                x, y = a_[part], b_[part]
+                if x["ratio"] is None or y["ratio"] is None or abs(x["pred"]) < 0.02:
+                    continue
+                if abs(y["ratio"] - x["ratio"]) >= 0.02 or abs(y["mse"] - x["mse"]) >= 0.001:
+                    cells.append(f"{label} {x['ratio']:.2f}->{y['ratio']:.2f} (mse {y['mse'] - x['mse']:+.3f})")
+            print(f"  {sname:7} " + ("; ".join(cells) if cells else "no part moved"))
     if flagged:
         print(f"{len(flagged)} segment(s) past the limits (MAE +{COMPARE_MAE}, bias ±{COMPARE_BIAS}, n >= {COMPARE_N}): "
               + "; ".join(flagged))
@@ -416,6 +529,9 @@ if __name__ == "__main__":
     mins = minutes_eval(ctx, gws, params=params)
     print()
     print_minutes(mins, "Minutes accuracy (one-fixture weeks)")
+    parts = parts_eval(ctx, gws, params=params)
+    print()
+    print_parts(parts, "Scoring parts on their own (raw, before the final calibration; one-fixture weeks)")
     print()
     print_segments(seg, f"Segment breakdown, with last-season priors, GW{min(gws)}-{max(gws)} "
                         f"(model status log: {args.status_log or 'none'}; bias = projected - actual)")
@@ -427,5 +543,5 @@ if __name__ == "__main__":
         with open(args.json, "w") as f:
             json.dump({"gws": list(gws), "status_log": args.status_log, "flag_log": flag_path if flag_log else None,
                        "headline": {k: head[k] for k in ("n", "mae", "rmse", "corr", "bias")},
-                       "params": params, "segments": seg, "minutes": mins}, f, indent=1)
+                       "params": params, "segments": seg, "minutes": mins, "parts": parts}, f, indent=1)
         print(f"Wrote {args.json}")
