@@ -75,7 +75,7 @@ def autosub(xi, bench, pts, mins, players):
     return xi
 
 
-def replay(season, k_from, k_to, sim):
+def replay(season, k_from, k_to, sim, modes=MODES):
     ctx, team_at = bench._season(season)
     price, own = season_tables(season)
     last = max(price)
@@ -105,7 +105,7 @@ def replay(season, k_from, k_to, sim):
     start = wc["weeks"][0]["xi"] + wc["weeks"][0]["bench"]
     bank0 = round(100.0 - sum(pl[i]["price"] for i in start), 1)
     teams = {m: {"squad": list(start), "buy": {i: pl[i]["price"] for i in start}, "bank": bank0, "ft": 1,
-                 "real": [], "proj": [], "field": [], "hits": 0, "moves": 0} for m in MODES}
+                 "real": [], "proj": [], "field": [], "hits": 0, "moves": 0} for m in modes}
 
     for k in range(k_from, k_to + 1):
         if k != k_from:
@@ -118,7 +118,7 @@ def replay(season, k_from, k_to, sim):
         top = max(pl, key=lambda pid: o.get(pid, 0))     # captain stand-in: the most-owned player
         field = sum(o.get(pid, 0) * pts.get(pid, 0) for pid in pl) * 11 / 15 + pts.get(top, 0)
         eo = {pid: o.get(pid, 0.0) for pid in pl}
-        for m in MODES:
+        for m in modes:
             t = teams[m]
             for i in t["squad"]:                      # a sold-out player still counts for the squad
                 if i not in pl:
@@ -146,7 +146,7 @@ def replay(season, k_from, k_to, sim):
             cap = w0["captain"] if mins.get(w0["captain"], 0) > 0 else w0["vice"]
             real = sum(pts.get(i, 0) for i in xi) + (pts.get(cap, 0) if cap in xi else 0) - 4 * w0["hits"]
             t["real"].append(real); t["proj"].append(w0["xp"] - 4 * w0["hits"]); t["field"].append(field)
-        line = "  ".join(f"{m[:4]} {teams[m]['real'][-1]:4.0f}" for m in MODES)
+        line = "  ".join(f"{m[:4]} {teams[m]['real'][-1]:4.0f}" for m in modes)
         print(f"  {season} GW{k}: {line}   field {field:5.1f}   ({time.time() - t0:.0f}s)", flush=True)
     return teams
 
@@ -171,6 +171,7 @@ def main():
     ap.add_argument("--to", dest="k_to", type=int, default=38)
     ap.add_argument("--sim", type=int, default=600, help="simulations per player for the 10+ point chance (default 600)")
     ap.add_argument("--json", help="write the results here")
+    ap.add_argument("--modes", default=",".join(MODES), help="strategies to replay, e.g. chase (each team is independent)")
     ap.add_argument("--old", action="store_true", help="the settings before points budgets (for a before/after table)")
     a = ap.parse_args()
     if not os.path.exists(os.path.join(bench.HERE, "raw", "bootstrap.json")):
@@ -181,7 +182,7 @@ def main():
         optimise.MIN_PROFIT, optimise.EO_WEEKS = -1e9, 2
     res = {}
     for s in a.seasons:
-        res[s] = summary(replay(s, a.k_from, a.k_to, a.sim))
+        res[s] = summary(replay(s, a.k_from, a.k_to, a.sim, tuple(a.modes.split(","))))
         print(f"\n{s}  (GW{a.k_from}-{a.k_to})")
         print(f"{'':10s} {'real':>6s} {'proj':>7s} {'vs field':>9s} {'spread':>7s} {'green':>6s} {'red':>4s} {'hits':>5s} {'moves':>6s}")
         for m, r in res[s].items():
