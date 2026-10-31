@@ -10,7 +10,9 @@
 
   /* input: { players:{id:{pos,team,price,xp:{gw:x},ok}}, squad:[ids], sell:{id:£m}, bank, ft0, gws:[..],
               locked:[ids], banned:[ids], captains:{gw:id}, maxHits: 0|1|2|null(any), eo:{id:frac}|null, lam,
-              haulW, hitMargin, nailW (strategy extras), decay, benchW, ftValue, maxMovesWeek, poolExtra:[ids] } */
+              haulW, hitMargin, nailW (strategy extras), decay, benchW, ftValue, maxMovesWeek, poolExtra:[ids],
+              floor: minimum plan value (plain xP over the plan, minus 4 per hit, plus ftValue per FT banked at the end),
+              the same measure as optimise.py's VALUE; the strategies use it as their points budget } */
   function buildLP(inp) {
     const P = inp.players, gws = inp.gws, W = gws.map((_, w) => w);
     const decay = inp.decay ?? 0.9, benchW = inp.benchW ?? 0.1, ftValue = inp.ftValue ?? 1.5, hit = 4;
@@ -95,6 +97,12 @@
       gen.push(`h_${w}`);
     }
     obj.push(term(ftValue, `f_${gws.length}`));
+    if (inp.floor != null) {
+      let val = "";
+      W.forEach(w => { const g = gws[w]; ids.forEach(i => { const x = P[i].xp[g] || 0; if (x) val += term(x, xi(i, w)) + term(x, cp(i, w)); }); val += term(-hit, `h_${w}`); });
+      val += term(ftValue, `f_${gws.length}`);
+      con(val, ">=", inp.floor);
+    }
     for (let w = 0; w <= gws.length; w++) gen.push(`f_${w}`);
     const bounds = [` f_0 = ${inp.ft0}`];
     for (let w = 1; w <= gws.length; w++) bounds.push(` 1 <= f_${w} <= 5`);
@@ -115,7 +123,9 @@
       });
       weeks.push({ gw: g, xi: ids.filter(i => v(`x_${i}_${w}`)), captain: ids.find(i => v(`c_${i}_${w}`)), hits: v(`h_${w}`), ft: v(`f_${w}`) });
     });
-    return { moves, weeks, objective: sol.ObjectiveValue };
+    const ftEnd = v(`f_${inp.gws.length}`), ftValue = inp.ftValue ?? 1.5;
+    const pts = weeks.reduce((a, w) => a + w.xi.reduce((b, i) => b + (inp.players[i].xp[w.gw] || 0), 0) + (inp.players[w.captain]?.xp[w.gw] || 0) - 4 * w.hits, 0);
+    return { moves, weeks, objective: sol.ObjectiveValue, ftLeft: ftEnd, value: pts + ftValue * ftEnd };
   }
 
   // HiGHS (wasm) sometimes aborts or runs off its memory on a real input; the module can't be trusted after that,

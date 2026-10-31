@@ -18,8 +18,8 @@ OUT = sys.argv[2] if len(sys.argv) > 2 else "data.json"
 API = "https://fantasy.premierleague.com/api"
 HORIZON = 6
 PLAN_GWS = 5
-# Strategy extras for the optimiser (see optimise.solve); the browser Re-plan uses the same numbers (js/core/model.js)
-STRATEGY = {"safe": {"hit_margin": 2.0, "nail_w": 0.5}, "chase": {"haul_w": 10.0}}
+# Strategy settings and points budgets live in optimise.py (STRATEGY, SAFE_BUDGET, CHASE_BUDGET, MIN_PROFIT); the
+# browser Re-plan uses the same numbers (js/core/model.js)
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -342,7 +342,7 @@ for pid, e in elements.items():
     }
 
 # ---------------------------------------------------------------- optimiser plans
-plans = {}
+plans, plan_notes = {}, []
 sell = {i: selling_price(i) / 10 for i in squad_ids}
 if squad_ids and proj_gws:
     opt_players = {i: {"pos": p["pos"], "team": p["team"], "price": p["price"], "xp": p["xp"], "ok": p["ok"],
@@ -360,20 +360,17 @@ if squad_ids and proj_gws:
         eo_field = {int(k): v / 100 for k, v in src["eo"].items()}
     except Exception:
         pass
-    # strategy: rank-aware ownership term (lam), plus upside for Chase and caution for Play safe
-    MODES = {"balanced": {"lam": 0.0}, "safe": {"lam": 0.02, **STRATEGY["safe"]}, "chase": {"lam": -0.03, **STRATEGY["chase"]}}
-    if not eo_field:
-        MODES = {"balanced": {"lam": 0.0}}
-    for mode, mp in MODES.items():
-        for key, n in options:
-            r = optimise.solve(opt_players, squad_ids, sell, bank, min(ft, 5), gws, week1_moves=n,
-                               eo=eo_field or None, **mp)
-            if r:
-                for wk in r["weeks"]:
-                    mult = {i: 1 for i in wk["xi"]}
-                    mult[wk["captain"]] = 2
-                    wk["spread"] = round(optimise.spread(opt_players, mult, eo_field, wk["gw"]), 1) if eo_field else None
-                plans[key if mode == "balanced" else f"{mode}_{key}"] = r
+    # strategies: Balanced, then Play safe and Chase rank held to points budgets against it (optimise.strategy_plans).
+    # Without field ownership only Balanced is built; the note goes to the Health page via plan_notes.
+    plans, plan_notes = optimise.strategy_plans(opt_players, squad_ids, sell, bank, min(ft, 5), gws, options,
+                                                eo=eo_field or None)
+    for n in plan_notes:
+        print("plans:", n)
+    for r in plans.values():
+        for wk in r["weeks"]:
+            mult = {i: 1 for i in wk["xi"]}
+            mult[wk["captain"]] = 2
+            wk["spread"] = round(optimise.spread(opt_players, mult, eo_field, wk["gw"]), 1) if eo_field else None
     for k, pl in plans.items():
         rk = "roll" if "_" not in k else k.split("_")[0] + "_roll"
         if rk in plans:
@@ -1315,7 +1312,10 @@ out = {
     "squad": [{"id": p["element"], "slot": p["position"], "cap": p["is_captain"], "vice": p["is_vice_captain"],
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
-    "lineup": lineup, "plans": plans, "accuracy": accuracy,
+    "lineup": lineup, "plans": plans, "plan_notes": plan_notes,
+    "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT,
+                   "tie": optimise.TIE, "strategy": optimise.STRATEGY},
+    "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
