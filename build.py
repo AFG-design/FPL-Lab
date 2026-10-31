@@ -832,6 +832,24 @@ def pre_deadline_xp(g):
     return {int(k): v[0] for k, v in snap.get("players", {}).items()}
 
 
+# ---- xP table's live column: every player's projection for the gameweek in progress, as saved before its deadline.
+# Only while that gameweek is in progress. No snapshot (or one for another GW) -> no xp_cur on anyone and
+# meta.xp_cur says why, so the table shows "–" with that reason (never 0) and validate.py warns. The snapshot
+# only keeps players projected above 0 by us or by FPL, so a player absent from an existing one was projected 0:
+# he gets xp_cur 0 and xp_cur_absent, and the table's tooltip says so. (A player signed after the deadline is
+# absent too and also shows 0, with the same tooltip.)
+xp_cur_meta = None
+if cur_ev and not cur_ev["finished"]:
+    snap_cur = pre_deadline_xp(cur_gw)
+    if snap_cur is None:
+        xp_cur_meta = {"gw": cur_gw, "status": f"missing: no pre-deadline snapshot history/proj_gw{cur_gw}.json"}
+    else:
+        for pid, prow in players.items():
+            prow["xp_cur"] = round(snap_cur.get(pid, 0), 2)
+            if pid not in snap_cur:
+                prow["xp_cur_absent"] = True
+        xp_cur_meta = {"gw": cur_gw, "status": "snapshot", "in_snapshot": len(snap_cur)}
+
 review = {"weeks": [], "transfers": [], "totals": {}}
 fh_set = {c["event"] for c in history["chips"] if c["name"] == "freehit"}
 wc_set = {c["event"] for c in history["chips"] if c["name"] == "wildcard"}
@@ -1280,6 +1298,7 @@ out = {
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
+             "xp_cur": xp_cur_meta,   # xP table live column: snapshot used, or why it's missing (None outside a live GW)
              "deadline": next_ev["deadline_time"] if next_ev else None, "proj_gws": proj_gws, "plan_gws": proj_gws[:PLAN_GWS],
              "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw,
              "price_deadlines": boot["game_config"]["settings"].get("price_change_deadlines", []),

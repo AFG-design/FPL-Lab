@@ -1,6 +1,7 @@
 // Tap-to-explain terms.
 /* ---------- tap-to-explain ---------- */
 const GLOSS = {
+  xpm: ["xP per £m", "Projected points over the gameweeks counted (Σ xP) divided by the player's price. A value measure: higher means more points for the money. A * means some of those gameweeks have no projection."],
   xp: ["xP (projected points)", "The points the model expects a player to score, averaged over all the ways a match can go. 4–5 is a strong week for most players."],
   xgi: ["xGI", "Expected goal involvement: expected goals (xG) plus expected assists (xA). It measures the quality of chances a player gets or creates, regardless of whether they went in. Per 90 = per full match."],
   eo: ["EO (effective ownership)", "The share of managers who own a player, with captains counted twice. A player at 150% EO gains the field 1.5 points for every point he scores, so if you don't own him, you lose ground when he does well."],
