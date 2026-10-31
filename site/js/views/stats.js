@@ -47,7 +47,7 @@ function vStats() {
       <span class="lbl">Points per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_pts })), gwl, { h: 180 })}
       <span class="lbl">Expected goal involvement per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_xgi })), gwl, { h: 180, yfmt: v => v.toFixed(1) })}`
     : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
-  const tabs = [["form", "Form"], ["ga", "Goals & assists"], ["race", "Season race"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["prices", "Prices"], ["teams", "Teams"]];
+  const tabs = [["form", "Form"], ["ga", "Goals & assists"], ["leaders", "Points leaders"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["prices", "Prices"], ["teams", "Teams"]];
   const tab = S.stab || "form";
   const nav = `<div class="stats-nav"><div class="seg ptabs" role="group" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>
     <button class="btn ghost sm" data-statlabels="${tab}" aria-haspopup="dialog">What the labels mean</button></div>`;
@@ -60,7 +60,7 @@ function vStats() {
     <div class="panel"><h3>Due a goal</h3><p class="note" style="margin-top:0">Getting chances but scoring less than their xG. Often good value before the goals come.</p>${ou(due)}</div>
   </div>`;
   else if (tab === "ga") body = gaHTML();
-  else if (tab === "race") body = raceHTML();
+  else if (tab === "leaders") body = leadersHTML();
   else if (tab === "shots") body = shotsHTML();
   else if (tab === "sp") body = spThreatHTML() + setPiecesHTML();
   else if (tab === "defence") body = dcHTML();
@@ -221,11 +221,13 @@ const STAT_LABELS = {
     ["+/−", "Goals plus assists minus xGI. Big gaps either way tend to shrink."],
     ["G+A/90", "Goals plus assists per 90 minutes, for players with enough minutes in the window (270 for the season, 180 for the last 6)."],
   ]],
-  race: ["Season race", [
-    ["Running total", "Each line adds up a player's FPL points gameweek by gameweek, so you can see when he pulled ahead or fell away."],
-    ["FPL total", "His season points as FPL shows them, including live points in a gameweek being played."],
-    ["Number in brackets", "While a gameweek is in progress, the chart counts finished matches only, so its total can trail FPL's for a while."],
-    ["Points per gameweek", "The selected player's score each week. * marks a gameweek still in progress."],
+  leaders: ["Points leaders", [
+    ["Top 10", "The ten best for whichever column you tap: points by default, or goals, assists, bonus and so on."],
+    ["Starts", "Matches he started this season, from FPL."],
+    ["Own %", "Share of FPL managers who own him."],
+    ["Pts, Gls, Ast, G+A, Bonus", "Season totals from FPL, including matches being played now."],
+    ["DD hauls", "Gameweeks where he scored 10 or more points. A gameweek in progress counts finished matches only."],
+    ["Shading", "Darker green = higher, compared within the ten players shown, column by column."],
   ]],
   shots: ["Shots", [
     ["Shots/90", "All shots per 90, including long-range efforts."],

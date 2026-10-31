@@ -331,7 +331,7 @@ for pid, e in elements.items():
         "id": pid, "name": e["web_name"], "full": f'{e["first_name"]} {e["second_name"]}',
         "team": e["team"], "pos": pos, "price": e["now_cost"] / 10, "own": float(e["selected_by_percent"]),
         "form": float(e["form"]), "pts": e["total_points"], "mins": e["minutes"],
-        "goals": e["goals_scored"], "assists": e["assists"], "cs": e["clean_sheets"], "bonus": e["bonus"],
+        "goals": e["goals_scored"], "assists": e["assists"], "starts": e.get("starts"), "cs": e["clean_sheets"], "bonus": e["bonus"],
         "xg": float(e["expected_goals"]), "xa": float(e["expected_assists"]),
         "g_xg": round(e["goals_scored"] - float(e["expected_goals"]), 2),
         "a_xa": round(e["assists"] - float(e["expected_assists"]), 2),
