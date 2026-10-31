@@ -244,6 +244,27 @@ for g, data in live.items():
             bps_top[pid][g] = min(rank, bps_top[pid].get(g, 99))
 
 
+# ---- defensive contribution points as FPL scored them, per player per gameweek, from the match explain rows.
+# Same finished-matches-only rows as pstats, so a gameweek in progress counts only matches that are over. A hit in a
+# game under 60 minutes, or two hits in a double, both count here (dc_record's hits/apps only counts 60+ minute games).
+dc_pts_gw = defaultdict(dict)
+for g, data in model_live.items():
+    for x in data["elements"]:
+        v = sum(s_["points"] for ex in x["explain"] for s_ in ex["stats"] if s_["identifier"] == "defensive_contribution")
+        if v:
+            dc_pts_gw[x["id"]][g] = v
+
+
+def ga_window(pid, n):
+    """Goals, assists, FPL (Opta) xG and xA, and minutes over the last n gameweeks, finished matches only.
+    A player with no row in a gameweek (no fixture, or not yet played) adds nothing for it."""
+    s = pstats.get(pid, {})
+    gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1) if g in s]
+    tot = lambda k, cast=float: sum(cast(s[g][k]) for g in gws)
+    return {"g": tot("goals_scored", int), "a": tot("assists", int), "xg": round(tot("expected_goals"), 2),
+            "xa": round(tot("expected_assists"), 2), "mins": tot("minutes", int)}
+
+
 def bonus_form(pid, n):
     gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1)]
     s = pstats.get(pid, {})
@@ -285,7 +306,9 @@ def dc_record(pid, n=None):
     hits = sum(1 for g in apps if ctx["dc_hit"][pid].get(g))
     cbit = sum(s[g]["defensive_contribution"] for g in gws if g in s)
     mins = sum(s[g]["minutes"] for g in gws if g in s)
-    return {"hits": hits, "apps": len(apps), "per90": round(cbit / mins * 90, 1) if mins >= 90 else 0.0}
+    pts = sum(dc_pts_gw.get(pid, {}).get(g, 0) for g in gws)
+    return {"hits": hits, "apps": len(apps), "per90": round(cbit / mins * 90, 1) if mins >= 90 else 0.0,
+            "pts": pts, "mins": mins}
 
 
 players = {}
@@ -308,7 +331,7 @@ for pid, e in elements.items():
         "id": pid, "name": e["web_name"], "full": f'{e["first_name"]} {e["second_name"]}',
         "team": e["team"], "pos": pos, "price": e["now_cost"] / 10, "own": float(e["selected_by_percent"]),
         "form": float(e["form"]), "pts": e["total_points"], "mins": e["minutes"],
-        "goals": e["goals_scored"], "assists": e["assists"], "cs": e["clean_sheets"], "bonus": e["bonus"],
+        "goals": e["goals_scored"], "assists": e["assists"], "starts": e.get("starts"), "cs": e["clean_sheets"], "bonus": e["bonus"],
         "xg": float(e["expected_goals"]), "xa": float(e["expected_assists"]),
         "g_xg": round(e["goals_scored"] - float(e["expected_goals"]), 2),
         "a_xa": round(e["assists"] - float(e["expected_assists"]), 2),
@@ -334,7 +357,7 @@ for pid, e in elements.items():
         "ok": bool(e["can_select"]) and e["status"] in ("a", "d") and r["xmin_base"] > 10,
         "code": e["code"], "tcode": e["team_code"], "tmp": bool(e.get("has_temporary_code")),
         "bf4": bonus_form(pid, 4), "bf6": bonus_form(pid, 6), "bps_season": e["bps"],
-        "us": shot_stats(pid, m4), "dcs": dc_record(pid), "dc6": dc_record(pid, 6),
+        "us": shot_stats(pid, m4), "dcs": dc_record(pid), "dc6": dc_record(pid, 6), "ga6": ga_window(pid, 6),
         "s_bps": series(pid, "bps", int),
         "nailed": nailed(pid, e, r), "mflag": minutes_flag(pid, e),
         "sp": {"pen": e.get("penalties_order"), "cor": e.get("corners_and_indirect_freekicks_order"),
@@ -1409,7 +1432,7 @@ out["sources"] = {
 out["meta"]["build_secs"] = round(time.time() - t0, 1)
 # Detail only Stats, Players and the player panel use goes in a second file the site loads in the background,
 # so the main file (Home, Planner, Rivals) is small and opens quickly on a phone.
-EXTRA_FIELDS = ("us", "bf4", "bf6", "dcs", "dc6", "s_xgi", "s_min", "s_bps", "s_pts", "last", "xp_detail")
+EXTRA_FIELDS = ("us", "bf4", "bf6", "dcs", "dc6", "ga6", "s_xgi", "s_min", "s_bps", "s_pts", "last", "xp_detail")
 extra = {}
 for p_ in out["players"]:
     ex = {k: p_.pop(k) for k in EXTRA_FIELDS if k in p_}

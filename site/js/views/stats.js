@@ -47,7 +47,7 @@ function vStats() {
       <span class="lbl">Points per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_pts })), gwl, { h: 180 })}
       <span class="lbl">Expected goal involvement per gameweek</span>${lineChart(cps.map((p, i) => ({ cls: cls[i], vals: p.s_xgi })), gwl, { h: 180, yfmt: v => v.toFixed(1) })}`
     : `<p class="muted">Pick players to chart below, or tick them in the Players tab.</p>`;
-  const tabs = [["form", "Form"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["prices", "Prices"], ["teams", "Teams"]];
+  const tabs = [["form", "Form"], ["ga", "Goals & assists"], ["leaders", "Points leaders"], ["shots", "Shots"], ["sp", "Set pieces"], ["defence", "Defence"], ["bonus", "Bonus"], ["value", "Value"], ["prices", "Prices"], ["teams", "Teams"]];
   const tab = S.stab || "form";
   const nav = `<div class="stats-nav"><div class="seg ptabs" role="group" aria-label="Stats sections">${tabs.map(([k, l]) => `<button data-stab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>
     <button class="btn ghost sm" data-statlabels="${tab}" aria-haspopup="dialog">What the labels mean</button></div>`;
@@ -59,6 +59,8 @@ function vStats() {
     <div class="panel"><h3>Running hot</h3><p class="note" style="margin-top:0">Scoring well above their xG. Finishing streaks rarely last, so expect fewer goals unless the chances rise.</p>${ou(hot)}</div>
     <div class="panel"><h3>Due a goal</h3><p class="note" style="margin-top:0">Getting chances but scoring less than their xG. Often good value before the goals come.</p>${ou(due)}</div>
   </div>`;
+  else if (tab === "ga") body = gaHTML();
+  else if (tab === "leaders") body = leadersHTML();
   else if (tab === "shots") body = shotsHTML();
   else if (tab === "sp") body = spThreatHTML() + setPiecesHTML();
   else if (tab === "defence") body = dcHTML();
@@ -95,18 +97,7 @@ function teamSPHTML() {
     <div class="tablebox"><table><thead><tr><th>Team</th><th class="n">Set-piece xG for</th><th class="n">Set-piece xG against</th><th class="n">Open-play xG for</th><th class="n">Open-play xG against</th></tr></thead>
     <tbody>${rows.map(t => `<tr><td>${t.name}</td><td class="n"><span class="minibar" style="width:${t.sp.for * 80}px"></span> ${t.sp.for.toFixed(2)}</td><td class="n"><span class="minibar neg" style="width:${t.sp.against * 80}px"></span> ${t.sp.against.toFixed(2)}</td><td class="n">${t.sp.op_for.toFixed(2)}</td><td class="n">${t.sp.op_against.toFixed(2)}</td></tr>`).join("")}</tbody></table></div></div>`;
 }
-function dcHTML() {
-  const f = S.dcPos || "DEF";
-  const thr = f === "DEF" ? 10 : 12;
-  // rank by expected DC points next game: the model's (shrunk) chance of hitting the threshold x how nailed he is
-  const exp = p => p.dc_rate * Math.min(1, p.nailed / 100);
-  const rows = D.players.filter(p => p.dcs && p.dcs.apps >= 4 && posMatch(p, f) && p.pos !== "GKP")
-    .sort((a, b) => exp(b) - exp(a) || (b.dcs.per90 - a.dcs.per90)).slice(0, 25);
-  return `<div class="panel"><div class="bar"><h3>Defensive contribution leaders</h3>${posSeg("dcPos", [["DEF", "DEF"], ["MID", "MID"], ["FWD", "FWD"]])}</div>
-    <p class="note" style="margin-top:0">A ${term("dc", "defensive contribution")} is worth 2 points: ${f === "DEF" ? "10 clearances, blocks, interceptions and tackles" : "12 clearances, blocks, interceptions, tackles and recoveries"} in a match. Hit rate = how often he reached it in games of 60+ minutes. Chance next = the model's estimate for his next game, allowing for small samples and how likely he is to start. Ranked by chance next; at least 4 games of 60+ minutes.</p>
-    <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Per 90 (need ${thr})</th><th class="n">Hit rate</th><th class="n">Chance next</th><th class="n">DC points</th><th class="n">Last 6</th><th class="n">${term("nailed", "Nailed")}</th><th class="n">xP ${PG.length} GWs</th></tr></thead>
-    <tbody>${rows.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short}</span></td><td class="n">${p.price.toFixed(1)}</td><td class="n">${p.dcs.per90.toFixed(1)}</td><td class="n">${Math.round(100 * p.dcs.hits / p.dcs.apps)}% <span class="muted">(${p.dcs.hits}/${p.dcs.apps})</span></td><td class="n"><b>${Math.round(100 * exp(p))}%</b></td><td class="n">${2 * p.dcs.hits}</td><td class="n">${p.dc6.hits}/${p.dc6.apps}</td><td class="n">${nailedPill(p)}</td><td class="n">${f1(xpFrom(p.id, PG[0], PG.length))}</td></tr>`).join("")}</tbody></table></div></div>`;
-}
+// dcHTML (Defence tab) lives in stats-more.js with the other sortable tables
 function valueHTML() {
   const caps = { GKP: 4.5, DEF: 4.5, MID: 5.0, FWD: 5.5 }, g0 = PG[0], H = PG.length;
   const xf = id => xpFrom(id, g0, H);
@@ -222,6 +213,22 @@ const STAT_LABELS = {
     ["DC %", "The model's chance he reaches the defensive contribution target (worth 2 points) in a game."],
     ["Running hot / Due a goal", "Goals compared with xG this season. Diff = goals minus xG. Big positive gaps usually shrink, and big negative ones usually close."],
   ]],
+  ga: ["Goals & assists", [
+    ["Season / Last 6 GWs", "Season uses FPL's totals, which include matches being played now. Last 6 counts finished matches only."],
+    ["G, A, G+A", "Goals, assists, and the two added together."],
+    ["xG, xA, xGI", "FPL's own expected goals and assists (from Opta): what his chances and passes were worth, whether or not they went in."],
+    ["Bar and tick", "The bar is what he actually got; the tick is what it was expected to be. A bar far past its tick is finishing hot."],
+    ["+/−", "Goals plus assists minus xGI. Big gaps either way tend to shrink."],
+    ["G+A/90", "Goals plus assists per 90 minutes, for players with enough minutes in the window (270 for the season, 180 for the last 6)."],
+  ]],
+  leaders: ["Points leaders", [
+    ["Top 10", "The ten best for whichever column you tap: points by default, or goals, assists, bonus and so on."],
+    ["Starts", "Matches he started this season, from FPL."],
+    ["Own %", "Share of FPL managers who own him."],
+    ["Pts, Gls, Ast, G+A, Bonus", "Season totals from FPL, including matches being played now."],
+    ["DD hauls", "Gameweeks where he scored 10 or more points. A gameweek in progress counts finished matches only."],
+    ["Shading", "Darker green = higher, compared within the ten players shown, column by column."],
+  ]],
   shots: ["Shots", [
     ["Shots/90", "All shots per 90, including long-range efforts."],
     ["In box/90 (and L4)", "Shots from inside the penalty area per 90, where most goals come from. More reliable than total shots."],
@@ -243,7 +250,8 @@ const STAT_LABELS = {
     ["Per 90 (need X)", "Clearances, blocks, interceptions and tackles per 90 (plus recoveries for midfielders and forwards). X is the target for 2 points in a match: 10 for defenders, 12 for others."],
     ["Hit rate", "How often he reached the target in games where he played 60+ minutes."],
     ["Chance next", "The model's chance he reaches it next game, allowing for small samples."],
-    ["DC points", "Points he has earned from defensive contributions this season."],
+    ["DC points", "Points FPL has given him for defensive contributions this season, including any in games under 60 minutes."],
+    ["Mins", "Minutes played this season (finished matches)."],
     ["Last 6", "Games he hit the target out of his games in the last 6 gameweeks."],
     ["Nailed", "How sure he is to start, from 0 to 100. 85+ is nailed on; under 60 is a rotation risk."],
     ["xP N GWs", "Projected points over the plan length you've chosen."],

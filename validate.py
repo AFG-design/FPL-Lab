@@ -12,10 +12,15 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - a real-starts record (st5) with more starts than games
   - expected minutes (xmin) outside 0-180, or NaN
   - the xMins minutes model switched on but any player with a next-GW fixture fell back to the old counts
+  - a per-GW points series (s_pts) whose length isn't the current gameweek, or a DefCon record with odd points,
+    fewer than 2 points per hit, or fewer minutes than its 60+ minute games need; more starts than minutes
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
+  - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
+  - no season starts for any player (Points leaders Starts column)
+  - last-6 goals or assists above the season figure
   - a gameweek in progress with no pre-deadline snapshot for the xP table's live column (meta.xp_cur), or a
     snapshot with fewer entries than half the players (it normally leaves out only players projected 0)
   - player odds (history/player_odds_gw*.json) for the latest finished-deadline gameweek missing a checkpoint
@@ -79,6 +84,39 @@ def main(path):
         mins = p.get("mins") or 0
         if mins >= 300 and str(p["id"]) not in us and p["id"] not in ov.values():
             warnings.append(f"{name(p)}: {mins} minutes but no Understat match (add to understat_overrides.json)")
+
+    # Stats tabs (Goals & assists, Defence, Points leaders) read these from data-extra.json
+    cur = D["meta"].get("cur_gw") or 0
+    off_total = []
+    for p in D["players"]:
+        ex = extra.get(str(p["id"]))
+        if ex is None:
+            continue
+        sp = ex.get("s_pts")
+        if sp is not None and len(sp) != cur:
+            errors.append(f"{name(p)}: s_pts has {len(sp)} gameweeks, current GW is {cur}")
+        elif sp is not None and sum(sp) != p.get("pts"):
+            off_total.append(name(p))
+        d = ex.get("dcs")
+        if d and ("pts" in d) and (d["pts"] % 2 or d["pts"] < 2 * d["hits"] or d.get("mins", 0) < 60 * d["apps"]):
+            errors.append(f"{name(p)}: DefCon record {d} is impossible (points odd, below 2 per hit, or too few minutes)")
+        stt = p.get("starts")
+        if stt is not None and (stt < 0 or stt > (p.get("mins") or 0) or stt > 2 * cur):
+            errors.append(f"{name(p)}: {stt} starts with {p.get('mins')} minutes by GW{cur} (impossible)")
+        ga = ex.get("ga6")
+        if ga and (ga["g"] > (p.get("goals") or 0) or ga["a"] > (p.get("assists") or 0) or min(ga.values()) < 0):
+            warnings.append(f"{name(p)}: last-6 goals/assists {ga['g']}/{ga['a']} above season {p.get('goals')}/{p.get('assists')}")
+    if all(p.get("starts") is None for p in D["players"]):
+        warnings.append("No season starts from FPL this build: Points leaders shows '–' for Starts")
+    if not extra:
+        warnings.append("data-extra.json missing or empty: Stats and player detail show 'no data'")
+    elif len(extra) < len(D["players"]):
+        warnings.append(f"data-extra.json has {len(extra)} players for {len(D['players'])} listed: Stats tabs show 'no data' for the rest")
+    # mid-gameweek the per-GW series counts finished matches only, so it trails FPL's total; once the gameweek is
+    # finished they must agree, or DD hauls can miss a gameweek FPL counted
+    if off_total and D["meta"].get("cur_finished"):
+        warnings.append(f"{len(off_total)} players' GW points don't add up to their FPL total (DD hauls, player charts) "
+                        f"(e.g. {', '.join(off_total[:3])})")
 
     # minutes model: if xMins is on, every player with a next-GW fixture must have been projected by it
     mm = D["meta"].get("minutes_model")
