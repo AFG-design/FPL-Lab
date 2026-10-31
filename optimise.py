@@ -39,7 +39,7 @@ def spread(players, mult, eo, gw):
 
 def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=1.5,
           hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
-          eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0):
+          eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0, floor=None):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
     sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek.
 
@@ -52,7 +52,10 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     Strategy extras: haul_w rewards each starter's chance of 10+ points (players[i]["p10"][gw]), double for the
     captain, so upside can justify a move (chase); hit_margin makes the optimiser demand that many extra points
     before taking a hit, and nail_w marks down starters who may not play (players[i]["nailed"], 0-100) (safe).
-    Reported totals are always plain projected points minus 4 per hit."""
+    Reported totals are always plain projected points minus 4 per hit.
+
+    floor: the plan's value (see VALUE below) must be at least this. The strategies use it so Play safe never gives
+    up points against Balanced and Chase rank gives up at most a fixed amount (strategy_plans)."""
     gws = list(gws)
     W = range(len(gws))
     # candidate pool: current squad + best options per position by projected points
@@ -129,6 +132,12 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
         obj.append(-d * (hit + hit_margin) * hits[w])
     obj.append(ft_value * ft[len(gws)])
     m += pulp.lpSum(obj)
+    # VALUE: plain projected points over the plan (XI + captain, no decay), minus 4 per hit, plus ft_value for each
+    # free transfer still banked at the end. The same measure as vs_roll in build.py, so budgets read as points.
+    value = (pulp.lpSum(xp[i, w] * (xi[i][w] + cp[i][w]) for i in pool for w in W)
+             - hit * pulp.lpSum(hits[w] for w in W) + ft_value * ft[len(gws)])
+    if floor is not None:
+        m += value >= floor
     status = m.solve(pulp.PULP_CBC_CMD(msg=False, timeLimit=time_limit))
     # CBC can stop at the time limit with or without a plan, and PuLP doesn't always tell the two apart,
     # so anything short of "no solution exists" is read back and re-checked against the rules below.
@@ -162,8 +171,68 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     if not optimal:
         print("optimise.solve: time limit reached, using the best plan found so far")
     total = sum(wk["xp"] for wk in weeks) - hit * sum(wk["hits"] for wk in weeks)
+    ft_left = v(ft[len(gws)])
     return {"weeks": weeks, "xp_total": round(total, 2), "objective": round(pulp.value(m.objective), 2),
-            "ft_left": v(ft[len(gws)]), "optimal": optimal}
+            "ft_left": ft_left, "value": round(total + ft_value * ft_left, 2), "optimal": optimal}
+
+
+# ---------------------------------------------------------------- strategies
+# Each strategy is Balanced plus a risk preference, held to a points budget against Balanced:
+#   Balanced    the most projected points.
+#   Play safe   never gives up points against Balanced (budget 0); among plans worth the same it picks the one that
+#               tracks what the managers around you own, avoids starters who may not play and avoids marginal hits.
+#   Chase rank  gives up at most CHASE_BUDGET points to back differentials and players with a high chance of a haul.
+# Every plan that makes a transfer must beat making no transfers at all by MIN_PROFIT points (the "no moves for the
+# sake of it" rule); a move-count option that can't is dropped rather than shown.
+# Budgets and profit are in VALUE points (plain projected points over the plan, minus hits, plus banked FTs).
+SAFE_BUDGET = 0.0
+CHASE_BUDGET = 4.0
+MIN_PROFIT = 1.0
+TIE = 0.1   # rounding room for "the same points" (the solver works to 0.1% gaps)
+EO_WEEKS = None   # weeks the ownership term covers (None = the whole plan, fading with the plan's decay)
+STRATEGY = {
+    "balanced": {},
+    "safe": {"lam": 0.1, "nail_w": 0.5, "hit_margin": 2.0},
+    "chase": {"lam": -0.15, "haul_w": 20.0},
+}
+
+
+def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes=("balanced", "safe", "chase"), **kw):
+    """Plans per strategy and move option. options: [(key, week1_moves)]. Returns ({plan key: plan}, notes).
+    Plan keys: "best", "roll", ... for Balanced and "safe_best", "chase_roll", ... for the others.
+
+    Missing input: without field ownership (eo None or empty) Play safe and Chase rank can't be worked out, so only
+    Balanced is returned and a note says why (the Planner shows a 'no plan' message, validate.py warns)."""
+    notes = []
+    base = dict(players=players, squad=squad, sell=sell, bank=bank, ft0=ft0, gws=gws, **kw)
+    none = solve(**base, week1_moves=0, freeze_after=0)          # keep the squad for the whole plan
+    if not none:
+        return {}, ["no plan without transfers could be worked out"]
+    v0 = none["value"]
+    modes = [m for m in modes if m == "balanced" or eo]
+    if not eo:
+        notes.append("no field ownership: Play safe and Chase rank skipped")
+    plans = {}
+    for key, n in options:
+        bal = solve(**base, week1_moves=n)
+        if not bal:
+            continue
+        for mode in modes:
+            if mode == "balanced":
+                r = bal
+            else:
+                floor = bal["value"] - SAFE_BUDGET - TIE if mode == "safe" else bal["value"] - CHASE_BUDGET
+                if bal["value"] >= v0 + MIN_PROFIT:
+                    floor = max(floor, v0 + MIN_PROFIT)   # still a clear profit on doing nothing
+                r = solve(**base, week1_moves=n, eo=eo, eo_weeks=EO_WEEKS or len(gws), floor=floor, **STRATEGY[mode]) or bal
+            moves = sum(len(w["in"]) for w in r["weeks"])
+            if moves and r["value"] < v0 + MIN_PROFIT and key != "roll":
+                notes.append(f"{mode} {key}: {r['value'] - v0:+.1f} vs no transfers, below the {MIN_PROFIT:g} profit rule: dropped")
+                continue
+            r["vs_none"] = round(r["value"] - v0, 2)
+            r["vs_balanced"] = round(r["value"] - bal["value"], 2)
+            plans[key if mode == "balanced" else f"{mode}_{key}"] = r
+    return plans, notes
 
 
 def _check(weeks, players, squad, sp, buy, bank, init, locked, banned):

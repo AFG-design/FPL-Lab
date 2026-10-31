@@ -25,14 +25,21 @@ const xpCell = (id, g) => isAsm(id, g) ? `<span class="asm" title="${ASM_TIP}">$
 const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a, x) => a + xpg(id, x), 0);
 
 // strategy-aware values (same maths as the optimiser): Safe leans to what the field owns, Chase away from it
+// Lineup and captain choice in the editor. These stay mild on purpose: the strategy plans and Re-plan use the
+// optimiser's settings with points budgets (optimise.STRATEGY, data.plan_rules), and Play safe only breaks ties here
+// (see adjXI) so it never gives up projected points.
 const LAM = { balanced: 0, safe: 0.02, chase: -0.03 };
-// strategy extras for Re-plan; same numbers as STRATEGY in build.py
 const STRAT = { balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 10 } };
 function fieldEO() { const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null; return F ? F.eo : null; }
 // Strategy extras as the optimiser has them, in every week: Chase rewards the chance of 10+ points (double for the
 // captain), Play safe marks down starters who may not play (starters only). pts stays plain projected points.
 const haulP = (i, g) => P[i]?.dist?.[g]?.[0] || 0;
 function adjXI(i, g) {
+  // Play safe: projected points decide, the safety terms only break ties (no points given up)
+  if (S.mode === "safe") return xpg(i, g) + 1e-3 * adjXIraw(i, g);
+  return adjXIraw(i, g);
+}
+function adjXIraw(i, g) {
   const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g), st = STRAT[S.mode] || {};
   let v = x;
   if (st.haulW) v += st.haulW * haulP(i, g);
@@ -43,6 +50,10 @@ function adjXI(i, g) {
   return v - lam * variance(P[i].pos, x) * (lam < 0 ? Math.max(0, k) : k);
 }
 function adjCap(i, g) {  // value of the captain's extra multiplier (no nailed term, as in the optimiser)
+  if (S.mode === "safe") return xpg(i, g) + 1e-3 * adjCapRaw(i, g);   // ties only, as in adjXI
+  return adjCapRaw(i, g);
+}
+function adjCapRaw(i, g) {
   const lam = LAM[S.mode] || 0, eo = fieldEO(), x = xpg(i, g), st = STRAT[S.mode] || {};
   const v = x + (st.haulW ? st.haulW * haulP(i, g) : 0);
   if (!lam || !eo || PG.indexOf(g) > 1) return v;
