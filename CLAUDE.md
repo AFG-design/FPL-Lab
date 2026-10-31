@@ -26,6 +26,11 @@ python3 backtest.py --compare base.json new.json
 python3 backtest.py --compare base_sl.json new_sl.json
 ```
 
+Also judge a change on the part it targets, not only on total points: the backtest prints minutes accuracy (start and
+60+ chance, expected minutes) and each scoring part on its own (raw, before the final calibration, which can hide a
+part that is badly off). `bench.py` prints 5-GW totals (what the planner uses) next to the 1-GW scores; quote both.
+A change that helps its own part but not the total is still worth recording in the model log.
+
 `--compare` flags any segment (position, price band, flagged/unflagged, top 30, GW) with n ≥ 30 where MAE
 worsens by more than 0.05 or bias moves by more than 0.2. A change that improves the headline but trips a
 segment must be called out in the PR, with the numbers. Put the before/after table in the PR.

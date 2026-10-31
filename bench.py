@@ -5,6 +5,7 @@ accuracy and on the decisions the app makes (who to pick, who to captain).
   python3 bench.py                     # current model (DEFAULTS)
   python3 bench.py '{"recency":0.8}'   # compare a parameter set against the current model
   python3 bench.py --no-archive-odds   # past seasons without odds (the setup before odds_archive.py)
+  python3 bench.py --no-h5             # skip the 5-GW totals check (planner horizon; the slow part)
 
 Each gameweek k is projected from data before k only. Past seasons come from archive.py, with betting
 odds from odds/archive/<season>.json (odds_archive.py) when present, as the live model has. A season with
@@ -26,6 +27,7 @@ import archive
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOPN = {"GKP": 5, "DEF": 15, "MID": 15, "FWD": 10}
 ARCHIVE_ODDS = True   # set False by --no-archive-odds
+H5 = 5                # gameweeks summed for the planner-horizon check (0 = off, --no-h5)
 
 
 def _corr(xs, ys):
@@ -176,6 +178,48 @@ def run_archive(params, season="2025-26", gws=range(4, 39)):
     return out
 
 
+def run_horizon(params, season, H):
+    """Planner check: from each origin k, project k..k+H-1 from data before k and compare each pool player's
+    H-week total with his real H-week total (the solver plans over several weeks, while score() judges one).
+    Origins: every k whose H weeks have all finished (this season: from GW3; archive: GW5 to 39-H).
+    Returns {k: [(pid, pos, projected total, real total)]}; a player missing a week scores 0 for it."""
+    if season == "current":
+        ctx, team_at = current_ctx(), None
+        origins = range(3, _CUR["cur"] - H + 2)
+    else:
+        ctx, team_at = _season(season)
+        origins = range(5, 39 - H + 1)
+    out = {}
+    for k in origins:
+        cx = ctx
+        if team_at:
+            cx = dict(ctx)
+            cx["elements"] = {pid: dict(e, team=team_at(pid, k) or e["team"]) for pid, e in ctx["elements"].items()}
+        res = project(cx, k, H, dict(params, use_flags=False))["players"]
+        rows = []
+        for pid, r in res.items():
+            if not any(cx["pstats"].get(pid, {}).get(g, {}).get("minutes", 0) > 0 for g in range(k - 3, k)):
+                continue
+            pg = cx["pts_gw"].get(pid, {})
+            rows.append((pid, POS[cx["elements"][pid]["element_type"]], sum(r["xp"].get(g, 0.0) for g in range(k, k + H)),
+                         sum(pg.get(g, 0) for g in range(k, k + H))))
+        out[k] = rows
+    return out
+
+
+def score_h(per):
+    """corr of H-week totals (all origins pooled) and picks: avg real H-week total of the model's top-N per position."""
+    P = [r[2] for rs in per.values() for r in rs]; A = [r[3] for rs in per.values() for r in rs]
+    picks = {}
+    for k, rs in per.items():
+        top = sorted(rs, key=lambda r: -r[2])
+        best = [r for pos, n in TOPN.items() for r in [x for x in top if x[1] == pos][:n]]
+        if best:
+            picks[k] = sum(r[3] for r in best) / len(best)
+    return {"n": len(P), "origins": len(picks), "corr": _corr(P, A) if P else float("nan"),
+            "picks": sum(picks.values()) / len(picks) if picks else float("nan"), "_per": picks}
+
+
 def fmt(name, m):
     pc = " ".join(f"{p}:{m['pos_corr'].get(p, float('nan')):.3f}" for p in ("GKP", "DEF", "MID", "FWD"))
     return (f"{name:<22} n={m['n']:5d} MAE {m['mae']:.3f} RMSE {m['rmse']:.3f} corr {m['corr']:.3f} "
@@ -223,6 +267,26 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
             ci = res[s].setdefault("_ci", {})[name] = paired_ci(res[s][names[0]], res[s][name])
             if not quiet:
                 print(fmt_ci(ci))
+        if H5:
+            hs = {name: score_h(run_horizon(p, s, H5)) for name, p in variants.items()}
+            res[s]["_h5"] = hs
+            if not quiet:
+                if not hs[names[0]]["origins"]:
+                    print(f"  {H5}-GW totals: not enough finished gameweeks yet")
+                for name in names:
+                    h = hs[name]
+                    if not h["origins"]:
+                        continue
+                    line = f"  {H5}-GW totals  {name:<16} corr {h['corr']:.3f} picks {h['picks']:.2f} ({h['origins']} origins)"
+                    if name != names[0]:
+                        b = hs[names[0]]["_per"]
+                        d = [h["_per"][k] - b[k] for k in sorted(set(b) & set(h["_per"]))]
+                        rng = random.Random(1)
+                        ms = sorted(sum(d[rng.randrange(len(d))] for _ in d) / len(d) for _ in range(2000))
+                        lo, hi = ms[50], ms[1949]
+                        line += (f" | vs current: corr {h['corr'] - hs[names[0]]['corr']:+.3f}, picks "
+                                 f"{sum(d) / len(d):+.2f} [{lo:+.2f}, {hi:+.2f}]" + ("" if lo > 0 or hi < 0 else " ~0"))
+                    print(line)
     return res
 
 
@@ -231,6 +295,9 @@ if __name__ == "__main__":
     if "--no-archive-odds" in args:
         ARCHIVE_ODDS = False
         args.remove("--no-archive-odds")
+    if "--no-h5" in args:
+        H5 = 0
+        args.remove("--no-h5")
     variants = {"current model": {}}
     if args:
         variants["candidate"] = json.loads(args[0])
