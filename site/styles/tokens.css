@@ -42,6 +42,14 @@
   --f4: #ff9d8f; --f4-fg: #2a0703;
   --f5: #c8352c; --f5-fg: #fff;
 
+  /* xP table heat scale, low -> high: accent mixed into the surface. Text stays --fg; every step passes AA with it. */
+  --heat-0: var(--surface);
+  --heat-1: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --heat-2: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  --heat-3: color-mix(in srgb, var(--accent) 31%, var(--surface));
+  --heat-4: color-mix(in srgb, var(--accent) 43%, var(--surface));
+  --heat-5: color-mix(in srgb, var(--accent) 55%, var(--surface));
+
   /* the pitch */
   --turf: #123d29;
   --turf-2: #164831;
@@ -113,6 +121,11 @@
   --bad: #b02f26;
   --info: #1f63b5;
   --f3: #56635c;
+  --heat-1: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  --heat-2: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  --heat-3: color-mix(in srgb, var(--accent) 25%, var(--surface));
+  --heat-4: color-mix(in srgb, var(--accent) 35%, var(--surface));
+  --heat-5: color-mix(in srgb, var(--accent) 45%, var(--surface));
   --turf: #1b6440;
   --turf-2: #1f7049;
   --chalk: rgb(255 255 255 / 35%);

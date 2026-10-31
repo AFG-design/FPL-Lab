@@ -16,6 +16,8 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
+  - a gameweek in progress with no pre-deadline snapshot for the xP table's live column (meta.xp_cur), or a
+    snapshot with fewer entries than half the players (it normally leaves out only players projected 0)
   - player odds (history/player_odds_gw*.json) for the latest finished-deadline gameweek missing a checkpoint
     (72, 24 or 3 h before the deadline), when that gameweek's file uses per-checkpoint snapshots. The model doesn't
     use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
@@ -100,6 +102,14 @@ def main(path):
         if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')) and w.get("xi_proj") is not None:
             if w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
                 errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but the review re-ran the model')
+
+    # xP table live column: the gameweek in progress should have its pre-deadline projections
+    xc = D["meta"].get("xp_cur")
+    if xc and xc.get("status") != "snapshot":
+        warnings.append(f'xP table GW{xc.get("gw")} live column has no projections ({xc.get("status")})')
+    elif xc and xc.get("in_snapshot", 0) < 0.5 * len(D["players"]):
+        warnings.append(f'xP table GW{xc["gw"]} live column: the snapshot has only {xc.get("in_snapshot", 0)} players '
+                        f'for {len(D["players"])} listed; players not in it show 0')
 
     # odds for next gameweek
     odds = load(os.path.join(HERE, "odds", "odds.json")) or {}

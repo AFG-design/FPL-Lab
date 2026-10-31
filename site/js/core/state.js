@@ -13,7 +13,7 @@ const rankFmt = n => n == null ? "–" : n.toLocaleString("en-GB");
 const CLUB_COL = { ARS: "#db0007", AVL: "#670e36", BOU: "#da291c", BRE: "#e30613", BHA: "#0057b8", CHE: "#034694", COV: "#6cc5ef", CRY: "#1b458f", EVE: "#003399", FUL: "#8c8c8c", HUL: "#f5a12d", IPS: "#3a64a3", LEE: "#ffcd00", LIV: "#c8102e", MCI: "#6cabdd", MUN: "#da291c", NEW: "#8c8c8c", NFO: "#dd0000", SUN: "#eb172b", TOT: "#7a8bb0", WOL: "#fdb913", WHU: "#7a263a", BUR: "#6c1d45" };
 const clubCol = p => CLUB_COL[T[p.team]?.short] || "var(--line-strong)";
 const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const VIEWS = ["week", "afg", "planner", "rivals", "deadlines", "review", "fixtures", "players", "stats", "chips", "model", "health"];
+const VIEWS = ["week", "afg", "planner", "rivals", "deadlines", "review", "fixtures", "players", "stats", "xptable", "chips", "model", "health"];
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
 S.ptab = ["suggest", "captains", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
