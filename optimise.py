@@ -181,7 +181,8 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
 #   Balanced    the most projected points.
 #   Play safe   never gives up points against Balanced (budget 0); among plans worth the same it picks the one that
 #               tracks what the managers around you own, avoids starters who may not play and avoids marginal hits.
-#   Chase rank  gives up at most CHASE_BUDGET points to back differentials and players with a high chance of a haul.
+#   Chase rank  gives up at most CHASE_BUDGET points to back differentials and players with a high chance of a haul,
+#               and takes a hit only when it clears the same extra bar as Play safe (no hits just for upside).
 # Every plan that makes a transfer must beat making no transfers at all by MIN_PROFIT points (the "no moves for the
 # sake of it" rule); a move-count option that can't is dropped rather than shown.
 # Budgets and profit are in VALUE points (plain projected points over the plan, minus hits, plus banked FTs).
@@ -193,7 +194,9 @@ EO_WEEKS = None   # weeks the ownership term covers (None = the whole plan, fadi
 STRATEGY = {
     "balanced": {},
     "safe": {"lam": 0.1, "nail_w": 0.5, "hit_margin": 2.0},
-    "chase": {"lam": -0.15, "haul_w": 20.0},
+    # hit_margin: a hit must clear 4 + 2 projected points, as for Play safe. Without it Chase took 3x Balanced's hits
+    # in the replay (strategy_replay.py) and lost about 2 real points a week for one extra big week.
+    "chase": {"lam": -0.15, "haul_w": 20.0, "hit_margin": 2.0},
 }
 
 
