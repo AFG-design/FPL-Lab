@@ -13,9 +13,19 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - expected minutes (xmin) outside 0-180, or NaN
   - the xMins minutes model switched on but any player with a next-GW fixture fell back to the old counts
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
+  - xMins on but no late-selling status (meta.xmins_selling) recorded
+  - a selling input (sell_share) outside 0-1
+  - late selling "on" while under 80% of likely starters (p_start >= 0.6) have a sell_share
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
+  - the late-selling minutes model (xMins B) off for a fault (cache missing / stale / unreadable, failed self-test,
+    low coverage): next gameweek uses xMins A. Normal waits (window still open, gameweek in progress) don't warn
+  - late selling "on" with 80-95% of likely starters covered
+  - player odds (history/player_odds_gw*.json) for the latest finished-deadline gameweek missing a checkpoint
+    (72, 24 or 3 h before the deadline), when that gameweek's file uses per-checkpoint snapshots. The model doesn't
+    use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
+    snapshots, e.g. with no ODDS_API_KEY.
 """
 import json, math, os, sys
 from collections import Counter
@@ -80,6 +90,27 @@ def main(path):
         errors.append(f"xMins minutes model is on but {mm['counts']} players with a GW{g} fixture fell back to the "
                       f"old counts ({mm.get('xmins', 0)} used xMins)")
 
+    # late-selling inputs (xMins B, sell_history.py)
+    xs = D["meta"].get("xmins_selling")
+    sel = D["meta"].get("selling") or {}
+    if mm and mm.get("xmins_on") and not xs:
+        errors.append("xMins is on but data.json has no meta.xmins_selling status")
+    for p in D["players"]:
+        v = p.get("sell_share")
+        if v is not None and (is_bad(v) or not 0 <= v <= 1):
+            errors.append(f"{name(p)}: sell_share = {v} (must be 0-1)")
+    if xs and xs.startswith("off") and sel.get("kind") == "fault":
+        warnings.append(f"Late-selling start-chance model not used for GW{g}: {xs[5:]}. Next gameweek uses xMins A")
+    if xs == "on":
+        likely = [p for p in D["players"] if (p.get("p_start") or 0) >= 0.6]
+        cov = sum(1 for p in likely if p.get("sell_share") is not None) / len(likely) if likely else 0
+        msg = (f"Late selling is on for GW{g} but only {cov:.0%} of {len(likely)} likely starters (start chance 60%+) "
+               f"have a sell_share")
+        if cov < 0.8:
+            errors.append(msg)
+        elif cov < 0.95:
+            warnings.append(msg)
+
     # Understat: one-to-one both ways
     dup_us = [u for u, n in Counter(v["us_id"] for v in us.values()).items() if n > 1]
     if dup_us:
@@ -102,6 +133,19 @@ def main(path):
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 
+    # player odds history: the last gameweek whose deadline has passed should have all three checkpoints
+    po = sorted(((int(f[len("player_odds_gw"):-5]), f) for f in os.listdir(os.path.join(HERE, "history"))
+                 if f.startswith("player_odds_gw") and f.endswith(".json")), reverse=True)
+    for pg, f in po:
+        if pg >= g:   # the coming gameweek is still being collected
+            continue
+        snaps = (load(os.path.join(HERE, "history", f)) or {}).get("snapshots")
+        if snaps is not None:
+            missing = [h for h in ("72", "24", "3") if h not in snaps]
+            if missing:
+                warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "
+                                f"(check the ODDS_API_KEY secret and credits)")
+        break
     D["health"] = {"checked": D["meta"].get("built"), "ok": not errors, "errors": errors[:50], "warnings": warnings}
     with open(path, "w") as f:
         json.dump(D, f, separators=(",", ":"))

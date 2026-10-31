@@ -24,7 +24,21 @@
  ],
  "train_seasons": [
   "2022-23",
-  "2023-24"
+  "2023-24",
+  "2024-25",
+  "2025-26"
  ],
- "source": "original_xmins_model.joblib (user-supplied), boosters exported with xgboost 3.4.1"
+ "rows": 98164,
+ "hyperparameters": {
+  "max_depth": 4,
+  "eta": 0.05,
+  "subsample": 0.8,
+  "colsample_bytree": 0.8,
+  "min_child_weight": 10,
+  "seed": 0,
+  "nthread": 4
+ },
+ "rounds": 500,
+ "xgboost": "3.4.1",
+ "built_by": "xmins_train.py"
 }

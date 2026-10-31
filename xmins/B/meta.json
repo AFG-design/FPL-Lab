@@ -1,0 +1,47 @@
+{
+ "features": [
+  "round",
+  "was_home",
+  "history_gws",
+  "gap_prev_gw",
+  "days_since_last_pl_fixture",
+  "position_GK",
+  "position_DEF",
+  "position_MID",
+  "position_FWD",
+  "last_minutes",
+  "last_starts",
+  "last_played",
+  "minutes_avg_3",
+  "starts_avg_3",
+  "played_avg_3",
+  "minutes_avg_5",
+  "starts_avg_5",
+  "played_avg_5",
+  "minutes_avg_10",
+  "starts_avg_10",
+  "played_avg_10",
+  "sell_share",
+  "sell_spike",
+  "log_own"
+ ],
+ "train_seasons": [
+  "2022-23",
+  "2023-24",
+  "2024-25",
+  "2025-26"
+ ],
+ "rows": 98164,
+ "hyperparameters": {
+  "max_depth": 4,
+  "eta": 0.05,
+  "subsample": 0.8,
+  "colsample_bytree": 0.8,
+  "min_child_weight": 10,
+  "seed": 0,
+  "nthread": 4
+ },
+ "rounds": 500,
+ "xgboost": "3.4.1",
+ "built_by": "xmins_train.py"
+}

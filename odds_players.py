@@ -6,12 +6,19 @@ does nothing. The refresh workflow runs every 10-30 minutes, but this only calls
 few checkpoints before each deadline (CHECKPOINTS), so a free key (500 credits a month) lasts:
 about 10 fixtures x 2 markets = ~20 credits per refresh, 3 refreshes per gameweek.
 
-Writes odds/players.json (latest) and history/player_odds_gw{N}.json (the last snapshot before
-that deadline, for backtests). Only derived numbers are saved, never raw bookmaker prices:
-  p_score  : median implied chance of scoring if he plays (bookmaker margin still included;
-             the model removes it by matching each team's total to its expected goals)
-  p_assist : median chance of 1+ assist (margin removed from the over/under pair when both sides exist)
-  books    : how many bookmakers priced him
+Writes odds/players.json (latest) and history/player_odds_gw{N}.json for backtests. The history file keeps
+every checkpoint: `snapshots` {"72": ..., "24": ..., "3": ...} (keyed by the checkpoint the fetch was for; "early"
+for a forced fetch before the first one), each with its own fixtures and unmatched names. Its top-level `built`
+and `fixtures` are the latest snapshot, as before. Only derived numbers are saved, never raw bookmaker prices:
+  p_score        : median implied chance of scoring if he plays (bookmaker margin still included;
+                   remove it by matching each team's total to its expected goals)
+  p_assist_raw   : median implied chance of 1+ assist from the Over price (margin still included, like p_score)
+  p_assist       : median fair chance of 1+ assist, ONLY from bookmakers that priced both Over and Under
+                   (margin removed from the pair); absent when no bookmaker priced both sides
+  assist_pairs   : how many bookmakers gave both sides
+  books          : how many bookmakers priced his goalscorer market
+Files up to GW9 have only `p_assist`, which mixed fair and Over-only prices (about 2.2-2.7x too high on
+average, test of 31 Oct 2026): treat those as p_assist_raw. They have one snapshot (the last before the deadline).
 """
 import json, os, statistics, sys, time, unicodedata, urllib.request, urllib.error, datetime as dt
 
@@ -101,6 +108,12 @@ def implied(price):
     return 1.0 / price if price and price > 1 else None
 
 
+def checkpoint_label(deadline, now):
+    """The checkpoint a fetch at `now` belongs to: the latest one already passed ("72", "24" or "3"), or "early"."""
+    passed = [h for h in CHECKPOINTS if now >= deadline - dt.timedelta(hours=h)]
+    return str(min(passed)) if passed else "early"
+
+
 def due(state, gw, deadline, now):
     """True when a checkpoint has passed since the last fetch for this gameweek."""
     if now >= deadline:
@@ -188,18 +201,20 @@ def main():
             if ps:
                 row["p_score"] = round(statistics.median(ps), 4)
                 row["books"] = len(ps)
-            pa = []
+            fair, raw = [], []
             for (d, bk), po in assist_o.items():
                 if d != desc:
                     continue
-                pu = assist_u.get((d, bk))
-                io, iu = implied(po), implied(pu)
+                io, iu = implied(po), implied(assist_u.get((d, bk)))
+                if io:
+                    raw.append(io)
                 if io and iu:
-                    pa.append(io / (io + iu))
-                elif io:
-                    pa.append(io)
-            if pa:
-                row["p_assist"] = round(statistics.median(pa), 4)
+                    fair.append(io / (io + iu))
+            if raw:
+                row["p_assist_raw"] = round(statistics.median(raw), 4)
+            if fair:   # Over-only prices are never mixed in here: they still carry the margin
+                row["p_assist"] = round(statistics.median(fair), 4)
+                row["assist_pairs"] = len(fair)
         out_fx[str(f["id"])] = {"h": f["team_h"], "a": f["team_a"], "kickoff": f["kickoff_time"],
                                 "books": len(data.get("bookmakers", [])), "players": players}
 
@@ -212,10 +227,21 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     json.dump(state, open(OUT, "w"), separators=(",", ":"))
     os.makedirs(HIST, exist_ok=True)
-    json.dump({k: state[k] for k in ("built", "gw", "deadline", "regions", "fixtures")},
-              open(os.path.join(HIST, f"player_odds_gw{gw}.json"), "w"), separators=(",", ":"))
+    hpath = os.path.join(HIST, f"player_odds_gw{gw}.json")
+    try:
+        hist = json.load(open(hpath))
+    except Exception:   # first checkpoint of this gameweek (or an unreadable file: start again, never merge into it)
+        hist = {}
+    if hist and "snapshots" not in hist:   # an older single-snapshot file: keep it as the snapshot it was
+        hist["snapshots"] = {"legacy": {k: hist[k] for k in ("built", "fixtures") if k in hist}}
+    label = checkpoint_label(deadline, now)
+    hist.setdefault("snapshots", {})[label] = {"built": stamp, "credits_used": spent, "fixtures": out_fx,
+                                               "unmatched_players": sorted(set(unmatched)),
+                                               "unmatched_teams": sorted(unmatched_teams)}
+    hist.update({k: state[k] for k in ("built", "gw", "deadline", "regions", "fixtures")})
+    json.dump(hist, open(hpath, "w"), separators=(",", ":"))
     n = sum(len(x["players"]) for x in out_fx.values())
-    print(f"player odds GW{gw}: {len(out_fx)}/{len(gw_fx)} fixtures, {n} players, {len(set(unmatched))} unmatched names, "
+    print(f"player odds GW{gw} ({label} h checkpoint): {len(out_fx)}/{len(gw_fx)} fixtures, {n} players, {len(set(unmatched))} unmatched names, "
           f"{spent} credits used, {left} left")
     if unmatched_teams:
         print("unmatched team names:", sorted(unmatched_teams))

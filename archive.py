@@ -154,6 +154,21 @@ def load_season(season, scoring_from):
     return boot, fixtures, live, priors, team_at
 
 
+def load_transfers(season):
+    """{pid: [(round, transfers_in, transfers_out, selected)]} from merged_gw.csv, the rows xmins.sell_from_rounds
+    takes (the same per-round fields as FPL's element-summary history; GW k's transfers are the window before
+    deadline k). Doubles: the first row (both rows carry the same window). Assistant managers skipped."""
+    praw = {int(r["id"]) for r in _rows(season, "players_raw.csv") if r.get("element_type") != "5"}
+    seen, rows = set(), defaultdict(list)
+    for r in _rows(season, "gws/merged_gw.csv"):
+        pid, g = int(r["element"]), int(r["GW"])
+        if pid not in praw or (pid, g) in seen:
+            continue
+        seen.add((pid, g))
+        rows[pid].append((g, _num(r["transfers_in"], int), _num(r["transfers_out"], int), _num(r["selected"], int)))
+    return dict(rows)
+
+
 def load_odds(season):
     """Market odds for a past season in odds/odds.json's shape, or None if odds_archive.py hasn't been run for it.
 
