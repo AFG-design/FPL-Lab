@@ -136,4 +136,5 @@ function bind() {
   on("[data-colreset]", () => { store.set("fpl.cols", null); render(); });
   bindXp();   // xP table controls (views/xptable.js)
   bindPlannerViews();   // Planner view tabs (views/planner-views.js)
+  bindStatsMore();   // Goals & assists, Defence and Season race controls (views/stats-more.js)
 }

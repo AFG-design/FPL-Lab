@@ -21,7 +21,7 @@ S.ptab = ["suggest", "captains", "rules", "drafts"].includes(store.get("fpl.ptab
 { const v = store.get("fpl.pview");   // an older build stored a strategy name here: open Suggested on it
   S.pview = ["mine", "suggest", "compare", "edit"].includes(v) ? v : ["balanced", "safe", "chase"].includes(v) ? "suggest" : "mine";
   S.pstrat = ["balanced", "safe", "chase"].includes(store.get("fpl.pstrat")) ? store.get("fpl.pstrat") : ["balanced", "safe", "chase"].includes(v) ? v : "balanced"; }
-S.stab = ["form", "shots", "sp", "defence", "bonus", "value", "prices", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
+S.stab = ["form", "ga", "race", "shots", "sp", "defence", "bonus", "value", "prices", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
 S.fxMode = ["fdr", "overall", "att", "def"].includes(store.get("fpl.fxMode")) ? store.get("fpl.fxMode") : "fdr";
 S.horizon = [3, 5, 6].includes(store.get("fpl.horizon")) ? store.get("fpl.horizon") : 5;
 function setHorizon(h) {
