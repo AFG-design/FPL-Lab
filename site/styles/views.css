@@ -310,7 +310,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .pvstratseg button small.down { color: var(--bad); }
 
 /* ---------- Stats: Goals & assists bars (actual bar, expected tick) ---------- */
-.gabars { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.gabars { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 760px; }
 .gabars li { display: grid; grid-template-columns: minmax(96px, 168px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; padding: 3px 6px; border-radius: var(--r-sm); }
 .gabars li:hover { background: var(--raised); }
 .gabars li.mine { box-shadow: inset 3px 0 0 var(--hi); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
@@ -338,11 +338,20 @@ tr.is-rival td { background: var(--accent-soft); }
 .hpill.h3 { background: var(--heat-3); box-shadow: none; }
 .hpill.h4 { background: var(--heat-4); box-shadow: none; }
 .hpill.h5 { background: var(--heat-5); box-shadow: none; }
+.leaders .ph-only { display: none; }
 
 @media (max-width: 720px) {
   /* phones: the player column stays narrow so the shaded numbers are on screen without scrolling; the row's
      yellow edge still marks your players */
-  .ld-photo, .ld-yours, .ld-nm .nm-full { display: none; }
+  .ld-photo, .ld-yours, .ld-nm .nm-full, .leaders .desk-only { display: none; }
+  .leaders .ph-only { display: table-cell; }
+
+  /* Stats tabs: one row to swipe instead of three wrapped rows; the faded edge shows there's more */
+  .stats-nav .ptabs { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+  .stats-nav .ptabs button { scroll-snap-align: center; }
+  .stats-nav .ptabs.more-r { mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .stats-nav .ptabs.more-l { mask-image: linear-gradient(90deg, transparent, #000 15%); }
+  .stats-nav .ptabs.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
   .ld-nm .nm-short { display: inline; }
   .ld-player { gap: 6px; }
   .leaders th, .leaders td { padding-left: 7px; padding-right: 7px; }

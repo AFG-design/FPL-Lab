@@ -11,9 +11,24 @@ function priceSel(key, label = "Max price") {
 }
 const underCap = (p, key) => S[key] === "" || S[key] == null || p.price <= +S[key];
 // sortable header; the column sorts high to low
-function sortTh(key, col, label, title = "") {
+function sortTh(key, col, label, title = "", cls = "") {
   const on = (S[key] || "") === col;
-  return `<th class="sort n" data-ssort="${key}:${col}" ${on ? 'aria-sort="descending"' : ""} ${title ? `title="${esc(title)}"` : ""}>${label}${on ? " ↓" : ""}</th>`;
+  return `<th class="sort n ${cls}" data-ssort="${key}:${col}" ${on ? 'aria-sort="descending"' : ""} ${title ? `title="${esc(title)}"` : ""}>${label}${on ? " ↓" : ""}</th>`;
+}
+// Filter and sort choices are remembered on this device. A saved value that isn't one of the current options (an
+// older build, a renamed column) is dropped, so the tab falls back to its normal default rather than a broken view.
+const STATS_PREFS = {
+  gaWin: ["season", "l6"], gaPos: ["ALL", "DEF", "MID", "FWD"], gaMetric: ["gi", "g", "a"],
+  gaSort: ["mins", "g", "xg", "a", "xa", "gi", "xgi", "diff", "gi90"],
+  dcPos: ["DEF", "MID", "FWD"], dcSort: ["next", "per90", "rate", "pts", "l6", "mins", "nailed", "xp"],
+  ldPos: ["ALL", "GKP", "DEF", "MID", "FWD"], ldSort: ["price", "starts", "mins", "own", "pts", "goals", "assists", "gi", "dd", "bonus"],
+  gaMax: PRICE_CAPS.map(String), dcMax: PRICE_CAPS.map(String), ldMax: PRICE_CAPS.map(String),
+};
+{ const saved = store.get("fpl.statsf") || {};
+  for (const [k, ok] of Object.entries(STATS_PREFS)) if (saved[k] != null && ok.includes(String(saved[k]))) S[k] = String(saved[k]); }
+function saveStatsPrefs() {
+  const o = {}; for (const k of Object.keys(STATS_PREFS)) if (S[k] != null) o[k] = S[k];
+  store.set("fpl.statsf", o);
 }
 const pcell = p => `<td><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td>`;
 const leftOut = (n, what) => n ? `<p class="note">${n} player${n === 1 ? "" : "s"} left out: no ${what} in this build.</p>` : "";
@@ -120,25 +135,34 @@ function leadersHTML() {
   // shading: each column against its own best among the ten shown (0 = no shade)
   const top = Object.fromEntries(LEAD_COLS.map(([k, , f]) => [k, Math.max(0, ...rows.map(p => f(p) ?? 0))]));
   const fmt = (k, v) => v == null ? '<span class="muted" title="Not in this build">–</span>' : k === "price" ? money(v) : k === "own" ? v.toFixed(1) : v;
-  const td = (p, [k, , f, heat]) => {
+  const td = (p, [k, , f, heat], cls = "") => {
     const v = f(p);
-    if (!heat || v == null) return `<td class="n">${fmt(k, v)}</td>`;
+    if (!heat || v == null) return `<td class="n ${cls}">${fmt(k, v)}</td>`;
     const lvl = top[k] > 0 && v > 0 ? Math.max(1, Math.round(5 * v / top[k])) : 0;
-    return `<td class="n"><span class="hpill h${lvl}">${fmt(k, v)}</span></td>`;
+    return `<td class="n ${cls}"><span class="hpill h${lvl}">${fmt(k, v)}</span></td>`;
   };
+  const ptsCol = LEAD_COLS.find(c => c[0] === "pts");
   const live = !D.meta.cur_finished;
   const posTxt = { ALL: "players", GKP: "goalkeepers", DEF: "defenders", MID: "midfielders", FWD: "forwards" }[S.ldPos || "ALL"];
   return `<div class="panel"><div class="bar"><h3>Points leaders</h3><div class="fx-controls">${posSeg("ldPos", [["ALL", "All"], ["GKP", "GKP"], ["DEF", "DEF"], ["MID", "MID"], ["FWD", "FWD"]])}${priceSel("ldMax")}</div></div>
     <p class="note" style="margin-top:0">Top 10 ${posTxt} by ${col[1] === "Pts" ? "FPL points" : col[1]} this season. Tap any column to rank by it. Shading compares each column within the ten shown. DD hauls = gameweeks of 10+ points${live ? `; GW${D.meta.cur_gw} counts finished matches only so far` : ""}.</p>
-    <div class="tablebox leaders"><table><thead><tr><th class="sticky-col">Player</th>${LEAD_COLS.map(([k, l]) => sortTh("ldSort", k, l)).join("")}</tr></thead>
+    <div class="tablebox leaders"><table><thead><tr><th class="sticky-col">Player</th>${sortTh("ldSort", "pts", "Pts", "", "ph-only")}${LEAD_COLS.map(([k, l]) => sortTh("ldSort", k, l, "", k === "pts" ? "desk-only" : "")).join("")}</tr></thead>
     <tbody>${rows.map(p => { const star = isStarred(p.id); return `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td class="sticky-col"><div class="ld-player">
       <button type="button" class="xstar" data-xstar="${p.id}" aria-pressed="${star}" aria-label="${star ? "Remove" : "Add"} ${esc(p.name)} ${star ? "from" : "to"} starred players">${star ? "★" : "☆"}</button>
       <img class="ld-photo" src="${photoURL(p)}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=PHOTO_BASE+'/placeholder.png'}else this.style.visibility='hidden'">
-      <span class="ld-nm"><button data-p="${p.id}" class="pname linkish"><span class="nm-full">${esc(p.full.length > 22 ? p.name : p.full)}</span><span class="nm-short">${esc(p.name)}</span></button><span class="muted">${T[p.team].short} <span class="pill">${p.pos}</span>${MINE.has(p.id) ? ' <span class="pill good ld-yours">Yours</span>' : ""}</span></span></div></td>${LEAD_COLS.map(c => td(p, c)).join("")}</tr>`; }).join("") || `<tr><td colspan="${LEAD_COLS.length + 1}" class="muted">No players match these filters.</td></tr>`}</tbody></table></div></div>`;
+      <span class="ld-nm"><button data-p="${p.id}" class="pname linkish"><span class="nm-full">${esc(p.full.length > 22 ? p.name : p.full)}</span><span class="nm-short">${esc(p.name)}</span></button><span class="muted">${T[p.team].short} <span class="pill">${p.pos}</span>${MINE.has(p.id) ? ' <span class="pill good ld-yours">Yours</span>' : ""}</span></span></div></td>${td(p, ptsCol, "ph-only")}${LEAD_COLS.map(c => td(p, c, c[0] === "pts" ? "desk-only" : "")).join("")}</tr>`; }).join("") || `<tr><td colspan="${LEAD_COLS.length + 2}" class="muted">No players match these filters.</td></tr>`}</tbody></table></div></div>`;
 }
 
 /* ---------- controls shared by these tabs ---------- */
+function statsTabsRow() {
+  const row = $("#app .stats-nav .ptabs"); if (!row) return;
+  const edge = () => { row.classList.toggle("more-r", row.scrollLeft + row.clientWidth < row.scrollWidth - 4); row.classList.toggle("more-l", row.scrollLeft > 4); };
+  const on = row.querySelector('[aria-pressed="true"]');
+  if (on && row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2);
+  row.addEventListener("scroll", edge, { passive: true }); edge();
+}
 function bindStatsMore() {
+  if (S.view === "stats") { saveStatsPrefs(); statsTabsRow(); }
   document.querySelectorAll("#app [data-ssort]").forEach(th => th.onclick = e => {
     if (e.target.closest(".term")) return;   // the "Nailed" header's explainer, not a sort
     const [k, v] = th.dataset.ssort.split(":"); S[k] = v; render();
