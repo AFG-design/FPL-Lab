@@ -1,7 +1,8 @@
 // Planner page: view tabs over the editor.
 //   My team     your 15 as they are, best XI and captain each week (the baseline every other tab is measured on)
-//   Balanced / Play safe / Chase rank   the server optimiser's plan for that strategy, shown as the XI it leaves you
-//   Compare     the four side by side, week by week
+//   Suggested   the server optimiser's plan for one strategy (Balanced / Play safe / Chase rank switch), shown as
+//               the XI it leaves you; the switch says when two strategies make the same transfers
+//   Compare     your team and the three strategies side by side, week by week
 //   Your plan   the full editor (views/planner.js)
 //
 // Missing or ambiguous data, and what each tab does about it:
@@ -13,7 +14,7 @@
 //     (dotted xP, "Assumed — no official data"), and My team counts them.
 //   - No field ownership (crowd data): the Compare "field ownership" row shows "–" rather than 0%.
 
-const PVIEWS = [["mine", "My team"], ["balanced", "Balanced"], ["safe", "Play safe"], ["chase", "Chase rank"], ["compare", "Compare"], ["edit", "Your plan"]];
+const PVIEWS = [["mine", "My team"], ["suggest", "Suggested"], ["compare", "Compare"], ["edit", "Your plan"]];
 const PV_MODES = ["balanced", "safe", "chase"];
 const PV_VARIANTS = ["roll", "one", "two", "three", "best"];
 const PV_VAR_LABEL = { roll: "Roll", one: "1 move", two: "2 moves", three: "3 moves", best: "Optimal" };
@@ -77,7 +78,7 @@ function pvTabs() {
   const pv = S.pview;
   return `<div class="seg pviews" role="tablist" aria-label="Planner views">${PVIEWS.map(([k, l]) => {
     let tag = "";
-    if (PV_MODES.includes(k)) { const r = pvStrat(k); tag = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</small>` : `<small>–</small>`; }
+    if (k === "suggest") { const r = pvStrat(S.pstrat); tag = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${MODES[S.pstrat]} ${sgn(r.gain)}</small>` : `<small>${MODES[S.pstrat]} –</small>`; }
     if (k === "edit" && SB.moves.length) tag = `<small>${SB.moves.length} move${SB.moves.length === 1 ? "" : "s"}</small>`;
     return `<button role="tab" data-pview="${k}" aria-selected="${pv === k}" aria-pressed="${pv === k}">${l}${tag}</button>`;
   }).join("")}</div>`;
@@ -121,7 +122,25 @@ function pvMine() {
   </div>`;
 }
 
-/* ---------- one strategy ---------- */
+/* ---------- Suggested: one strategy at a time ---------- */
+// which other strategies make exactly the same transfers over the plan (lineups and captains can still differ)
+function pvSameAs(mode) {
+  const r = pvStrat(mode); if (!r.key) return [];
+  return PV_MODES.filter(m => m !== mode).filter(m => { const o = pvStrat(m); return o.key && sameMoves(o.moves, r.moves); });
+}
+function pvStratSwitch() {
+  const cur = S.pstrat;
+  const btns = PV_MODES.map(m => {
+    const r = pvStrat(m);
+    const sub = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</small>` : "<small>no plan</small>";
+    return `<button data-pstrat="${m}" aria-pressed="${m === cur}">${MODES[m]}${sub}</button>`;
+  }).join("");
+  const same = pvSameAs(cur);
+  const sameTxt = same.length ? `Same transfers as ${same.map(m => MODES[m]).join(" and ")}${same.length === PV_MODES.length - 1 ? " this time: the strategies agree" : ""}. Lineups and captains can still differ.` : "";
+  return `<div class="panel pvstrat"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
+    <div class="seg pvstratseg" role="group" aria-label="Strategy">${btns}</div></div>
+    <p class="note" style="margin:8px 0 0">${MODE_HELP[cur]}${sameTxt ? ` <b>${sameTxt}</b>` : ""}</p></div>`;
+}
 function pvMissing(mode) {
   const why = mode === "balanced" ? "The optimiser didn't produce any plans in this build." : `No ${MODES[mode]} plans in this build: they need the field-ownership data (managers around your rank), which wasn't available.`;
   return `<div class="panel"><h3>${MODES[mode]}</h3><p class="verdict">${why} Nothing is shown in its place. Try again after the next refresh, or plan it yourself.</p>
@@ -129,7 +148,7 @@ function pvMissing(mode) {
 }
 function pvStrategy(mode) {
   const r = pvStrat(mode);
-  if (!r.key) return pvMissing(mode);
+  if (!r.key) return pvStratSwitch() + pvMissing(mode);
   const g = pvGw(), wk = r.sc.weeks.find(w => w.gw === g), t = wk.team, base = pvBase();
   const bw = base.weeks.find(w => w.gw === g);
   const now = r.moves.filter(m => m.gw === g);
@@ -152,7 +171,7 @@ function pvStrategy(mode) {
   }).join("");
   const drafts = getDrafts();
   return `
-  <p class="note" style="margin:0">${MODE_HELP[mode]}</p>
+  ${pvStratSwitch()}
   <div class="plansum">
     <div class="kpi"><span class="lbl">${MODES[mode]} · ${PG.length} GWs</span><b>${f1(r.sc.tot)}</b><span class="delta muted">projected, after hits</span></div>
     <div class="kpi"><span class="lbl">vs My team</span><b class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</b><span class="delta">${vPill(r.conf)}</span></div>
@@ -216,7 +235,7 @@ function pvCompare() {
 /* ---------- page ---------- */
 function vPlanner() {
   const pv = S.pview;
-  const body = pv === "edit" ? plannerEditor() : pv === "compare" ? pvCompare() : pv === "mine" ? pvMine() : pvStrategy(pv);
+  const body = pv === "edit" ? plannerEditor() : pv === "compare" ? pvCompare() : pv === "suggest" ? pvStrategy(S.pstrat) : pvMine();
   return `
   <header class="page-title"><h1>Planner</h1><p>Your team as it is, what each strategy would do, and your own plan, over the next ${PG.length} gameweeks.</p></header>
   <div class="pvhead">${pvTabs()}
@@ -229,7 +248,12 @@ function bindPlannerViews() {
   const bar = document.querySelector(".pviews"), cur = bar?.querySelector('[aria-pressed="true"]');
   if (bar && cur && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = Math.max(0, cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2);
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el));
-  on("[data-pview]", b => { S.pview = b.dataset.pview; store.set("fpl.pview", S.pview); if (S.pview !== "edit") SB.sel = null; render(); window.scrollTo({ top: 0 }); });
+  on("[data-pview]", b => {
+    let v = b.dataset.pview;
+    if (PV_MODES.includes(v)) { S.pstrat = v; store.set("fpl.pstrat", v); v = "suggest"; }
+    S.pview = v; store.set("fpl.pview", v); if (v !== "edit") SB.sel = null; render(); window.scrollTo({ top: 0 });
+  });
+  on("[data-pstrat]", b => { S.pstrat = b.dataset.pstrat; store.set("fpl.pstrat", S.pstrat); render(); });
   on("[data-pvgw]", b => { PV.gw = +b.dataset.pvgw; render(); });
   on("[data-pvvar]", b => { const [m, k] = b.dataset.pvvar.split(":"); PV.variant[m] = k; render(); });
   on("[data-pvuse]", b => {

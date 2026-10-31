@@ -303,3 +303,8 @@ tr.is-rival td { background: var(--accent-soft); }
   .pvcmp th:first-child, .pvcmp td:first-child { min-width: 0; max-width: 104px; white-space: normal; font-size: var(--fs-xs); }
   .pvcmp td.pvcell { min-width: 132px; }
 }
+.pvstrat { padding: 12px 14px; }
+.pvstratseg button { display: inline-grid; justify-items: center; gap: 1px; }
+.pvstratseg button small { font-size: var(--fs-xs); font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
+.pvstratseg button small.up { color: var(--good); }
+.pvstratseg button small.down { color: var(--bad); }
