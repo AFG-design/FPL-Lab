@@ -129,6 +129,26 @@ def main(path):
                 warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
+    # Planner strategy tabs (views/planner.js): each tab shows one optimiser plan per strategy. Every plan must name
+    # players we list and field a legal XI; a strategy with no plans (build.py drops Play safe and Chase rank when the
+    # field ownership file is missing) is a warning, and the tab says so instead of showing the Balanced plan.
+    pids = {p["id"] for p in D["players"]}
+    plans = D.get("plans") or {}
+    if not plans:
+        warnings.append("No optimiser plans: the Planner strategy tabs show a 'no plan' message")
+    for k, pl in plans.items():
+        for wk in pl.get("weeks", []):
+            unknown = [i for i in wk.get("in", []) + wk.get("out", []) + wk.get("xi", []) if i not in pids]
+            if unknown:
+                errors.append(f"Plan {k} GW{wk.get('gw')}: players {unknown[:5]} are not in the player list")
+            if len(wk.get("xi", [])) != 11 or wk.get("captain") not in wk.get("xi", []):
+                errors.append(f"Plan {k} GW{wk.get('gw')}: XI has {len(wk.get('xi', []))} players or captain outside it")
+            if len(wk.get("in", [])) != len(wk.get("out", [])):
+                errors.append(f"Plan {k} GW{wk.get('gw')}: {len(wk.get('in', []))} in vs {len(wk.get('out', []))} out")
+    if plans:
+        for mode, label in (("safe", "Play safe"), ("chase", "Chase rank")):
+            if not any(k.startswith(mode + "_") for k in plans):
+                warnings.append(f"No {label} plans this build (field ownership missing?): its Planner tab shows a 'no plan' message")
     D["health"] = {"checked": D["meta"].get("built"), "ok": not errors, "errors": errors[:50], "warnings": warnings}
     with open(path, "w") as f:
         json.dump(D, f, separators=(",", ":"))
