@@ -22,7 +22,7 @@ import json, math, os, random, sys
 from collections import defaultdict
 
 from fplmodel import prepare, project, POS
-import archive
+import archive, selling
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOPN = {"GKP": 5, "DEF": 15, "MID": 15, "FWD": 10}
@@ -129,6 +129,10 @@ def current_ctx():
     except Exception:
         status_log = None
     _CUR["ctx"] = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    try:   # selling counts per round (selling.py; history/sell_hist.json from the live build) for xmins_sell
+        _CUR["ctx"]["sell"] = selling.from_rounds(json.load(open(os.path.join(HERE, "history", "sell_hist.json")))["rounds"])
+    except FileNotFoundError:
+        pass   # no table: a run with xmins_sell on raises in xmins.predict_sell rather than guessing
     _CUR["cur"] = cur
     return _CUR["ctx"]
 
@@ -156,6 +160,7 @@ def _season(season):
         else:
             print(f"[{season}] with betting odds for {len(market['matches'])} of {market['fixtures']} fixtures")
         ctx = prepare(boot, fixtures, live, priors, market)
+        ctx["sell"] = selling.from_archive(season)   # pre-deadline transfer counts for xmins_sell
         # credit each gameweek's xG to the club the player was at then
         tgx = defaultdict(lambda: defaultdict(float))
         for pid, gs in ctx["pstats"].items():

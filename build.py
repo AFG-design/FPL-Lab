@@ -114,6 +114,22 @@ try:
 except Exception as ex:
     print("transfer log skipped:", ex)
 ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
+# Selling counts for the selling-informed xMins model (selling.py; param xmins_sell, off = shadow only).
+# history/sell_hist.json: element-summary rows, refetched once per transfer window (~one call per player), plus the
+# open window from bootstrap-static (no extra call). No cache (fetch failed, first run offline) -> no ctx["sell"]:
+# the shadow is skipped and says why; with xmins_sell on, project() raises instead of running without it.
+sell_info = {"calls": 0}
+try:
+    import selling
+    _sc, sell_info["calls"] = selling.refresh(boot, next_ev, os.path.join(HERE, "history", "sell_hist.json"), get)
+    if _sc:
+        ctx["sell"] = selling.from_rounds(_sc["rounds"])
+        sell_info.update(fetched=_sc["fetched"], failed=_sc.get("failed", 0), players=len(_sc["rounds"]))
+        if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
+            sell_info["live_window"] = selling.add_live_window(ctx["sell"], boot, _sc["rounds"], next_gw)
+except Exception as ex:
+    print("selling counts skipped:", ex)
+    sell_info["error"] = str(ex)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match.
 # A competition marked "confirmed": false in europe.json (dates or teams guessed) is skipped: no rotation
@@ -143,6 +159,30 @@ ctx["congestion"] = congestion
 elements, teams = ctx["elements"], ctx["teams"]
 res = project(ctx, next_gw, HORIZON, {"sim": 4000}) if next_gw else None
 proj = res["players"] if res else {}
+# Shadow: the selling-informed next-GW start chance / minutes / xP (xmins_sell on), saved beside the live numbers in
+# data-extra.json and the pre-deadline snapshot, for tools/score_shadow.py to score against real results.
+# Per player: [live start chance, shadow start chance, live xMin, shadow xMin, live xP, shadow xP, sell_share or null].
+# Only players whose club plays next GW; null sell_share = no selling data (the model ran with NaN inputs).
+shadow = None
+if next_gw and res and not DEFAULTS["xmins_sell"]:
+    try:
+        if "sell" not in ctx:
+            raise ValueError("no selling counts (history/sell_hist.json missing and not fetched)")
+        _sh = project(ctx, next_gw, 1, {"xmins_sell": True})["players"]
+        rows_, nan_ = {}, 0
+        for pid, r in _sh.items():
+            if r.get("min_src_next") != "xmins_sell":
+                continue
+            ss = selling.features(ctx["sell"], pid, next_gw)[0]
+            nan_ += ss != ss
+            lv = proj[pid]
+            rows_[str(pid)] = [round(min(1.0, lv["ps_next"]), 3), round(min(1.0, r["ps_next"]), 3), round(lv["xmin"], 1),
+                               round(r["xmin"], 1), round(lv["xp"].get(next_gw, 0), 2), round(r["xp"].get(next_gw, 0), 2),
+                               None if ss != ss else round(ss, 4)]
+        shadow = {"gw": next_gw, "players": rows_, "n": len(rows_), "sell_nan": nan_}
+    except Exception as ex:
+        print("xmins_sell shadow skipped:", ex)
+        shadow = {"gw": next_gw, "error": str(ex)}
 proj_gws = res["gws"] if res else []
 upcoming = res["upcoming"] if res else {}
 rating = res["rating"] if res else {}
@@ -427,7 +467,8 @@ if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next
     # [our xP, FPL's ep_next, FPL status, chance of playing] as known before the deadline
     snap = {str(i): [round(p["xp"].get(next_gw, 0), 2), p["ep_fpl"], p["status"], p["chance"]]
             for i, p in players.items() if p["xp"].get(next_gw, 0) > 0 or p["ep_fpl"] > 0}
-    json.dump({"gw": next_gw, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
+    json.dump({"gw": next_gw, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap,
+               **({"xmins_sell": shadow} if shadow else {})},
               open(os.path.join(HIST, f"proj_gw{next_gw}.json"), "w"), separators=(",", ":"))
 
 
@@ -1268,7 +1309,10 @@ _msrc = Counter(r["min_src"] for pid, r in (res["players"] if res else {}).items
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
              "minutes_model": {"xmins_on": bool(DEFAULTS["xmins"]), "xmins": _msrc.get("xmins", 0),
-                               "counts": _msrc.get("counts", 0)},
+                               "counts": _msrc.get("counts", 0), "xmins_sell_on": bool(DEFAULTS["xmins_sell"]),
+                               "fixture_players": sum(_msrc.values()),
+                               "sell": dict(sell_info, **({k: shadow[k] for k in ("n", "sell_nan", "error") if k in shadow}
+                                                           if shadow else {}))},
              "understat": US.get("meta"),
              "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
                       "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,
@@ -1397,7 +1441,8 @@ for p_ in out["players"]:
     if ex:
         extra[str(p_["id"])] = ex
 with open(os.path.join(os.path.dirname(os.path.abspath(OUT)), "data-extra.json"), "w") as f:
-    json.dump({"built": out["meta"]["built"], "players": extra}, f, separators=(",", ":"))
+    json.dump({"built": out["meta"]["built"], "players": extra, **({"xmins_sell": shadow} if shadow else {})}, f,
+              separators=(",", ":"))
 with open(OUT, "w") as f:
     json.dump(out, f, separators=(",", ":"))
 print(f"wrote {OUT}: {len(out['players'])} players, GW{next_gw}, FT {ft}, plans {list(plans)}, {out['meta']['build_secs']}s")

@@ -13,9 +13,13 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - expected minutes (xmin) outside 0-180, or NaN
   - the xMins minutes model switched on but any player with a next-GW fixture fell back to the old counts
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
+  - xmins_sell switched on and its next-GW numbers (data-extra.json "xmins_sell") out of range (see below)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
+  - selling-informed xMins (shadow while xmins_sell is off): skipped, players with a next-GW fixture it didn't
+    cover, players with no selling data (NaN inputs), failed element-summary fetches, and any start chance outside
+    0-1 / xMin outside 0-180 / bad xP (an error instead once xmins_sell is on)
 """
 import json, math, os, sys
 from collections import Counter
@@ -79,6 +83,36 @@ def main(path):
     if mm and mm.get("xmins_on") and mm.get("counts"):
         errors.append(f"xMins minutes model is on but {mm['counts']} players with a GW{g} fixture fell back to the "
                       f"old counts ({mm.get('xmins', 0)} used xMins)")
+
+    # selling-informed xMins (selling.py): coverage and ranges; warnings while it is a shadow, errors once it is live
+    if mm and "sell" in mm:
+        si, live_ = mm["sell"], mm.get("xmins_sell_on")
+        bad_ = errors if live_ else warnings
+        tag = "xmins_sell" + ("" if live_ else " (shadow)")
+        if si.get("error"):
+            bad_.append(f"{tag}: not computed ({si['error']})")
+        else:
+            if si.get("failed"):
+                warnings.append(f"{tag}: {si['failed']} element-summary fetches failed; their selling inputs are NaN")
+            fxp = mm.get("fixture_players")
+            if fxp is not None and si.get("n") is not None and si["n"] < fxp:
+                warnings.append(f"{tag}: covers {si['n']} of {fxp} players with a GW{g} fixture (the rest keep the plain model)")
+            if si.get("sell_nan"):
+                warnings.append(f"{tag}: {si['sell_nan']} of {si.get('n')} players have no selling data for GW{g} "
+                                f"(model ran with missing inputs)")
+            sh = (load(os.path.join(os.path.dirname(os.path.abspath(path)), "data-extra.json")) or {}).get("xmins_sell")
+            if not live_ and si.get("n") and not sh:
+                warnings.append(f"{tag}: counted {si['n']} players but data-extra.json has no xmins_sell block")
+            for pid, row in ((sh or {}).get("players") or {}).items():
+                ps_l, ps_s, xm_l, xm_s, xp_l, xp_s, ss = row
+                if any(is_bad(v) or not 0 <= v <= 1 for v in (ps_l, ps_s)):
+                    bad_.append(f"{tag}: player {pid} start chance {ps_l} / {ps_s} (not a probability)")
+                if is_bad(xm_s) or not 0 <= xm_s <= 180:
+                    bad_.append(f"{tag}: player {pid} xMin {xm_s} (must be 0-180)")
+                if is_bad(xp_s) or xp_s < 0:
+                    bad_.append(f"{tag}: player {pid} xP {xp_s}")
+                if ss is not None and (is_bad(ss) or not -1 <= ss <= 1):
+                    bad_.append(f"{tag}: player {pid} sell_share {ss} (must be -1 to 1)")
 
     # Understat: one-to-one both ways
     dup_us = [u for u, n in Counter(v["us_id"] for v in us.values()).items() if n > 1]
