@@ -6,6 +6,8 @@ accuracy and on the decisions the app makes (who to pick, who to captain).
   python3 bench.py '{"recency":0.8}'   # compare a parameter set against the current model
   python3 bench.py --no-archive-odds   # past seasons without odds (the setup before odds_archive.py)
   python3 bench.py --no-h5             # skip the 5-GW totals check (planner horizon; the slow part)
+  python3 bench.py --in-sample-xmins   # archive seasons with the live xMins boosters (default: fold models from
+                                       # `xmins_train.py --folds`, never trained on the season under test)
 
 Each gameweek k is projected from data before k only. Past seasons come from archive.py, with betting
 odds from odds/archive/<season>.json (odds_archive.py) when present, as the live model has. A season with
@@ -27,6 +29,7 @@ import archive
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOPN = {"GKP": 5, "DEF": 15, "MID": 15, "FWD": 10}
 ARCHIVE_ODDS = True   # set False by --no-archive-odds
+XMINS_FOLDS = True    # archive seasons use fold xMins models not trained on that season; --in-sample-xmins: live ones
 H5 = 5                # gameweeks summed for the planner-horizon check (0 = off, --no-h5)
 
 
@@ -128,7 +131,10 @@ def current_ctx():
         status_log = json.load(open(os.path.join(HERE, "history", "status.json")))
     except Exception:
         status_log = None
-    _CUR["ctx"] = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    import sell_history   # late-selling inputs (xMins B) from history/sell_history.json; none -> A for every week
+    sell, note = sell_history.history_sell(boot)
+    print(f"[current] late selling: {note}" + ("" if sell else " -> NOT used, A for every week"))
+    _CUR["ctx"] = prepare(boot, fixtures, live, priors, market, status_log=status_log, sell=sell)
     _CUR["cur"] = cur
     return _CUR["ctx"]
 
@@ -155,7 +161,9 @@ def _season(season):
             print(f"[{season}] running WITHOUT betting odds: {why}")
         else:
             print(f"[{season}] with betting odds for {len(market['matches'])} of {market['fixtures']} fixtures")
-        ctx = prepare(boot, fixtures, live, priors, market)
+        import xmins   # late-selling inputs from the archive's per-round transfers, complete windows, every GW
+        sell = {"values": xmins.sell_from_rounds(archive.load_transfers(season)), "gws": list(range(1, 39))}
+        ctx = prepare(boot, fixtures, live, priors, market, sell=sell)
         # credit each gameweek's xG to the club the player was at then
         tgx = defaultdict(lambda: defaultdict(float))
         for pid, gs in ctx["pstats"].items():
@@ -167,7 +175,20 @@ def _season(season):
     return _SEASON[season]
 
 
+def fold_params(params, season):
+    """xMins boosters for an archive season: the fold models trained without it (xmins_train.py --folds), so the
+    test is out of sample. Missing fold models stop the bench rather than silently testing in sample."""
+    if not XMINS_FOLDS or "xmins_models" in params:
+        return params
+    d = os.path.join(HERE, "archive", "xmins_folds", season)
+    if not os.path.isdir(d):
+        sys.exit(f"bench: no fold xMins models for {season} in {d}. Run `python3 xmins_train.py --folds` "
+                 "(or pass --in-sample-xmins to test with the live boosters, which were trained on this season)")
+    return dict(params, xmins_models=d)
+
+
 def run_archive(params, season="2025-26", gws=range(4, 39)):
+    params = fold_params(params, season)
     ctx, team_at = _season(season)
     out = {}
     for k in gws:
@@ -187,6 +208,7 @@ def run_horizon(params, season, H):
         ctx, team_at = current_ctx(), None
         origins = range(3, _CUR["cur"] - H + 2)
     else:
+        params = fold_params(params, season)
         ctx, team_at = _season(season)
         origins = range(5, 39 - H + 1)
     out = {}
@@ -295,6 +317,10 @@ if __name__ == "__main__":
     if "--no-archive-odds" in args:
         ARCHIVE_ODDS = False
         args.remove("--no-archive-odds")
+    if "--in-sample-xmins" in args:
+        XMINS_FOLDS = False
+        print("WARNING: archive seasons use the live xMins boosters, trained on those seasons (in sample)")
+        args.remove("--in-sample-xmins")
     if "--no-h5" in args:
         H5 = 0
         args.remove("--no-h5")

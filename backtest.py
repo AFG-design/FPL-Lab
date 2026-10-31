@@ -514,7 +514,12 @@ if __name__ == "__main__":
     # The flagged/unflagged split only labels players; it uses the log even when the model doesn't get it.
     flag_path = args.status_log or "history/status.json"
     flag_log = status_log if status_log is not None else (json.load(open(flag_path)) if os.path.exists(flag_path) else None)
-    ctx = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    # late-selling inputs for xMins B from history/sell_history.json (complete windows, as the last pre-deadline
+    # build sees them). No usable cache: B is off for every week (A only), and this says so.
+    import sell_history
+    sell, sell_note = sell_history.history_sell(boot)
+    print(f"Late selling (xMins B): {sell_note}" + ("" if sell else " -> NOT used, A for every week"))
+    ctx = prepare(boot, fixtures, live, priors, market, status_log=status_log, sell=sell)
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
     params = json.loads(args.params)
@@ -522,7 +527,7 @@ if __name__ == "__main__":
         print("Params:", params)
     head = evaluate(ctx, gws, params=params, verbose=True)
     if not args.quick:
-        ctx0 = prepare(boot, fixtures, live, None, status_log=status_log)
+        ctx0 = prepare(boot, fixtures, live, None, status_log=status_log, sell=sell)
         print("Without priors"); evaluate(ctx0, gws, params=params, verbose=True)
         print("Baseline (average of last 4 GWs points)", baseline(ctx, gws))
     seg = segments(ctx, gws, params=params, flag_log=flag_log)
@@ -541,7 +546,7 @@ if __name__ == "__main__":
           "backtests run with use_flags off, so project() never marks a value assumed.")
     if args.json:
         with open(args.json, "w") as f:
-            json.dump({"gws": list(gws), "status_log": args.status_log, "flag_log": flag_path if flag_log else None,
+            json.dump({"gws": list(gws), "status_log": args.status_log, "selling": sell_note if sell else f"off: {sell_note}", "flag_log": flag_path if flag_log else None,
                        "headline": {k: head[k] for k in ("n", "mae", "rmse", "corr", "bias")},
                        "params": params, "segments": seg, "minutes": mins, "parts": parts}, f, indent=1)
         print(f"Wrote {args.json}")

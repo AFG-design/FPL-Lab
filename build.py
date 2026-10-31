@@ -113,7 +113,23 @@ try:
                         os.path.join(HERE, "history", f"transfers_gw{next_ev['id']}.json") if next_ev else None)
 except Exception as ex:
     print("transfer log skipped:", ex)
-ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
+# late-selling inputs for xMins B (sell_history.py): cache refreshed once per finished gameweek, then the open
+# window from bootstrap. B is used for next gameweek only when sell_info["status"] == "on"; otherwise A, and the
+# reason goes to meta.xmins_selling (validate.py warns on the Health page when it's a fault, not a normal wait).
+_t_sell = time.time()
+try:
+    import sell_history
+    _sell_note = sell_history.refresh(boot, get)
+    _pst = defaultdict(dict)
+    for g, d in model_live.items():
+        for x in d["elements"]:
+            _pst[x["id"]][g] = x["stats"]
+    sell_ctx, sell_info = sell_history.live(boot, _pst, fixtures, _sell_note)
+except Exception as ex:   # a bug here must not stop the build: next gameweek falls back to A, and says why
+    sell_ctx, sell_info = None, {"status": f"off: selling inputs failed ({str(ex)[:160]})", "kind": "fault"}
+sell_info["secs"] = round(time.time() - _t_sell, 1)
+print("xMins selling:", sell_info["status"], "|", sell_info.get("cache"), f"| {sell_info['secs']}s")
+ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log, sell=sell_ctx)
 
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match.
 # A competition marked "confirmed": false in europe.json (dates or teams guessed) is skipped: no rotation
@@ -288,6 +304,11 @@ def dc_record(pid, n=None):
     return {"hits": hits, "apps": len(apps), "per90": round(cbit / mins * 90, 1) if mins >= 90 else 0.0}
 
 
+def _sell_share(pid):
+    v = ((sell_ctx or {}).get("values", {}).get(pid) or {}).get(next_gw) if next_gw else None
+    return None if v is None or v[0] != v[0] else round(v[0], 3)
+
+
 players = {}
 for pid, e in elements.items():
     r = proj.get(pid)
@@ -327,6 +348,8 @@ for pid, e in elements.items():
         "dist": {g: [d["p10"], d["p6"], d["blank"], d["q10"], d["q90"]] for g, d in r.get("dist", {}).items()},
         "price_proj": [float(x["projected_percent"]) for x in (e.get("price_change_projections") or [])],
         "tin": e["transfers_in_event"], "tout": e["transfers_out_event"],
+        # net selling this window / owners before it (xMins B input; None: no value, e.g. no owners). For validate.py
+        "sell_share": _sell_share(pid),
         "pen": e.get("penalties_order"), "ep_fpl": float(e["ep_next"] or 0),
         "last": {"season": pr["season"], "pts": pr["last_pts"], "mins": pr["last_mins"], "xgi": pr["last_xgi"]} if pr else None,
         "s_pts": series(pid, "total_points", int), "s_min": series(pid, "minutes", int),
@@ -1268,7 +1291,10 @@ _msrc = Counter(r["min_src"] for pid, r in (res["players"] if res else {}).items
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
              "minutes_model": {"xmins_on": bool(DEFAULTS["xmins"]), "xmins": _msrc.get("xmins", 0),
-                               "counts": _msrc.get("counts", 0)},
+                               "counts": _msrc.get("counts", 0),
+                               "selling_used": sum(1 for r in (res["players"] if res else {}).values() if r.get("sell_used"))},
+             "xmins_selling": sell_info["status"] if DEFAULTS["xmins"] and DEFAULTS["xmins_selling"] else "off: switched off in fplmodel",
+             "selling": sell_info,
              "understat": US.get("meta"),
              "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
                       "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,
@@ -1385,6 +1411,7 @@ out["sources"] = {
     "news": {"players": len(NH)},
     "status": {"gws": sorted(int(g) for g in (st_.get("gws") or {})), "updated": st_.get("updated")},
     "template": {"gws": sorted(int(g) for g in TPL.get("gws", {}))},
+    "selling": dict(sell_info, built=(_load("history/sell_history.json") or {}).get("fetched")),
 }
 
 out["meta"]["build_secs"] = round(time.time() - t0, 1)

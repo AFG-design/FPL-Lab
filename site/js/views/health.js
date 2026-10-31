@@ -8,12 +8,13 @@ function vHealth() {
   const S_ = D.sources || {}, inPlay = !!(D.live && D.live.in_play && !D.live.finished);
   const ageH = iso => iso ? (Date.now() - new Date(iso)) / 36e5 : 1e9;
   const pill = (ok, warn) => ok ? '<span class="pill good">OK</span>' : warn ? '<span class="pill warn">Check</span>' : '<span class="pill bad">Problem</span>';
-  const po = S_.player_odds, poErr = po?.error && po.error.at && (!po.built || po.error.at > po.built) ? po.error.message : null;
+  const sl = S_.selling, po = S_.player_odds, poErr = po?.error && po.error.at && (!po.built || po.error.at > po.built) ? po.error.message : null;
   const rows = [
     ["FPL data", S_.fpl?.built, `GW${S_.fpl?.gw} · ${S_.fpl?.players} players`, ageH(S_.fpl?.built) < (inPlay ? 0.5 : 1.5), ageH(S_.fpl?.built) < 3, inPlay ? "Every 10 minutes during matches, otherwise every 30" : "Every 30 minutes"],
     ["Understat shots", S_.understat?.built, S_.understat ? `${S_.understat.matches} matches · ${S_.understat.players} players matched (${S_.understat.unmatched} not)` : "", ageH(S_.understat?.built) < 6, ageH(S_.understat?.built) < 48, "New matches each refresh"],
     ["Match odds", S_.odds?.built, S_.odds ? `${S_.odds.matches} matches, ${S_.odds.upcoming} upcoming` : "", ageH(S_.odds?.built) < 6, ageH(S_.odds?.built) < 48, "football-data.co.uk, each refresh"],
     ["Player odds", po?.built, po ? `GW${po.gw} · ${po.fixtures} fixtures · ${po.credits_left ?? "–"} credits left${po.unmatched ? ` · ${po.unmatched} names unmatched` : ""}` : "Not collected", !!po && !poErr && po.gw >= (D.meta.cur_gw || 0), !!po, "Before each deadline (The Odds API)"],
+    ["Late selling (start chance)", sl?.built, sl ? `GW${sl.gw ?? "–"}: ${sl.status === "on" ? "used" : sl.status.replace(/^off: /, "not used: ")} · history to GW${sl.through ?? "–"}${sl.coverage != null ? ` · ${Math.round(sl.coverage * 100)}% of the ${sl.starters} who started their club's last match have selling data` : ""}` : "Not built", !!sl && sl.kind !== "fault", !!sl, `History once per gameweek; used from ${sl?.window_h ?? 12} h before the deadline`],
     ["Ownership samples", S_.crowd?.built, S_.crowd ? `GW${S_.crowd.gw} · top 10k ${S_.crowd.top10k} · near you ${S_.crowd.near} · ladder ${S_.crowd.teams} · rivals ${S_.crowd.rivals}` : "", S_.crowd?.gw === D.meta.cur_gw, S_.crowd?.gw === D.meta.cur_gw - 1, "Once per gameweek, after the deadline"],
   ];
   const logs = [

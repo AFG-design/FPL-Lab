@@ -57,10 +57,14 @@ DEFAULTS = {
     "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
     "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
-    "xmins": True,         # start chance / minutes from the external XGBoost model in xmins.py instead of the weighted
+    "xmins": True,         # start chance / minutes from the XGBoost model in xmins.py instead of the weighted
                            # counts below; availability, Europe and the return ramp still apply on top. bench.py vs counts:
                            # corr +0.005 / +0.016 / +0.014 (2026/27, 2025/26, 2024/25); start-chance Brier -20%.
                            # Model files missing or xgboost not installed: project() raises (no silent fallback).
+    "xmins_models": None,  # folder holding the booster sets A/ and B/ (None: xmins/); bench.py points it at fold models
+    "xmins_selling": True, # next gameweek's start chance / minutes from xMins B (A + late-selling inputs) when
+                           # ctx["sell_gws"] has that gameweek; later weeks, and any week without complete selling
+                           # inputs, use A. B for every week of a 5-GW horizon lowered 5-GW corr on 2024/25 (-0.011).
     "xmins_combine": "B",  # B: bench chance unconditional, capped at 1 - start chance; A: conditional on not starting
                            # (A had lower MAE but -0.1 to -0.2 points bias)
     "xmins_skip_out": False,  # leave weeks he was out (ctx["out"]) out of the xMins history, as the counts do
@@ -241,8 +245,11 @@ def news_absences(boot, elements, pstats, team_fix, out):
     return dict(res)
 
 
-def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
-    """Index the raw API responses once; reused across projections."""
+def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None, sell=None):
+    """Index the raw API responses once; reused across projections.
+    sell: {"values": {pid: {gw: [sell_share, sell_spike, log_own]}}, "gws": gameweeks whose selling inputs are
+    complete and current} (xmins.sell_from_rounds / sell_next), or None: the selling minutes model (xMins B) is then
+    used for no gameweek, and project() uses A for every week."""
     elements = {e["id"]: e for e in boot["elements"]}
     teams = {t["id"]: t for t in boot["teams"]}
     pstats = defaultdict(dict)
@@ -299,6 +306,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
+        "sell": (sell or {}).get("values", {}), "sell_gws": set((sell or {}).get("gws", ())),
     }
 
 
@@ -535,11 +543,15 @@ def project(ctx, as_of, horizon=6, params=None):
             sub_pat[(t, et)] = ((a[1] + 10 * L[1] / L[0]) / (a[0] + 10), (a[2] + 10 * L[2] / L[0]) / (a[0] + 10))
         for et, L in lg.items():
             sub_pat[(None, et)] = (L[1] / L[0], L[2] / L[0]) if L[0] else (0.75, 75)
-    xm_pred = {}
+    xm_pred, xm_sell = {}, {}
     if P["xmins"]:
         import xmins
         skip = ctx.get("out", {}) if P["xmins_skip_out"] else None
-        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip)
+        root = P["xmins_models"]
+        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, xmins.model_dir("A", root))
+        if P["xmins_selling"] and as_of in ctx.get("sell_gws", ()):
+            # B for gameweek as_of only, for players whose next fixture is in it (the window closing at this deadline)
+            xm_sell = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, xmins.model_dir("B", root), next_only=True)
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -626,11 +638,14 @@ def project(ctx, as_of, horizon=6, params=None):
         else:
             p_start = p_sub = 0.0
             m_start, m_sub, p60_given_start = 75, 20, 0.75
+        def _xm(t):   # (p_start, p_sub, m_start, m_sub) from one xMins prediction
+            xs_, xc_, xms_, xmc_ = t
+            return xs_, ((1 - xs_) * xc_ if P["xmins_combine"] == "A" else min(xc_, 1 - xs_)), xms_, xmc_
         if pid in xm_pred:
             # p60_given_start stays from his own starts (the external model has no 60+ output)
-            xs_, xc_, xms_, xmc_ = xm_pred[pid]
-            p_start, m_start, m_sub = xs_, xms_, xmc_
-            p_sub = (1 - xs_) * xc_ if P["xmins_combine"] == "A" else min(xc_, 1 - xs_)
+            p_start, p_sub, m_start, m_sub = _xm(xm_pred[pid])
+        # next gameweek from B (selling) when it ran for him; every other week keeps A (or the counts)
+        mins_next = _xm(xm_sell[pid]) if pid in xm_sell else None
         # ---- DC hit probability
         thr = ctx["dc_thr"].get(pos, 99)
         hits = n60 = 0
@@ -650,6 +665,7 @@ def project(ctx, as_of, horizon=6, params=None):
         xm_next = ps_next = p60_next = 0.0
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
+            p_start_g, p_sub_g, m_start_g, m_sub_g = mins_next if (mins_next and g == as_of) else (p_start, p_sub, m_start, m_sub)
             if P["use_flags"]:
                 av, asm = availability_info(e, k, ko, ret, today)
             else:
@@ -664,9 +680,9 @@ def project(ctx, as_of, horizon=6, params=None):
                 j = k - (1 if still_out else 0)
                 cong *= ramp[j] if 0 <= j < len(ramp) else (ramp[0] if j < 0 else 1.0)
             for (opp, home, mu_f, mu_a, fdr) in upcoming[tid].get(g, []):
-                ps, pb = p_start * av * cong, p_sub * av
-                pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
-                m = ps * m_start + pb * m_sub
+                ps, pb = p_start_g * av * cong, p_sub_g * av
+                pb += p_start_g * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
+                m = ps * m_start_g + pb * m_sub_g
                 if k == 0:
                     ps_next += ps; p60_next += p60_given_start * ps
                     xm_next += m          # expected minutes next gameweek, after flags, rotation and return ramp
@@ -694,14 +710,14 @@ def project(ctx, as_of, horizon=6, params=None):
                     rng = np.random.default_rng(pid * 1000 + g * 10 + len(detail))
                     bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
-                                            p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
+                                            p60_given_start, m_start_g, m_sub_g, P["goal_mult"] * xg90 * atk,
                                             P["assist_mult"] * xa90 * atk, mu_f, mu_a,
                                             sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0, p_dc, bexp, yc90)
                     sim_pts = sp_ if sim_pts is None else sim_pts + sp_
                     sim_app = sa_.astype(float) if sim_app is None else sim_app + sa_
             raw = sum(comp.values())
             nfx = len(upcoming[tid].get(g, []))
-            pplay = min(1.0, (p_start + p_sub) * av)
+            pplay = min(1.0, (p_start_g + p_sub_g) * av)
             per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
             if asm and nfx and per_gw[g] > 0:
                 assumed.add(g)
@@ -709,11 +725,14 @@ def project(ctx, as_of, horizon=6, params=None):
             if sim_pts is not None:  # same calibration as the projection, applied to every simulated outcome
                 dist[g] = _dist(sim_pts, sim_app > 0, per_gw[g] if P["sim_match"] else None,
                                 np.random.default_rng(pid * 7 + g))
+        nx = mins_next or (p_start, p_sub, m_start, m_sub)
         out[pid] = {
             "xp": per_gw, "assumed": sorted(assumed), "detail": detail, "dist": dist, "xg90": xg90, "xa90": xa90, "dc90": dc90, "p_dc": p_dc,
-            "p_start": p_start, "p_sub": p_sub, "m_start": m_start,
+            # next gameweek's values (B when it ran for him), as shown on the site; later weeks use A
+            "p_start": nx[0], "p_sub": nx[1], "m_start": nx[2],
             "xmin": xm_next,
-            "xmin_base": (p_start * m_start + p_sub * m_sub) * (availability(e, 0) if P["use_flags"] else 1.0),
+            "xmin_base": (nx[0] * nx[2] + nx[1] * nx[3]) * (availability(e, 0) if P["use_flags"] else 1.0),
+            "sell_used": bool(mins_next),
             "has_prior": bool(pr),
             "min_src": "xmins" if pid in xm_pred else "counts",   # counts: no fixture in the horizon for the xMins inputs
             "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
