@@ -16,7 +16,9 @@ const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } cat
 const VIEWS = ["week", "afg", "planner", "rivals", "deadlines", "review", "fixtures", "players", "stats", "xptable", "chips", "model", "health"];
 { const v = store.get("fpl.view"); if (VIEWS.includes(v)) S.view = v; }
 S.mode = ["balanced", "safe", "chase"].includes(store.get("fpl.mode")) ? store.get("fpl.mode") : "balanced";
-S.ptab = ["suggest", "captains", "plans", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
+S.ptab = ["suggest", "captains", "rules", "drafts"].includes(store.get("fpl.ptab")) ? store.get("fpl.ptab") : "suggest";
+// Planner view tabs: your team as it is, one tab per strategy, side by side, and the editor
+S.pview = ["mine", "balanced", "safe", "chase", "compare", "edit"].includes(store.get("fpl.pview")) ? store.get("fpl.pview") : "mine";
 S.stab = ["form", "shots", "sp", "defence", "bonus", "value", "prices", "teams"].includes(store.get("fpl.stab")) ? store.get("fpl.stab") : "form";
 S.fxMode = ["fdr", "overall", "att", "def"].includes(store.get("fpl.fxMode")) ? store.get("fpl.fxMode") : "fdr";
 S.horizon = [3, 5, 6].includes(store.get("fpl.horizon")) ? store.get("fpl.horizon") : 5;

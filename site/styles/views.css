@@ -275,3 +275,31 @@ tr.is-rival td { background: var(--accent-soft); }
   .xptable td.xc .xv { font-size: var(--fs-sm); }
   .xptable .xbar { display: none; }
 }
+
+/* ---------- Planner view tabs (views/planner-views.js) ---------- */
+.pvhead { display: grid; gap: 10px; margin-bottom: 14px; }
+.pviews { display: flex; width: 100%; padding: 3px; }
+.pviews button { flex: 1 0 auto; display: grid; justify-items: center; gap: 1px; padding: 7px 12px; font-size: var(--fs-md); }
+.pviews button small { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--faint); }
+.pviews button small.up { color: var(--good); }
+.pviews button small.down { color: var(--bad); }
+.pviews button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--accent-text), 0 0 0 1px var(--line-strong); }
+.pvtl > summary { font-size: var(--fs-md); color: var(--fg); font-weight: 600; }
+.pvcmp td.pvcell { display: table-cell; min-width: 150px; white-space: normal; font-size: var(--fs-sm); vertical-align: top; }
+.pvcmp td.pvcell > span { display: block; }
+.pvcmp td.pvcell .out { color: var(--bad); }
+.pvcmp td.pvcell .in { color: var(--good); }
+.pvcmp th .btn { white-space: nowrap; }
+.pvcmp tr.pvsep td { padding-top: 14px; font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+
+@media (max-width: 640px) {
+  .pviews { margin: 0 -2px; width: calc(100% + 4px); }
+  .pviews button { flex: 0 0 auto; padding: 6px 10px; }
+}
+.pvcmpbox { max-height: none; }
+.pvcmp th:first-child, .pvcmp td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+
+@media (max-width: 640px) {
+  .pvcmp th:first-child, .pvcmp td:first-child { min-width: 0; max-width: 104px; white-space: normal; font-size: var(--fs-xs); }
+  .pvcmp td.pvcell { min-width: 132px; }
+}

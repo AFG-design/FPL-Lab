@@ -151,7 +151,7 @@ function openPlayer(id) {
   $("#dlgStar").onclick = () => { toggleStar(id); const b = $("#dlgStar"), on = isStarred(id); b.classList.toggle("primary", on); b.setAttribute("aria-pressed", on); b.textContent = on ? "★ On your watchlist" : "☆ Add to watchlist"; render(); };
   $("#dlgLock").onclick = () => { SB.rules.locked = SB.rules.locked.includes(id) ? SB.rules.locked.filter(x => x !== id) : [...SB.rules.locked, id]; SB.rules.banned = SB.rules.banned.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
   $("#dlgBan").onclick = () => { SB.rules.banned = SB.rules.banned.includes(id) ? SB.rules.banned.filter(x => x !== id) : [...SB.rules.banned, id]; SB.rules.locked = SB.rules.locked.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
-  const pr = $("[data-plan-replace]"); if (pr) pr.onclick = () => { dlg.close(); SB.sel = id; SB.gw = PG[0]; SB.q = ""; setView("planner"); };
+  const pr = $("[data-plan-replace]"); if (pr) pr.onclick = () => { dlg.close(); SB.sel = id; SB.gw = PG[0]; SB.q = ""; S.pview = "edit"; setView("planner"); };
 }
 $("#dlg").addEventListener("click", e => { if (e.target.id === "dlg") e.target.close(); });
 $("#dlg").addEventListener("close", () => $("#dlg").removeAttribute("aria-labelledby"));

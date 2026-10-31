@@ -1,19 +1,6 @@
 // Planner, captain planner, drafts and re-plan.
 /* ---------- Planner ---------- */
-function planCards() {
-  const pl = D.plans || {}, rec = recommendedPlan(), base = baseScore().tot, g = D.meta.next_gw;
-  let anySel = false;
-  const cards = ["roll", "one", "two", "three", "best"].map(k => mk(k)).filter(k => pl[k]).map(k => {
-    const mv = planMoves(pl[k]), sc = scoreMoves(mv), sel = sameMoves(mv, SB.moves);
-    anySel = anySel || sel;
-    const n = mv.filter(m => m.gw === g).length;
-    return `<button class="opt ${sel ? "sel" : ""}" data-plan="${k}"><span>${PLAN_LABEL[k.split("_").pop()]}${k.endsWith("best") ? ` (${n} now)` : ""}${k === rec ? " · pick" : ""}</span><b class="${sc.tot - base > 0.05 ? "up" : ""}">${sgn(sc.tot - base)}</b><span>${sc.ftLeft} ${term("ft", "FT")} left after GW${PG[PG.length - 1]}</span></button>`;
-  });
-  if (!anySel) { const my = scoreMoves(SB.moves); cards.unshift(`<button class="opt sel" disabled><span>Your plan · edited</span><b class="${my.tot - base > 0.05 ? "up" : ""}">${sgn(my.tot - base)}</b><span>${my.ftLeft} FT left after GW${PG[PG.length - 1]}</span></button>`); }
-  return `<h3>Optimiser plans · ${MODES[S.mode]}</h3>
-    <p class="note" style="margin-top:0">Plans worked out on the server for your strategy, each with a different number of moves this week. Tap one to make it your plan; Undo brings yours back. Numbers are projected points over ${PG.length} GWs vs making no transfers, counting hits.</p>
-    <div class="opts">${cards.join("")}</div>`;
-}
+// The optimiser's plans per strategy are shown in the strategy tabs (views/planner-views.js).
 const adjTotal = sc => sc.weeks.reduce((a, w) => a + w.team.xi.reduce((b, i) => b + adjXI(i, w.gw), 0) + (w.team.cap ? adjCap(w.team.cap, w.gw) : 0) - 4 * w.hits, 0);
 let _sugg = { key: "", list: [] };
 function transferSuggestions(g) {
@@ -218,7 +205,9 @@ function draftsHTML() {
       <tr><td>Moves</td>${cols.map(c => `<td class="n" style="white-space:normal;min-width:140px;font-size:12.5px">${c.moves.length ? c.moves.map(m => `GW${m.gw} ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join("<br>") : "None"}</td>`).join("")}</tr>
       ${ds.length ? `<tr><td></td><td></td>${ds.map((d, k) => `<td class="n"><button class="btn" data-draftload="${k}">Load</button> <button class="btn" data-draftdel="${k}" aria-label="Delete draft">Delete</button></td>`).join("")}</tr>` : ""}</tbody></table></div>`;
 }
-function vPlanner() {
+// "Your plan" tab: the full editor (pitch, suggestions, captains, Re-plan, drafts). The page shell, the view tabs and
+// the plan-length switch live in vPlanner (views/planner-views.js).
+function plannerEditor() {
   const sum = sandboxSummary();
   const g = SB.gw, wk = sum.weeks.find(w => w.gw === g);
   const t = wk.team;
@@ -230,15 +219,12 @@ function vPlanner() {
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
   const sp = spreadVsField(mult, g);
   const tab = S.ptab || "suggest";
-  const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["plans", "Optimiser plans"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
-  const right = SB.sel ? selPanel() : tab === "plans" ? planCards() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
+  const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
+  const right = SB.sel ? selPanel() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
   return `
-  <header class="page-title"><h1>Planner</h1><p>Plan transfers, captains and your lineup over the next ${PG.length} gameweeks.</p></header>
-  <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
+  <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Editing as")}</span>
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
-    <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]}${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs the managers around your rank")}.` : ""}</p>
-    <div class="bar" style="margin:10px 0 0"><span class="lbl">${term("horizon", "Plan length")}</span>
-      <div class="seg" role="group" aria-label="Plan length">${[3, 5, 6].filter(h => h <= GWS.length).map(h => `<button data-horizon="${h}" aria-pressed="${S.horizon === h}">${h} GWs</button>`).join("")}</div></div></div>
+    <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs the managers around your rank")}.` : ""}</p></div>
   <div class="plansum">
     <div class="kpi"><span class="lbl">${esc(planName())} · ${PG.length} GWs</span><b>${f1(sum.tot)}</b><span class="delta muted">best XI + captain, minus hits</span></div>
     <div class="kpi"><span class="lbl">vs no transfers</span><b class="${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}">${sgn(delta)}</b><span class="delta muted">${f1(sum.baseTot)} if you do nothing</span></div>
