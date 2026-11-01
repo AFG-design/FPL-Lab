@@ -75,9 +75,10 @@ function planScore(pl, moves) {
 function pvRule(mode) {
   const R = D.plan_rules || {}, n = x => (x ?? 0).toFixed(x % 1 ? 1 : 0);
   const profit = R.min_profit != null ? ` It only suggests transfers that beat keeping your squad by at least ${n(R.min_profit)} point${R.min_profit === 1 ? "" : "s"}.` : "";
-  if (mode === "safe") return `Never gives up projected points against Balanced. Where two plans are worth the same, it picks the players more managers around your rank own, starters sure to play, and no marginal hits.${profit}`;
-  if (mode === "chase") return `Gives up at most ${n(R.chase_budget ?? 4)} projected points against Balanced over the plan, to back differentials and players with a high chance of a big haul.${profit}`;
-  return `Goes for the most projected points.${profit}`;
+  const hits = R.hit_gain != null ? ` It only takes a hit when the plan beats its best hit-free version by the 4 points plus ${n(R.hit_gain)} more over the plan.` : "";
+  if (mode === "safe") return `Never gives up projected points against Balanced. Where two plans are worth the same, it picks the players more managers around your rank own, starters sure to play.${profit}${hits}`;
+  if (mode === "chase") return `Gives up at most ${n(R.chase_budget ?? 4)} projected points against Balanced over the plan, to back differentials and players with a high chance of a big haul.${profit}${hits}`;
+  return `Goes for the most projected points.${profit}${hits}`;
 }
 // one strategy's plan, against the My team baseline
 function pvStrat(mode) {

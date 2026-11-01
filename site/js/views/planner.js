@@ -336,26 +336,35 @@ async function runReplan() {
     const captains = {}; Object.entries(SB.ov).forEach(([g, o]) => { if (o.cap) captains[g] = o.cap; });
     const t0 = performance.now();
     // Same rules as the server plans (optimise.strategy_plans): Balanced first, then Play safe / Chase rank held to their
-    // points budget against it, and no transfers unless they beat keeping the squad by the profit rule.
+    // points budget against it, no transfers unless they beat keeping the squad by the profit rule, and no hits unless
+    // they pay (hit rule).
     // Missing input: no field ownership -> Play safe / Chase rank can't be worked out, so Re-plan says so and stops.
-    const R = D.plan_rules || { safe_budget: 0, chase_budget: 4, min_profit: 1, tie: 0.1, strategy: {} };
+    const R = D.plan_rules || { safe_budget: 0, chase_budget: 2, min_profit: 1, hit_gain: 2, tie: 0.1, strategy: {} };
     if (S.mode !== "balanced" && !eoFrac) throw new Error(`${MODES[S.mode]} needs the field-ownership data, which isn't in this build`);
     const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
       ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: SB.rules.locked, banned: SB.rules.banned, captains,
       maxHits: SB.rules.maxHits, poolExtra: SB.moves.map(m => m.in) };
     const remake = () => { SOLVE.highs = null; return getHighs(); };
-    const none = await window.FPLSolver.solve(highs, { ...common, maxMovesWeek: 0 }, remake);
-    const bal = await window.FPLSolver.solve(SOLVE.highs || highs, common, remake);
+    const solveP = inp => window.FPLSolver.solve(SOLVE.highs || highs, inp, remake);
+    const hitsOf = r => r.weeks.reduce((a, w) => a + w.hits, 0);
+    // hit rule (optimise.HIT_GAIN): keep a plan's hits only if it beats the best hit-free plan by hit_gain a hit,
+    // in plain projected points after the -4; with no hit-free plan possible, it must beat keeping the squad by that
+    const hitRule = async (r, inp) => {
+      const h = hitsOf(r); if (!h) return r;
+      let alt = null; try { alt = await solveP({ ...inp, maxHits: 0 }); } catch (e) { alt = null; }
+      const ref = alt ? alt.value : none.value;
+      return r.value >= ref + (R.hit_gain ?? 2) * h ? r : alt;
+    };
+    const none = await solveP({ ...common, maxMovesWeek: 0 });
+    const bal = (await hitRule(await solveP(common), common)) || { ...none, moves: [] };
     let res = bal;
     if (S.mode !== "balanced") {
       SOLVE.msg = `Planning ${MODES[S.mode]}…`; render(); await new Promise(r => setTimeout(r, 30));
       const st = R.strategy?.[S.mode] || {};
       let floor = S.mode === "safe" ? bal.value - R.safe_budget - R.tie : bal.value - R.chase_budget;
       if (bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
-      try {
-        res = await window.FPLSolver.solve(SOLVE.highs || highs, { ...common, eo: eoFrac, eoWeeks: PG.length, floor,
-          lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 }, remake);
-      } catch (e) { res = bal; }
+      const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
+      try { res = (await hitRule(await solveP(inp), inp)) || bal; } catch (e) { res = bal; }
     }
     if (res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it
     const before = scoreMoves(SB.moves).tot;

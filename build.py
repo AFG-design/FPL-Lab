@@ -1336,7 +1336,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (picks["picks"] if picks else [])],
     "lineup": lineup, "plans": plans, "plan_notes": plan_notes,
-    "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT,
+    "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN,
                    "tie": optimise.TIE, "strategy": optimise.STRATEGY},
     "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "setpieces": setpieces,

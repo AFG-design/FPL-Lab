@@ -39,7 +39,8 @@ def spread(players, mult, eo, gw):
 
 def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=1.5,
           hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
-          eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0, floor=None):
+          eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0, floor=None,
+          max_hits=None):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
     sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek.
 
@@ -114,6 +115,8 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
         m += ft[w + 1] >= 1
         if w == 0 and week1_moves is not None:
             m += n_w == week1_moves
+        if max_hits is not None:
+            m += hits[w] <= max_hits
         if freeze_after is not None and w >= freeze_after:
             m += n_w == 0          # e.g. a wildcard: rebuild once, then hold the squad
 
@@ -184,10 +187,15 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
 #   Chase rank  gives up at most CHASE_BUDGET points to back differentials and players with a high chance of a haul.
 # Every plan that makes a transfer must beat making no transfers at all by MIN_PROFIT points (the "no moves for the
 # sake of it" rule); a move-count option that can't is dropped rather than shown.
+# Hits, every strategy: a plan with hits is kept only if it beats the same strategy's best plan with no hits by
+# HIT_GAIN points per hit in plain projected points over the plan (the -4 already counted). Chase rank's taste for
+# upside never pays for a hit on its own. A forced option with no hit-free version must clear the same bar against
+# keeping the squad, or it is dropped.
 # Budgets and profit are in VALUE points (plain projected points over the plan, minus hits, plus banked FTs).
 SAFE_BUDGET = 0.0
 CHASE_BUDGET = 2.0
 MIN_PROFIT = 1.0
+HIT_GAIN = 2.0   # a plan keeps a hit only if it beats the best plan without hits by this much per hit, after the -4
 TIE = 0.1   # rounding room for "the same points" (the solver works to 0.1% gaps)
 EO_WEEKS = None   # weeks the ownership term covers (None = the whole plan, fading with the plan's decay)
 STRATEGY = {
@@ -213,8 +221,23 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
     if not eo:
         notes.append("no field ownership: Play safe and Chase rank skipped")
     plans = {}
+
+    def hit_rule(r, nohit, label):
+        """r if its hits pay (see HIT_GAIN), else the hit-free plan; None if neither can be kept."""
+        h = sum(w["hits"] for w in r["weeks"]) if r else 0
+        if not h:
+            return r
+        alt = nohit()
+        ref = alt["value"] if alt else v0
+        if r["value"] >= ref + HIT_GAIN * h:
+            r["hit_gain"] = round(r["value"] - ref, 2)
+            return r
+        notes.append(f"{label}: {h} hit(s) worth {r['value'] - ref:+.1f} vs no hits, under the {HIT_GAIN:g}-a-hit rule: "
+                     + ("hit-free plan used" if alt else "dropped"))
+        return alt
+
     for key, n in options:
-        bal = solve(**base, week1_moves=n)
+        bal = hit_rule(solve(**base, week1_moves=n), lambda: solve(**base, week1_moves=n, max_hits=0), f"balanced {key}")
         if not bal:
             continue
         for mode in modes:
@@ -224,11 +247,13 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
                 floor = bal["value"] - SAFE_BUDGET - TIE if mode == "safe" else bal["value"] - CHASE_BUDGET
                 if bal["value"] >= v0 + MIN_PROFIT:
                     floor = max(floor, v0 + MIN_PROFIT)   # still a clear profit on doing nothing
-                r = solve(**base, week1_moves=n, eo=eo, eo_weeks=EO_WEEKS or len(gws), floor=floor, **STRATEGY[mode]) or bal
+                st = dict(week1_moves=n, eo=eo, eo_weeks=EO_WEEKS or len(gws), floor=floor, **STRATEGY[mode])
+                r = hit_rule(solve(**base, **st) or bal, lambda: solve(**base, **st, max_hits=0), f"{mode} {key}") or bal
             moves = sum(len(w["in"]) for w in r["weeks"])
             if moves and r["value"] < v0 + MIN_PROFIT and key != "roll":
                 notes.append(f"{mode} {key}: {r['value'] - v0:+.1f} vs no transfers, below the {MIN_PROFIT:g} profit rule: dropped")
                 continue
+            r = dict(r)   # Play safe / Chase rank may fall back to the Balanced plan object: keep their figures apart
             r["vs_none"] = round(r["value"] - v0, 2)
             r["vs_balanced"] = round(r["value"] - bal["value"], 2)
             plans[key if mode == "balanced" else f"{mode}_{key}"] = r
