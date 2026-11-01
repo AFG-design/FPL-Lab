@@ -62,12 +62,15 @@ self.addEventListener("fetch", e => {
   if (url.origin === location.origin) {
     // network first, so fresh data and new versions always win; cache as a fallback
     // "no-cache" checks with the server every time, so a new version is never hidden by the browser's 10-minute cache
+    // Only a successful response replaces the offline copy. A server error (404, 500, a Pages hiccup mid-deploy)
+    // never overwrites it: we answer with the last good copy instead, and pass the error through only when there
+    // is no copy at all, so the page's own "data.json returned 500" message still shows.
+    const key = url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : e.request;
+    const cached = () => caches.match(key);
     e.respondWith(fetch(e.request, { cache: "no-cache" }).then(r => {
-      const copy = r.clone();
-      const key = url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : e.request;
-      caches.open(CACHE).then(c => c.put(key, copy));
-      return r;
-    }).catch(() => caches.match(url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : e.request).then(r => r || caches.match("index.html"))));
+      if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(key, copy)); return r; }
+      return cached().then(hit => hit || r);
+    }).catch(() => cached().then(r => r || caches.match("index.html"))));
   } else if (url.hostname === "fantasy.premierleague.com" && url.pathname.includes("/shirts/")) {
     // show the cached kit instantly but always re-check, so kit updates come through
     e.respondWith(caches.open(CACHE).then(c => c.match(e.request).then(hit => {
