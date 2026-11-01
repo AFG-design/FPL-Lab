@@ -48,7 +48,7 @@ function sbKey() { return `fpl.sb.${D.meta.team_id}.${D.meta.next_gw}.${D.squad.
 function loadSandbox() {
   const keepGw = SB && PG.includes(SB.gw) ? SB.gw : PG[0], keepSel = SB?.sel ?? null;
   const saved = store.get(sbKey());
-  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", prev: SB?.prev || null, ov: {}, rules: { locked: [], banned: [], maxHits: null } };
+  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", prev: SB?.prev || null, ov: {}, solved: null, rules: { locked: [], banned: [], maxHits: null } };
   if (saved && Array.isArray(saved.moves)) {
     SB.moves = saved.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw));
     SB.source = saved.source || "custom"; SB.updated = saved.updated || 0;
@@ -60,21 +60,24 @@ function loadSandbox() {
   }
   sanitize();
 }
-function sbState() { return { moves: SB.moves, source: SB.source, updated: SB.updated, ov: SB.ov, rules: SB.rules, drafts: store.get(sbKey() + ".drafts") || [] }; }
+function sbState() { return { moves: SB.moves, source: SB.source, updated: SB.updated, ov: SB.ov, solved: SB.solved, rules: SB.rules, drafts: store.get(sbKey() + ".drafts") || [] }; }
 function applyExtras(src) {
   SB.ov = {};
   Object.entries(src.ov || {}).forEach(([g, o]) => { if (GWS.includes(+g)) SB.ov[+g] = o; });
   SB.rules = Object.assign({ locked: [], banned: [], maxHits: null }, src.rules || {});
   SB.rules.locked = SB.rules.locked.filter(i => P[i]); SB.rules.banned = SB.rules.banned.filter(i => P[i]);
+  SB.solved = src.solved || null;   // saved before this field existed: none, so lineups are picked as usual
 }
 function saveSandbox() { SB.updated = Date.now(); _base = null; store.set(sbKey(), sbState()); syncPush(); }
 function setOv(g, fn) { SB.ov[g] = SB.ov[g] || { start: [], bench: [] }; fn(SB.ov[g]); saveSandbox(); }
-function setPlan(moves, source) {
+// solved: the optimiser's own lineup and captain per week ({gw: {sq, xi, cap}}), kept with the moves it chose them
+// for (Re-plan). Anything else that sets or edits the plan clears it, so a lineup never outlives its squad.
+function setPlan(moves, source, solved = null) {
   SB.prev = { moves: SB.moves.slice(), source: SB.source };
-  SB.moves = moves.map(m => ({ ...m })); SB.source = source; SB.sel = null;
+  SB.moves = moves.map(m => ({ ...m })); SB.source = source; SB.sel = null; SB.solved = solved;
   sanitize(); saveSandbox();
 }
-function editPlan(fn) { fn(); SB.source = "custom"; sanitize(); saveSandbox(); }
+function editPlan(fn) { fn(); SB.source = "custom"; SB.solved = null; sanitize(); saveSandbox(); }
 function planName() {
   if (SB.source.startsWith("replan:")) return "Re-planned" + (SB.source.endsWith("balanced") ? "" : ` (${MODES[SB.source.split(":")[1]]})`);
   if (SB.source.startsWith("plan:")) { const k = SB.source.slice(5); if (D.plans[k] && sameMoves(planMoves(D.plans[k]), SB.moves)) return planLabel(k) + " plan"; }
@@ -126,10 +129,10 @@ function ftTable(moves = SB.moves) {
 }
 function clubCounts(ids) { const c = {}; ids.forEach(i => c[P[i].team] = (c[P[i].team] || 0) + 1); return c; }
 // the single scorer used by This week, Planner and Rivals
-function scoreMoves(moves) {
+function scoreMoves(moves, solved = moves === SB.moves ? SB.solved : null) {
   let tot = 0;
   const weeks = ftTable(moves).map(r => {
-    const sq = squadAt(r.gw, moves), team = bestXI(sq, r.gw);
+    const sq = squadAt(r.gw, moves), team = bestXI(sq, r.gw, undefined, solved);
     tot += team.pts - 4 * r.hits;
     const over = Object.entries(clubCounts(sq)).filter(([, v]) => v > 3).map(([t]) => T[t].short);
     return { ...r, team, sq, bank: bankAt(r.gw, moves), over };

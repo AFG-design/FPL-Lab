@@ -65,8 +65,13 @@ function capPick(xi, g) {
   const order = xi.slice().sort((a, b) => adjCap(b, g) - adjCap(a, g));
   return { cap: order[0], vice: order[1] };
 }
-function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null)) {
-  const fs = new Set(ov?.start || []), fb = new Set(ov?.bench || []);
+function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null), solved = null) {
+  // Re-plan's own lineup and captain for this week, used only for the exact squad it was solved for and only when you
+  // haven't set anything yourself that week (your choices always win). Otherwise (another squad, an older plan, no
+  // Re-plan) the lineup is picked below as usual.
+  const sol = solved?.[g], mineSet = ov && (ov.start?.length || ov.bench?.length || ov.cap || ov.vice);
+  const useSol = !!sol && !mineSet && sol.sq.length === ids.length && sol.sq.every(i => ids.includes(i)) && sol.xi.includes(sol.cap);
+  const fs = new Set(useSol ? sol.xi : ov?.start || []), fb = new Set(useSol ? [] : ov?.bench || []);
   const ps = ids.filter(i => P[i]).slice().sort((a, b) => adjXI(b, g) - adjXI(a, g));
   const MIN = { GKP: 1, DEF: 3, MID: 2, FWD: 1 }, MAX = { GKP: 1, DEF: 5, MID: 5, FWD: 3 };
   const xi = [], cnt = { GKP: 0, DEF: 0, MID: 0, FWD: 0 };
@@ -89,11 +94,11 @@ function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null)) {
   // starter by adjCap. A choice for a player who isn't in this XI (benched, sold) is ignored and that role goes
   // back to automatic. If your vice is the model's own captain pick, the vice stands and the captain moves to the
   // next best starter (you set the vice deliberately; the captain was only the default).
-  const capOv = ov?.cap && xi.includes(ov.cap) ? ov.cap : null;
+  const capOv = useSol ? sol.cap : ov?.cap && xi.includes(ov.cap) ? ov.cap : null;
   const viceOv = ov?.vice && xi.includes(ov.vice) && ov.vice !== capOv ? ov.vice : null;
   const byCap = xi.slice().sort((a, b) => adjCap(b, g) - adjCap(a, g));
   const cap = capOv ?? byCap.find(i => i !== viceOv);
-  const c = { cap, vice: viceOv ?? byCap.find(i => i !== cap) }, mine = !!capOv;
+  const c = { cap, vice: viceOv ?? byCap.find(i => i !== cap) }, mine = !!capOv && !useSol;
   const pts = xi.reduce((a, i) => a + xpg(i, g), 0) + (c.cap ? xpg(c.cap, g) : 0);
-  return { xi, bench, cap: c.cap, vice: c.vice, pts, capMine: mine };
+  return { xi, bench, cap: c.cap, vice: c.vice, pts, capMine: mine, fromPlan: useSol };
 }
