@@ -85,12 +85,15 @@ function bestXI(ids, g, ov = (SB && SB.ov ? SB.ov[g] : null)) {
   let out = ps.filter(i => !xi.includes(i) && P[i].pos !== "GKP");
   if (ov?.order?.length) { const rk = i => { const k = ov.order.indexOf(i); return k < 0 ? 99 : k; }; out = out.map((i, k) => [i, k]).sort((a, b) => rk(a[0]) - rk(b[0]) || a[1] - b[1]).map(x => x[0]); }  // your bench order
   const bench = [...ps.filter(i => !xi.includes(i) && P[i].pos === "GKP"), ...out];
-  let c = capPick(xi, g), mine = false;
-  if (ov?.cap && xi.includes(ov.cap)) {
-    mine = true;
-    const others = xi.filter(i => i !== ov.cap).sort((a, b) => adjCap(b, g) - adjCap(a, g));
-    c = { cap: ov.cap, vice: ov.vice && xi.includes(ov.vice) && ov.vice !== ov.cap ? ov.vice : others[0] };
-  }
+  // Captain and vice: your choice wins for each one on its own; whichever you left automatic is the best remaining
+  // starter by adjCap. A choice for a player who isn't in this XI (benched, sold) is ignored and that role goes
+  // back to automatic. If your vice is the model's own captain pick, the vice stands and the captain moves to the
+  // next best starter (you set the vice deliberately; the captain was only the default).
+  const capOv = ov?.cap && xi.includes(ov.cap) ? ov.cap : null;
+  const viceOv = ov?.vice && xi.includes(ov.vice) && ov.vice !== capOv ? ov.vice : null;
+  const byCap = xi.slice().sort((a, b) => adjCap(b, g) - adjCap(a, g));
+  const cap = capOv ?? byCap.find(i => i !== viceOv);
+  const c = { cap, vice: viceOv ?? byCap.find(i => i !== cap) }, mine = !!capOv;
   const pts = xi.reduce((a, i) => a + xpg(i, g), 0) + (c.cap ? xpg(c.cap, g) : 0);
   return { xi, bench, cap: c.cap, vice: c.vice, pts, capMine: mine };
 }
