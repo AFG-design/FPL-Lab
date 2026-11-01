@@ -35,8 +35,6 @@ DEFAULTS = {
     "sim_sigma": 0.5,      # uncertainty in each player's true scoring rate (log scale) in the simulation
     "sim_match": True,     # shift simulated scores so their average equals the projection
     "sim": 0,              # simulated outcomes per fixture for points distributions (0 = off; build.py uses 4000).
-    "sim_share_rate": True,  # double gameweeks: both matches use the same draw of his true scoring rate (starts,
-                             # team goals and the rest are drawn separately per match)
                            # 2025/26 + 2026/27 check: chance of 10+ / 6+ / 2-or-fewer error 0.111 vs 0.119 for a normal
                            # curve on the variance formula (no model 0.122). The formula still fits the spread better,
                            # so optimise.variance stays for Play safe / Chase rank.
@@ -385,11 +383,8 @@ def market_ratings(ctx, as_of, P):
     return rating, league
 
 
-def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90, mu_f, mu_a, sv_rate, p_dc, b_exp, yc90,
-                 q=None):
-    """One fixture, N simulated outcomes: (raw points, appeared, q) arrays. Parts follow project().
-    q: the per-run draw of his true scoring rate (multiplier). None draws a fresh one; pass the first fixture's q to
-    keep a player's rate the same across a double gameweek."""
+def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90, mu_f, mu_a, sv_rate, p_dc, b_exp, yc90):
+    """One fixture, N simulated outcomes: (raw points, appeared) arrays. Parts follow project()."""
     u = rng.random(N)
     start = u < ps
     sub = (u >= ps) & (u < ps + pb)
@@ -399,8 +394,7 @@ def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90
     if f.mean() > 0:
         f = f * (m_exp / f.mean())  # same expected minutes as the projection
     if P["sim_sigma"]:  # we only estimate his true scoring rate: draw it per run
-        if q is None:
-            q = np.exp(P["sim_sigma"] * rng.standard_normal(N) - P["sim_sigma"] ** 2 / 2)
+        q = np.exp(P["sim_sigma"] * rng.standard_normal(N) - P["sim_sigma"] ** 2 / 2)
         g90, a90 = g90 * q, a90 * q
     gf = rng.poisson(mu_f, N)
     ga = rng.poisson(P["cs_k"] * mu_a, N)
@@ -427,7 +421,7 @@ def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90
         b = np.floor(b) + (rng.random(N) < (b - np.floor(b)))
         pts = pts + b
     pts = pts - (rng.random(N) < np.clip(yc90 * f, 0, 0.5))
-    return pts.astype(float), appeared, q
+    return pts.astype(float), appeared
 
 
 def _dist(samples, appeared=None, xp=None, rng=None):
@@ -675,7 +669,7 @@ def project(ctx, as_of, horizon=6, params=None):
                 st, ch = ctx["status_rows"][as_of][pid]
                 av = 0.0 if k == 0 else availability_info({"status": st, "chance_of_playing_next_round": ch}, k, ko, "unknown", today)[0]
             comp = defaultdict(float)
-            sim_pts = sim_app = q_wk = None
+            sim_pts = sim_app = None
             cong = ctx.get("congestion", {}).get((tid, g), 1.0)
             if returning:  # managers ease players back in: fewer starts, more bench appearances
                 ramp = P["return_ramp"]
@@ -715,13 +709,10 @@ def project(ctx, as_of, horizon=6, params=None):
                     seed = pid * 1000 + g * 10 + len(detail)
                     rng = np.random.default_rng(seed if j == 0 else [pid, g, len(detail), j])
                     bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
-                    sp_, sa_, q_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
+                    sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
                                             p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
                                             P["assist_mult"] * xa90 * atk, mu_f, mu_a,
-                                            sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0, p_dc, bexp, yc90,
-                                            q=q_wk if P["sim_share_rate"] else None)
-                    if j == 0:
-                        q_wk = q_   # his true scoring rate is the same player in both matches of a double gameweek
+                                            sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0, p_dc, bexp, yc90)
                     sim_pts = sp_ if sim_pts is None else sim_pts + sp_
                     sim_app = sa_.astype(float) if sim_app is None else sim_app + sa_
             raw = sum(comp.values())
