@@ -89,7 +89,11 @@ def check_replan(page):
         }""", mode)
         if r.get("skip"):
             print(f"  (Re-plan lineups, {mode}: no field-ownership data in this build, not checked)")
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::warning title=Behaviour check::Re-plan lineups ({mode}) not checked: no field-ownership data")
             continue
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::notice title=Behaviour check::Re-plan lineups ({mode}) checked: shown XI and captain match the solver")
         if not r["msg"].startswith("Done"):
             fails.append(f"Re-plan lineups ({mode}): {r['msg']}")
             continue
