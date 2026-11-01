@@ -96,14 +96,18 @@ def check_sw(browser, url):
     page.goto(url)
     page.wait_for_function("() => navigator.serviceWorker.controller !== null", timeout=20000)
     page.evaluate("() => fetch('data.json?t=' + Date.now(), { cache: 'no-store' })")   # a good copy in the cache
-    good = page.evaluate("async () => { const r = await caches.match('data.json'); return r ? (await r.json()).meta.built : null; }")
+    # the cache write happens after the response is handed back, so wait for it (up to 10 s)
+    good = page.evaluate("""async () => {
+      for (let n = 0; n < 50; n++) { const r = await caches.match('data.json'); if (r) return (await r.json()).meta.built; await new Promise(f => setTimeout(f, 200)); }
+      return null;
+    }""")
     fails = []
     if not good:
         fails.append("Service worker: no offline copy of data.json after a good load")
     # the server now fails; the service worker sees a 500 (routes apply to its requests too)
     ctx.route("**/data.json*", lambda route: route.fulfill(status=500, body="server error"))
     got = page.evaluate("async () => { const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' }); return { s: r.status, built: r.ok ? (await r.json()).meta.built : null }; }")
-    page.wait_for_timeout(300)   # let any cache write finish
+    page.wait_for_timeout(1000)   # give a (wrong) cache write time to land before looking
     kept = page.evaluate("async () => { const r = await caches.match('data.json'); return r ? { s: r.status, built: r.ok ? (await r.json()).meta.built : null } : null; }")
     if good and (not kept or kept["s"] != 200 or kept["built"] != good):
         fails.append(f"Service worker: a 500 replaced the offline copy (now {kept})")
