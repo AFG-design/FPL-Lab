@@ -40,6 +40,8 @@ jobs:
         run: |
           pip install -r requirements.txt playwright
           python3 -m playwright install --with-deps chromium
+      - name: Python unit tests
+        run: python3 -m unittest discover tests -v
       - name: Build data.json from the live FPL API
         id: build
         env:

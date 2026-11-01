@@ -7,6 +7,7 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Re-plan with a lock on a player you don't own: must succeed and buy him.
   - Re-plan with no locks or bans: must still succeed (regression guard for the two above).
   - Vice-captain chosen with the captain left automatic: your vice must be used, and the captain must not be him.
+  - Free Hit week: the Planner says plans start from the restored squad, and says nothing in a normal week.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -90,6 +91,25 @@ def check_vice(page):
     return [f"Vice-captain {f}" for f in fails]
 
 
+def check_fh_note(page):
+    """During a Free Hit week the Planner must say plans start from the restored squad (and stay quiet otherwise)."""
+    r = page.evaluate("""() => {
+      const keep = { v: S.view, pv: S.pview, fh: D.meta.fh_restored, pg: D.meta.picks_gw, sg: D.meta.squad_gw };
+      const txt = () => document.querySelector(".view-planner")?.innerText || "";
+      S.view = "planner"; S.pview = "mine";
+      D.meta.fh_restored = false; render(); const off = txt();
+      D.meta.fh_restored = true; D.meta.picks_gw = 10; D.meta.squad_gw = 9; render(); const on = txt();
+      Object.assign(D.meta, { fh_restored: keep.fh, picks_gw: keep.pg, squad_gw: keep.sg }); S.view = keep.v; S.pview = keep.pv; render();
+      return { off: off.includes("Free Hit active"), on: on.includes("Free Hit active in GW10") && on.includes("your GW9 team") };
+    }""")
+    fails = []
+    if not r["on"]:
+        fails.append("Free Hit note: missing from the Planner when the squad was restored")
+    if r["off"]:
+        fails.append("Free Hit note: shown when no Free Hit is active")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -132,7 +152,8 @@ def main():
         page.on("pageerror", lambda e: errs.append(f"uncaught: {e}"))
         page.goto(f"{url}#planner")
         page.wait_for_selector(".view-planner", timeout=20000)
-        for name, fn in (("vice", lambda: check_vice(page)), ("replan", lambda: check_replan(page))):
+        for name, fn in (("vice", lambda: check_vice(page)), ("replan", lambda: check_replan(page)),
+                         ("free hit note", lambda: check_fh_note(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)

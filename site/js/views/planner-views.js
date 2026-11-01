@@ -148,6 +148,7 @@ function pvMine() {
     <div class="kpi"><span class="lbl">${term("ft", "Free transfers")}</span><b>${ft}</b><span class="delta muted">for GW${PG[0]}</span></div>
     <div class="kpi"><span class="lbl">Bank</span><b>${money(D.manager.bank)}</b><span class="delta muted">before any moves</span></div>
   </div>
+  ${D.meta.fh_restored ? `<p class="note" style="margin:0">Free Hit active in GW${D.meta.picks_gw}: plans start from the squad and bank FPL gives back for GW${PG[0]} (your GW${D.meta.squad_gw} team).</p>` : ""}
   <div class="grid2">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       ${pvGwSel(base.weeks, g)}

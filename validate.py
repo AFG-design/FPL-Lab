@@ -106,6 +106,12 @@ def main(path):
         ga = ex.get("ga6")
         if ga and (ga["g"] > (p.get("goals") or 0) or ga["a"] > (p.get("assists") or 0) or min(ga.values()) < 0):
             warnings.append(f"{name(p)}: last-6 goals/assists {ga['g']}/{ga['a']} above season {p.get('goals')}/{p.get('assists')}")
+    # squad the plans start from (after a Free Hit: the restored pre-Free-Hit squad, meta.squad_gw)
+    sq = [s["id"] for s in D.get("squad", [])]
+    if sq and (len(sq) != 15 or len(set(sq)) != 15):
+        errors.append(f"squad has {len(sq)} picks ({len(set(sq))} different): plans need 15 different players")
+    if D["meta"].get("fh_restored") and D["meta"].get("squad_gw") != (D["meta"].get("picks_gw") or 0) - 1:
+        errors.append(f"Free Hit restore used GW{D['meta'].get('squad_gw')}'s squad, expected GW{(D['meta'].get('picks_gw') or 0) - 1}")
     if all(p.get("starts") is None for p in D["players"]):
         warnings.append("No season starts from FPL this build: Points leaders shows '–' for Starts")
     if not extra:
