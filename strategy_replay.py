@@ -75,7 +75,7 @@ def autosub(xi, bench, pts, mins, players):
     return xi
 
 
-def replay(season, k_from, k_to, sim, modes=MODES):
+def replay(season, k_from, k_to, sim, modes=MODES, seed=0):
     ctx, team_at = bench._season(season)
     price, own = season_tables(season)
     last = max(price)
@@ -99,9 +99,17 @@ def replay(season, k_from, k_to, sim, modes=MODES):
                        "name": el.get("web_name", str(pid))}
         return pl, gws
 
-    # the same starting squad for all three: best £100m squad for the first H weeks
+    # the same starting squad for every team: best £100m squad for the first H weeks. With a seed, 4 random players
+    # of that squad are banned first, so each seed starts from a different (still sensible) squad: averaging over
+    # seeds takes out the luck of one squad's path through the season.
     pl, gws = projections(k_from)
     wc = optimise.solve(pl, [], {}, 100.0, 1, gws, hit=0, ft_value=0, max_moves_week=15, freeze_after=1, time_limit=60)
+    if seed:
+        import random
+        best = wc["weeks"][0]["xi"] + wc["weeks"][0]["bench"]
+        ban = random.Random(seed * 1000 + int(season[:4])).sample(best, 4)
+        wc = optimise.solve(pl, [], {}, 100.0, 1, gws, hit=0, ft_value=0, max_moves_week=15, freeze_after=1,
+                            time_limit=60, banned=ban)
     start = wc["weeks"][0]["xi"] + wc["weeks"][0]["bench"]
     bank0 = round(100.0 - sum(pl[i]["price"] for i in start), 1)
     teams = {m: {"squad": list(start), "buy": {i: pl[i]["price"] for i in start}, "bank": bank0, "ft": 1,
@@ -118,8 +126,13 @@ def replay(season, k_from, k_to, sim, modes=MODES):
         top = max(pl, key=lambda pid: o.get(pid, 0))     # captain stand-in: the most-owned player
         field = sum(o.get(pid, 0) * pts.get(pid, 0) for pid in pl) * 11 / 15 + pts.get(top, 0)
         eo = {pid: o.get(pid, 0.0) for pid in pl}
-        for m in modes:
-            t = teams[m]
+        for name in modes:
+            # a team name is a strategy, optionally with a haul weight for Chase rank: "chase@5"
+            m, _, hw = name.partition("@")
+            t = teams[name]
+            keep_hw = optimise.STRATEGY["chase"].get("haul_w")
+            if hw:
+                optimise.STRATEGY["chase"]["haul_w"] = float(hw)
             for i in t["squad"]:                      # a sold-out player still counts for the squad
                 if i not in pl:
                     pl[i] = {"pos": POS[ctx["elements"][i]["element_type"]], "team": ctx["elements"][i]["team"],
@@ -129,6 +142,7 @@ def replay(season, k_from, k_to, sim, modes=MODES):
             sell = {i: fpl_sell(t["buy"][i], pl[i]["price"]) for i in t["squad"]}
             plans, _ = optimise.strategy_plans(pl, t["squad"], sell, t["bank"], min(t["ft"], 5), gws, [("best", None)],
                                                eo=eo, modes=("balanced", m), time_limit=20)
+            optimise.STRATEGY["chase"]["haul_w"] = keep_hw
             key = "best" if m == "balanced" else f"{m}_best"
             r = plans.get(key) or plans.get("best")
             if not r:                                  # nothing usable: keep the squad, best XI by projection
@@ -146,7 +160,7 @@ def replay(season, k_from, k_to, sim, modes=MODES):
             cap = w0["captain"] if mins.get(w0["captain"], 0) > 0 else w0["vice"]
             real = sum(pts.get(i, 0) for i in xi) + (pts.get(cap, 0) if cap in xi else 0) - 4 * w0["hits"]
             t["real"].append(real); t["proj"].append(w0["xp"] - 4 * w0["hits"]); t["field"].append(field)
-        line = "  ".join(f"{m[:4]} {teams[m]['real'][-1]:4.0f}" for m in modes)
+        line = "  ".join(f"{m[:8]} {teams[m]['real'][-1]:4.0f}" for m in modes)
         print(f"  {season} GW{k}: {line}   field {field:5.1f}   ({time.time() - t0:.0f}s)", flush=True)
     return teams
 
@@ -172,6 +186,7 @@ def main():
     ap.add_argument("--sim", type=int, default=600, help="simulations per player for the 10+ point chance (default 600)")
     ap.add_argument("--json", help="write the results here")
     ap.add_argument("--modes", default=",".join(MODES), help="strategies to replay, e.g. chase (each team is independent)")
+    ap.add_argument("--seed", type=int, default=0, help="0: best starting squad; N: ban 4 random players of it first")
     ap.add_argument("--old", action="store_true", help="the settings before points budgets (for a before/after table)")
     a = ap.parse_args()
     if not os.path.exists(os.path.join(bench.HERE, "raw", "bootstrap.json")):
@@ -182,7 +197,7 @@ def main():
         optimise.MIN_PROFIT, optimise.EO_WEEKS = -1e9, 2
     res = {}
     for s in a.seasons:
-        res[s] = summary(replay(s, a.k_from, a.k_to, a.sim, tuple(a.modes.split(","))))
+        res[s] = summary(replay(s, a.k_from, a.k_to, a.sim, tuple(a.modes.split(",")), a.seed))
         print(f"\n{s}  (GW{a.k_from}-{a.k_to})")
         print(f"{'':10s} {'real':>6s} {'proj':>7s} {'vs field':>9s} {'spread':>7s} {'green':>6s} {'red':>4s} {'hits':>5s} {'moves':>6s}")
         for m, r in res[s].items():
