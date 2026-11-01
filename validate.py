@@ -198,6 +198,9 @@ def main(path):
         if pl["vs_balanced"] < -(budget + rules.get("tie", 0.1) + 0.01):
             errors.append(f"Plan {k}: {pl['vs_balanced']:+.2f} vs Balanced, over its {budget:g}-point budget")
         nh = sum(wk.get("hits", 0) for wk in pl.get("weeks", []))
+        cap = (rules.get("max_hits") or {}).get(mode)
+        if cap is not None and any(wk.get("hits", 0) > cap for wk in pl.get("weeks", [])):
+            errors.append(f"Plan {k}: takes more than {cap} hit(s) in a week ({mode} allows {cap})")
         if nh and rules.get("hit_gain") is not None and pl.get("hit_gain", -99) < rules["hit_gain"] * nh - 0.01:
             errors.append(f"Plan {k}: {nh} hit(s) gaining {pl.get('hit_gain', 'unknown')} vs no hits, short of the hit rule")
         moved = any(wk.get("in") for wk in pl.get("weeks", []))

@@ -24,6 +24,7 @@ function transferSuggestions(g) {
       const sc = scoreMoves(mv);
       if (sc.weeks.some(w => w.bank < 0 || w.over.length)) return;
       const hitNow = sc.weeks.find(w => w.gw === g).hits > cur.weeks.find(w => w.gw === g).hits;
+      if (hitNow && (S.mode !== "chase" || sc.tot - cur.tot < (D.plan_rules?.hit_gain ?? 2))) return;   // hit rule
       best.push({ out: o, in: n.id, gain: sc.tot - cur.tot, adj: adjTotal(sc) - curAdj, hit: hitNow, moves: mv });
     });
     best.sort((a, b) => b.adj - a.adj);
@@ -78,6 +79,7 @@ function pairSuggestions(g) {
     const sc = scoreMoves(mv);
     if (sc.weeks.some(w => w.bank < 0 || w.over.length)) continue;
     const hits = sc.weeks.find(w => w.gw === g).hits - cur.weeks.find(w => w.gw === g).hits;
+    if (hits && (S.mode !== "chase" || hits > (D.plan_rules?.max_hits?.chase ?? 1) || sc.tot - cur.tot < (D.plan_rules?.hit_gain ?? 2) * hits)) continue;   // hit rule
     res.push({ ...c, gain: sc.tot - cur.tot, adj: adjTotal(sc) - curAdj, hits, moves: mv });
   }
   res.sort((x, y) => y.adj - x.adj);
@@ -97,7 +99,7 @@ function pairsHTML(g) {
   return `<h3 style="margin-top:14px">Pairs that fund an upgrade</h3>
     <p class="note" style="margin-top:0">Two moves together, where one sale frees the money for a bigger upgrade. Only shown when the pair clearly beats the best single move.</p>
     ${list.map(r => {
-      const v = r.hits ? (r.gain >= 4 ? { t: "Worth the hit", c: "good" } : { t: "Not worth the hit", c: "bad" }) : verdict(r.gain, 3, 1);
+      const v = r.hits ? { t: "Worth the hit (Chase rank)", c: "warn" } : verdict(r.gain, 3, 1);   // only hits that pass the hit rule are listed
       const line = (o, n) => `<div class="move"><span class="out">▼ ${esc(P[o].name)}</span><span class="in">▲ <button data-p="${n}" style="all:unset;cursor:pointer">${esc(P[n].name)}</button></span><span class="muted mono">${money(P[n].price)} · ${T[P[n].team].short}</span></div>`;
       const up = P[r.n1].price - P[r.o1].price > P[r.n2].price - P[r.o2].price ? [r.o1, r.n1, r.o2, r.n2] : [r.o2, r.n2, r.o1, r.n1];
       return `<div class="sugg"><div class="sg-top"><div class="moves" style="margin:0">${line(r.o1, r.n1)}${line(r.o2, r.n2)}</div><span class="sg-gain ${r.gain > 0.05 ? "up" : "down"}">${sgn(r.gain)}</span></div>
@@ -128,7 +130,7 @@ function whyIn(i, g) {
 function suggestionsHTML(g) {
   const list = transferSuggestions(g), w = ftTable().find(r => r.gw === g), freeLeft = Math.max(0, w.ft - w.n);
   const rows = list.map(s2 => {
-    const v = s2.hit ? (s2.gain >= 3 ? { t: "Worth the hit", c: "good" } : { t: "Not worth the hit", c: "bad" }) : verdict(s2.gain, 3, 1);
+    const v = s2.hit ? { t: "Worth the hit (Chase rank)", c: "warn" } : verdict(s2.gain, 3, 1);   // only hits that pass the hit rule are listed
     const po = P[s2.out], pi = P[s2.in];
     return `<div class="sugg">
       <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" style="all:unset;cursor:pointer">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · <span class="club-dot" style="--club:${clubCol(pi)}" aria-hidden="true"></span>${T[pi.team].short}</span></div>
@@ -276,7 +278,7 @@ function replanPanel(inner) {
       <span class="lbl">Keep</span><div>${chips(R.locked, "locked")}</div>
       <span class="lbl">Never pick</span><div>${chips(R.banned, "banned")} <span class="note">Ban a player from his info panel.</span></div>
       <span class="lbl">Captains</span><div>${caps || '<span class="muted">chosen by the optimiser</span>'}</div>
-      <span class="lbl">Hits</span><div><select id="hitsSel" aria-label="Hits allowed" class="sel">${[["", "Allowed when worth it"], ["0", "No hits"], ["1", "At most 1 a week"]].map(([v, l]) => `<option value="${v}" ${String(R.maxHits ?? "") === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+      <span class="lbl">Hits</span><div>${S.mode === "chase" ? `<select id="hitsSel" aria-label="Hits allowed" class="sel">${[["", "At most 1 a week, when it pays"], ["0", "No hits"]].map(([v, l]) => `<option value="${v}" ${String(R.maxHits ?? "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>` : `<span class="muted">None: ${MODES[S.mode]} never takes a hit</span>`}</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn primary" data-replan="1" ${SOLVE.busy ? "disabled" : ""}>${SOLVE.busy ? "Planning…" : "Re-plan"}</button><span class="note" id="replanMsg">${esc(SOLVE.msg)}</span></div>
     ${vsCurrentTeam()}${inner ? "" : "</div>"}`;
@@ -310,7 +312,7 @@ function leanText() {
   const hits = b.hits ? ` ${b.hits} hit${b.hits > 1 ? "s" : ""} taken.` : " No hits.";
   const hp = pct(b.haul, a.haul), own = `field ownership of your XI ${Math.round(b.eo * 100)}% vs ${Math.round(a.eo * 100)}%`;
   if (S.mode === "chase") return `Chase rank vs ${vs}: chance of 10+ point hauls ${hp >= 0 ? "+" : "−"}${Math.abs(hp)}%, ${own}.${hits}`;
-  if (S.mode === "safe") return `Play safe vs ${vs}: ${own}, starters averaging ${Math.round(b.nailed)} nailed (vs ${Math.round(a.nailed)}); hits only when they gain 6+.${hits}`;
+  if (S.mode === "safe") return `Play safe vs ${vs}: ${own}, starters averaging ${Math.round(b.nailed)} nailed (vs ${Math.round(a.nailed)}).${hits}`;
   return `Balanced: purely the most projected points.${hits}`;
 }
 const SOLVE = { busy: false, msg: "", highs: null };
@@ -343,7 +345,10 @@ async function runReplan() {
     if (S.mode !== "balanced" && !eoFrac) throw new Error(`${MODES[S.mode]} needs the field-ownership data, which isn't in this build`);
     const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
       ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: SB.rules.locked, banned: SB.rules.banned, captains,
-      maxHits: SB.rules.maxHits, poolExtra: SB.moves.map(m => m.in) };
+      maxHits: 0, poolExtra: SB.moves.map(m => m.in) };
+    // hits: Balanced and Play safe never take one; Chase rank at most plan_rules.max_hits.chase a week, or your own
+    // "Hits" choice if that is stricter
+    const chaseCap = Math.min(R.max_hits?.chase ?? 1, SB.rules.maxHits ?? 99);
     const remake = () => { SOLVE.highs = null; return getHighs(); };
     const solveP = inp => window.FPLSolver.solve(SOLVE.highs || highs, inp, remake);
     const hitsOf = r => r.weeks.reduce((a, w) => a + w.hits, 0);
@@ -356,7 +361,7 @@ async function runReplan() {
       return r.value >= ref + (R.hit_gain ?? 2) * h ? r : alt;
     };
     const none = await solveP({ ...common, maxMovesWeek: 0 });
-    const bal = (await hitRule(await solveP(common), common)) || { ...none, moves: [] };
+    let bal; try { bal = await solveP(common); } catch (e) { bal = { ...none, moves: [] }; }
     let res = bal;
     if (S.mode !== "balanced") {
       SOLVE.msg = `Planning ${MODES[S.mode]}…`; render(); await new Promise(r => setTimeout(r, 30));
@@ -364,7 +369,8 @@ async function runReplan() {
       let floor = S.mode === "safe" ? bal.value - R.safe_budget - R.tie : bal.value - R.chase_budget;
       if (bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
       const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
-      try { res = (await hitRule(await solveP(inp), inp)) || bal; } catch (e) { res = bal; }
+      if (S.mode === "chase" && chaseCap > 0) inp.maxHits = chaseCap;
+      try { res = (await hitRule(await solveP(inp), { ...inp, maxHits: 0 })) || bal; } catch (e) { res = bal; }
     }
     if (res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it
     const before = scoreMoves(SB.moves).tot;
