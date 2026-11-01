@@ -127,8 +127,14 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0):
         field = sum(o.get(pid, 0) * pts.get(pid, 0) for pid in pl) * 11 / 15 + pts.get(top, 0)
         eo = {pid: o.get(pid, 0.0) for pid in pl}
         for name in modes:
-            # a team name is a strategy, optionally with a haul weight for Chase rank: "chase@5"
-            m, _, hw = name.partition("@")
+            # a team name is a strategy, optionally with a haul weight for Chase rank ("chase@5"), or a switch from one
+            # strategy to another at a gameweek ("balanced>chase:28" plays Balanced to GW27, Chase rank from GW28)
+            nm_ = name
+            if ">" in name:
+                first, _, rest = name.partition(">")
+                second, _, at = rest.partition(":")
+                nm_ = second if k >= int(at) else first
+            m, _, hw = nm_.partition("@")
             t = teams[name]
             keep_hw = optimise.STRATEGY["chase"].get("haul_w")
             if hw:
@@ -160,7 +166,7 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0):
             cap = w0["captain"] if mins.get(w0["captain"], 0) > 0 else w0["vice"]
             real = sum(pts.get(i, 0) for i in xi) + (pts.get(cap, 0) if cap in xi else 0) - 4 * w0["hits"]
             t["real"].append(real); t["proj"].append(w0["xp"] - 4 * w0["hits"]); t["field"].append(field)
-        line = "  ".join(f"{m[:8]} {teams[m]['real'][-1]:4.0f}" for m in modes)
+        line = "  ".join(f"{m[-14:]} {teams[m]['real'][-1]:4.0f}" for m in modes)
         print(f"  {season} GW{k}: {line}   field {field:5.1f}   ({time.time() - t0:.0f}s)", flush=True)
     return teams
 
