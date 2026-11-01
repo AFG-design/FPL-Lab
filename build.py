@@ -12,6 +12,7 @@ from collections import Counter, defaultdict
 from fplmodel import prepare, project, POS, DEFAULTS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
+import squad_state
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
 OUT = sys.argv[2] if len(sys.argv) > 2 else "data.json"
@@ -63,6 +64,10 @@ def finished_only(g, data):
 model_live = {g: finished_only(g, d) for g, d in live.items()}
 picks_gw = entry.get("current_event") or cur_gw
 picks = get(f"/entry/{TEAM_ID}/event/{picks_gw}/picks/") if picks_gw else None
+# The squad you own going forward (squad_state.owned_picks): after a Free Hit, the restored pre-Free-Hit squad and bank.
+# `picks` still drives this GW's live score, rivals and review; `own_picks` drives the squad, bank, value and plans.
+own_picks, squad_gw, fh_active = squad_state.owned_picks(
+    picks, picks_gw, next_gw, lambda g: get(f"/entry/{TEAM_ID}/event/{g}/picks/"))
 try:
     priors = json.load(open(os.path.join(HERE, "priors.json")))
 except Exception:
@@ -150,7 +155,7 @@ finished_gws = [e["id"] for e in events if e["finished"]]
 
 # ---------------------------------------------------------------- my squad, prices, free transfers
 fh_events = {c["event"] for c in history["chips"] if c["name"] == "freehit"}
-squad_ids = [p["element"] for p in picks["picks"]] if picks else []
+squad_ids = [p["element"] for p in own_picks["picks"]] if own_picks else []
 
 
 def purchase_price(pid):
@@ -178,7 +183,8 @@ for h in history["current"]:
     ft = min(5, ft + 1)
 if cur_ev and not cur_ev["finished"]:
     pass
-bank = (picks["entry_history"]["bank"] if picks else 0) / 10
+bank = (own_picks["entry_history"]["bank"] if own_picks else 0) / 10   # restored bank after a Free Hit
+team_value = squad_state.team_value(own_picks, bank, {i: e["now_cost"] for i, e in elements.items()}, fh_active)
 
 # ---------------------------------------------------------------- per-player stats for the page
 pstats = ctx["pstats"]
@@ -403,7 +409,7 @@ if squad_ids and proj_gws:
 lineup = {}
 if "roll" in plans:
     w0 = plans["roll"]["weeks"][0]
-    cur_xi = [p["element"] for p in picks["picks"] if p["position"] <= 11]
+    cur_xi = [p["element"] for p in own_picks["picks"] if p["position"] <= 11]
     g = next_gw
     lineup = {
         "xi": w0["xi"], "bench": w0["bench"], "captain": w0["captain"], "vice": w0["vice"],
@@ -1321,20 +1327,21 @@ out = {
              "xp_cur": xp_cur_meta,   # xP table live column: snapshot used, or why it's missing (None outside a live GW)
              "deadline": next_ev["deadline_time"] if next_ev else None, "proj_gws": proj_gws, "plan_gws": proj_gws[:PLAN_GWS],
              "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw,
+             "squad_gw": squad_gw, "fh_restored": fh_active,   # squad and bank come from GW squad_gw (the week before a Free Hit)
              "price_deadlines": boot["game_config"]["settings"].get("price_change_deadlines", []),
              "priors_season": next(iter((priors or {}).get("players", {}).values()), {}).get("season"),
              "build_secs": None},
     "manager": {"name": f'{entry["player_first_name"]} {entry["player_last_name"]}', "team": entry["name"],
                 "points": history["current"][-1]["total_points"] if history["current"] else entry["summary_overall_points"], "rank": entry["summary_overall_rank"],
                 "gw_points": entry.get("summary_event_points"), "gw_rank": entry.get("summary_event_rank"),
-                "bank": bank, "value": (picks["entry_history"]["value"] if picks else 0) / 10,
+                "bank": bank, "value": team_value,
                 "free_transfers": ft, "total_players": boot["total_players"]},
     "history": [{"gw": h["event"], "pts": h["points"], "rank": h["overall_rank"], "gw_rank": h["rank"],
                  "bench": h["points_on_bench"], "tx": h["event_transfers"], "hit": h["event_transfers_cost"],
                  "chip": chips_by_gw.get(h["event"])} for h in history["current"]],
     "squad": [{"id": p["element"], "slot": p["position"], "cap": p["is_captain"], "vice": p["is_vice_captain"],
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
-              for p in (picks["picks"] if picks else [])],
+              for p in (own_picks["picks"] if own_picks else [])],
     "lineup": lineup, "plans": plans, "plan_notes": plan_notes,
     "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
                    "tie": optimise.TIE, "strategy": optimise.STRATEGY},
