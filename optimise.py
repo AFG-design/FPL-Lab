@@ -203,7 +203,10 @@ EO_WEEKS = None   # weeks the ownership term covers (None = the whole plan, fadi
 STRATEGY = {
     "balanced": {},
     "safe": {"lam": 0.1, "nail_w": 0.5, "hit_margin": 2.0},
-    "chase": {"lam": -0.15, "haul_w": 20.0},
+    # haul_w 5: on 15,000 past player-weeks an extra 0.10 chance of 10+ points was worth +0.56 real points beyond xP
+    # (fair weight ~5.6, CI 1.9-9.6). Replayed from 8 starts: 5 cost -18 real pts vs Balanced over 68 GWs (noise) with
+    # the most big weeks; 0 cost -102 and 20 cost -79, behind Balanced in all 8 runs. See strategy_replay.py.
+    "chase": {"lam": -0.15, "haul_w": 5.0},
 }
 
 

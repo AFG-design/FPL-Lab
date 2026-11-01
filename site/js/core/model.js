@@ -29,7 +29,7 @@ const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a,
 // optimiser's settings with points budgets (optimise.STRATEGY, data.plan_rules), and Play safe only breaks ties here
 // (see adjXI) so it never gives up projected points.
 const LAM = { balanced: 0, safe: 0.02, chase: -0.03 };
-const STRAT = { balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 10 } };
+const STRAT = { balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 5 } };   // haulW: optimise.STRATEGY
 function fieldEO() { const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null; return F ? F.eo : null; }
 // Strategy extras as the optimiser has them, in every week: Chase rewards the chance of 10+ points (double for the
 // captain), Play safe marks down starters who may not play (starters only). pts stays plain projected points.
