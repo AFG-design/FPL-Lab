@@ -675,7 +675,7 @@ def project(ctx, as_of, horizon=6, params=None):
                 ramp = P["return_ramp"]
                 j = k - (1 if still_out else 0)
                 cong *= ramp[j] if 0 <= j < len(ramp) else (ramp[0] if j < 0 else 1.0)
-            for (opp, home, mu_f, mu_a, fdr) in upcoming[tid].get(g, []):
+            for j, (opp, home, mu_f, mu_a, fdr) in enumerate(upcoming[tid].get(g, [])):
                 ps, pb = p_start * av * cong, p_sub * av
                 pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
                 m = ps * m_start + pb * m_sub
@@ -703,7 +703,11 @@ def project(ctx, as_of, horizon=6, params=None):
                 comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
                 comp["cards"] -= yc90 * m / 90
                 if P["sim"] and (ps + pb) > 0.01:
-                    rng = np.random.default_rng(pid * 1000 + g * 10 + len(detail))
+                    # one random stream per FIXTURE: in a double gameweek the second match used to reuse the first
+                    # one's seed, so both had identical start, rate and team-goal draws (overstated haul and blank
+                    # chances). The first fixture keeps its old seed, so single-fixture weeks are unchanged.
+                    seed = pid * 1000 + g * 10 + len(detail)
+                    rng = np.random.default_rng(seed if j == 0 else [pid, g, len(detail), j])
                     bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
                                             p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
