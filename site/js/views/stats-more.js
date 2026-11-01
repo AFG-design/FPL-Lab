@@ -21,7 +21,7 @@ const STATS_PREFS = {
   gaWin: ["season", "l6"], gaPos: ["ALL", "DEF", "MID", "FWD"], gaMetric: ["gi", "g", "a"],
   gaSort: ["mins", "g", "xg", "a", "xa", "gi", "xgi", "diff", "gi90"],
   dcPos: ["DEF", "MID", "FWD"], dcSort: ["next", "per90", "rate", "pts", "l6", "mins", "nailed", "xp"],
-  ldPos: ["ALL", "GKP", "DEF", "MID", "FWD"], ldSort: ["price", "starts", "mins", "own", "pts", "goals", "assists", "gi", "dd", "bonus"],
+  ldPos: ["ALL", "GKP", "DEF", "MID", "FWD"], ldSort: ["starts", "mins", "own", "pts", "goals", "assists", "gi", "dd", "bonus"],
   gaMax: PRICE_CAPS.map(String), dcMax: PRICE_CAPS.map(String), ldMax: PRICE_CAPS.map(String),
 };
 { const saved = store.get("fpl.statsf") || {};
@@ -114,43 +114,45 @@ function dcHTML() {
     ${leftOut(missing, "defensive record")}</div>`;
 }
 
-/* ---------- Points leaders: top 10 for any column ---------- */
+/* ---------- Points leaders: top 10 for any column, styled as a matchday ranking ---------- */
 // Season totals from FPL (they include matches being played now), apart from DD hauls, which count gameweeks of 10+
 // points from s_pts (finished matches only, so a live gameweek can still add one). Starts comes from FPL's season
 // figure; a build without it shows "–" in that column, never 0. A player with no s_pts shows "–" for DD hauls and
 // sorts last on it.
+// [key, header, value, bar under the number]
 const LEAD_COLS = [
-  ["price", "Price", p => p.price, false], ["starts", "Starts", p => p.starts ?? null, false],
-  ["mins", "Mins", p => p.mins, true], ["own", "Own %", p => p.own, true], ["pts", "Pts", p => p.pts, true],
-  ["goals", "Gls", p => p.goals, true], ["assists", "Ast", p => p.assists, true], ["gi", "G+A", p => p.goals + p.assists, true],
+  ["pts", "Pts", p => p.pts, false],
+  ["gi", "G+A", p => p.goals + p.assists, true],
   ["dd", "DD hauls", p => Array.isArray(p.s_pts) ? p.s_pts.filter(v => v >= 10).length : null, true],
   ["bonus", "Bonus", p => p.bonus, true],
+  ["goals", "Gls", p => p.goals, true], ["assists", "Ast", p => p.assists, true],
+  ["mins", "Mins", p => p.mins, true], ["own", "Own %", p => p.own, true],
+  ["starts", "Starts", p => p.starts ?? null, false],
 ];
 function leadersHTML() {
   if (!S.ldSort || !LEAD_COLS.some(c => c[0] === S.ldSort)) S.ldSort = "pts";
   const col = LEAD_COLS.find(c => c[0] === S.ldSort), val = col[2];
-  const pts = LEAD_COLS.find(c => c[0] === "pts")[2];
+  const pts = LEAD_COLS[0][2];
   const pool = D.players.filter(p => posMatch(p, S.ldPos || "ALL") && underCap(p, "ldMax"));
   const rows = pool.slice().sort((a, b) => (val(b) ?? -1) - (val(a) ?? -1) || pts(b) - pts(a) || b.mins - a.mins).slice(0, 10);
-  // shading: each column against its own best among the ten shown (0 = no shade)
+  // bar length: each column against its own best among the ten shown
   const top = Object.fromEntries(LEAD_COLS.map(([k, , f]) => [k, Math.max(0, ...rows.map(p => f(p) ?? 0))]));
-  const fmt = (k, v) => v == null ? '<span class="muted" title="Not in this build">–</span>' : k === "price" ? money(v) : k === "own" ? v.toFixed(1) : v;
-  const td = (p, [k, , f, heat], cls = "") => {
-    const v = f(p);
-    if (!heat || v == null) return `<td class="n ${cls}">${fmt(k, v)}</td>`;
-    const lvl = top[k] > 0 && v > 0 ? Math.max(1, Math.round(5 * v / top[k])) : 0;
-    return `<td class="n ${cls}"><span class="hpill h${lvl}">${fmt(k, v)}</span></td>`;
+  const fmt = (k, v) => v == null ? '<span class="muted" title="Not in this build">–</span>' : k === "own" ? v.toFixed(1) : v;
+  const td = (p, [k, , f, bar]) => {
+    const v = f(p), on = k === S.ldSort ? " on" : "";
+    if (k === "pts") return `<td class="n ld-pts${on}">${v}</td>`;
+    if (!bar || v == null) return `<td class="n${on}">${fmt(k, v)}</td>`;
+    const w = top[k] > 0 ? Math.round(100 * v / top[k]) : 0;
+    return `<td class="n${on}"><span class="ld-val">${fmt(k, v)}<i style="width:${w}%"></i></span></td>`;
   };
-  const ptsCol = LEAD_COLS.find(c => c[0] === "pts");
   const live = !D.meta.cur_finished;
   const posTxt = { ALL: "players", GKP: "goalkeepers", DEF: "defenders", MID: "midfielders", FWD: "forwards" }[S.ldPos || "ALL"];
   return `<div class="panel"><div class="bar"><h3>Points leaders</h3><div class="fx-controls">${posSeg("ldPos", [["ALL", "All"], ["GKP", "GKP"], ["DEF", "DEF"], ["MID", "MID"], ["FWD", "FWD"]])}${priceSel("ldMax")}</div></div>
-    <p class="note" style="margin-top:0">Top 10 ${posTxt} by ${col[1] === "Pts" ? "FPL points" : col[1]} this season. Tap any column to rank by it. Shading compares each column within the ten shown. DD hauls = gameweeks of 10+ points${live ? `; GW${D.meta.cur_gw} counts finished matches only so far` : ""}.</p>
-    <div class="tablebox leaders"><table><thead><tr><th class="sticky-col">Player</th>${sortTh("ldSort", "pts", "Pts", "", "ph-only")}${LEAD_COLS.map(([k, l]) => sortTh("ldSort", k, l, "", k === "pts" ? "desk-only" : "")).join("")}</tr></thead>
-    <tbody>${rows.map(p => { const star = isStarred(p.id); return `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td class="sticky-col"><div class="ld-player">
-      <button type="button" class="xstar" data-xstar="${p.id}" aria-pressed="${star}" aria-label="${star ? "Remove" : "Add"} ${esc(p.name)} ${star ? "from" : "to"} starred players">${star ? "★" : "☆"}</button>
-      <img class="ld-photo" src="${photoURL(p)}" alt="" loading="lazy" onerror="if(!this.dataset.f){this.dataset.f=1;this.src=PHOTO_BASE+'/placeholder.png'}else this.style.visibility='hidden'">
-      <span class="ld-nm"><button data-p="${p.id}" class="pname linkish"><span class="nm-full">${esc(p.full.length > 22 ? p.name : p.full)}</span><span class="nm-short">${esc(p.name)}</span></button><span class="muted">${T[p.team].short} <span class="pill">${p.pos}</span>${MINE.has(p.id) ? ' <span class="pill good ld-yours">Yours</span>' : ""}</span></span></div></td>${td(p, ptsCol, "ph-only")}${LEAD_COLS.map(c => td(p, c, c[0] === "pts" ? "desk-only" : "")).join("")}</tr>`; }).join("") || `<tr><td colspan="${LEAD_COLS.length + 2}" class="muted">No players match these filters.</td></tr>`}</tbody></table></div></div>`;
+    <p class="note" style="margin-top:0">Top 10 ${posTxt} by ${col[1] === "Pts" ? "FPL points" : col[1]} this season. Tap any column to rank by it. Bars compare each column within the ten shown. DD hauls = gameweeks of 10+ points${live ? `; GW${D.meta.cur_gw} counts finished matches only so far` : ""}.</p>
+    <div class="tablebox leaders"><table><thead><tr><th class="sticky-col">Player</th>${LEAD_COLS.map(([k, l]) => sortTh("ldSort", k, l)).join("")}</tr></thead>
+    <tbody>${rows.map((p, i) => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td class="sticky-col"><div class="ld-player" style="--club:${clubCol(p)}">
+      <span class="ld-rank${i === 0 ? " first" : ""}">${i + 1}</span><span class="ld-edge" aria-hidden="true"></span>
+      <span class="ld-nm"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button><span class="muted">${T[p.team].short} · ${p.pos}<span class="ld-extra"> · ${money(p.price)}${MINE.has(p.id) ? ' <span class="pill good">Yours</span>' : ""}</span></span></span></div></td>${LEAD_COLS.map(c => td(p, c)).join("")}</tr>`).join("") || `<tr><td colspan="${LEAD_COLS.length + 1}" class="muted">No players match these filters.</td></tr>`}</tbody></table></div></div>`;
 }
 
 /* ---------- controls shared by these tabs ---------- */

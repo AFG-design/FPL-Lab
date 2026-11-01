@@ -323,38 +323,33 @@ tr.is-rival td { background: var(--accent-soft); }
 .ga-legend .ga-key-act { background: var(--accent); height: 8px; }
 .ga-legend .ga-key-exp { background: var(--fg); width: 2px; height: 12px; }
 
-/* ---------- Stats: Points leaders ---------- */
-.leaders td { padding-top: 7px; padding-bottom: 7px; }
-.ld-player { display: flex; align-items: center; gap: 10px; }
-.leaders .xstar { background: none; border: 0; padding: 0 2px; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; }
-.leaders .xstar[aria-pressed="true"] { color: var(--hi-text); }
-.ld-photo { width: 34px; height: 43px; object-fit: cover; object-position: top; border-radius: 50% 50% 6px 6px; background: var(--sunk); flex: none; }
-.ld-nm { display: grid; gap: 2px; line-height: 1.25; }
-.ld-nm .pill { padding: 0 6px; font-size: 10.5px; }
-.ld-nm .nm-short { display: none; }
-.hpill { display: inline-block; min-width: 46px; text-align: center; padding: 4px 8px; border-radius: 7px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--fg); background: var(--heat-0); box-shadow: inset 0 0 0 1px var(--line); }
-.hpill.h1 { background: var(--heat-1); box-shadow: none; }
-.hpill.h2 { background: var(--heat-2); box-shadow: none; }
-.hpill.h3 { background: var(--heat-3); box-shadow: none; }
-.hpill.h4 { background: var(--heat-4); box-shadow: none; }
-.hpill.h5 { background: var(--heat-5); box-shadow: none; }
-.leaders .ph-only { display: none; }
+/* ---------- Stats: Points leaders (matchday ranking) ---------- */
+.leaders td { padding-top: 9px; padding-bottom: 9px; vertical-align: middle; }
+.ld-player { display: grid; grid-template-columns: 30px 4px minmax(0, 1fr); gap: 10px; align-items: center; min-width: 190px; }
+.ld-rank { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1; text-align: right; color: var(--faint); font-variant-numeric: tabular-nums; }
+.ld-rank.first { color: var(--hi-text); }
+.ld-edge { align-self: stretch; min-height: 34px; background: var(--club); border-radius: 0; }
+.ld-nm { display: grid; gap: 2px; line-height: 1.25; min-width: 0; }
+.ld-nm > * { overflow: hidden; text-overflow: ellipsis; }
+.ld-nm .pill { padding: 0 6px; font-size: 10.5px; margin-left: 2px; }
+.leaders td.ld-pts { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1; color: var(--fg); }
+.ld-val { display: inline-grid; justify-items: end; gap: 4px; min-width: 40px; font-variant-numeric: tabular-nums; }
+.ld-val i { display: block; height: 3px; border-radius: 2px; background: var(--accent); justify-self: end; }
+.leaders td.on { color: var(--fg); font-weight: 600; }
+.leaders td:not(.on) .ld-val i { opacity: .55; }
 
 @media (max-width: 720px) {
-  /* phones: the player column stays narrow so the shaded numbers are on screen without scrolling; the row's
-     yellow edge still marks your players */
-  .ld-photo, .ld-yours, .ld-nm .nm-full, .leaders .desk-only { display: none; }
-  .leaders .ph-only { display: table-cell; }
-
   /* Stats tabs: one row to swipe instead of three wrapped rows; the faded edge shows there's more */
   .stats-nav .ptabs { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
   .stats-nav .ptabs button { scroll-snap-align: center; }
   .stats-nav .ptabs.more-r { mask-image: linear-gradient(90deg, #000 85%, transparent); }
   .stats-nav .ptabs.more-l { mask-image: linear-gradient(90deg, transparent, #000 15%); }
   .stats-nav .ptabs.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
-  .ld-nm .nm-short { display: inline; }
-  .ld-player { gap: 6px; }
+
+  /* phones: smaller rank and points so the first stat columns fit beside the player */
   .leaders th, .leaders td { padding-left: 7px; padding-right: 7px; }
-  .hpill { min-width: 38px; padding: 3px 6px; }
+  .ld-player { grid-template-columns: 20px 3px minmax(0, 1fr); gap: 7px; min-width: 112px; }
+  .ld-extra { display: none; }
+  .ld-rank, .leaders td.ld-pts { font-size: 21px; }
   .gabars li { grid-template-columns: minmax(84px, 120px) minmax(0, 1fr) 54px; gap: 8px; }
 }
