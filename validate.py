@@ -183,6 +183,32 @@ def main(path):
                 errors.append(f"Plan {k} GW{wk.get('gw')}: XI has {len(wk.get('xi', []))} players or captain outside it")
             if len(wk.get("in", [])) != len(wk.get("out", [])):
                 errors.append(f"Plan {k} GW{wk.get('gw')}: {len(wk.get('in', []))} in vs {len(wk.get('out', []))} out")
+    # strategy budgets (optimise.strategy_plans): Play safe never below Balanced, Chase rank at most chase_budget below,
+    # and no plan with transfers short of the profit rule. A breach means the solver ignored its floor: stop the publish.
+    rules = D.get("plan_rules") or {}
+    if plans and not rules:
+        warnings.append("plan_rules missing: the strategy budgets can't be checked")
+    for k, pl in plans.items():
+        if "vs_balanced" not in pl or "vs_none" not in pl:
+            if rules:
+                errors.append(f"Plan {k}: no vs_balanced / vs_none figures")
+            continue
+        mode = k.split("_")[0] if "_" in k else "balanced"
+        budget = {"balanced": 0.0, "safe": rules.get("safe_budget", 0.0), "chase": rules.get("chase_budget", 4.0)}[mode]
+        if pl["vs_balanced"] < -(budget + rules.get("tie", 0.1) + 0.01):
+            errors.append(f"Plan {k}: {pl['vs_balanced']:+.2f} vs Balanced, over its {budget:g}-point budget")
+        nh = sum(wk.get("hits", 0) for wk in pl.get("weeks", []))
+        cap = (rules.get("max_hits") or {}).get(mode)
+        if cap is not None and any(wk.get("hits", 0) > cap for wk in pl.get("weeks", [])):
+            errors.append(f"Plan {k}: takes more than {cap} hit(s) in a week ({mode} allows {cap})")
+        if nh and rules.get("hit_gain") is not None and pl.get("hit_gain", -99) < rules["hit_gain"] * nh - 0.01:
+            errors.append(f"Plan {k}: {nh} hit(s) gaining {pl.get('hit_gain', 'unknown')} vs no hits, short of the hit rule")
+        moved = any(wk.get("in") for wk in pl.get("weeks", []))
+        if moved and not k.endswith("roll") and pl["vs_none"] < rules.get("min_profit", 1.0) - 0.01:
+            errors.append(f"Plan {k}: {pl['vs_none']:+.2f} vs no transfers, short of the profit rule")
+    for n in D.get("plan_notes") or []:
+        if not n.endswith("dropped"):   # a move-count option dropped by the profit rule is normal, not a fault
+            warnings.append(f"Plans: {n}")
     if plans:
         for mode, label in (("safe", "Play safe"), ("chase", "Chase rank")):
             if not any(k.startswith(mode + "_") for k in plans):
