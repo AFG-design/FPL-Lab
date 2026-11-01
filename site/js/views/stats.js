@@ -227,7 +227,8 @@ const STAT_LABELS = {
     ["Own %", "Share of FPL managers who own him."],
     ["Pts, Gls, Ast, G+A, Bonus", "Season totals from FPL, including matches being played now."],
     ["DD hauls", "Gameweeks where he scored 10 or more points. A gameweek in progress counts finished matches only."],
-    ["Shading", "Darker green = higher, compared within the ten players shown, column by column."],
+    ["Bars", "Longer = higher, compared within the ten players shown, column by column. The column you've ranked by is brighter."],
+    ["Coloured edge", "The player's club colour."],
   ]],
   shots: ["Shots", [
     ["Shots/90", "All shots per 90, including long-range efforts."],
