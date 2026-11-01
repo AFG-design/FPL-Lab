@@ -50,6 +50,9 @@ DEFAULTS = {
     "min_valid": True,     # minutes history: skip blank gameweeks and weeks before the player joined
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
     "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
+    "hist_odds_ahead": 0,  # backtests only (use_flags off): a fixture's own odds count only this many GWs past the
+                           # forecast week. The live odds file holds the next round only, so a forecast made at GW k
+                           # never had GW k+1's odds; the archive does (pre-match or closing prices), which leaked.
     "use_out": True,       # skip weeks a player was injured, suspended or away when judging his minutes
     "late_abs": True,      # injury news around a gameweek, or a 'd' <=75% flag at its deadline, explains a regular's
                            # non-start that week (late_news_absences, doubtful_absences); False = old behaviour
@@ -296,6 +299,8 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
         "out_late": out_late, "out_doubt": out_doubt,
+        # status and chance saved before each deadline: {gw: {pid: (status, chance)}} (empty with no status log)
+        "status_rows": {int(g): {int(pid): tuple(v) for pid, v in rows.items()} for g, rows in (status_log or {}).get("gws", {}).items()},
         "sp": sp,
         "market": (market or {}).get("matches", []),
         "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
@@ -451,6 +456,8 @@ def project(ctx, as_of, horizon=6, params=None):
                 fdr = f["team_h_difficulty"] if home else f["team_a_difficulty"]
                 mf, ma_ = mu(tid, opp, home), mu(opp, tid, not home)
                 mk = ctx.get("market_fx", {}).get(f["id"]) if dw > 0 else None
+                if mk and not P["use_flags"] and g > as_of + P["hist_odds_ahead"]:
+                    mk = None   # backtest: these odds weren't out yet at the forecast deadline; the ratings stand in
                 if mk:  # this fixture's own odds: blend the market's expected goals in
                     lf, la = (mk[0], mk[1]) if home else (mk[1], mk[0])
                     mf, ma_ = (1 - dw) * mf + dw * lf, (1 - dw) * ma_ + dw * la
@@ -654,8 +661,13 @@ def project(ctx, as_of, horizon=6, params=None):
                 av, asm = availability_info(e, k, ko, ret, today)
             else:
                 av, asm = (0.0 if e["status"] == "u" else 1.0), False
-            if not P["use_flags"] and P["hist_flags"] and g in ctx.get("out_log", {}).get(pid, ()):
-                av = 0.0  # backtests: the injury flag that was showing at that deadline (status log only, never hindsight)
+            if not P["use_flags"] and P["hist_flags"] and as_of in ctx.get("out_log", {}).get(pid, ()):
+                # backtests: only the flag saved at the FORECAST deadline (as_of) is known (status log, never hindsight).
+                # A flag first saved at a later deadline is the future, so it isn't used for k > 0 either.
+                # The log keeps status and chance but no return date, so later weeks follow the live model's
+                # no-date rule (availability_info with an unknown return): 0 now, then a gradual return.
+                st, ch = ctx["status_rows"][as_of][pid]
+                av = 0.0 if k == 0 else availability_info({"status": st, "chance_of_playing_next_round": ch}, k, ko, "unknown", today)[0]
             comp = defaultdict(float)
             sim_pts = sim_app = None
             cong = ctx.get("congestion", {}).get((tid, g), 1.0)
