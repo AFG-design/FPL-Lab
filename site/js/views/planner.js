@@ -360,19 +360,29 @@ async function runReplan() {
       const ref = alt ? alt.value : none.value;
       return r.value >= ref + (R.hit_gain ?? 2) * h ? r : alt;
     };
-    const none = await solveP({ ...common, maxMovesWeek: 0 });
-    let bal; try { bal = await solveP(common); } catch (e) { bal = { ...none, moves: [] }; }
+    // Your locks and bans can force moves: a ban on a player you own means selling him, a lock on one you don't means
+    // buying him. "Keep the squad" is then not an option, so it is scored without them (just the yardstick that every
+    // "vs your current team" figure uses) and the profit rule below can't throw the forced moves away.
+    const owned = new Set(common.squad);
+    const forced = [...common.banned.filter(i => owned.has(i)), ...common.locked.filter(i => !owned.has(i))];
+    const none = await solveP({ ...common, locked: [], banned: [], maxMovesWeek: 0 });
+    let bal;
+    try { bal = await solveP(common); } catch (e) {
+      // no plan meets your locks and bans: say which ones force it rather than quietly handing back an unchanged squad
+      if (forced.length) throw new Error(`no plan meets your locks and bans (${forced.map(i => P[i]?.name || i).join(", ")} ${forced.length === 1 ? "forces a move" : "force moves"}). Check you have enough free transfers and money, or lift a lock or ban`);
+      bal = { ...none, moves: [] };
+    }
     let res = bal;
     if (S.mode !== "balanced") {
       SOLVE.msg = `Planning ${MODES[S.mode]}…`; render(); await new Promise(r => setTimeout(r, 30));
       const st = R.strategy?.[S.mode] || {};
       let floor = S.mode === "safe" ? bal.value - R.safe_budget - R.tie : bal.value - R.chase_budget;
-      if (bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
+      if (!forced.length && bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
       const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
       if (S.mode === "chase" && chaseCap > 0) inp.maxHits = chaseCap;
       try { res = (await hitRule(await solveP(inp), { ...inp, maxHits: 0 })) || bal; } catch (e) { res = bal; }
     }
-    if (res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it
+    if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it (forced moves always stay)
     const before = scoreMoves(SB.moves).tot;
     setPlan(res.moves, "replan:" + S.mode);
     const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;
