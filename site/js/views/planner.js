@@ -157,7 +157,7 @@ function captainsHTML() {
     const capX = xpg(t.cap, g);
     if (tc && g <= tc.to && (!bestTc || capX > bestTc.x)) bestTc = { g, id: t.cap, x: capX };
     const gap = opts.length > 1 ? capX - Math.max(...opts.filter(i => i !== t.cap).map(i => xpg(i, g))) : 0;
-    const v = t.capMine ? { t: "Your pick", c: "mut" } : F && (F.cap[t.cap] || 0) >= 50 && gap > -0.3 ? { t: "Safe pick", c: "good" } : verdict(gap, 1, 0.4);
+    const v = t.capMine ? { t: "Your pick", c: "mut" } : t.fromPlan ? { t: "Re-plan's pick", c: "mut" } : F && (F.cap[t.cap] || 0) >= 50 && gap > -0.3 ? { t: "Safe pick", c: "good" } : verdict(gap, 1, 0.4);
     return `<tr><td><b>GW${g}</b></td>
       <td><span class="pname">${esc(P[t.cap].name)}</span> ${vPill(v)}<br><span class="muted" style="font-size:12.5px">${fxText(P[t.cap], g)} · ${f1(capX)} xP${F ? ` · ${(F.cap[t.cap] || 0).toFixed(0)}% field C` : ""}</span></td>
       <td>${opts.filter(i => i !== t.cap).slice(0, 2).map(i => `<div class="capalt"><span>${esc(P[i].name)} <span class="muted">${f1(xpg(i, g))}${F ? ` · ${(F.cap[i] || 0).toFixed(0)}%` : ""}</span></span><button class="btn" data-setcap="${g}:${i}">Make C</button></div>`).join("")}
@@ -384,7 +384,16 @@ async function runReplan() {
     }
     if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it (forced moves always stay)
     const before = scoreMoves(SB.moves).tot;
-    setPlan(res.moves, "replan:" + S.mode);
+    // keep the optimiser's own lineup and captain with its moves, so what's shown (and the gain below) is the plan
+    // that passed the points budget, not one re-picked by the browser's milder rules
+    const solved = {};
+    let sq = common.squad.slice();
+    PG.forEach((g, w) => {
+      res.moves.filter(m => m.gw === g).forEach(m => { sq = sq.map(i => i === m.out ? m.in : i); });
+      const wk = res.weeks?.[w];
+      if (wk && wk.gw === g && wk.xi?.length === 11) solved[g] = { sq: sq.slice(), xi: wk.xi.slice(), cap: wk.captain };
+    });
+    setPlan(res.moves, "replan:" + S.mode, solved);
     const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;
     SOLVE.msg = `Done in ${((performance.now() - t0) / 1000).toFixed(1)}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}, ${sgn(after - cur)} vs your current team (${sgn(after - before)} vs your previous plan). ${leanText()} Undo is in Your moves.`;
   } catch (e) {

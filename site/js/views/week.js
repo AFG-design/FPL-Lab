@@ -100,6 +100,7 @@ function vWeek() {
   const cV = capEO != null && capEO >= 50 && capGap > -0.3 ? { t: "Safe pick", c: "good" }
     : verdict(capGap, 1, 0.4);
   const capNote = me.capMine ? `Your choice, set in the planner. The model's pick would be ${esc(P[capPick(me.xi, g).cap].name)}.`
+    : me.fromPlan && me.cap !== capPick(me.xi, g).cap ? `Re-plan's pick for ${esc(planName())}. The model's plain pick would be ${esc(P[capPick(me.xi, g).cap].name)}.`
     : `${f1(capGap)} pts ahead of ${esc(P[me.vice].name)}.`;
   const haul = i => P[i]?.dist?.[g]?.[0];
   const capHaul = haul(me.cap) != null && haul(me.vice) != null

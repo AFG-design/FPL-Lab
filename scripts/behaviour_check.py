@@ -6,6 +6,8 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Re-plan with a ban on a player you own: must succeed and sell him (it used to fail with "No plan found").
   - Re-plan with a lock on a player you don't own: must succeed and buy him.
   - Re-plan with no locks or bans: must still succeed (regression guard for the two above).
+  - Re-plan's lineups and captains are the ones shown for its plan (Balanced, and Chase/Play safe when the build has
+    field ownership), and editing the plan clears them.
   - Vice-captain chosen with the captain left automatic: your vice must be used, and the captain must not be him.
   - Free Hit week: the Planner says plans start from the restored squad, and says nothing in a normal week.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
@@ -67,7 +69,39 @@ def check_replan(page):
     elif not any(m["in"] == info["lock"] for m in r["moves"]):
         fails.append(f"Re-plan locking non-owned {info['lockName']}: he isn't bought ({r['moves']})")
 
-    page.evaluate("() => { SB.rules.banned = []; SB.rules.locked = []; SB.moves = []; }")
+    # Re-plan's own lineups and captains are what's shown, in Balanced and in a strategy mode (needs field ownership)
+    for mode in ("balanced", "chase", "safe"):
+        r = page.evaluate("""async (mode) => {
+          if (mode !== "balanced" && !fieldEO()) return { skip: true };
+          SB.rules.banned = []; SB.rules.locked = []; SB.moves = []; SB.ov = {}; S.mode = mode;
+          await runReplan();
+          if (!SOLVE.msg.startsWith("Done")) return { msg: SOLVE.msg };
+          const sc = scoreMoves(SB.moves), bad = [];
+          sc.weeks.forEach(w => {
+            const s = SB.solved?.[w.gw];
+            if (!s) { bad.push(`GW${w.gw}: no solved lineup kept`); return; }
+            const same = s.xi.length === w.team.xi.length && s.xi.every(i => w.team.xi.includes(i));
+            if (!same || w.team.cap !== s.cap || !w.team.fromPlan) bad.push(`GW${w.gw}: shown XI/captain differ from Re-plan's`);
+          });
+          editPlan(() => {});                                   // any edit clears them
+          const cleared = SB.solved === null && !scoreMoves(SB.moves).weeks.some(w => w.team.fromPlan);
+          return { msg: SOLVE.msg, bad, cleared };
+        }""", mode)
+        if r.get("skip"):
+            print(f"  (Re-plan lineups, {mode}: no field-ownership data in this build, not checked)")
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::warning title=Behaviour check::Re-plan lineups ({mode}) not checked: no field-ownership data")
+            continue
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::notice title=Behaviour check::Re-plan lineups ({mode}) checked: shown XI and captain match the solver")
+        if not r["msg"].startswith("Done"):
+            fails.append(f"Re-plan lineups ({mode}): {r['msg']}")
+            continue
+        fails += [f"Re-plan lineups ({mode}): {b}" for b in r["bad"]]
+        if not r["cleared"]:
+            fails.append(f"Re-plan lineups ({mode}): editing the plan didn't clear Re-plan's lineups")
+
+    page.evaluate("() => { SB.rules.banned = []; SB.rules.locked = []; SB.moves = []; SB.solved = null; S.mode = 'balanced'; }")
     return fails
 
 
