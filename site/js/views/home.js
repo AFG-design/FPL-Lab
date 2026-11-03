@@ -138,7 +138,7 @@ function vNext() {
   const owned = new Set(D.squad.map(s => s.id)), saleOf = i => owned.has(i) ? sellPrice(i) : P[i].price;
   const budget = out5 != null ? Math.round((w0.bank + saleOf(out5)) * 10) / 10 : null;
   const qr = sidePanel("Quick research", `<div class="qr">
-      <button type="button" class="qrb" data-v-go="xptable">${icon("stats")}<span>Expected points<small>Every player, GW by GW</small></span></button>
+      <button type="button" class="qrb" data-v-go="xptable">${icon("stats")}<span>Expected points<small>Every player by GW</small></span></button>
       <button type="button" class="qrb" data-qcmp="1">${icon("players")}<span>Player comparison<small>${n ? `${esc(P[moves0[0].out].name)} v ${esc(P[moves0[0].in].name)}` : "Your top two picks"}</small></span></button>
       ${budget != null ? `<button type="button" class="qrb" data-qbudget="${P[out5].pos}:${budget}" title="Your bank after planned moves plus ${esc(P[out5].name)}'s selling price">${icon("search")}<span>Budget options<small>${P[out5].pos} up to ${money(budget)}</small></span></button>` : ""}
       <button type="button" class="qrb" data-v-go="fixtures">${icon("fixtures")}<span>Fixture outlook<small>Next ${S.horizon} gameweeks</small></span></button></div>`);

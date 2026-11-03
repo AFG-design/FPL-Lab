@@ -392,7 +392,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .dcc > b { font-family: var(--display); font-size: 22px; font-weight: 700; }
 
 /* pitch on the left, research and checks on the right */
-.home-main { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.home-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .home-pitch { display: grid; gap: 10px; min-width: 0; }
 .home-pitch .bar { margin: 0; }
 .home-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
@@ -581,45 +581,61 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu .flag { top: -7px; left: -9px; }
 .lu-role { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; background: var(--hi); color: var(--hi-fg); box-shadow: 0 0 0 2px var(--surface); }
 .lu-role.v { background: var(--fg); color: var(--bg); }
-.lu .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm nm" "sub xp"; align-items: baseline; column-gap: 6px; min-width: 0; }
+.lu .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm nm" "sub xp" "ex ex"; align-items: center; column-gap: 6px; min-width: 0; }
 .lu .lu-line { display: contents; }
 .lu .nm { grid-area: nm; min-width: 0; overflow: hidden; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.1; white-space: nowrap; text-overflow: ellipsis; }
 .lu .nm, .lu .lu-sub { display: block; }
 .lu .nm .lu-in { display: inline-block; margin-left: 4px; vertical-align: 2px; }
 .lu .xp { grid-area: xp; font-size: 21px; line-height: 1; }
 .lu .lu-sub { grid-area: sub; overflow: hidden; font-size: 11px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
+.lu .lu-sub:has(.fdr) { display: flex; flex-wrap: wrap; gap: 2px; text-overflow: clip; }
+.lu .lu-sub .fdr { font-size: 10px; padding: 1px 3px; }
+.lu .lu-sub .fdr .eudot { display: none; }
+.lu-x { margin-left: 2px; font-family: var(--sans, inherit); font-size: 11px; font-weight: 700; color: var(--muted); }
+.lu .lu-ex { grid-area: ex; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1px 4px; min-width: 0; margin-top: 3px; font-size: 10.5px; color: var(--muted); }
+.lu-price { white-space: nowrap; font-weight: 600; }
+.lu-run { display: inline-flex; gap: 3px; }
+.lu-dot { display: inline-flex; overflow: hidden; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 25%); }
+.lu-dot b { flex: 1 1 0; }
+.lu-dot.blank { background: none; box-shadow: inset 0 0 0 1.5px var(--faint); }
 .lu-in { flex: none; padding: 0 3px; border-radius: 3px; font-size: 8.5px; font-weight: 800; letter-spacing: .04em; line-height: 13px; background: var(--good); color: var(--accent-fg); }
 
 /* stacked cards: kit and number on top, name and fixture below. The whole lineup switches together, when its pitch is
    too narrow for its busiest row (lu-r3/4/5) to show roughly 118px cards side by side */
 
-@container lupitch (max-width: 640px) { .lu-cards.lu-r5 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
+@container lupitch (max-width: 640px) { .lu-cards.lu-r5 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
 
-@container lupitch (max-width: 516px) { .lu-cards.lu-r4 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
+@container lupitch (max-width: 516px) { .lu-cards.lu-r4 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
 
-@container lupitch (max-width: 392px) { .lu-cards.lu-r3 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
+@container lupitch (max-width: 392px) { .lu-cards.lu-r3 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
 
 @container lupitch (max-width: 640px) {
+  .lu-cards.lu-r5 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
   .lu-cards.lu-r5 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
   .lu-cards.lu-r5 .lu-txt { display: contents; }
   .lu-cards.lu-r5 .xp { justify-self: end; font-size: 19px; }
+  .lu-cards.lu-r5 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 
 @container lupitch (max-width: 516px) {
+  .lu-cards.lu-r4 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
   .lu-cards.lu-r4 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
   .lu-cards.lu-r4 .lu-txt { display: contents; }
   .lu-cards.lu-r4 .xp { justify-self: end; font-size: 19px; }
+  .lu-cards.lu-r4 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 
 @container lupitch (max-width: 392px) {
+  .lu-cards.lu-r3 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
   .lu-cards.lu-r3 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
   .lu-cards.lu-r3 .lu-txt { display: contents; }
   .lu-cards.lu-r3 .xp { justify-self: end; font-size: 19px; }
+  .lu-cards.lu-r3 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 
 /* the bench strip: each chip on its own width (all four are the same) */
 @container (max-width: 134px) {
-  .lu .lu-bn .lu-box { grid-template-columns: auto auto 1fr; grid-template-areas: "slot kit xp" "nm nm nm" "sub sub sub"; gap: 2px 4px; min-height: 0; padding: 6px 7px; }
+  .lu .lu-bn .lu-box { grid-template-columns: auto auto 1fr; grid-template-areas: "slot kit xp" "nm nm nm" "sub sub sub" "ex ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; }
   .lu .lu-bn .lu-slot { grid-area: slot; }
   .lu .lu-bn .lu-kit { grid-area: kit; width: 22px; height: 22px; }
   .lu .lu-bn .lu-txt { display: contents; }
@@ -634,9 +650,10 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-kits .pitch .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: none; justify-items: center; box-sizing: border-box; max-width: 100%; padding: 3px 8px 4px; border-radius: 6px; background: color-mix(in srgb, #000 72%, var(--turf)); color: var(--on-turf); text-align: center; }
 .lu-kits .pitch .nm { grid-area: auto; max-width: 100%; overflow: hidden; font-size: 15px; color: var(--on-turf); text-overflow: ellipsis; }
 .lu-kits .pitch .lu-line { display: flex; gap: 4px; align-items: baseline; max-width: 100%; min-width: 0; }
-.lu-kits .pitch .xp { font-family: inherit; font-size: 11.5px; font-weight: 700; color: var(--on-turf); }
+.lu-kits .pitch .xp { grid-area: auto; font-family: inherit; font-size: 11.5px; font-weight: 700; color: var(--on-turf); }
 .lu-kits .pitch .xp.asm { color: var(--on-turf-muted); }
-.lu-kits .pitch .lu-sub { font-size: 11px; color: var(--on-turf-muted); }
+.lu-kits .pitch .lu-sub { grid-area: auto; font-size: 11px; color: var(--on-turf-muted); }
+.lu-kits .pitch .lu-ex { grid-area: auto; flex-wrap: wrap; justify-content: center; gap: 1px 5px; max-width: 100%; margin-top: 1px; color: var(--on-turf-muted); }
 .lu-kits .pitch .lvc-playing .lu-sub { color: var(--on-turf-good); }
 .lu-kits .pitch .lvc-dnp .lu-sub { color: var(--on-turf-bad); }
 .lu-kits .pitch .pc.sel { outline-offset: 2px; }
@@ -644,7 +661,7 @@ tr.is-rival td { background: var(--accent-soft); }
 
 @container (max-width: 84px) {
   .lu-kits .pitch .lu-txt { padding: 2px 4px 3px; }
-  .lu-kits .pitch .nm { font-size: 13.5px; }
+  .lu-kits .pitch .nm { display: -webkit-box; font-size: 13.5px; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .lu-kits .pitch .lu-line { flex-direction: column; align-items: center; gap: 0; }
 }
 
