@@ -27,6 +27,22 @@ section.view { display: grid; gap: 20px; }
 .kpi .lbl, .plansum .lbl { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
 .kpi .delta { font-size: var(--fs-sm); }
 
+/* Scoreline: a running head-to-head score in the style of a TV score bug. The side in front is green. */
+.scoreline { display: grid; grid-template-columns: auto auto auto; justify-content: start; align-items: center; gap: 4px 10px; max-width: 100%; margin: 0 0 14px; }
+.sl-side { font-family: var(--display); font-weight: 700; font-size: 20px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); overflow-wrap: anywhere; line-height: 1.05; }
+.sl-side.home { text-align: right; }
+.sl-score { display: inline-flex; align-items: center; gap: 2px; background: var(--sunk); border: 1px solid var(--line-strong); border-radius: 8px; padding: 2px 6px; }
+.sl-score b { font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1.05; min-width: 1.1ch; text-align: center; color: var(--fg); font-variant-numeric: tabular-nums; }
+.sl-score i { font-style: normal; font-family: var(--display); font-size: 24px; color: var(--faint); padding: 0 2px; }
+.scoreline.lead-home .sl-side.home, .scoreline.lead-away .sl-side.away { color: var(--good); }
+.scoreline.lead-home .sl-score b:first-child, .scoreline.lead-away .sl-score b:last-of-type { color: var(--good); }
+.sl-cap { grid-column: 1 / -1; justify-self: start; font-size: var(--fs-xs); color: var(--muted); }
+.scoreline.mini { gap: 6px; margin: 8px 0 0; }
+.scoreline.mini .sl-side { font-size: 13px; }
+.scoreline.mini .sl-score { padding: 0 4px; border-radius: 5px; }
+.scoreline.mini .sl-score b { font-size: 18px; }
+.scoreline.mini .sl-score i { font-size: 14px; }
+
 /* ---------- buttons and controls ---------- */
 .btn {
   display: inline-flex; align-items: center; gap: 7px;

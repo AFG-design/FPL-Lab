@@ -77,11 +77,25 @@ function afgScoreboard() {
     return `<div class="panel"><h2>Scoreboard: AFG v the model</h2>
       <p>Each week AFG's captain, best XI and punts are saved before the deadline next to the model's, then marked once the gameweek finishes. The first results appear after GW${D.afg.gw}.</p>${btTiles}</div>`;
   }
+  // Running scores, one contest per gameweek (per punt for punts); the higher points win, the lower average miss wins.
+  // Same captain on both sides = level. A week or punt with a side missing (no average miss saved, or no model swap
+  // to set a punt against) isn't scored: it shows as "not scored" under the headline, never as a draw.
+  const sc = {
+    xi: tally(B, w => w.afg_xi_pts, w => w.model_xi_pts, { dp: 0 }),
+    cap: tally(B, w => w.afg_cap_pts, w => w.model_cap_pts, { dp: 0 }),
+    punt: tally(punts, m => m.in_pts, m => m.alt_pts, { dp: 0 }),
+    mae: tally(B, w => w.mae_afg, w => w.mae_model, { lower: true }),
+  };
+  const maeW = B.filter(w => w.mae_afg != null && w.mae_model != null);
+  const mini = (t, what) => scoreline("AFG", "Model", t, { what, mini: true });
   return `<div class="panel"><div class="bar"><h2>Scoreboard: AFG v the model</h2><span class="tag">${B.length} GW${B.length > 1 ? "s" : ""}</span></div>
+    ${scoreline("AFG", "Model", sc.xi)}
+    <p class="note" style="margin:-6px 0 12px">Gameweeks won on best XI points (with captain). The small scores below are gameweeks won on each part, and punts won one by one.</p>
     <div class="kpis">
-      <div class="kpi"><span class="lbl">Captain points</span><b>${sum("afg_cap_pts")} <span class="muted afg-v">v ${sum("model_cap_pts")}</span></b><span class="delta">${lead(sum("afg_cap_pts"), sum("model_cap_pts"))}</span></div>
+      <div class="kpi"><span class="lbl">Captain points</span><b>${sum("afg_cap_pts")} <span class="muted afg-v">v ${sum("model_cap_pts")}</span></b><span class="delta">${lead(sum("afg_cap_pts"), sum("model_cap_pts"))}</span>${mini(sc.cap, "gameweeks")}</div>
       <div class="kpi"><span class="lbl">Best XI points (with captain)</span><b>${sum("afg_xi_pts")} <span class="muted afg-v">v ${sum("model_xi_pts")}</span></b><span class="delta">${lead(sum("afg_xi_pts"), sum("model_xi_pts"))}</span></div>
-      <div class="kpi"><span class="lbl">Punts v the model's swap</span><b>${pIn} <span class="muted afg-v">v ${pAlt}</span></b><span class="delta">${punts.length ? lead(pIn, pAlt) : '<span class="muted">No punts yet</span>'}</span></div>
+      <div class="kpi"><span class="lbl">Punts v the model's swap</span><b>${pIn} <span class="muted afg-v">v ${pAlt}</span></b><span class="delta">${punts.length ? lead(pIn, pAlt) : '<span class="muted">No punts yet</span>'}</span>${punts.length ? mini(sc.punt, "punts") : ""}</div>
+      <div class="kpi"><span class="lbl">Average miss, weekly mean</span><b>${maeW.length ? (maeW.reduce((a, w) => a + w.mae_afg, 0) / maeW.length).toFixed(2) : "–"} <span class="muted afg-v">v ${maeW.length ? (maeW.reduce((a, w) => a + w.mae_model, 0) / maeW.length).toFixed(2) : "–"}</span></b><span class="delta muted">AFG v model, lower is better</span>${maeW.length ? mini(sc.mae, "gameweeks") : ""}</div>
       <div class="kpi"><span class="lbl">Nudges right</span><b>${calls ? Math.round(right / calls * 100) + "%" : "–"}</b><span class="delta muted">${right} of ${calls}; 50% is a coin flip</span></div>
     </div>
     <div class="tablebox" style="margin-top:12px"><table><thead><tr><th>GW</th><th>AFG captain</th><th>Model captain</th><th class="n">XI pts</th><th>Punts (AFG v model)</th><th class="n">Nudges right</th><th class="n">Avg miss</th></tr></thead>
