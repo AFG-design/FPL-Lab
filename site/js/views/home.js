@@ -130,7 +130,7 @@ function vNext() {
     { lbl: "Expected points", val: `${f1(me.pts)} <small>xP</small>`, sub: `GW${g}, captain ×2${w0.hits ? `, before the −${4 * w0.hits} hit (${f1(me.pts - 4 * w0.hits)} net)` : ""}` },
   ]);
   const left = `<div class="home-pitch">
-    <div class="bar"><h2>GW${g} team · ${esc(planName())}</h2><span class="tag">${f1(me.pts)} ${term("xp", "xP")}</span></div>
+    <div class="bar"><h2>GW${g} team · ${esc(planName())}</h2><span class="lu-head"><span class="tag">${f1(me.pts)} ${term("xp", "xP")}</span>${lineupToggle()}</span></div>
     ${mrow}${pitch(me.xi, me.bench, g, { cap: me.cap, vice: me.vice, fresh: new Set(moves0.map(m => m.in)) })}</div>`;
 
   // quick research: straight into the right section, with useful filters set
@@ -274,9 +274,9 @@ function vCurrent() {
   const benchNote = L.chip === "bboost" ? "Bench Boost: your bench points count."
     : s.subs.length ? `Auto-sub${s.subs.length > 1 ? "s" : ""}: ${s.subs.map(x => `${esc(P[x.in.id]?.name)} for ${esc(P[x.out.id]?.name)}`).join(", ")}. Only those bench points count.`
     : `Bench points don't count unless an auto-sub applies.${!provisional && L.bench_pts != null ? ` Your bench scored ${L.bench_pts}.` : ""}`;
-  const key = `<span>Big number: actual points${capX === 3 ? ", Triple Captain ×3 included" : ", captain ×2 included"}</span><span>${provisional ? "Provisional until FPL confirms" : "Final from FPL"}</span>`;
+  const key = `<span>Big number: actual points, ${capX === 3 ? "Triple Captain ×3" : "captain ×2"} already included (never doubled again)</span><span>${provisional ? "Provisional until FPL confirms" : "Final from FPL"}</span><span>Under it: match state; a double gameweek counts both matches</span>`;
   const pitchCol = `<div class="home-pitch">
-    <div class="bar"><h2>GW${cg} team · submitted squad</h2><span class="tag">${gross} pts${provisional ? " so far" : ""}</span></div>
+    <div class="bar"><h2>GW${cg} team · submitted squad</h2><span class="lu-head"><span class="tag">${gross} pts${provisional ? " so far" : ""}</span>${lineupToggle()}</span></div>
     ${mrow}${livePitch(xi, bench, benchNote, key)}</div>`;
 
   // live matches with your players

@@ -8,6 +8,14 @@ function flashMove(g, inId) {
 function bind() {
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
   on("[data-p]", b => openPlayer(+b.dataset.p));
+  // lineup style (components/pitch.js): a display preference only; keeps the toggle where it was on screen
+  on("[data-lineup]", b => {
+    const v = b.dataset.lineup; if (v === S.lineup) return;
+    const top = b.getBoundingClientRect().top, idx = [...document.querySelectorAll("[data-lineup]")].indexOf(b);
+    S.lineup = v; store.set("fpl.lineup", v); render();
+    const nb = document.querySelectorAll("[data-lineup]")[idx]; if (!nb) return;
+    window.scrollBy(0, nb.getBoundingClientRect().top - top); nb.focus({ preventScroll: true });
+  });
   on("[data-fx]", b => { S.fxMode = b.dataset.fx; store.set("fpl.fxMode", S.fxMode); render(); });
   on("[data-fxn]", b => { S.fxN = +b.dataset.fxn; render(); });
   on("[data-field]", b => { S.field = b.dataset.field; render(); });

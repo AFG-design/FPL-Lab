@@ -21,6 +21,9 @@ Starts its own static server and a headless Chromium, then runs each check again
     the row active; 3 and 6 GW horizons; selecting cells never changes saved paths; paths from an older squad show no
     totals until recalculated; a missing strategy shows no numbers; Optimise makes a new path without touching the
     others, and an impossible one fails with a reason and changes nothing.
+  - Lineup style (Cards | Kits): Cards by default and when storage is blocked; the choice persists across pages and a
+    reload; switching keeps the plan, gameweek and focus; the bench reads GK, 1, 2, 3; in Current GW the captain's
+    actual points carry the armband once (never doubled again).
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -382,6 +385,58 @@ def check_tpaths(browser, url):
     return out + errs
 
 
+def check_lineup(browser, url):
+    out = []
+    ctx = browser.new_context(service_workers="block")
+    page = ctx.new_page()
+    errs = []
+    page.on("pageerror", lambda e: errs.append(f"lineup uncaught: {e}"))
+    page.goto(f"{url}#week")
+    page.wait_for_selector(".home")
+    if not page.locator(".pitchwrap.lu-cards").count():
+        out.append("lineup doesn't default to Cards")
+    before = page.evaluate("JSON.stringify([sbState(), SB.gw, S.home])")
+    page.click('[data-lineup="kits"]')
+    page.wait_for_selector(".pitchwrap.lu-kits")
+    if page.evaluate("document.activeElement?.dataset.lineup") != "kits":
+        out.append("focus didn't stay on the Kits button")
+    if page.evaluate("JSON.stringify([sbState(), SB.gw, S.home])") != before:
+        out.append("switching lineup style changed the plan or view")
+    slots = page.evaluate("[...document.querySelectorAll('.lu-bench .lu-slot')].map(x => x.textContent)")
+    if slots != ["GK", "1", "2", "3"]:
+        out.append(f"bench slots read {slots}, expected GK, 1, 2, 3")
+    page.evaluate("() => { S.pview = 'edit'; setView('planner'); }")
+    page.wait_for_selector(".view-planner .pitchwrap")
+    if not page.locator(".view-planner .pitchwrap.lu-kits").count():
+        out.append("Kits didn't carry over to the Planner")
+    page.reload()
+    page.wait_for_selector(".pitchwrap")
+    if not page.locator(".pitchwrap.lu-kits").count():
+        out.append("Kits wasn't remembered after a reload")
+    # Current GW: the captain's number is his points times the armband, once
+    page.evaluate("() => { S.home = 'current'; setView('week'); }")
+    page.wait_for_selector(".home-current")
+    cap = page.evaluate("""() => { const s = liveState(); if (!s) return null; const r = s.capOut ? s.vice : s.cap; if (!r) return null;
+      const el = document.querySelector(`.pitch [data-p="${r.id}"] .xp`); return el ? [el.textContent, r.live, s.mult(r)] : null; }""")
+    if cap and cap[0] not in ("–", str(cap[1] * cap[2])):
+        out.append(f"captain card shows {cap[0]}, expected {cap[1]} x {cap[2]} = {cap[1] * cap[2]}")
+    ctx.close()
+    # storage blocked: Cards, no error
+    ctx = browser.new_context(service_workers="block")
+    ctx.add_init_script("Storage.prototype.getItem = () => { throw new Error('blocked'); }; Storage.prototype.setItem = () => { throw new Error('blocked'); };")
+    page = ctx.new_page()
+    page.on("pageerror", lambda e: errs.append(f"lineup (storage blocked) uncaught: {e}"))
+    page.goto(f"{url}#week")
+    page.wait_for_selector(".home")
+    if not page.locator(".pitchwrap.lu-cards").count():
+        out.append("with storage blocked the lineup isn't Cards")
+    page.click('[data-lineup="kits"]')
+    if not page.locator(".pitchwrap.lu-kits").count():
+        out.append("with storage blocked, Kits doesn't switch for the visit")
+    ctx.close()
+    return out + errs
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -434,6 +489,9 @@ def main():
         got = check_extra(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "player detail")
+        got = check_lineup(browser, url)
+        failures += got
+        print(("✗ " if got else "✓ ") + "lineup styles")
         got = check_tpaths(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "transfer paths")
