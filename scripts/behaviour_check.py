@@ -12,6 +12,9 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Free Hit week: the Planner says plans start from the restored squad, and says nothing in a normal week.
   - Player detail: a data-extra.json from another build is never merged and ends in an error with Try again; one
     failed download is recovered by a retry.
+  - Homepage switch: Next deadline / Current GW keeps your plan, lineup and captain choices untouched, remembers the
+    view you picked (but not the first-visit default), opens on Current GW only while FPL says a gameweek is under
+    way, and the tabs work from the keyboard. In a finished gameweek Current GW shows FPL's own points.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -186,6 +189,59 @@ def check_extra(browser, url):
     return fails
 
 
+def check_home(browser, url):
+    """The homepage's two views share one plan and never change it; the view choice is remembered."""
+    out = []
+    ctx = browser.new_context(service_workers="block")
+    page = ctx.new_page()
+    errs = []
+    page.on("pageerror", lambda e: errs.append(f"homepage uncaught: {e}"))
+    page.goto(f"{url}#week")
+    page.wait_for_selector(".home", timeout=20000)
+    want = page.evaluate("gwInProgress() ? 'current' : 'next'")
+    if page.evaluate("S.home") != want:
+        out.append(f"first visit opened {page.evaluate('S.home')}, expected {want} (gameweek in progress: {want == 'current'})")
+    if page.evaluate("localStorage.getItem('fpl.home')") is not None:
+        out.append("the first-visit default was stored as if you had picked it")
+    # a hand-made plan with a captain choice, then switch back and forth
+    before = page.evaluate("""() => {
+      const g = D.meta.next_gw, sq = squadAt(g), out = sq.find(i => P[i].pos === "MID");
+      const inn = D.players.filter(p => p.pos === "MID" && !sq.includes(p.id) && p.price <= P[out].price).sort((a, b) => b.price - a.price)[0].id;
+      editPlan(() => { SB.moves = SB.moves.filter(m => m.gw !== g); SB.moves.push({ gw: g, out, in: inn }); });
+      const xi = myTeam().xi; setOv(g, o => { o.cap = xi[xi.length - 1]; });
+      render();
+      return JSON.stringify(sbState());
+    }""")
+    page.click("#hometab-current")
+    page.wait_for_selector(".home-current")
+    page.focus("#hometab-current")
+    page.keyboard.press("ArrowLeft")
+    page.wait_for_selector(".home-next")
+    if page.evaluate("document.activeElement && document.activeElement.id") != "hometab-next":
+        out.append("arrow key switched the view but focus didn't follow the tab")
+    if page.evaluate("JSON.stringify(sbState())") != before:
+        out.append("switching views changed the plan, lineup or captain choices")
+    if page.evaluate("JSON.parse(localStorage.getItem('fpl.home'))") != "next":
+        out.append("the view you picked wasn't remembered")
+    if "your active draft" not in page.inner_text(".hero").lower():
+        out.append("a hand-edited plan isn't labelled as your draft")
+    page.reload()
+    page.wait_for_selector(".home")
+    if page.evaluate("S.home") != "next":
+        out.append("after a reload the remembered view wasn't used")
+    if page.evaluate("JSON.stringify(sbState())") != before:
+        out.append("the plan didn't survive a reload")
+    # finished gameweek: Current GW shows FPL's points, not a recomputed total
+    fin = page.evaluate("D.meta.cur_finished && D.live && D.live.gw === D.meta.cur_gw ? D.live.points : null")
+    if fin is not None:
+        page.click("#hometab-current")
+        page.wait_for_selector(".home-current")
+        if not page.inner_text(".hero h1").lower().startswith(f"{fin} points"):
+            out.append(f"finished gameweek: hero doesn't show FPL's {fin} points")
+    ctx.close()
+    return out + errs
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -238,6 +294,9 @@ def main():
         got = check_extra(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "player detail")
+        got = check_home(browser, url)
+        failures += got
+        print(("✗ " if got else "✓ ") + "homepage views")
         got = check_sw(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "service worker")

@@ -134,6 +134,7 @@ function bind() {
   const keepCols = () => { const d = $(".colpick"); return d && d.open; };
   on("[data-col]", c => { const cur = new Set(colsOn()); c.checked ? cur.add(c.dataset.col) : cur.delete(c.dataset.col); store.set("fpl.cols", COLS.map(x => x[0]).filter(k => cur.has(k))); const open = keepCols(); render(); if (open) { $(".colpick").open = true; $(`[data-col="${c.dataset.col}"]`)?.focus(); } }, "onchange");
   on("[data-colreset]", () => { store.set("fpl.cols", null); render(); });
+  bindHome();   // homepage view switch and shortcuts (views/home.js)
   bindXp();   // xP table controls (views/xptable.js)
   bindPlannerViews();   // Planner view tabs (views/planner-views.js)
   bindStatsMore();   // Goals & assists, Defence and Points leaders controls (views/stats-more.js)

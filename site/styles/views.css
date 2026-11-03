@@ -196,18 +196,6 @@ tr.is-rival td { background: var(--accent-soft); }
   .hero h1 { font-size: 44px; }
 }
 
-/* live scores, folded under the hero */
-.livefold { border: 1px solid var(--line); border-radius: var(--r); font-size: 13px; color: var(--muted); }
-.livefold > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; cursor: pointer; list-style: none; border-radius: var(--r); }
-.livefold > summary::-webkit-details-marker { display: none; }
-.livefold > summary:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
-.lf-head { min-width: 0; }
-.lf-head b { color: var(--fg); }
-.lf-head .live-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
-.lf-go { flex: none; color: var(--accent-text); font-weight: 600; white-space: nowrap; }
-.livefold[open] .lf-go { opacity: .8; }
-.lf-body { display: grid; gap: 20px; padding: 4px 14px 14px; color: var(--fg); font-size: var(--fs-md); }
-
 /* ---------- club colour accents (thin edges and dots, never a fill) ---------- */
 .club-dot { display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; background: var(--club, var(--line-strong)); box-shadow: 0 0 0 1px var(--line-strong); vertical-align: -0.5px; }
 
@@ -352,4 +340,131 @@ tr.is-rival td { background: var(--accent-soft); }
   .ld-extra { display: none; }
   .ld-rank, .leaders td.ld-pts { font-size: 21px; }
   .gabars li { grid-template-columns: minmax(84px, 120px) minmax(0, 1fr) 54px; gap: 8px; }
+}
+
+/* ---------- Home: Next deadline / Current GW ---------- */
+.homeswitch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.hometabs button { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; font-size: var(--fs-md); }
+.hometabs button[aria-selected="true"] { background: var(--raised); color: var(--fg); box-shadow: 0 0 0 1px var(--accent-text); }
+.hometabs button:focus-visible { outline: 2px solid var(--hi); outline-offset: 1px; }
+.ht-gw { font-size: var(--fs-xs); font-weight: 650; color: var(--faint); }
+.hometabs button[aria-selected="true"] .ht-gw { color: var(--accent-text); }
+.home-hint { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--muted); }
+.home { display: grid; gap: 16px; min-width: 0; }
+
+/* the hero, shorter, with its actions in reach */
+.hero.compact { gap: 8px; padding: 18px 20px 16px; }
+.hero.compact h1 { font-size: 44px; max-width: none; }
+.hero.compact::before { width: 160px; height: 160px; right: -70px; margin-top: -80px; }
+.hero-kind { color: var(--on-turf); }
+.eyebrow .live-dot { display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.hero-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.hero-acts .btn:not(.primary) { background: var(--on-turf-glass); border-color: var(--on-turf-line); color: var(--on-turf); }
+.hero-acts .btn:not(.primary):hover { border-color: var(--on-turf); }
+
+/* the three calls */
+.dcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dcard { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-width: 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.dcard h3 .pill { text-transform: none; letter-spacing: 0; }
+.dcard h3 { display: flex; align-items: center; gap: 10px; font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.dc-body { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.dc-do { margin: 0; font-size: 17px; font-weight: 650; }
+.dc-sub { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.dc-moves { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.dc-moves li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 16px; font-weight: 650; }
+.dc-moves .out { color: var(--bad); }
+.dc-moves .in { color: var(--good); }
+.dc-moves .arr { color: var(--muted); }
+.dc-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.dc-nums div { min-width: 0; }
+.dc-nums dt { font-size: 10.5px; color: var(--faint); }
+.dc-nums dd { margin: 0; font-family: var(--display); font-size: 20px; font-weight: 700; }
+.dc-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.dc-caps { display: grid; gap: 4px; }
+.dcc { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(40px, 1fr) auto; align-items: center; gap: 10px; padding: 4px 6px; margin: 0 -6px; background: none; border: 0; border-radius: var(--r-sm); color: inherit; text-align: left; }
+.dcc:hover { background: var(--raised); }
+.dcc-n { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 650; white-space: nowrap; overflow: hidden; }
+.dcc-fx { font-size: var(--fs-xs); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.dcc-alt { font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 5px; }
+.dcc-bar { height: 7px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
+.dcc-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.dcc.top .dcc-bar i { background: var(--hi); }
+.dcc > b { font-family: var(--display); font-size: 22px; font-weight: 700; }
+
+/* pitch on the left, research and checks on the right */
+.home-main { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.home-pitch { display: grid; gap: 10px; min-width: 0; }
+.home-pitch .bar { margin: 0; }
+.home-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.side { padding: 14px 16px; display: grid; gap: 10px; }
+.side-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.side-h h3 { font-size: var(--fs-lg); }
+.side-act { display: flex; flex-wrap: wrap; gap: 6px; }
+.side-empty { margin: 0; font-size: var(--fs-sm); }
+.side-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: var(--fs-sm); }
+.side-alerts { font-size: var(--fs-sm); }
+.qr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.qrb { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 9px 10px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--fg); text-align: left; font-weight: 600; font-size: var(--fs-sm); }
+.qrb:hover { border-color: var(--accent-text); }
+.qrb .ic { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--accent-text); }
+.qrb span { display: grid; min-width: 0; }
+.qrb small { font-size: var(--fs-xs); font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* team value, bank and xP: one row above the pitch */
+.mrow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.mr { display: grid; gap: 2px; align-content: start; min-width: 0; padding: 10px 14px; }
+.mr + .mr { border-left: 1px solid var(--line); }
+.mr dt { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.mr-v { margin: 0; font-family: var(--display); font-size: 28px; font-weight: 700; line-height: 1.05; }
+.mr-v small { font-size: 16px; color: var(--muted); }
+.mr-s { margin: 0; font-size: 11.5px; color: var(--muted); }
+.mr-na { font-family: var(--sans, inherit); font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.dash-big b.mr-na { font-size: var(--fs-md); }
+
+/* last gameweek, one line */
+.prevgw { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 0; padding: 10px 14px; font-size: var(--fs-sm); color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.prevgw b { color: var(--fg); }
+.prevgw-go { display: inline-flex; gap: 16px; margin-left: auto; }
+.prevgw .linkish, .side .linkish:not(.pname) { color: var(--accent-text); font-weight: 600; }
+
+/* Current GW */
+.gwtiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gwtiles .dash-big b { font-size: 36px; }
+.gwtiles .dash-big { flex-wrap: wrap; }
+.lm { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: var(--fs-sm); }
+.lm li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 0 8px; }
+.lm-st { grid-row: span 2; font-size: var(--fs-xs); font-weight: 650; color: var(--muted); }
+.lm-sc { font-weight: 650; }
+.lm-mine { font-size: var(--fs-xs); color: var(--muted); }
+.gwscores { display: grid; gap: 16px; min-width: 0; }
+.gwscores:focus { outline: none; }
+#watchlist:focus { outline: none; }
+
+/* actual-points cards: match state under the number; the bench and subbed-off players are dimmed */
+.pc .lvc-st { font-size: 10.5px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc.lvc-playing .lvc-st { color: var(--good); }
+.pc.lvc-dnp .lvc-st { color: var(--bad); }
+.pc .lvc-note { font-size: 10px; font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc.lvc-nocount { opacity: .72; }
+.pc.lvc-nocount .xp { color: var(--muted); }
+.bench-note { margin: 0; padding: 8px 12px; font-size: var(--fs-xs); color: var(--muted); border-top: 1px solid var(--line); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 1100px) {
+  .dcards { grid-template-columns: minmax(0, 1fr); }
+  .home-main { grid-template-columns: minmax(0, 1fr); }
+  .home-side { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .hometabs { width: 100%; }
+  .hometabs button { flex: 1 1 0; justify-content: center; }
+  .hero.compact h1 { font-size: 34px; }
+  .gwtiles { grid-template-columns: minmax(0, 1fr); }
+  .mr { padding: 9px 10px; }
+  .mr-v { font-size: 22px; }
+  .mr-s { font-size: 10.5px; }
+  .dc-nums dd { font-size: 18px; }
+  .home-side { grid-template-columns: minmax(0, 1fr); }
+  .prevgw-go { margin-left: 0; }
 }
