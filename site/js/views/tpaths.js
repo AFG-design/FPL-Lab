@@ -11,8 +11,9 @@
 // Missing, late or ambiguous data:
 //   - A strategy the build has no plan for: its row says so, no numbers. Weeks past the optimiser's plan (a 6-GW view of
 //     a 5-GW plan) are marked * and filled with no transfers and the best XI (planner-views.js planScore).
-//   - Forecasts: every row is recalculated on the current data.json, so all totals share one forecast. A saved path made
-//     on an older forecast is marked "recalculated" with the date it was saved.
+//   - Forecasts: every row is recalculated on the current data.json, so all totals share one forecast. A saved path
+//     remembers its Net xP when it was saved (net, over h gameweeks); if the forecast has since moved it by 0.5 or more
+//     over the same horizon, the row says so with the old figure. Paths saved before this was recorded show no flag.
 //   - Squad changes (a new gameweek, a Free Hit restore): saved paths are stored per squad, so paths made for your
 //     previous squad show as "needs recalculating" with no totals until you recalculate (moves that no longer apply are
 //     dropped, and the row says how many) or discard them.
@@ -41,25 +42,37 @@ function solvedFrom(sc) {
 // vs Hold from the two Net figures as shown (to 0.1), so the row always adds up on screen
 const r1 = x => Math.round(x * 10) / 10;
 const tpGain = (r, hold) => r1(r1(r.sc.tot) - r1(hold.sc.tot));
+// a saved path's Net xP now, so a later forecast change can be shown against it
+function tpStamp(d) {
+  const moves = cleanMoves(d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
+  const sc = withDraft(d, () => scoreMoves(moves, d.solved || null));
+  return { ...d, net: r1(sc.tot), h: PG.length, built: D.meta.built };
+}
+const MOVED = 0.5;   // Net xP change, after a forecast update, worth flagging on a saved path
 const tpProblems = sc => sc.weeks.filter(w => w.bank < 0 || w.over.length).map(w => `GW${w.gw}: ${w.bank < 0 ? `over budget by ${money(-w.bank)}` : `more than 3 from ${w.over.join(", ")}`}`);
 
 /* ---------- rows ---------- */
 function tpRows() {
   const rows = [{ key: "hold", name: "Hold / no transfers", sub: "Baseline", kind: "hold", sc: pvBase(), moves: [], ov: {}, mode: "balanced" }];
+  const bal = pvStrat("balanced"), also = [];
   PV_MODES.forEach(m => {
     const r = pvStrat(m), name = `${MODES[m]} suggestion`;
+    // a strategy that lands on exactly Balanced's plan (same moves, captains and total) is folded into its row
+    if (m !== "balanced" && r.key && bal.key && sameMoves(r.moves, bal.moves) && Math.abs(r.sc.tot - bal.sc.tot) < 0.05 && capsOf(r.sc) === capsOf(bal.sc)) { also.push(m); return; }
     if (!r.key) { rows.push({ key: "m:" + m, name, kind: "model", mode: m, missing: m === "balanced" ? "The optimiser made no plans in this build." : "Needs field-ownership data, which isn't in this build." }); return; }
-    const same = m !== "balanced" && sameMoves(r.moves, pvStrat("balanced").moves || []);
-    rows.push({ key: "m:" + m, name, sub: `Model · ${PV_VAR_LABEL[r.key.split("_").pop()]}${same ? " · same moves as Balanced" : ""}`, kind: "model", mode: m, pk: r.key,
+    const same = m !== "balanced" && sameMoves(r.moves, bal.moves || []);
+    rows.push({ key: "m:" + m, name, sub: `Model · ${PV_VAR_LABEL[r.key.split("_").pop()]}${same ? " · Balanced's moves, different lineups" : ""}`, kind: "model", mode: m, pk: r.key,
       sc: r.sc, moves: r.moves, ov: {}, filled: r.filled, dropped: r.dropped, solved: solvedFrom(r.sc) });
   });
+  const b = rows.find(r => r.key === "m:balanced");
+  if (b && b.sc && also.length) { b.name = `Balanced${also.map(m => " · " + MODES[m]).join("")}`; b.sub += ` · ${also.map(m => MODES[m]).join(" and ")} make${also.length === 1 ? "s" : ""} the same plan`; b.also = also; }
   getDrafts().forEach((d, k) => {
     const valid = d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw));
     const moves = cleanMoves(valid), dropped = d.moves.length - moves.length;
     const sc = withDraft(d, () => scoreMoves(moves, d.solved || null));
     rows.push({ key: "d:" + (d.id || "i" + k), idx: k, name: d.name || `Path ${k + 1}`, kind: "draft", d, mode: MODES[d.mode] ? d.mode : S.mode,
       sub: `Saved · ${MODES[d.mode] || MODES[S.mode]}${d.from ? ` · from ${d.from}` : ""}`, sc, moves, ov: d.ov || {}, dropped, solved: d.solved || null,
-      recalc: d.built && d.built !== D.meta.built ? d.built : null, problems: tpProblems(sc) });
+      moved: d.net != null && d.h === PG.length && Math.abs(r1(sc.tot) - d.net) >= MOVED ? d : null, problems: tpProblems(sc) });
   });
   // the active plan: marked on the row it matches (same moves, captains and total), otherwise a row of its own
   const act = scoreMoves(SB.moves), live = rows.filter(r => r.sc);
@@ -103,7 +116,7 @@ function vTpaths() {
   const optWhat = sel.kind === "draft" ? `Re-optimise “${sel.name}” (replaces its moves; Undo is offered)` : full ? "Optimising makes a new path, and 3 are already saved: delete one first" : `Optimise into a new path, starting from your confirmed squad`;
   const bar = `<div class="tp-bar">
       <h2>Transfer paths</h2>
-      <button class="btn primary sm" data-tpopt="1" ${TP.busy || SOLVE.busy || (sel.kind !== "draft" && full) ? "disabled" : ""} title="${esc(optWhat)}">${TP.busy ? "Optimising…" : "Optimise"}</button>
+      <button class="btn primary sm" data-tpopt="1" ${TP.busy || SOLVE.busy || (sel.kind !== "draft" && full) ? "disabled" : ""} title="${esc(optWhat)}">${TP.busy ? "Optimising…" : sel.kind === "draft" ? `Optimise “${esc(sel.name.length > 14 ? sel.name.slice(0, 13) + "…" : sel.name)}”` : "Optimise → new path"}</button>
       <button class="btn sm" data-tpnew="1" aria-expanded="${TP.form}" ${full ? `disabled title="3 paths saved: delete one to add another"` : ""}>+ New path</button>
       <div class="seg" role="group" aria-label="Plan length">${[3, 5, 6].filter(h => h <= GWS.length).map(h => `<button data-horizon="${h}" aria-pressed="${S.horizon === h}">${h} GWs</button>`).join("")}</div>
       <span class="tp-bar-r"><button class="btn sm" data-tpset="1" aria-expanded="${TP.settings}" aria-controls="tpSettings">Settings</button>
@@ -137,7 +150,7 @@ function vTpaths() {
   };
   const body = rows.map(r => {
     const isSel = r.key === sel.key;
-    const flag = r.problems?.length ? `<span class="pill bad">Invalid</span>` : r.recalc ? `<span class="pill mut" title="Saved on an older forecast (${whenTxt(r.recalc)}); recalculated on the latest">Recalculated</span>` : r.dropped ? `<span class="pill warn">${r.dropped} dropped</span>` : "";
+    const flag = r.problems?.length ? `<span class="pill bad">Invalid</span>` : r.moved ? `<span class="pill warn" title="Net xP was ${f1(r.moved.net)} when saved${r.moved.saved ? ` (${whenTxt(new Date(r.moved.saved).toISOString())})` : ""}; the forecast has changed since">Forecast moved · was ${f1(r.moved.net)}</span>` : r.dropped ? `<span class="pill warn">${r.dropped} dropped</span>` : "";
     const name = `<th scope="row" class="sticky-col tp-n"><button type="button" data-tprow="${esc(r.key)}" aria-pressed="${isSel}">
         <span class="tp-nm">${esc(r.name)}${r.active ? ' <span class="pill good">Active plan</span>' : ""} ${flag}</span><small>${esc(r.sub || "")}</small>
         ${r.sc ? `<small class="tp-mob">Net ${f1(r.sc.tot)} · ${r.kind === "hold" ? "baseline" : sgn(tpGain(r, hold)) + " vs Hold"}</small>` : ""}</button></th>`;
@@ -146,7 +159,10 @@ function vTpaths() {
       return `<tr class="tp-row tp-none${isSel ? " tp-sel" : ""}">${name}<td colspan="${PG.length + 2}" class="tp-why">${r.kind === "old" ? "Needs recalculating for your current squad: no totals until then, so nothing incomparable is shown." : esc(r.missing)}</td><td class="tp-act">${act}</td></tr>`;
     }
     const gain = tpGain(r, hold);
-    const act = r.active ? `<span class="tp-actv">In use</span>` : `<button class="btn sm" data-tpuse="${esc(r.key)}" aria-label="Use ${esc(r.name)} as your plan">Use plan</button>`;
+    const nMv = SB.moves.length;
+    const act = r.active ? `<span class="tp-actv">In use</span>`
+      : r.kind === "hold" ? `<button class="btn sm${TP.armHold ? " tp-arm" : ""}" data-tpuse="hold" aria-label="${TP.armHold ? `Confirm: clear all ${nMv} moves from your plan` : "Clear my plan: no transfers"}">${TP.armHold ? `Clear ${nMv} move${nMv === 1 ? "" : "s"}?` : "Clear my plan"}</button>`
+      : `<button class="btn sm" data-tpuse="${esc(r.key)}" aria-label="Use ${esc(r.name)} as your plan">Use plan</button>`;
     return `<tr class="tp-row${isSel ? " tp-sel" : ""}">${name}${r.sc.weeks.map(w => cell(r, w)).join("")}
       <td class="n tp-net">${f1(r.sc.tot)}</td><td class="n tp-gain ${r.kind === "hold" ? "" : gain > 0.05 ? "up" : gain < -0.05 ? "down" : ""}">${r.kind === "hold" ? "—" : sgn(gain)}</td><td class="tp-act">${act}</td></tr>`;
   }).join("");
@@ -201,14 +217,18 @@ function tpStrip(r, g, rows) {
 function tpFind(key) { return tpRows().find(r => r.key === key); }
 function tpDraftIdx(key) { const r = tpFind(key); return r && r.kind === "draft" ? r.idx : -1; }
 function tpActivate(r) {
+  tpEditing(r.kind === "draft" ? r.d.id || r.key.slice(2) : null);
   if (r.kind === "hold") setPlan([], "custom");
   else if (r.kind === "model") { S.mode = r.mode; store.set("fpl.mode", r.mode); setPlan(r.moves, "plan:" + r.pk, r.solved); }
   else if (r.kind === "draft") { SB.ov = JSON.parse(JSON.stringify(r.ov || {})); S.mode = r.mode; store.set("fpl.mode", r.mode); setPlan(r.moves, "custom", r.solved || null); }
 }
 // a saved path from any row: its moves, strategy, captain choices and (for model rows) the optimiser's lineups
-function tpNewDraft(r, name) {
+function tpNewDraftRaw(r, name) {
   return { id: tpId(), name: name.slice(0, 24), moves: r.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(r.ov || {})), mode: r.mode || S.mode,
     solved: r.solved ? JSON.parse(JSON.stringify(r.solved)) : null, saved: Date.now(), built: D.meta.built, from: r.name };
+}
+function tpNewDraft(r, name) {
+  return tpStamp(tpNewDraftRaw(r, name));
 }
 // give old drafts an id the first time a path is changed, so selection follows the path rather than its position
 const tpIds = ds => ds.map((d, k) => d.id ? d : { ...d, id: "i" + k });
@@ -224,7 +244,7 @@ async function tpOptimise() {
     const now = getDrafts().length === ds.length ? ds : tpIds(getDrafts());
     if (r.kind === "draft") {
       const k = now.findIndex(d => d.id === r.key.slice(2)), prev = now[k];
-      now[k] = { ...prev, moves: res.moves, solved: res.solved, mode, saved: Date.now(), built: D.meta.built };
+      now[k] = tpStamp({ ...prev, moves: res.moves, solved: res.solved, mode, saved: Date.now() });
       setDrafts(now); TP.undo = { list: ds };
       TP.msg = `“${prev.name}” optimised as ${MODES[mode]} in ${secs}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}. Other paths and Hold are unchanged.`;
     } else {
@@ -240,7 +260,7 @@ async function tpOptimise() {
 }
 function bindTpaths() {
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = e => fn(el, e));
-  const pick = key => { TP.sel = key; store.set("fpl.tpsel", key); };
+  const pick = key => { TP.sel = key; store.set("fpl.tpsel", key); TP.armHold = false; };
   on("[data-tprow]", b => { pick(b.dataset.tprow); render(); document.querySelector(`[data-tprow="${CSS.escape(TP.sel)}"]`)?.focus(); });
   on("[data-tpcell]", b => {
     const [key, gw] = b.dataset.tpcell.split("|"); pick(key); TP.gw = +gw; render();
@@ -261,6 +281,9 @@ function bindTpaths() {
   };
   on("[data-tpuse]", b => {
     const r = tpFind(b.dataset.tpuse); if (!r || !r.sc) return;
+    // Hold wipes your moves: the first tap asks, the second clears (Undo is still offered)
+    if (r.kind === "hold" && SB.moves.length && !TP.armHold) { TP.armHold = true; render(); document.querySelector('[data-tpuse="hold"]')?.focus(); return; }
+    TP.armHold = false;
     if (r.problems?.length) { TP.msg = `${r.name} isn't a valid plan (${r.problems.join("; ")}). Fix it in Your plan first.`; render(); return; }
     tpActivate(r); TP.msg = ""; render();
     toast(`${r.name} is now your active plan, used by This week, Rivals and Your plan. Nothing is sent to FPL.`);
@@ -283,7 +306,7 @@ function bindTpaths() {
     const r = tpFind(TP.sel), ds = tpIds(getDrafts()); if (!r || r.kind !== "draft") return;
     const a = tpFind("active"); if (!a) return;
     const prev = JSON.parse(JSON.stringify(ds));
-    ds[r.idx] = { ...ds[r.idx], moves: a.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now(), built: D.meta.built };
+    ds[r.idx] = tpStamp({ ...ds[r.idx], moves: a.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now() });
     setDrafts(ds); TP.undo = { list: prev };
     TP.msg = `“${r.name}” now holds your active plan.`; render();
   });
@@ -297,7 +320,7 @@ function bindTpaths() {
     const r = tpFind(b.dataset.tprecalc), ds = tpIds(getDrafts()); if (!r || r.kind !== "old" || ds.length >= 3) return;
     const { k, j, d } = r.o, list = store.get(k) || [];
     const fit = d.moves.filter(m => P[m.in] && P[m.out] && PG.includes(m.gw)), moves = cleanMoves(fit), drop = d.moves.length - moves.length;
-    const nd = { ...d, id: tpId(), moves, solved: null, saved: Date.now(), built: D.meta.built, from: `${d.from || "an older squad"}, recalculated` };
+    const nd = tpStamp({ ...d, id: tpId(), moves, solved: null, saved: Date.now(), from: `${d.from || "an older squad"}, recalculated` });
     TP.undo = { list: ds, old: { k, list: list.slice() } };
     setDrafts([...ds, nd]); store.set(k, list.filter((_, n) => n !== j)); pick("d:" + nd.id);
     TP.msg = `“${nd.name}” recalculated for your current squad${drop ? `: ${drop} move${drop === 1 ? "" : "s"} no longer applied and ${drop === 1 ? "was" : "were"} dropped` : ""}.`; render();
@@ -308,4 +331,38 @@ function bindTpaths() {
     TP.undo = { old: { k, list: list.slice() } }; store.set(k, list.filter((_, n) => n !== j)); pick("hold");
     TP.msg = `Discarded “${r.name}”.`; render();
   });
+}
+
+/* ---------- editing a saved path in Your plan ---------- */
+// The active plan remembers which saved path it was taken from (per squad, like the plan itself), so Your plan can
+// offer to save changes back to it. Missing path (deleted, or from another squad): no bar.
+const tpEditKey = () => sbKey() + ".editing";
+function tpEditing(id) { if (id === undefined) return store.get(tpEditKey()); store.set(tpEditKey(), id || null); }
+function tpEditInfo() {
+  const id = tpEditing(); if (!id) return null;
+  const ds = getDrafts(), k = ds.findIndex((d, n) => (d.id || "i" + n) === id); if (k < 0) return null;
+  const d = ds[k], same = sameMoves(cleanMoves(d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw))), SB.moves)
+    && JSON.stringify(d.ov || {}) === JSON.stringify(SB.ov || {}) && (d.mode || S.mode) === S.mode;
+  return { d, k, same };
+}
+function tpEditBar() {
+  const e = tpEditInfo(); if (!e) return "";
+  return `<div class="tp-editbar" role="status"><span>Editing saved path <b>“${esc(e.d.name)}”</b>${e.same ? " · no unsaved changes" : " · <span class=\"warn-t\">unsaved changes</span>"}</span>
+    ${e.same ? "" : `<button class="btn primary sm" data-tpesave="1">Save changes to path</button><button class="btn sm" data-tpediscard="1">Discard changes</button>`}
+    <button class="btn sm" data-tpestop="1">Stop editing</button></div>`;
+}
+function bindTpEdit() {
+  const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el));
+  on("[data-tpesave]", () => {
+    const e = tpEditInfo(); if (!e) return; const ds = tpIds(getDrafts());
+    ds[e.k] = tpStamp({ ...ds[e.k], moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now() });
+    setDrafts(ds); tpEditing(ds[e.k].id); render(); toast(`Saved to “${e.d.name}”.`);
+  });
+  on("[data-tpediscard]", () => {
+    const e = tpEditInfo(); if (!e) return;
+    SB.ov = JSON.parse(JSON.stringify(e.d.ov || {})); if (MODES[e.d.mode]) { S.mode = e.d.mode; store.set("fpl.mode", S.mode); }
+    setPlan(cleanMoves(e.d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw))), "custom", e.d.solved || null);
+    render(); toast(`Back to “${e.d.name}” as saved. Undo is in Your moves.`);
+  });
+  on("[data-tpestop]", () => { tpEditing(null); render(); });
 }

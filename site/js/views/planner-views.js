@@ -304,7 +304,7 @@ function bindPlannerViews() {
   on("[data-pvvar]", b => { const [m, k] = b.dataset.pvvar.split(":"); PV.variant[m] = k; render(); });
   on("[data-pvuse]", b => {
     const [m] = b.dataset.pvuse.split(":"), r = pvStrat(m); if (!r.key) return;
-    S.mode = m; store.set("fpl.mode", m);
+    S.mode = m; store.set("fpl.mode", m); tpEditing(null);
     setPlan(r.moves, "plan:" + r.key, solvedFrom(r.sc));   // the optimiser's lineups too, so Your plan shows the same total
     S.pview = "edit"; store.set("fpl.pview", "edit");
     render(); window.scrollTo({ top: 0 });
@@ -312,7 +312,7 @@ function bindPlannerViews() {
   });
   on("[data-pvdraft]", b => {
     const [m] = b.dataset.pvdraft.split(":"), r = pvStrat(m), ds = getDrafts(); if (!r.key || ds.length >= 3) return;
-    ds.push({ id: tpId(), name: `${MODES[m]} · ${PV_VAR_LABEL[r.key.split("_").pop()]}`, moves: r.moves.map(x => ({ ...x })), ov: {}, mode: m, solved: solvedFrom(r.sc), saved: Date.now(), built: D.meta.built, from: `${MODES[m]} suggestion` });
+    ds.push(tpStamp({ id: tpId(), name: `${MODES[m]} · ${PV_VAR_LABEL[r.key.split("_").pop()]}`, moves: r.moves.map(x => ({ ...x })), ov: {}, mode: m, solved: solvedFrom(r.sc), saved: Date.now(), from: `${MODES[m]} suggestion` }));
     setDrafts(ds); render(); toast(`Saved as a draft. Compare drafts in Your plan → Drafts.`);
   });
 }

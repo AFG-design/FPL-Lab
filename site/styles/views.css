@@ -513,8 +513,17 @@ tr.is-rival td { background: var(--accent-soft); }
 
 /* the path being inspected: mint, with a bar on the left; the active plan has its own label */
 .tp-row.tp-sel > th, .tp-row.tp-sel > td:not(.tp-c) { background: var(--accent-soft); }
-.tp-row.tp-sel > th { box-shadow: inset 4px 0 0 var(--accent); }
 .tp-row.tp-sel > th.sticky-col { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+
+/* a mint outline round the whole row, so the selection still shows over the heat shading */
+.tp-row.tp-sel > * { box-shadow: inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent); }
+.tp-row.tp-sel > th { box-shadow: inset 4px 0 0 var(--accent), inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent); }
+.tp-row.tp-sel > td:last-child { box-shadow: inset -2px 0 0 var(--accent), inset 0 2px 0 var(--accent), inset 0 -2px 0 var(--accent); }
+.tp-row.tp-sel > .tp-c.tp-on, .tp-c.tp-on { box-shadow: inset 0 0 0 2px var(--hi); }
+.tp-arm { border-color: var(--warn); color: var(--warn); }
+.tp-editbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--r); font-size: var(--fs-sm); }
+.tp-editbar > span { margin-right: auto; }
+.warn-t { color: var(--warn); font-weight: 600; }
 .tp-strip { display: grid; gap: 8px; padding: 10px 14px 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); }
 .tp-strip-h { display: flex; align-items: center; gap: 8px; }
 .tp-strip-h h3 { font-family: var(--display); font-size: 19px; letter-spacing: .02em; text-transform: uppercase; }
@@ -551,6 +560,7 @@ tr.is-rival td { background: var(--accent-soft); }
   .tp-n { min-width: 130px; max-width: 150px; }
   .tp-nm { font-size: 15px; }
   .tp-mob { display: block; color: var(--fg) !important; font-weight: 600; }
+  .tp-n small:not(.tp-mob) { display: none; }
   .tp-c { min-width: 74px; }
   .tp-c b { font-size: 18px; }
   .tp-del { margin-left: 0; }

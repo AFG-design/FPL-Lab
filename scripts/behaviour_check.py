@@ -305,11 +305,30 @@ TPATHS = r"""async () => {
     const r = tpRows().find(x => x.key === k); if (!r || !r.sc) continue;
     const b = document.querySelector(`[data-tpuse="${k}"]`); if (!b) { out.push(`${k}: no Use plan button`); continue; }
     b.click();
+    if (k === "hold") {   // clearing moves takes a second tap
+      if (!SB.moves.length) { out.push("Clear my plan cleared the moves without asking"); }
+      document.querySelector('[data-tpuse="hold"]').click();
+    }
     const a = scoreMoves(SB.moves).tot, row = tpRows().find(x => x.key === k);
     if (!near(a, r.sc.tot)) out.push(`Use plan on ${r.name}: Your plan totals ${a.toFixed(2)}, the table ${r.sc.tot.toFixed(2)}`);
     if (!row.active) out.push(`Use plan on ${r.name}: row isn't marked active`);
     if (!sameMoves(myTeam().score.weeks.length ? SB.moves : [], r.moves)) out.push(`Use plan on ${r.name}: This week doesn't follow it`);
   }
+  // a saved path whose Net has moved by 0.5+ since it was saved is flagged; within 0.5 it isn't
+  const ds0 = tpIds(getDrafts()), fi = ds0.findIndex(d => d.id === "free");
+  ds0[fi] = { ...tpStamp(ds0[fi]) }; setDrafts(ds0);
+  if (tpRows().find(r => r.key === "d:free").moved) out.push("a path saved on this forecast is flagged as moved");
+  ds0[fi] = { ...ds0[fi], net: ds0[fi].net + 0.6 }; setDrafts(ds0);
+  if (!tpRows().find(r => r.key === "d:free").moved) out.push("a path whose Net moved by 0.6 isn't flagged");
+  // editing a saved path in Your plan: changes can be saved back to it
+  setView("planner"); S.pview = "compare"; render();
+  document.querySelector('[data-tpuse="d:free"]').click();
+  S.pview = "edit"; render();
+  if (!document.querySelector(".tp-editbar")) out.push("Your plan doesn't say which saved path it's editing");
+  editPlan(() => SB.moves.splice(0, 1)); render();
+  document.querySelector("[data-tpesave]")?.click();
+  if (getDrafts().find(d => d.id === "free").moves.length !== 0) out.push("Save changes to path didn't save the edit back");
+  S.pview = "compare"; tpEditing(null); setView("planner");
   // horizons
   for (const h of [3, 6]) { if (h > GWS.length) continue; setHorizon(h); const rr = tpRows(); if (rr.filter(r => r.sc).some(r => r.sc.weeks.length !== PG.length)) out.push(`${h}-GW horizon: rows don't all have ${PG.length} cells`); }
   setHorizon(5);

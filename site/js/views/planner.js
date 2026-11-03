@@ -223,7 +223,7 @@ function plannerEditor() {
   const tab = S.ptab || "suggest";
   const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
   const right = SB.sel ? selPanel() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
-  return `
+  return `${tpEditBar()}
   <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Editing as")}</span>
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
     <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs the managers around your rank")}.` : ""}</p></div>

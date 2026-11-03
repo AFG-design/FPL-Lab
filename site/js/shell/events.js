@@ -35,7 +35,7 @@ function bind() {
   on("[data-draftsave]", () => {
     const ds = getDrafts(); if (ds.length >= 3) return;
     const name = ($("#draftName")?.value || "").trim() || `Draft ${ds.length + 1}`;
-    ds.push({ id: tpId(), name, moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now(), built: D.meta.built, from: "Your plan" });
+    ds.push(tpStamp({ id: tpId(), name, moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now(), from: "Your plan" }));
     setDrafts(ds); render();
   });
   on("[data-draftload]", b => {
@@ -43,6 +43,7 @@ function bind() {
     SB.prev = { moves: SB.moves.slice(), source: SB.source };
     SB.ov = JSON.parse(JSON.stringify(d.ov || {}));
     if (d.mode && MODES[d.mode]) { S.mode = d.mode; store.set("fpl.mode", S.mode); }
+    tpEditing(d.id || "i" + b.dataset.draftload);   // Your plan offers to save changes back to this draft
     setPlan(d.moves, "custom", d.solved || null); render();
   });
   on("[data-draftdel]", b => { const ds = getDrafts(); ds.splice(+b.dataset.draftdel, 1); setDrafts(ds); render(); });
@@ -137,6 +138,7 @@ function bind() {
   bindHome();   // homepage view switch and shortcuts (views/home.js)
   bindXp();   // xP table controls (views/xptable.js)
   bindTpaths();   // Planner → Transfer paths (views/tpaths.js)
+  bindTpEdit();   // "Editing saved path" bar in Your plan
   bindPlannerViews();   // Planner view tabs (views/planner-views.js)
   bindStatsMore();   // Goals & assists, Defence and Points leaders controls (views/stats-more.js)
 }
