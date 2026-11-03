@@ -21,6 +21,11 @@ Starts its own static server and a headless Chromium, then runs each check again
     the row active; 3 and 6 GW horizons; selecting cells never changes saved paths; paths from an older squad show no
     totals until recalculated; a missing strategy shows no numbers; Optimise makes a new path without touching the
     others, and an impossible one fails with a reason and changes nothing.
+  - Lineup style (Cards | Kits): Cards by default and when storage is blocked; the choice persists across pages and a
+    reload; switching keeps the plan, gameweek and focus; the bench reads GK, 1, 2, 3; in Current GW the captain's
+    actual points carry the armband once (never doubled again); one difficulty chip per fixture (two in a double, "No
+    match" in a blank); the three-week run only in the Planner; prices only in Your plan, matching the selling price;
+    "×2" only on the projected captain.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -382,6 +387,87 @@ def check_tpaths(browser, url):
     return out + errs
 
 
+def check_lineup(browser, url):
+    out = []
+    ctx = browser.new_context(service_workers="block")
+    page = ctx.new_page()
+    errs = []
+    page.on("pageerror", lambda e: errs.append(f"lineup uncaught: {e}"))
+    page.goto(f"{url}#week")
+    page.wait_for_selector(".home")
+    if not page.locator(".pitchwrap.lu-cards").count():
+        out.append("lineup doesn't default to Cards")
+    before = page.evaluate("JSON.stringify([sbState(), SB.gw, S.home])")
+    page.click('[data-lineup="kits"]')
+    page.wait_for_selector(".pitchwrap.lu-kits")
+    if page.evaluate("document.activeElement?.dataset.lineup") != "kits":
+        out.append("focus didn't stay on the Kits button")
+    if page.evaluate("JSON.stringify([sbState(), SB.gw, S.home])") != before:
+        out.append("switching lineup style changed the plan or view")
+    slots = page.evaluate("[...document.querySelectorAll('.lu-bench .lu-slot')].map(x => x.textContent)")
+    if slots != ["GK", "1", "2", "3"]:
+        out.append(f"bench slots read {slots}, expected GK, 1, 2, 3")
+    chk = page.evaluate("""() => {
+      const out = [], g = D.meta.next_gw, t = myTeam(), card = id => document.querySelector(`.view-week .pitch [data-p="${id}"]`);
+      t.xi.forEach(i => { const n = fxFor(P[i].team, g).length, c = card(i).querySelectorAll('.lu-sub .fdr').length;
+        if (c !== Math.max(1, n)) out.push(`${P[i].name}: ${c} fixture chips for ${n} fixtures`); });
+      if (document.querySelector('.view-week .lu-run, .view-week .lu-price')) out.push("Home shows the Planner's run or prices");
+      const x2 = [...document.querySelectorAll('.view-week .lu-x')].map(e => e.closest('[data-p]').dataset.p);
+      if (x2.length !== 1 || +x2[0] !== t.cap) out.push(`×2 shown on ${x2.length} cards, expected only the captain`);
+      // a double and a blank
+      const a = t.xi.find(i => P[i].pos !== 'GKP'), b = t.xi.find(i => P[i].team !== P[a].team && P[i].pos !== 'GKP');
+      const keepA = T[P[a].team].fx[g], keepB = T[P[b].team].fx[g];
+      T[P[a].team].fx[g] = []; T[P[b].team].fx[g] = [...keepB, { opp: Object.keys(T).map(Number).find(x => x !== P[b].team && x !== P[a].team), home: false, fdr: 4 }];
+      render();
+      if (!/No match/.test(card(a).querySelector('.lu-sub').textContent)) out.push("a blank gameweek doesn't say No match");
+      if (card(b).querySelectorAll('.lu-sub .fdr').length !== 2) out.push("a double gameweek doesn't show two chips");
+      T[P[a].team].fx[g] = keepA; T[P[b].team].fx[g] = keepB; render();
+      return out; }""")
+    out += chk
+    page.evaluate("() => { S.pview = 'mine'; setView('planner'); }")
+    page.wait_for_selector(".view-planner .pitchwrap")
+    if not page.locator(".view-planner .lu-run").count() or page.locator(".view-planner .lu-price").count():
+        out.append("My team should show the run but no prices")
+    page.evaluate("() => { S.pview = 'edit'; setView('planner'); }")
+    page.wait_for_selector(".view-planner .lu-price")
+    bad = page.evaluate("""() => [...document.querySelectorAll('.view-planner .lu-pc')].filter(c => {
+      const id = +(c.dataset.sbp || c.dataset.p), owned = D.squad.some(s => s.id === id), want = owned ? `sells ${money(sellPrice(id))}` : money(P[id].price);
+      return c.querySelector('.lu-price')?.textContent !== want; }).map(c => c.getAttribute('aria-label').split(',')[0])""")
+    if bad:
+        out.append(f"Your plan prices don't match the selling-price rule: {bad[:3]}")
+    page.wait_for_selector(".view-planner .pitchwrap")
+    if not page.locator(".view-planner .pitchwrap.lu-kits").count():
+        out.append("Kits didn't carry over to the Planner")
+    page.reload()
+    page.wait_for_selector(".pitchwrap")
+    if not page.locator(".pitchwrap.lu-kits").count():
+        out.append("Kits wasn't remembered after a reload")
+    # Current GW: the captain's number is his points times the armband, once
+    page.evaluate("() => { S.home = 'current'; setView('week'); }")
+    page.wait_for_selector(".home-current")
+    cap = page.evaluate("""() => { const s = liveState(); if (!s) return null; const r = s.capOut ? s.vice : s.cap; if (!r) return null;
+      const el = document.querySelector(`.pitch [data-p="${r.id}"] .xp`); return el ? [el.textContent, r.live, s.mult(r)] : null; }""")
+    if page.locator(".home-current .lu-x").count():
+        out.append("Current GW marks ×2 on a number that already includes the armband")
+    if cap and cap[0] not in ("–", str(cap[1] * cap[2])):
+        out.append(f"captain card shows {cap[0]}, expected {cap[1]} x {cap[2]} = {cap[1] * cap[2]}")
+    ctx.close()
+    # storage blocked: Cards, no error
+    ctx = browser.new_context(service_workers="block")
+    ctx.add_init_script("Storage.prototype.getItem = () => { throw new Error('blocked'); }; Storage.prototype.setItem = () => { throw new Error('blocked'); };")
+    page = ctx.new_page()
+    page.on("pageerror", lambda e: errs.append(f"lineup (storage blocked) uncaught: {e}"))
+    page.goto(f"{url}#week")
+    page.wait_for_selector(".home")
+    if not page.locator(".pitchwrap.lu-cards").count():
+        out.append("with storage blocked the lineup isn't Cards")
+    page.click('[data-lineup="kits"]')
+    if not page.locator(".pitchwrap.lu-kits").count():
+        out.append("with storage blocked, Kits doesn't switch for the visit")
+    ctx.close()
+    return out + errs
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -434,6 +520,9 @@ def main():
         got = check_extra(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "player detail")
+        got = check_lineup(browser, url)
+        failures += got
+        print(("✗ " if got else "✓ ") + "lineup styles")
         got = check_tpaths(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "transfer paths")

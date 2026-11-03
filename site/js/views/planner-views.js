@@ -153,7 +153,8 @@ function pvMine() {
   <div class="grid2">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       ${pvGwSel(base.weeks, g)}
-      ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice })}
+      <div class="bar lu-bar"><h3>GW${g} team · as it is</h3>${lineupToggle()}</div>
+      ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, run: 3 })}
       <p class="note">Your 15 as they are, with the XI and captain picked for the most projected points each week. Tap a player for his details.${asm ? ` ${asm} projection${asm === 1 ? " rests" : "s rest"} on assumptions (dotted number): FPL hasn't given a return date or chance.` : ""}</p>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
@@ -228,7 +229,8 @@ function pvStrategy(mode) {
   <div class="grid2">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       ${pvGwSel(r.sc.weeks, g)}
-      ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, fresh: pvFresh(r.moves, g) })}
+      <div class="bar lu-bar"><h3>GW${g} team · ${MODES[mode]}</h3>${lineupToggle()}</div>
+      ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, fresh: pvFresh(r.moves, g), run: 3 })}
       <p class="note">The XI this plan leaves you in GW${g}. A green bar under a shirt marks a player bought in the plan. Confidence is the gain over keeping your team: Strong at 3+ points over ${PG.length} GWs, Marginal at 1–3, otherwise a coin flip.</p>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">

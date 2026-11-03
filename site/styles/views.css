@@ -392,7 +392,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .dcc > b { font-family: var(--display); font-size: 22px; font-weight: 700; }
 
 /* pitch on the left, research and checks on the right */
-.home-main { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.home-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .home-pitch { display: grid; gap: 10px; min-width: 0; }
 .home-pitch .bar { margin: 0; }
 .home-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
@@ -441,12 +441,10 @@ tr.is-rival td { background: var(--accent-soft); }
 #watchlist:focus { outline: none; }
 
 /* actual-points cards: match state under the number; the bench and subbed-off players are dimmed */
-.pc .lvc-st { font-size: 10.5px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc.lvc-playing .lvc-st { color: var(--good); }
-.pc.lvc-dnp .lvc-st { color: var(--bad); }
-.pc .lvc-note { font-size: 10px; font-weight: 600; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pc.lvc-nocount { opacity: .72; }
-.pc.lvc-nocount .xp { color: var(--muted); }
+.lu .lvc-playing .lu-sub { color: var(--good); }
+.lu .lvc-dnp .lu-sub { color: var(--bad); }
+.lu .pc.lvc-nocount { opacity: .72; }
+.lu .lvc-nocount .xp { color: var(--muted); }
 .bench-note { margin: 0; padding: 8px 12px; font-size: var(--fs-xs); color: var(--muted); border-top: 1px solid var(--line); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -564,4 +562,123 @@ tr.is-rival td { background: var(--accent-soft); }
   .tp-c { min-width: 74px; }
   .tp-c b { font-size: 18px; }
   .tp-del { margin-left: 0; }
+}
+
+/* ---------- lineup: Cards | Kits (components/pitch.js). Both share markup; Review's own pitch is untouched ---------- */
+.lu-head { display: inline-flex; align-items: center; gap: 8px; }
+.lu-bar { margin: 0; }
+.lu-bar h3 { font-size: var(--fs-lg); }
+.lu-toggle button { padding: 4px 10px; font-size: var(--fs-xs); }
+.lu-toggle button:focus-visible { outline: 2px solid var(--hi); outline-offset: 1px; }
+.lu .pitch { gap: 8px; padding: 14px 8px 12px; container: lupitch / inline-size; }
+.lu .row { gap: 6px; }
+.lu .lu-pc { flex: 0 1 156px; width: auto; min-width: 0; padding: 0; text-align: left; container-type: inline-size; border-radius: 8px;
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 75%, transparent), 0 2px 6px rgb(0 0 0 / 25%); }
+.lu .pc.newin { box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 75%, transparent), inset 0 -2px 0 var(--good), 0 2px 6px rgb(0 0 0 / 25%); }
+.lu .lu-box { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; box-sizing: border-box; min-height: 62px; padding: 8px 9px; }
+.lu .lu-kit { position: relative; width: 28px; height: 28px; }
+.lu .shirt { display: block; width: 100%; height: 100%; margin: 0; object-fit: contain; }
+.lu .flag { top: -7px; left: -9px; }
+.lu-role { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; background: var(--hi); color: var(--hi-fg); box-shadow: 0 0 0 2px var(--surface); }
+.lu-role.v { background: var(--fg); color: var(--bg); }
+.lu .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm nm" "sub xp" "ex ex"; align-items: center; column-gap: 6px; min-width: 0; }
+.lu .lu-line { display: contents; }
+.lu .nm { grid-area: nm; min-width: 0; overflow: hidden; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.1; white-space: nowrap; text-overflow: ellipsis; }
+.lu .nm, .lu .lu-sub { display: block; }
+.lu .nm .lu-in { display: inline-block; margin-left: 4px; vertical-align: 2px; }
+.lu .xp { grid-area: xp; font-size: 21px; line-height: 1; }
+.lu .lu-sub { grid-area: sub; overflow: hidden; font-size: 11px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
+.lu .lu-sub:has(.fdr) { display: flex; flex-wrap: wrap; gap: 2px; text-overflow: clip; }
+.lu .lu-sub .fdr { font-size: 10px; padding: 1px 3px; }
+.lu .lu-sub .fdr .eudot { display: none; }
+.lu-x { margin-left: 2px; font-family: var(--sans, inherit); font-size: 11px; font-weight: 700; color: var(--muted); }
+.lu .lu-ex { grid-area: ex; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1px 4px; min-width: 0; margin-top: 3px; font-size: 10.5px; color: var(--muted); }
+.lu-price { white-space: nowrap; font-weight: 600; }
+.lu-run { display: inline-flex; gap: 3px; }
+.lu-dot { display: inline-flex; overflow: hidden; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 25%); }
+.lu-dot b { flex: 1 1 0; }
+.lu-dot.blank { background: none; box-shadow: inset 0 0 0 1.5px var(--faint); }
+.lu-in { flex: none; padding: 0 3px; border-radius: 3px; font-size: 8.5px; font-weight: 800; letter-spacing: .04em; line-height: 13px; background: var(--good); color: var(--accent-fg); }
+
+/* stacked cards: kit and number on top, name and fixture below. The whole lineup switches together, when its pitch is
+   too narrow for its busiest row (lu-r3/4/5) to show roughly 118px cards side by side */
+
+@container lupitch (max-width: 640px) { .lu-cards.lu-r5 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
+
+@container lupitch (max-width: 516px) { .lu-cards.lu-r4 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
+
+@container lupitch (max-width: 392px) { .lu-cards.lu-r3 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
+
+@container lupitch (max-width: 640px) {
+  .lu-cards.lu-r5 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
+  .lu-cards.lu-r5 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
+  .lu-cards.lu-r5 .lu-txt { display: contents; }
+  .lu-cards.lu-r5 .xp { justify-self: end; font-size: 19px; }
+  .lu-cards.lu-r5 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+
+@container lupitch (max-width: 516px) {
+  .lu-cards.lu-r4 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
+  .lu-cards.lu-r4 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
+  .lu-cards.lu-r4 .lu-txt { display: contents; }
+  .lu-cards.lu-r4 .xp { justify-self: end; font-size: 19px; }
+  .lu-cards.lu-r4 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+
+@container lupitch (max-width: 392px) {
+  .lu-cards.lu-r3 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
+  .lu-cards.lu-r3 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
+  .lu-cards.lu-r3 .lu-txt { display: contents; }
+  .lu-cards.lu-r3 .xp { justify-self: end; font-size: 19px; }
+  .lu-cards.lu-r3 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+
+/* the bench strip: each chip on its own width (all four are the same) */
+@container (max-width: 134px) {
+  .lu .lu-bn .lu-box { grid-template-columns: auto auto 1fr; grid-template-areas: "slot kit xp" "nm nm nm" "sub sub sub" "ex ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; }
+  .lu .lu-bn .lu-slot { grid-area: slot; }
+  .lu .lu-bn .lu-kit { grid-area: kit; width: 22px; height: 22px; }
+  .lu .lu-bn .lu-txt { display: contents; }
+  .lu .lu-bn .xp { justify-self: end; font-size: 17px; }
+}
+
+/* Kits: a kit above a dark nameplate; the plate stays dark on the turf in both themes */
+.lu-kits .pitch .lu-pc, .lu-kits .pitch .pc.newin { flex: 0 1 112px; background: none; border-color: transparent; box-shadow: none; }
+.lu-kits .pitch .lu-box { display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 0; padding: 2px 0; }
+.lu-kits .pitch .lu-kit { width: 36px; height: 36px; filter: drop-shadow(0 2px 3px rgb(0 0 0 / 45%)); }
+.lu-kits .pitch .lu-role { box-shadow: 0 0 0 2px var(--turf); }
+.lu-kits .pitch .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: none; justify-items: center; box-sizing: border-box; max-width: 100%; padding: 3px 8px 4px; border-radius: 6px; background: color-mix(in srgb, #000 72%, var(--turf)); color: var(--on-turf); text-align: center; }
+.lu-kits .pitch .nm { grid-area: auto; max-width: 100%; overflow: hidden; font-size: 15px; color: var(--on-turf); text-overflow: ellipsis; }
+.lu-kits .pitch .lu-line { display: flex; gap: 4px; align-items: baseline; max-width: 100%; min-width: 0; }
+.lu-kits .pitch .xp { grid-area: auto; font-family: inherit; font-size: 11.5px; font-weight: 700; color: var(--on-turf); }
+.lu-kits .pitch .xp.asm { color: var(--on-turf-muted); }
+.lu-kits .pitch .lu-sub { grid-area: auto; font-size: 11px; color: var(--on-turf-muted); }
+.lu-kits .pitch .lu-ex { grid-area: auto; flex-wrap: wrap; justify-content: center; gap: 1px 5px; max-width: 100%; margin-top: 1px; color: var(--on-turf-muted); }
+.lu-kits .pitch .lvc-playing .lu-sub { color: var(--on-turf-good); }
+.lu-kits .pitch .lvc-dnp .lu-sub { color: var(--on-turf-bad); }
+.lu-kits .pitch .pc.sel { outline-offset: 2px; }
+.lu-kits .pitch .lu-in { color: #04140b; }
+
+@container (max-width: 84px) {
+  .lu-kits .pitch .lu-txt { padding: 2px 4px 3px; }
+  .lu-kits .pitch .nm { display: -webkit-box; font-size: 13.5px; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .lu-kits .pitch .lu-line { flex-direction: column; align-items: center; gap: 0; }
+}
+
+/* bench: a compact strip in both styles, keeper first, then subs 1, 2, 3 in order */
+.lu .lu-bench { gap: 6px; padding: 8px; }
+.lu .lu-bn { flex: 0 1 172px; }
+.lu .lu-bn .lu-box { grid-template-columns: auto 24px minmax(0, 1fr); min-height: 48px; padding: 6px 8px; gap: 6px; }
+.lu .lu-bn .lu-kit { width: 24px; height: 24px; }
+.lu .lu-bn .xp { font-size: 18px; }
+.lu-slot { display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 4px; box-sizing: border-box; font-size: 10.5px; font-weight: 750; background: var(--accent-soft); color: var(--accent-text); }
+
+
+@media (max-width: 640px) {
+  .lu .pitch { padding: 12px 4px 10px; gap: 6px; }
+  .lu .row, .lu .lu-bench { gap: 4px; }
+  .lu .lu-bench { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 4px; }
+  .lu .lu-bn { max-width: none; }
+  .lu .lu-bench .lbl { display: none; }
+  .lu-head .tag { display: none; }
 }
