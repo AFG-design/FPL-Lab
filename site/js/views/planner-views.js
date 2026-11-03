@@ -2,7 +2,8 @@
 //   My team     your 15 as they are, best XI and captain each week (the baseline every other tab is measured on)
 //   Suggested   the server optimiser's plan for one strategy (Balanced / Play safe / Chase rank switch), shown as
 //               the XI it leaves you; the switch says when two strategies make the same transfers
-//   Compare     your team and the three strategies side by side, week by week
+//   Transfer paths  every path (Hold, the strategies, your saved paths) in one table (views/tpaths.js); the older
+//               side-by-side strategy table (pvCompare) sits under it
 //   Your plan   the full editor (views/planner.js)
 //
 // Missing or ambiguous data, and what each tab does about it:
@@ -14,7 +15,7 @@
 //     (dotted xP, "Assumed — no official data"), and My team counts them.
 //   - No field ownership (crowd data): the Compare "field ownership" row shows "–" rather than 0%.
 
-const PVIEWS = [["mine", "My team"], ["suggest", "Suggested"], ["compare", "Compare"], ["edit", "Your plan"]];
+const PVIEWS = [["mine", "My team"], ["suggest", "Suggested"], ["compare", "Transfer paths"], ["edit", "Your plan"]];
 const PV_MODES = ["balanced", "safe", "chase"];
 const PV_VARIANTS = ["roll", "one", "two", "three", "best"];
 const PV_VAR_LABEL = { roll: "Roll", one: "1 move", two: "2 moves", three: "3 moves", best: "Optimal" };
@@ -280,12 +281,12 @@ function pvCompare() {
 /* ---------- page ---------- */
 function vPlanner() {
   const pv = S.pview;
-  const body = pv === "edit" ? plannerEditor() : pv === "compare" ? pvCompare() : pv === "suggest" ? pvStrategy(S.pstrat) : pvMine();
+  const body = pv === "edit" ? plannerEditor() : pv === "compare" ? vTpaths() : pv === "suggest" ? pvStrategy(S.pstrat) : pvMine();
   return `
   <header class="page-title"><h1>Planner</h1><p>Your team as it is, what each strategy would do, and your own plan, over the next ${PG.length} gameweeks.</p></header>
   <div class="pvhead">${pvTabs()}
-    <div class="bar" style="margin:0"><span class="lbl">${term("horizon", "Plan length")}</span>
-      <div class="seg" role="group" aria-label="Plan length">${[3, 5, 6].filter(h => h <= GWS.length).map(h => `<button data-horizon="${h}" aria-pressed="${S.horizon === h}">${h} GWs</button>`).join("")}</div></div></div>
+    ${pv === "compare" ? "" : `<div class="bar" style="margin:0"><span class="lbl">${term("horizon", "Plan length")}</span>
+      <div class="seg" role="group" aria-label="Plan length">${[3, 5, 6].filter(h => h <= GWS.length).map(h => `<button data-horizon="${h}" aria-pressed="${S.horizon === h}">${h} GWs</button>`).join("")}</div></div>`}</div>
   ${body}`;
 }
 function bindPlannerViews() {
@@ -304,14 +305,14 @@ function bindPlannerViews() {
   on("[data-pvuse]", b => {
     const [m] = b.dataset.pvuse.split(":"), r = pvStrat(m); if (!r.key) return;
     S.mode = m; store.set("fpl.mode", m);
-    setPlan(r.moves, "plan:" + r.key);
+    setPlan(r.moves, "plan:" + r.key, solvedFrom(r.sc));   // the optimiser's lineups too, so Your plan shows the same total
     S.pview = "edit"; store.set("fpl.pview", "edit");
     render(); window.scrollTo({ top: 0 });
     toast(`${MODES[m]} plan is now Your plan: ${sgn(r.gain)} over ${PG.length} GWs. Undo is in Your moves.`);
   });
   on("[data-pvdraft]", b => {
     const [m] = b.dataset.pvdraft.split(":"), r = pvStrat(m), ds = getDrafts(); if (!r.key || ds.length >= 3) return;
-    ds.push({ name: `${MODES[m]} · ${PV_VAR_LABEL[r.key.split("_").pop()]}`, moves: r.moves.map(x => ({ ...x })), ov: {}, mode: m, saved: Date.now() });
+    ds.push({ id: tpId(), name: `${MODES[m]} · ${PV_VAR_LABEL[r.key.split("_").pop()]}`, moves: r.moves.map(x => ({ ...x })), ov: {}, mode: m, solved: solvedFrom(r.sc), saved: Date.now(), built: D.meta.built, from: `${MODES[m]} suggestion` });
     setDrafts(ds); render(); toast(`Saved as a draft. Compare drafts in Your plan → Drafts.`);
   });
 }

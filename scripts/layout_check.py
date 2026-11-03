@@ -10,7 +10,7 @@ VIEWS (site/js/core/state.js, so new screens are covered without editing this fi
   - no sideways scroll of the whole page (wide tables scroll inside their own box, which is fine);
   - every file the page loads from this site exists (a 404 on a script, stylesheet or data file fails).
 It saves a full-page screenshot of every view and width, so a reviewer can look without running anything.
-Views with more than one state behind a remembered switch are also opened in each state (VARIANTS: the homepage's
+Views with more than one state behind a remembered switch are also opened in each state (VARIANTS: the Planner's Transfer paths and the homepage's
 Current GW view), as "<view>-<state>".
 
 Missing input fails loudly: no site/data.json or site/data-extra.json, or VIEWS not found in state.js, exits 2 before any check runs.
@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 WIDTHS = {"phone": (390, 844), "desktop": (1280, 900)}
 # extra states to open, set through localStorage before the page loads: (view, name, localStorage key, value)
-VARIANTS = [("week", "current", "fpl.home", "current")]
+VARIANTS = [("week", "current", "fpl.home", "current"), ("planner", "paths", "fpl.pview", "compare")]
 
 
 def views():

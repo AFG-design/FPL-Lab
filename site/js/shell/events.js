@@ -35,7 +35,7 @@ function bind() {
   on("[data-draftsave]", () => {
     const ds = getDrafts(); if (ds.length >= 3) return;
     const name = ($("#draftName")?.value || "").trim() || `Draft ${ds.length + 1}`;
-    ds.push({ name, moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, saved: Date.now() });
+    ds.push({ id: tpId(), name, moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now(), built: D.meta.built, from: "Your plan" });
     setDrafts(ds); render();
   });
   on("[data-draftload]", b => {
@@ -43,7 +43,7 @@ function bind() {
     SB.prev = { moves: SB.moves.slice(), source: SB.source };
     SB.ov = JSON.parse(JSON.stringify(d.ov || {}));
     if (d.mode && MODES[d.mode]) { S.mode = d.mode; store.set("fpl.mode", S.mode); }
-    setPlan(d.moves, "custom"); render();
+    setPlan(d.moves, "custom", d.solved || null); render();
   });
   on("[data-draftdel]", b => { const ds = getDrafts(); ds.splice(+b.dataset.draftdel, 1); setDrafts(ds); render(); });
   on("[data-ptab]", b => { S.ptab = b.dataset.ptab; store.set("fpl.ptab", S.ptab); render(); });
@@ -136,6 +136,7 @@ function bind() {
   on("[data-colreset]", () => { store.set("fpl.cols", null); render(); });
   bindHome();   // homepage view switch and shortcuts (views/home.js)
   bindXp();   // xP table controls (views/xptable.js)
+  bindTpaths();   // Planner → Transfer paths (views/tpaths.js)
   bindPlannerViews();   // Planner view tabs (views/planner-views.js)
   bindStatsMore();   // Goals & assists, Defence and Points leaders controls (views/stats-more.js)
 }
