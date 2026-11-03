@@ -1,7 +1,7 @@
 // Expected points table: every player's projected points per gameweek (players[].xp), like the FPL Review grid.
 /* ---------- xP table ----------
    Missing data, shown rather than filled in:
-   - a gameweek with a fixture but no xP for the player: "–" with a tooltip, left out of Σ / Avg / xP per £m, and the
+   - a gameweek with a fixture but no xP for the player: "–" with a tooltip, left out of the expected total / xP per £m, and the
      total is marked "*" with how many gameweeks it covers;
    - a blank gameweek (no fixture): the blank chip and "–"; it counts as 0 because he can't score;
    - xP resting on our defaults (no official return date or chance): italic with the "assumed" tooltip, as elsewhere;
@@ -10,7 +10,6 @@
 S.xsort = store.get("fpl.xsort") || "sum";
 S.xdir = store.get("fpl.xdir") === 1 ? 1 : -1;
 S.xh = [3, 5, 6].includes(store.get("fpl.xh")) ? store.get("fpl.xh") : 5;
-S.xagg = store.get("fpl.xagg") === "avg" ? "avg" : "sum";
 S.xquick = ["all", "mine", "star"].includes(store.get("fpl.xquick")) ? store.get("fpl.xquick") : "all";
 const xLiveShown = () => { const v = store.get("fpl.xlive"); return v == null ? !matchMedia("(max-width: 560px)").matches : !!v; };
 
@@ -18,14 +17,14 @@ const xLiveGW = () => {
   const m = D.meta;
   return m.cur_gw && !m.cur_finished && D.live && D.live.gw === m.cur_gw ? m.cur_gw : null;
 };
-// one player's numbers over the chosen horizon: {sum, avg, n (gameweeks with a number), of (gameweeks in horizon)}
+// one player's numbers over the chosen horizon: {sum, n (gameweeks with a number), of (gameweeks in horizon)}
 function xTotals(p, gws) {
   let sum = 0, n = 0;
   gws.forEach(g => {
     const v = p.xp[g];
     if (v != null) { sum += v; n++; } else if (!fxFor(p.team, g).length) n++;   // blank: 0, and it is known
   });
-  return { sum, avg: n ? sum / n : 0, n, of: gws.length };
+  return { sum, n, of: gws.length };
 }
 function xLiveCell(p, lg) {
   const meta = D.meta.xp_cur;
@@ -55,7 +54,7 @@ function vXpTable() {
     if (S.xsort === "val") return t.sum / p.price;
     if (S.xsort === "live") return p.xp_cur ?? -1;
     if (S.xsort.startsWith("g")) return p.xp[S.xsort.slice(1)] ?? -1;
-    return S.xagg === "avg" ? t.avg : t.sum;
+    return t.sum;
   };
   rows.sort((a, b) => { const x = key(a), y = key(b); return (x > y ? 1 : x < y ? -1 : 0) * S.xdir; });
   const shown = rows.slice(0, 150);
@@ -65,7 +64,7 @@ function vXpTable() {
   const q = f => vals.length ? vals[Math.min(vals.length - 1, Math.floor(f * vals.length))] : 0;
   const lo = q(0.05), hi = q(0.95);
   const heat = v => hi > lo ? Math.max(0, Math.min(5, Math.round((v - lo) / (hi - lo) * 5))) : 0;
-  const barMax = Math.max(1e-9, ...shown.map(p => S.xagg === "avg" ? tot.get(p.id).avg : tot.get(p.id).sum));
+  const barMax = Math.max(1e-9, ...shown.map(p => tot.get(p.id).sum));
 
   const sortAttr = k => S.xsort === k ? ` aria-sort="${S.xdir < 0 ? "descending" : "ascending"}"` : "";
   const arrow = k => S.xsort === k ? (S.xdir < 0 ? " ↓" : " ↑") : "";
@@ -76,12 +75,11 @@ function vXpTable() {
       ? `<th class="sort n xlive" data-xsort="live"${sortAttr("live")}>GW${lg}${arrow("live")}<small>Live</small><button type="button" class="btn ghost xs" data-xlive="0" aria-label="Hide the GW${lg} live column">Hide</button></th>`
       : `<th class="n xlive-off"><button type="button" class="btn ghost xs" data-xlive="1" aria-label="Show the GW${lg} live column">GW${lg}</button></th>`) : ""}
     ${gws.map(g => `<th class="sort n xg${g === next ? " xnext" : ""}${hz.includes(g) ? "" : " xout"}" data-xsort="g${g}"${sortAttr("g" + g)}>GW${g}${arrow("g" + g)}${g === next ? "<small>Next</small>" : ""}</th>`).join("")}
-    <th class="sort n xsum" data-xsort="sum"${sortAttr("sum")}>${S.xagg === "avg" ? "Avg xP" : "Σ xP"}${arrow("sum")}
-      <button type="button" class="btn ghost xs" data-xagg="${S.xagg === "avg" ? "sum" : "avg"}" aria-label="Show ${S.xagg === "avg" ? "the total" : "the average per gameweek"}">${S.xagg === "avg" ? "Σ" : "Avg"}</button></th>`;
+    <th class="sort n xsum" data-xsort="sum"${sortAttr("sum")}>Expected total${arrow("sum")}<small>GW${hz[0]}–${hz[hz.length - 1]}</small></th>`;
 
   const body = shown.map(p => {
     const t = tot.get(p.id), part = t.n < t.of;
-    const v = S.xagg === "avg" ? t.avg : t.sum;
+    const v = t.sum;
     const star = isStarred(p.id);
     const gwCells = gws.map(g => {
       const fx = fxFor(p.team, g), x = p.xp[g], out = hz.includes(g) ? "" : " xout";
@@ -126,7 +124,7 @@ function vXpTable() {
       : stateView({ title: "No players match", body: S.xquick === "star" ? "You haven't starred anyone yet: tap ☆ next to a name." : "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-xclear="1">Clear filters</button>` })}
     <p class="note">${term("xp", "xP")} = projected FPL points for that gameweek from FPL Lab's model (minutes, goals, assists, clean sheets, bonus).
       ${lg ? `Greyed column: projection made before the GW${lg} deadline, with live points. ` : ""}Flagged players' xP already includes their chance of playing.
-      Σ, Avg and xP/£m count the next ${hz.length} gameweeks (GW${hz[0]}–${hz[hz.length - 1]}); faded columns are outside that.
+      Expected total and xP/£m count the next ${hz.length} gameweeks (GW${hz[0]}–${hz[hz.length - 1]}); faded columns are outside that.
       Blank gameweeks count as 0. * = some gameweeks have no projection and are left out. Shading compares the numbers on screen.</p>
     ${fdrKey()}
   </div>`;
@@ -134,13 +132,12 @@ function vXpTable() {
 function bindXp() {
   const set = (k, v, sk) => { S[k] = v; store.set(sk, v); render(); };
   document.querySelectorAll("th[data-xsort]").forEach(th => th.onclick = e => {
-    if (e.target.closest("button")) return;   // the Hide / Avg buttons inside the header
+    if (e.target.closest("button")) return;   // the Hide / show-live buttons inside the header
     const k = th.dataset.xsort;
     if (S.xsort === k) S.xdir *= -1; else { S.xsort = k; S.xdir = k === "name" || k === "price" ? 1 : -1; }
     store.set("fpl.xsort", S.xsort); store.set("fpl.xdir", S.xdir); render();
   });
   document.querySelectorAll("[data-xh]").forEach(b => b.onclick = () => set("xh", +b.dataset.xh, "fpl.xh"));
-  document.querySelectorAll("[data-xagg]").forEach(b => b.onclick = () => set("xagg", b.dataset.xagg, "fpl.xagg"));
   document.querySelectorAll("[data-xquick]").forEach(b => b.onclick = () => set("xquick", b.dataset.xquick, "fpl.xquick"));
   document.querySelectorAll("[data-xlive]").forEach(b => b.onclick = () => { store.set("fpl.xlive", b.dataset.xlive === "1"); render(); });
   document.querySelectorAll("[data-xstar]").forEach(b => b.onclick = () => { toggleStar(+b.dataset.xstar); render(); });

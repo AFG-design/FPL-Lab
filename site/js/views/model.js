@@ -93,8 +93,9 @@ function h2hPanel() {
   const head = `<h2 style="margin-bottom:10px">Head to head: FPL Lab v FPL's own projection</h2>
     <p class="note" style="margin-top:0">Both sets of projections are saved just before each deadline, exactly as shown, then marked against real points once the gameweek is over. Same players, same week, both knowing the injury news at the time.</p>`;
   if (!W.length) return A.h2h_next ? `<div class="panel">${head}${stateView({ kind: "empty", title: `First result after GW${A.h2h_next}`, body: `GW${A.h2h_next}'s projections are saved. The comparison appears here automatically once its last match is played.` })}</div>` : "";
-  const S = H.season, won = W.filter(w => w.ours.mae < w.fpl.mae).length, lost = W.filter(w => w.ours.mae > w.fpl.mae).length;
-  const lead = won > lost ? "up" : won < lost ? "down" : "";
+  // Running score: a gameweek goes to whichever average miss is lower (as shown, 2 dp); equal is level. A week with
+  // no miss saved for either side isn't scored and is counted as "not scored" under the score, not as a draw.
+  const S = H.season, score = tally(W, w => w.ours?.mae, w => w.fpl?.mae, { lower: true });
   const kpi = (lbl, o, f, low = true) => {
     const better = o != null && f != null && (low ? o < f : o > f);
     return `<div class="kpi"><span class="lbl">${lbl}</span><b class="${better ? "up" : ""}">${lbl.startsWith("Corr") ? (o ?? 0).toFixed(2) : d(o)}</b><span class="delta muted">FPL's own: ${lbl.startsWith("Corr") ? (f ?? 0).toFixed(2) : d(f)}</span></div>`;
@@ -105,11 +106,13 @@ function h2hPanel() {
     return `<tr><td>${names[k]}</td><td class="n"><b class="${o.rmse != null && o.rmse < f.rmse ? "up" : ""}">${d(o.rmse)}</b></td><td class="n">${d(f.rmse)}</td><td class="n">${o.n.toLocaleString("en-GB")}</td></tr>`;
   }).join("");
   const weekRows = W.slice().reverse().map(w => {
-    const res = w.ours.mae < w.fpl.mae ? '<span class="pill good">FPL Lab</span>' : w.ours.mae > w.fpl.mae ? '<span class="pill warn">FPL</span>' : '<span class="pill mut">Level</span>';
+    const t = tally([w], x => x.ours?.mae, x => x.fpl?.mae, { lower: true });   // same rule as the score above
+    const res = t.home ? '<span class="pill good">FPL Lab</span>' : t.away ? '<span class="pill warn">FPL</span>' : t.draws ? '<span class="pill mut">Level</span>' : '<span class="pill mut">Not scored</span>';
     return `<tr><td>GW${w.gw}</td><td class="n"><b>${d(w.ours.mae)}</b></td><td class="n">${d(w.fpl.mae)}</td><td>${res}</td><td class="n">${w.ours.corr != null ? w.ours.corr.toFixed(2) : "–"}</td><td class="n">${w.fpl.corr != null ? w.fpl.corr.toFixed(2) : "–"}</td><td class="n">${w.n}</td></tr>`;
   }).join("");
   return `<div class="panel">${head}
-    <p style="margin:0 0 12px"><b class="${lead}">FPL Lab closer in ${won} of ${W.length} gameweek${W.length === 1 ? "" : "s"}</b>${W.length < 4 ? ' <span class="muted">· too early to judge: give it 4–6 weeks</span>' : ""}</p>
+    ${scoreline("FPL Lab", "FPL", score)}
+    <p class="note" style="margin:-6px 0 12px">Gameweeks won: the one with the lower average miss that week takes it.${W.length < 4 ? " Too early to judge: give it 4–6 weeks." : ""}</p>
     <div class="kpis">${kpi("Average miss, season", S.ours.mae, S.fpl.mae)}${kpi("Typical miss (RMSE), season", S.ours.rmse, S.fpl.rmse)}${kpi("Correlation, season", S.ours.corr, S.fpl.corr, false)}</div>
     ${W.length > 1 ? `${lineChart([{ cls: "s1", vals: W.map(w => w.ours.corr) }, { cls: "s4", vals: W.map(w => w.fpl.corr), dash: true }], W.map(w => "GW" + w.gw), { h: 160, yfmt: v => v.toFixed(1), title: "Correlation with real points each gameweek" })}
       <div class="legend"><span><i class="s1"></i>FPL Lab correlation</span><span><i class="s4"></i>FPL's own</span></div>` : ""}

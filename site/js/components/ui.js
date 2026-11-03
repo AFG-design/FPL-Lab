@@ -49,6 +49,36 @@ function statBadge(label, value, { sub = "", tone = "", big = false } = {}) {
   return `<div class="stat ${big ? "big" : ""}"><dt>${label}</dt><dd class="${tone}">${value}</dd>${sub ? `<dd class="stat-sub">${sub}</dd>` : ""}</div>`;
 }
 
+/* ---------- Scoreline: a running head-to-head score, read like a football result ---------- */
+// tally(items, a, b, { lower }): each item is one contest (a gameweek, a punt). a(item) and b(item) are the two
+// sides' numbers for it; the higher wins, or the lower when lower = true (misses). Compared as shown on the page
+// (dp decimals), so the score always agrees with the table beside it. A contest where either side is missing
+// (null or undefined: nothing saved, nothing to compare) is not scored but counted in `unscored`, never as a draw.
+function tally(items, a, b, { lower = false, dp = 2 } = {}) {
+  const t = { home: 0, away: 0, draws: 0, unscored: 0 };
+  const r = v => Math.round(v * 10 ** dp);
+  items.forEach(x => {
+    const u = a(x), v = b(x);
+    if (u == null || v == null || Number.isNaN(u) || Number.isNaN(v)) { t.unscored++; return; }
+    const d = r(u) - r(v);
+    if (!d) t.draws++; else if (d < 0 === lower) t.home++; else t.away++;
+  });
+  return t;
+}
+// scoreline("FPL Lab", "FPL", t, { what: "gameweeks", mini }): "FPL Lab 3–1 FPL", the side in front in green.
+// what names the contests ("gameweeks", "punts") and goes into the caption and the screen-reader label.
+function scoreline(home, away, t, { what = "gameweeks", mini = false } = {}) {
+  const played = t.home + t.away + t.draws;
+  if (played === 1) what = what.replace(/s$/, "");   // "1 gameweek", "1 punt"
+  const lead = t.home > t.away ? "home" : t.away > t.home ? "away" : "";
+  const extra = [t.draws ? `${t.draws} level` : "", t.unscored ? `${t.unscored} not scored` : ""].filter(Boolean).join(" · ");
+  const state = !played ? "No result yet" : lead ? `${lead === "home" ? home : away} ahead` : "All square";
+  const label = `${home} ${t.home}, ${away} ${t.away}, over ${played} ${what}${extra ? `, ${extra}` : ""}. ${state}.`;
+  return `<div class="scoreline${mini ? " mini" : ""}${lead ? " lead-" + lead : ""}" role="img" aria-label="${esc(label)}">
+    <span class="sl-side home">${esc(home)}</span><span class="sl-score"><b>${t.home}</b><i aria-hidden="true">–</i><b>${t.away}</b></span><span class="sl-side away">${esc(away)}</span>
+    ${mini ? "" : `<span class="sl-cap">${played ? `${played} ${what}` : "No result yet"}${extra ? ` · ${extra}` : ""}</span>`}</div>`;
+}
+
 /* ---------- loading, empty and error states ---------- */
 function skeleton(kind = "page") {
   const line = (w, h = 12) => `<span class="sk" style="width:${w};height:${h}px"></span>`;
