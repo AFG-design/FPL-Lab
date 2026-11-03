@@ -178,7 +178,7 @@ function draftSummary(d) {
   const keep = { ov: SB.ov, mode: S.mode };
   SB.ov = d.ov || {}; S.mode = d.mode || S.mode;
   const moves = cleanMoves((d.moves || []).filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
-  const sc = scoreMoves(moves), w0 = sc.weeks[0], base = scoreMoves([]);
+  const sc = scoreMoves(moves, d.solved || null), w0 = sc.weeks[0], base = scoreMoves([]);   // with its saved lineups, as Transfer paths scores it
   const mult = {}; w0.team.xi.forEach(i => mult[i] = 1); mult[w0.team.cap] = 2;
   const out = { name: d.name, moves, tot: sc.tot, gain: sc.tot - base.tot, w0: w0.team.pts, cap: w0.team.cap,
     hits: sc.weeks.reduce((a, w) => a + w.hits, 0), ftLeft: sc.ftLeft, spread: spreadVsField(mult, PG[0]), mode: d.mode, bank: w0.bank };
@@ -187,7 +187,7 @@ function draftSummary(d) {
 }
 function draftsHTML() {
   const ds = getDrafts();
-  const cur = draftSummary({ name: "Current plan", moves: SB.moves, ov: SB.ov, mode: S.mode });
+  const cur = draftSummary({ name: "Current plan", moves: SB.moves, ov: SB.ov, mode: S.mode, solved: SB.solved });
   const cols = [cur, ...ds.map(draftSummary)];
   const best = (f, dir = 1) => Math.max(...cols.map(c => dir * f(c)));
   const cell = (c, f, fmt, dir = 1) => `<td class="n ${cols.length > 1 && dir * f(c) === best(f, dir) ? "up" : ""}">${fmt(f(c))}</td>`;
@@ -223,7 +223,7 @@ function plannerEditor() {
   const tab = S.ptab || "suggest";
   const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
   const right = SB.sel ? selPanel() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
-  return `
+  return `${tpEditBar()}
   <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Editing as")}</span>
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
     <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs the managers around your rank")}.` : ""}</p></div>
@@ -324,76 +324,84 @@ async function getHighs() {
   SOLVE.highs = await window.Module({ locateFile: f => "vendor/" + f });
   return SOLVE.highs;
 }
+// The browser optimiser, shared by Re-plan (Your plan) and Optimise (Transfer paths). Plans moves, lineups and captains
+// over PG for one strategy from your confirmed squad, with the rules given: locks and bans (rules.locked/banned), a
+// stricter hit limit (rules.maxHits) and any captains you fixed (ov[gw].cap). Returns { moves, solved, none } or throws
+// with a reason you can act on. status(msg) reports progress.
+async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], status = () => {} } = {}) {
+  const highs = await getHighs();
+  status("Planning…");
+  await new Promise(r => setTimeout(r, 30));
+  const players = {};
+  D.players.forEach(p => players[p.id] = { pos: p.pos, team: p.team, price: p.price, xp: p.xp, ok: p.ok !== false,
+    p10: Object.fromEntries(Object.entries(p.dist || {}).map(([g, d]) => [g, d[0]])), nailed: p.nailed ?? 100 });
+  const eo = fieldEO(), eoFrac = eo ? Object.fromEntries(Object.entries(eo).map(([k, v]) => [k, v / 100])) : null;
+  const captains = {}; Object.entries(ov).forEach(([g, o]) => { if (o.cap) captains[g] = o.cap; });
+  // Same rules as the server plans (optimise.strategy_plans): Balanced first, then Play safe / Chase rank held to their
+  // points budget against it, no transfers unless they beat keeping the squad by the profit rule, and no hits unless
+  // they pay (hit rule).
+  // Missing input: no field ownership -> Play safe / Chase rank can't be worked out, so it says so and stops.
+  const R = D.plan_rules || { safe_budget: 0, chase_budget: 2, min_profit: 1, hit_gain: 2, tie: 0.1, strategy: {} };
+  if (mode !== "balanced" && !eoFrac) throw new Error(`${MODES[mode]} needs the field-ownership data, which isn't in this build`);
+  const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
+    ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: rules.locked, banned: rules.banned, captains,
+    maxHits: 0, poolExtra };
+  // hits: Balanced and Play safe never take one; Chase rank at most plan_rules.max_hits.chase a week, or your own
+  // "Hits" choice if that is stricter
+  const chaseCap = Math.min(R.max_hits?.chase ?? 1, rules.maxHits ?? 99);
+  const remake = () => { SOLVE.highs = null; return getHighs(); };
+  const solveP = inp => window.FPLSolver.solve(SOLVE.highs || highs, inp, remake);
+  const hitsOf = r => r.weeks.reduce((a, w) => a + w.hits, 0);
+  // hit rule (optimise.HIT_GAIN): keep a plan's hits only if it beats the best hit-free plan by hit_gain a hit,
+  // in plain projected points after the -4; with no hit-free plan possible, it must beat keeping the squad by that
+  const hitRule = async (r, inp) => {
+    const h = hitsOf(r); if (!h) return r;
+    let alt = null; try { alt = await solveP({ ...inp, maxHits: 0 }); } catch (e) { alt = null; }
+    const ref = alt ? alt.value : none.value;
+    return r.value >= ref + (R.hit_gain ?? 2) * h ? r : alt;
+  };
+  // Your locks and bans can force moves: a ban on a player you own means selling him, a lock on one you don't means
+  // buying him. "Keep the squad" is then not an option, so it is scored without them (just the yardstick that every
+  // "vs your current team" figure uses) and the profit rule below can't throw the forced moves away.
+  const owned = new Set(common.squad);
+  const forced = [...common.banned.filter(i => owned.has(i)), ...common.locked.filter(i => !owned.has(i))];
+  const none = await solveP({ ...common, locked: [], banned: [], maxMovesWeek: 0 });
+  let bal;
+  try { bal = await solveP(common); } catch (e) {
+    // no plan meets your locks and bans: say which ones force it rather than quietly handing back an unchanged squad
+    if (forced.length) throw new Error(`no plan meets your locks and bans (${forced.map(i => P[i]?.name || i).join(", ")} ${forced.length === 1 ? "forces a move" : "force moves"}). Check you have enough free transfers and money, or lift a lock or ban`);
+    bal = { ...none, moves: [] };
+  }
+  let res = bal;
+  if (mode !== "balanced") {
+    status(`Planning ${MODES[mode]}…`); await new Promise(r => setTimeout(r, 30));
+    const st = R.strategy?.[mode] || {};
+    let floor = mode === "safe" ? bal.value - R.safe_budget - R.tie : bal.value - R.chase_budget;
+    if (!forced.length && bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
+    const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
+    if (mode === "chase" && chaseCap > 0) inp.maxHits = chaseCap;
+    try { res = (await hitRule(await solveP(inp), { ...inp, maxHits: 0 })) || bal; } catch (e) { res = bal; }
+  }
+  if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it (forced moves always stay)
+  // keep the optimiser's own lineup and captain with its moves, so what's shown (and the gain) is the plan that
+  // passed the points budget, not one re-picked by the browser's milder rules
+  const solved = {};
+  let sq = common.squad.slice();
+  PG.forEach((g, w) => {
+    res.moves.filter(m => m.gw === g).forEach(m => { sq = sq.map(i => i === m.out ? m.in : i); });
+    const wk = res.weeks?.[w];
+    if (wk && wk.gw === g && wk.xi?.length === 11) solved[g] = { sq: sq.slice(), xi: wk.xi.slice(), cap: wk.captain };
+  });
+  return { moves: res.moves, solved, none };
+}
 async function runReplan() {
   if (SOLVE.busy) return;
   SOLVE.busy = true; SOLVE.msg = "Loading the optimiser…"; render();
   try {
-    const highs = await getHighs();
-    SOLVE.msg = "Planning…"; render();
-    await new Promise(r => setTimeout(r, 30));
-    const players = {};
-    D.players.forEach(p => players[p.id] = { pos: p.pos, team: p.team, price: p.price, xp: p.xp, ok: p.ok !== false,
-      p10: Object.fromEntries(Object.entries(p.dist || {}).map(([g, d]) => [g, d[0]])), nailed: p.nailed ?? 100 });
-    const eo = fieldEO(), eoFrac = eo ? Object.fromEntries(Object.entries(eo).map(([k, v]) => [k, v / 100])) : null;
-    const captains = {}; Object.entries(SB.ov).forEach(([g, o]) => { if (o.cap) captains[g] = o.cap; });
     const t0 = performance.now();
-    // Same rules as the server plans (optimise.strategy_plans): Balanced first, then Play safe / Chase rank held to their
-    // points budget against it, no transfers unless they beat keeping the squad by the profit rule, and no hits unless
-    // they pay (hit rule).
-    // Missing input: no field ownership -> Play safe / Chase rank can't be worked out, so Re-plan says so and stops.
-    const R = D.plan_rules || { safe_budget: 0, chase_budget: 2, min_profit: 1, hit_gain: 2, tie: 0.1, strategy: {} };
-    if (S.mode !== "balanced" && !eoFrac) throw new Error(`${MODES[S.mode]} needs the field-ownership data, which isn't in this build`);
-    const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
-      ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: SB.rules.locked, banned: SB.rules.banned, captains,
-      maxHits: 0, poolExtra: SB.moves.map(m => m.in) };
-    // hits: Balanced and Play safe never take one; Chase rank at most plan_rules.max_hits.chase a week, or your own
-    // "Hits" choice if that is stricter
-    const chaseCap = Math.min(R.max_hits?.chase ?? 1, SB.rules.maxHits ?? 99);
-    const remake = () => { SOLVE.highs = null; return getHighs(); };
-    const solveP = inp => window.FPLSolver.solve(SOLVE.highs || highs, inp, remake);
-    const hitsOf = r => r.weeks.reduce((a, w) => a + w.hits, 0);
-    // hit rule (optimise.HIT_GAIN): keep a plan's hits only if it beats the best hit-free plan by hit_gain a hit,
-    // in plain projected points after the -4; with no hit-free plan possible, it must beat keeping the squad by that
-    const hitRule = async (r, inp) => {
-      const h = hitsOf(r); if (!h) return r;
-      let alt = null; try { alt = await solveP({ ...inp, maxHits: 0 }); } catch (e) { alt = null; }
-      const ref = alt ? alt.value : none.value;
-      return r.value >= ref + (R.hit_gain ?? 2) * h ? r : alt;
-    };
-    // Your locks and bans can force moves: a ban on a player you own means selling him, a lock on one you don't means
-    // buying him. "Keep the squad" is then not an option, so it is scored without them (just the yardstick that every
-    // "vs your current team" figure uses) and the profit rule below can't throw the forced moves away.
-    const owned = new Set(common.squad);
-    const forced = [...common.banned.filter(i => owned.has(i)), ...common.locked.filter(i => !owned.has(i))];
-    const none = await solveP({ ...common, locked: [], banned: [], maxMovesWeek: 0 });
-    let bal;
-    try { bal = await solveP(common); } catch (e) {
-      // no plan meets your locks and bans: say which ones force it rather than quietly handing back an unchanged squad
-      if (forced.length) throw new Error(`no plan meets your locks and bans (${forced.map(i => P[i]?.name || i).join(", ")} ${forced.length === 1 ? "forces a move" : "force moves"}). Check you have enough free transfers and money, or lift a lock or ban`);
-      bal = { ...none, moves: [] };
-    }
-    let res = bal;
-    if (S.mode !== "balanced") {
-      SOLVE.msg = `Planning ${MODES[S.mode]}…`; render(); await new Promise(r => setTimeout(r, 30));
-      const st = R.strategy?.[S.mode] || {};
-      let floor = S.mode === "safe" ? bal.value - R.safe_budget - R.tie : bal.value - R.chase_budget;
-      if (!forced.length && bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
-      const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
-      if (S.mode === "chase" && chaseCap > 0) inp.maxHits = chaseCap;
-      try { res = (await hitRule(await solveP(inp), { ...inp, maxHits: 0 })) || bal; } catch (e) { res = bal; }
-    }
-    if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it (forced moves always stay)
+    const res = await optimiseMoves(S.mode, { ov: SB.ov, rules: SB.rules, poolExtra: SB.moves.map(m => m.in), status: m => { SOLVE.msg = m; render(); } });
     const before = scoreMoves(SB.moves).tot;
-    // keep the optimiser's own lineup and captain with its moves, so what's shown (and the gain below) is the plan
-    // that passed the points budget, not one re-picked by the browser's milder rules
-    const solved = {};
-    let sq = common.squad.slice();
-    PG.forEach((g, w) => {
-      res.moves.filter(m => m.gw === g).forEach(m => { sq = sq.map(i => i === m.out ? m.in : i); });
-      const wk = res.weeks?.[w];
-      if (wk && wk.gw === g && wk.xi?.length === 11) solved[g] = { sq: sq.slice(), xi: wk.xi.slice(), cap: wk.captain };
-    });
-    setPlan(res.moves, "replan:" + S.mode, solved);
+    setPlan(res.moves, "replan:" + S.mode, res.solved);
     const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;
     SOLVE.msg = `Done in ${((performance.now() - t0) / 1000).toFixed(1)}s: ${res.moves.length} move${res.moves.length === 1 ? "" : "s"}, ${sgn(after - cur)} vs your current team (${sgn(after - before)} vs your previous plan). ${leanText()} Undo is in Your moves.`;
   } catch (e) {

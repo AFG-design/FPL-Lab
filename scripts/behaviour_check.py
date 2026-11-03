@@ -15,6 +15,12 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Homepage switch: Next deadline / Current GW keeps your plan, lineup and captain choices untouched, remembers the
     view you picked (but not the first-visit default), opens on Current GW only while FPL says a gameweek is under
     way, and the tabs work from the keyboard. In a finished gameweek Current GW shows FPL's own points.
+  - Transfer paths (Planner): every row's Net xP is its cells minus 4 per hit, taken once, and vs Hold is Net minus
+    Hold's; Hold has no hits; a free-transfer path has none and a paid one exactly -4; bank uses selling prices, not
+    market prices; an over-budget path is flagged and can't be used; Use plan gives Your plan the same total and marks
+    the row active; 3 and 6 GW horizons; selecting cells never changes saved paths; paths from an older squad show no
+    totals until recalculated; a missing strategy shows no numbers; Optimise makes a new path without touching the
+    others, and an impossible one fails with a reason and changes nothing.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -242,6 +248,140 @@ def check_home(browser, url):
     return out + errs
 
 
+TPATHS = r"""async () => {
+  const out = [], near = (a, b) => Math.abs(a - b) < 1e-6;
+  setDrafts([]); setPlan([], "custom"); SB.ov = {}; S.mode = "balanced"; setHorizon(5);
+  const g = PG[0], g2 = PG[1], sq = squadAt(g), bank = D.manager.bank;
+  const best = (pos, not, cap) => D.players.filter(p => p.pos === pos && !not.includes(p.id) && p.ok !== false && p.price <= cap + 1e-9).sort((a, b) => xpFrom(b.id, g, 5) - xpFrom(a.id, g, 5))[0];
+  // a player you own whose selling price differs from his market price, if there is one
+  const sv = D.squad.find(s => Math.abs(s.sell - P[s.id].price) > 0.05) || D.squad.find(s => P[s.id].pos !== "GKP");
+  const inn = best(P[sv.id].pos, sq, sv.sell + bank);
+  const free = [{ gw: g, out: sv.id, in: inn.id }];
+  const sq2 = sq.map(i => i === sv.id ? inn.id : i), used = [...sq2], outs = sq2.filter(i => P[i].pos === "DEF" && i !== inn.id).slice(0, 3);
+  const paid = [...free, ...outs.map(o => { const b = best("DEF", used, sellPrice(o)); used.push(b.id); return { gw: g2, out: o, in: b.id }; })];
+  const rich = D.players.filter(p => p.pos === "FWD" && !sq.includes(p.id)).sort((a, b) => b.price - a.price)[0];
+  const cheapF = sq.filter(i => P[i].pos === "FWD").sort((a, b) => sellPrice(a) - sellPrice(b))[0];
+  const broke = [{ gw: g, out: cheapF, in: rich.id }];
+  setDrafts([{ id: "free", name: "Free", moves: free, ov: {}, mode: "balanced" }, { id: "paid", name: "Paid", moves: paid, ov: {}, mode: "balanced" },
+             { id: "broke", name: "Broke", moves: broke, ov: {}, mode: "balanced" }]);
+  let rows = tpRows();
+  const hold = rows[0], R = k => rows.find(r => r.key === k);
+  if (hold.sc.weeks.some(w => w.hits)) out.push("Hold has a hit");
+  rows.filter(r => r.sc).forEach(r => {
+    const sum = r.sc.weeks.reduce((a, w) => a + w.team.pts, 0), hits = r.sc.weeks.reduce((a, w) => a + w.hits, 0);
+    if (!near(r.sc.tot, sum - 4 * hits)) out.push(`${r.name}: Net ${r.sc.tot} isn't the cells ${sum} minus 4 x ${hits} hits`);
+    if (r.sc.weeks.length !== PG.length) out.push(`${r.name}: ${r.sc.weeks.length} cells for ${PG.length} GWs`);
+  });
+  const fr = R("d:free"), pd = R("d:paid"), bk = R("d:broke");
+  if (fr.sc.weeks.some(w => w.hits)) out.push("free-transfer path took a hit");
+  const pw = pd.sc.weeks.find(w => w.gw === g2);
+  if (!(pw.n === 3 && pw.hits === 1)) out.push(`paid path GW${g2}: ${pw.n} moves, ${pw.hits} hits (expected 3 moves, 1 hit)`);
+  if (!near(pd.sc.tot, pd.sc.weeks.reduce((a, w) => a + w.team.pts, 0) - 4)) out.push("paid path: the hit isn't taken exactly once");
+  const want = Math.round((bank + sv.sell - inn.price) * 10) / 10, got = fr.sc.weeks[0].bank;
+  if (!near(got, want)) out.push(`bank after selling ${P[sv.id].name}: ${got}, expected ${want} from his selling price ${sv.sell} (market ${P[sv.id].price})`);
+  if (!bk.problems.length) out.push(`over-budget path (${P[rich.id].name} for ${P[cheapF.id].name}) isn't flagged`);
+  // the table's own text: the gain column is Net minus Hold
+  TP.sel = "hold"; TP.gw = null; S.pview = "compare"; setView("planner");
+  document.querySelectorAll(".tp-row").forEach(tr => {
+    const cells = tr.querySelectorAll("td"); if (cells.length < PG.length + 3) return;
+    const net = +cells[PG.length].textContent, gain = cells[PG.length + 1].textContent.trim();
+    if (gain === "—") return;
+    const v = +gain.replace("−", "-").replace("±", "");
+    if (Math.abs(v - (net - hold.sc.tot)) > 0.051) out.push(`row "${tr.querySelector(".tp-nm").textContent.trim()}": vs Hold ${gain} but Net ${net} − Hold ${hold.sc.tot.toFixed(1)}`);
+  });
+  // selecting cells and rows never changes saved paths
+  const before = JSON.stringify(getDrafts());
+  document.querySelector('[data-tpcell="d:paid|' + g2 + '"]').click();
+  document.querySelector('[data-tprow="d:free"]').click();
+  document.querySelector('[data-tpcell="hold|' + g + '"]').click();
+  if (JSON.stringify(getDrafts()) !== before) out.push("selecting cells changed the saved paths");
+  if (!document.querySelector(".tp-strip")) out.push("selecting a cell didn't open the detail strip");
+  // an invalid path can't be used
+  const planBefore = JSON.stringify(SB.moves);
+  document.querySelector('[data-tpuse="d:broke"]').click();
+  if (JSON.stringify(SB.moves) !== planBefore) out.push("an over-budget path became the active plan");
+  // Use plan: Your plan shows the same total, and the row is marked active
+  for (const k of ["m:balanced", "d:paid", "m:chase", "d:free", "hold"]) {
+    const r = tpRows().find(x => x.key === k); if (!r || !r.sc) continue;
+    const b = document.querySelector(`[data-tpuse="${k}"]`); if (!b) { out.push(`${k}: no Use plan button`); continue; }
+    b.click();
+    if (k === "hold") {   // clearing moves takes a second tap
+      if (!SB.moves.length) { out.push("Clear my plan cleared the moves without asking"); }
+      document.querySelector('[data-tpuse="hold"]').click();
+    }
+    const a = scoreMoves(SB.moves).tot, row = tpRows().find(x => x.key === k);
+    if (!near(a, r.sc.tot)) out.push(`Use plan on ${r.name}: Your plan totals ${a.toFixed(2)}, the table ${r.sc.tot.toFixed(2)}`);
+    if (!row.active) out.push(`Use plan on ${r.name}: row isn't marked active`);
+    if (!sameMoves(myTeam().score.weeks.length ? SB.moves : [], r.moves)) out.push(`Use plan on ${r.name}: This week doesn't follow it`);
+  }
+  // a saved path whose Net has moved by 0.5+ since it was saved is flagged; within 0.5 it isn't
+  const ds0 = tpIds(getDrafts()), fi = ds0.findIndex(d => d.id === "free");
+  ds0[fi] = { ...tpStamp(ds0[fi]) }; setDrafts(ds0);
+  if (tpRows().find(r => r.key === "d:free").moved) out.push("a path saved on this forecast is flagged as moved");
+  ds0[fi] = { ...ds0[fi], net: ds0[fi].net + 0.6 }; setDrafts(ds0);
+  if (!tpRows().find(r => r.key === "d:free").moved) out.push("a path whose Net moved by 0.6 isn't flagged");
+  // editing a saved path in Your plan: changes can be saved back to it
+  setView("planner"); S.pview = "compare"; render();
+  document.querySelector('[data-tpuse="d:free"]').click();
+  S.pview = "edit"; render();
+  if (!document.querySelector(".tp-editbar")) out.push("Your plan doesn't say which saved path it's editing");
+  editPlan(() => SB.moves.splice(0, 1)); render();
+  document.querySelector("[data-tpesave]")?.click();
+  if (getDrafts().find(d => d.id === "free").moves.length !== 0) out.push("Save changes to path didn't save the edit back");
+  S.pview = "compare"; tpEditing(null); setView("planner");
+  // horizons
+  for (const h of [3, 6]) { if (h > GWS.length) continue; setHorizon(h); const rr = tpRows(); if (rr.filter(r => r.sc).some(r => r.sc.weeks.length !== PG.length)) out.push(`${h}-GW horizon: rows don't all have ${PG.length} cells`); }
+  setHorizon(5);
+  // a path made for an older squad: no totals until recalculated
+  const oldKey = `fpl.sb.${D.meta.team_id}.${D.meta.next_gw - 1}.1-2-3.drafts`;
+  store.set(oldKey, [{ name: "Old", moves: [{ gw: D.meta.next_gw - 1, out: 1, in: 2 }, ...free], ov: {}, mode: "balanced" }]);
+  setDrafts(getDrafts().filter(d => d.id !== "broke"));
+  rows = tpRows(); const old = rows.find(r => r.kind === "old");
+  if (!old) out.push("a path from an older squad wasn't shown"); else if (old.sc) out.push("a path from an older squad shows totals");
+  setView("planner");
+  document.querySelector('[data-tprecalc]')?.click();
+  const rec = getDrafts().find(d => d.name === "Old");
+  if (!rec) out.push("recalculating an older path didn't add it"); else if (rec.moves.length !== 1) out.push(`recalculated path kept ${rec.moves.length} moves, expected 1 (the past-GW move dropped)`);
+  if ((store.get(oldKey) || []).length) out.push("the older path wasn't removed after recalculating");
+  // missing strategy: no numbers in its place
+  const keep = {}; Object.keys(D.plans).filter(k => k.startsWith("chase_")).forEach(k => { keep[k] = D.plans[k]; delete D.plans[k]; });
+  _pv = { key: "", res: {} };
+  const ch = tpRows().find(r => r.key === "m:chase");
+  if (!ch || ch.sc || !ch.missing) out.push("a strategy with no plan still shows numbers");
+  Object.assign(D.plans, keep); _pv = { key: "", res: {} };
+  // Optimise: a new path, others untouched; an impossible one fails and changes nothing
+  setDrafts(getDrafts().slice(0, 1)); TP.sel = "hold"; TP.mode = "balanced";
+  const keepPaths = JSON.stringify(getDrafts());
+  await tpOptimise();
+  const after = getDrafts();
+  if (after.length !== 2 || JSON.stringify(after.slice(0, 1)) !== keepPaths) out.push(`Optimise from Hold: ${TP.msg}`);
+  const club = D.players.filter(p => !sq.includes(p.id) && p.team === D.players.find(q => !sq.includes(q.id)).team).slice(0, 4).map(p => p.id);
+  const rulesKeep = JSON.parse(JSON.stringify(SB.rules));
+  SB.rules.locked = club; TP.sel = "hold";
+  const keep2 = JSON.stringify(getDrafts());
+  await tpOptimise();
+  if (!/^Optimise failed/.test(TP.msg)) out.push(`impossible locks: expected a failure message, got "${TP.msg}"`);
+  if (JSON.stringify(getDrafts()) !== keep2) out.push("a failed Optimise changed the saved paths");
+  SB.rules = rulesKeep; store.set(oldKey, null); setDrafts([]);
+  return out;
+}"""
+
+
+def check_tpaths(browser, url):
+    ctx = browser.new_context(service_workers="block")
+    page = ctx.new_page()
+    errs = []
+    page.on("pageerror", lambda e: errs.append(f"transfer paths uncaught: {e}"))
+    page.goto(f"{url}#planner")
+    page.wait_for_selector(".view-planner", timeout=20000)
+    try:
+        out = page.evaluate(TPATHS)
+    except Exception as e:
+        out = [f"transfer paths check crashed: {e}"]
+    ctx.close()
+    return out + errs
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -294,6 +434,9 @@ def main():
         got = check_extra(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "player detail")
+        got = check_tpaths(browser, url)
+        failures += got
+        print(("✗ " if got else "✓ ") + "transfer paths")
         got = check_home(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "homepage views")
