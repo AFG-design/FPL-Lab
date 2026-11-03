@@ -81,7 +81,7 @@ function whyXP(p, g) {
     <p class="note">Points from each part add up to his projection${Math.abs(rest) >= 0.15 ? ` (with ${rest > 0 ? "+" : "−"}${Math.abs(rest).toFixed(1)} from the model's overall calibration)` : ""}. Minutes points are the 1 or 2 for playing.</p></section>`;
 }
 function openPlayer(id) {
-  if (!EXTRA.ready) { withExtra(() => openPlayer(id)); return; }
+  if (!EXTRA.ready && !EXTRA.failed) { withExtra(() => openPlayer(id)); return; }   // failed: open without the detail
   const p = P[id]; if (!p) return;
   const d = p.xp_detail || {}, g = D.meta.next_gw;
   const labels = { mins: "Appearance", goals: "Goals", assists: "Assists", cs: "Clean sheet", gc: "Conceded", saves: "Saves", dc: "Def. contrib.", bonus: "Bonus", cards: "Cards", appear_adj: "Appearance adj." };
@@ -106,6 +106,7 @@ function openPlayer(id) {
         <div class="ph-pills">${nailedPill(p)}<span class="note">${term("nailed", "nailed on")}</span>${pills}</div>
       </div>
     </div>
+    ${EXTRA.failed ? `<p class="note" role="status">Shots, bonus, defence, history and the points breakdown didn't load (${esc(EXTRA.failed.replace(/^The detail file /, ""))}). <button type="button" class="linkish" id="dlgExtraRetry">Try again</button></p>` : ""}
 
     <dl class="ph-stats">
       ${statBadge("Price", money(p.price), { sub: sq ? `you sell at ${money(sq.sell)}` : `${p.own.toFixed(1)}% owned` })}
@@ -144,8 +145,10 @@ function openPlayer(id) {
       <button class="btn" id="dlgCmp">${S.cmp.includes(id) ? "In comparison ✓" : "Compare"}</button>
       <button class="btn" id="dlgLock">${SB.rules.locked.includes(id) ? "Unlock in plans" : "Lock in plans"}</button>
       <button class="btn" id="dlgBan">${SB.rules.banned.includes(id) ? "Allow in plans" : "Never pick in plans"}</button></div>`;
-  const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "dlgTitle"); dlg.showModal();
+  const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "dlgTitle"); if (!dlg.open) dlg.showModal();
   $("#dlgX").onclick = () => dlg.close();
+  const rx = $("#dlgExtraRetry");
+  if (rx) rx.onclick = () => { EXTRA.failed = null; rx.textContent = "Loading…"; rx.disabled = true; withExtra(() => openPlayer(id)); };
   if (p.pos !== "GKP") fillShotMap(id);
   $("#dlgCmp").onclick = () => { if (!S.cmp.includes(id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } $("#dlg").close(); setView("players"); setTimeout(() => $("#cmpPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); };
   $("#dlgStar").onclick = () => { toggleStar(id); const b = $("#dlgStar"), on = isStarred(id); b.classList.toggle("primary", on); b.setAttribute("aria-pressed", on); b.textContent = on ? "★ On your watchlist" : "☆ Add to watchlist"; render(); };
