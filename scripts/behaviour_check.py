@@ -10,13 +10,15 @@ Starts its own static server and a headless Chromium, then runs each check again
     field ownership), and editing the plan clears them.
   - Vice-captain chosen with the captain left automatic: your vice must be used, and the captain must not be him.
   - Free Hit week: the Planner says plans start from the restored squad, and says nothing in a normal week.
+  - Player detail: a data-extra.json from another build is never merged and ends in an error with Try again; one
+    failed download is recovered by a retry.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
 cheap enough player to lock (it always should), that check fails with the reason rather than being skipped.
 Needs Python Playwright: pip install playwright && python3 -m playwright install chromium
 """
-import functools, http.server, os, socketserver, sys, threading
+import functools, http.server, json, os, socketserver, sys, threading
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -144,6 +146,46 @@ def check_fh_note(page):
     return fails
 
 
+def check_extra(browser, url):
+    """Player detail (data-extra.json): a file from another build is never merged, a failed download is retried, and
+    when every try fails Stats shows an error with Try again (not a blank or half-filled page)."""
+    fails = []
+    real = (SITE / "data-extra.json").read_text()
+    built = json.loads((SITE / "data.json").read_text())["meta"]["built"]
+
+    def run(handler, expect):
+        ctx = browser.new_context(service_workers="block")
+        ctx.add_init_script("window.__fastRetry = true")
+        calls = []
+        def route(r):
+            calls.append(1)
+            handler(r, len(calls))
+        ctx.route("**/data-extra.json*", route)
+        page = ctx.new_page()
+        page.goto(f"{url}#stats")
+        page.wait_for_function("() => typeof D !== 'undefined' && D && (EXTRA.ready || EXTRA.failed)", timeout=30000)
+        got = page.evaluate("""() => ({ ready: EXTRA.ready, failed: EXTRA.failed,
+            merged: Object.values(P).some(p => p.s_pts !== undefined),
+            err: !!document.querySelector('#retryExtra') })""")
+        ctx.close()
+        return got, len(calls)
+
+    old = json.loads(real); old["built"] = "2000-01-01T00:00:00+00:00"
+    # 1) always from another build: never merged, ends in the error state with Try again
+    got, n = run(lambda r, k: r.fulfill(status=200, content_type="application/json", body=json.dumps(old)), "failed")
+    if got["ready"] or got["merged"]:
+        fails.append(f"Detail: a file from another build was merged ({got})")
+    if not got["failed"] or not got["err"]:
+        fails.append(f"Detail: mismatched builds didn't end in an error with Try again ({got})")
+    if n < 2:
+        fails.append(f"Detail: mismatched file wasn't retried ({n} request)")
+    # 2) one failed download, then the right file: retried and merged
+    got, n = run(lambda r, k: r.fulfill(status=500, body="err") if k == 1 else r.fulfill(status=200, content_type="application/json", body=real), "ready")
+    if not got["ready"] or not got["merged"] or got["failed"]:
+        fails.append(f"Detail: one failed download wasn't recovered by a retry ({got}, {n} requests)")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -193,6 +235,9 @@ def main():
             print(("✗ " if got else "✓ ") + name)
         failures += errs
         ctx.close()
+        got = check_extra(browser, url)
+        failures += got
+        print(("✗ " if got else "✓ ") + "player detail")
         got = check_sw(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "service worker")

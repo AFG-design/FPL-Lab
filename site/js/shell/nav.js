@@ -99,7 +99,16 @@ function render() {
     if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
   if (!D) return;
-  if (NEEDS_EXTRA.includes(S.view) && !EXTRA.ready) { $("#app").innerHTML = skeleton(); loadExtra(); return; }
+  if (NEEDS_EXTRA.includes(S.view) && !EXTRA.ready) {
+    if (EXTRA.failed) {
+      $("#app").innerHTML = stateView({ kind: "error", title: "Player detail didn't load",
+        body: `${esc(EXTRA.failed)}, so shots, bonus, defence and history can't be shown. This is usually a brief hiccup while the site updates.`,
+        action: '<button class="btn primary" id="retryExtra">Try again</button>' });
+      $("#retryExtra").onclick = () => { EXTRA.failed = null; render(); };
+      return;
+    }
+    $("#app").innerHTML = skeleton(); loadExtra(); return;
+  }
   const fn = VIEW_FN()[S.view] || vWeek;
   let html;
   try { html = fn(); } catch (e) {
