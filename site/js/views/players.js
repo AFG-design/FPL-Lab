@@ -38,7 +38,8 @@ function vPlayers() {
     xp5: p => `<b>${f1(p.xp5)}</b>`, val: p => (p.xp5 / p.price).toFixed(2), pc: p => priceCell(p),
   };
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${String(S.team) === String(t.id) ? "selected" : ""}>${t.name}</option>`).join("");
-  const prices = [4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12, 15];
+  // a limit set elsewhere (the homepage's Budget options) is added to the list so the menu shows it
+  const prices = [...new Set([4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12, 15, ...[S.minp, S.maxp].filter(Boolean).map(Number)])].sort((a, b) => a - b);
   const priceSel = (id, cur, any, op) => `<select id="${id}" aria-label="${any}"><option value="">${any}</option>${prices.map(x => `<option ${+cur === x ? "selected" : ""} value="${x}">${op} £${x.toFixed(1)}m</option>`).join("")}</select>`;
   const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.q].filter(Boolean).length;
   const head = `<th class="sort sticky-col" data-sort="name" ${S.sort === "name" ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>Player${S.sort === "name" ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>` +

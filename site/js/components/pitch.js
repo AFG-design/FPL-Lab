@@ -27,3 +27,25 @@ function pitch(xi, bench, g, o = {}) {
   return `<div class="pitchwrap"><div class="pitch" role="group" aria-label="Starting XI">${rows}</div><div class="bench" role="group" aria-label="Bench"><span class="lbl">Bench</span>${bench.map(i => card(i, g, o)).join("")}</div>
     <div class="pitch-key"><span>Big number: projected points</span><span>Then price and <span class="pc-form">form</span></span>${fdrKey()}</div></div>`;
 }
+// The same card and pitch with actual gameweek points (homepage Current GW view). `pts` is what counts for you, with
+// any captain multiplier already applied (and said so on the card and in its label); `st` is the match state.
+// A player with no row data (a pick FPL didn't return) isn't drawn, rather than drawn with made-up points.
+function liveCard(r, o = {}) {
+  const p = P[r.id]; if (!p) return "";
+  const role = o.role === "cap" ? "captain" : o.role === "vice" ? "vice-captain" : o.role === "capvice" ? "vice-captain, wearing the armband" : "";
+  const band = o.role === "cap" || o.role === "capvice" ? `<span class="armband" aria-hidden="true">CAPT</span>` : o.role === "vice" ? `<span class="armband v" aria-hidden="true">VICE</span>` : "";
+  const cls = ["pc", "lvc", `lvc-${o.st.key}`, o.counts === false ? "lvc-nocount" : "", role.includes("armband") || o.role === "cap" ? "is-capt" : ""].join(" ");
+  const ptsTxt = o.st.key === "toplay" && !o.played ? "–" : String(o.pts);
+  const label = `${p.name}, ${T[p.team].name}, ${o.st.label}${ptsTxt === "–" ? "" : `, ${o.pts} point${o.pts === 1 ? "" : "s"}${o.mult > 1 ? ` including ×${o.mult} armband` : ""}`}${o.counts === false ? ", on the bench: not counted" : ""}${o.note ? ", " + o.note : ""}${role ? `, ${role}` : ""}`;
+  return `<button class="${cls}" data-p="${r.id}" style="--club:${clubCol(p)}" aria-label="${esc(label)}">${band}
+    <img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">
+    <span class="nm">${esc(p.name)}</span>
+    <span class="xp">${ptsTxt}</span>
+    <span class="lvc-st">${esc(o.st.label)}</span>${o.note || o.mult > 1 ? `<span class="lvc-note">${esc(o.note || `Captain ×${o.mult}`)}</span>` : ""}</button>`;
+}
+function livePitch(xi, bench, benchNote, key) {
+  const rows = ["GKP", "DEF", "MID", "FWD"].map(pos => `<div class="row">${xi.filter(x => P[x.r.id]?.pos === pos).map(x => liveCard(x.r, x)).join("")}</div>`).join("");
+  return `<div class="pitchwrap"><div class="pitch" role="group" aria-label="Starting XI as submitted">${rows}</div><div class="bench" role="group" aria-label="Bench">
+    <span class="lbl">Bench</span>${bench.map(x => liveCard(x.r, x)).join("")}</div>
+    <p class="bench-note">${benchNote}</p><div class="pitch-key">${key}</div></div>`;
+}

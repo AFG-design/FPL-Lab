@@ -10,7 +10,7 @@ A personal Fantasy Premier League assistant at **https://afg-design.github.io/FP
 
 More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explorer](docs/screenshots/players-desktop.png), [fixtures](docs/screenshots/fixtures-desktop.png).
 
-- **This week:** a deadline checklist covering transfers, lineup, captain, chip and risks, each with a plain verdict (Strong, Marginal, Coin flip) and details on tap. A strategy switch picks Balanced, Play safe (track the managers around your rank) or Chase rank (differentials).
+- **This week:** two views behind one switch. **Next deadline** is for preparing: your plan (labelled as the model's recommendation or your own draft), three calls for transfers, captain and lineup with a plain verdict (Strong, Marginal, Coin flip), the pitch, quick research shortcuts, your watchlist and anything that needs attention. **Current GW** shows the squad you actually submitted with its live or final points, match states (to play, playing, finished, did not play, double gameweeks), the live rank estimate, rival differences and the pre-deadline forecast. Both show team value, bank and expected points above the pitch. The view you pick is remembered; on a first visit it opens on Current GW only while FPL says a gameweek is under way.
 - **Planner:** tap a player to make him captain or vice, bench or start him, lock him or replace him. **Re-plan** runs the optimiser in your browser (HiGHS, in `site/vendor/`) with your locks, bans, captains and hit limit.
 - **Planner extras:** plan length (3, 5 or 6 GWs), pair suggestions where one sale funds a bigger upgrade, and up to 3 saved drafts compared side by side.
 - **Planner (moves):** tap players to plan transfers over 5 gameweeks, with budget, club limits, free transfers and hits worked out live. Load the optimiser's plans as a starting point.
@@ -52,7 +52,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 - **Player odds:** repository secret `ODDS_API_KEY` (a free key from the-odds-api.com, 500 credits a month). About 20 credits per refresh, 3 refreshes per gameweek. Without the secret the step is skipped.
 - **Refresh now:** Actions → "Refresh FPL data" → Run workflow, or the button on the dashboard.
 - **Compare any team:** `watch.json` lists extra team IDs to fetch each refresh (`{"teams": [{"id": 123456, "label": "Friend"}]}`, up to 20). The overall leader is always included. The Rivals page adds and removes teams in one tap if Sync is set up; editing the file triggers a rebuild.
-- **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's live panel stays current. GitHub can start scheduled runs a few minutes late.
+- **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's Current GW view stays current. GitHub can start scheduled runs a few minutes late.
 - **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
 
 ## Run locally

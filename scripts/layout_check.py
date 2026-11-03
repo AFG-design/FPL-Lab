@@ -10,6 +10,8 @@ VIEWS (site/js/core/state.js, so new screens are covered without editing this fi
   - no sideways scroll of the whole page (wide tables scroll inside their own box, which is fine);
   - every file the page loads from this site exists (a 404 on a script, stylesheet or data file fails).
 It saves a full-page screenshot of every view and width, so a reviewer can look without running anything.
+Views with more than one state behind a remembered switch are also opened in each state (VARIANTS: the homepage's
+Current GW view), as "<view>-<state>".
 
 Missing input fails loudly: no site/data.json or site/data-extra.json, or VIEWS not found in state.js, exits 2 before any check runs.
 Files from other sites (e.g. kit images) are not this check's business; their failures are listed, not failed.
@@ -23,6 +25,8 @@ from playwright.sync_api import sync_playwright
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
 WIDTHS = {"phone": (390, 844), "desktop": (1280, 900)}
+# extra states to open, set through localStorage before the page loads: (view, name, localStorage key, value)
+VARIANTS = [("week", "current", "fpl.home", "current")]
 
 
 def views():
@@ -59,8 +63,11 @@ def main():
         browser = p.chromium.launch()
         for size, (w, h) in WIDTHS.items():
             ctx = browser.new_context(viewport={"width": w, "height": h}, service_workers="block")
-            for v in vs:
+            for v, var in [(v, None) for v in vs] + [(x[0], x) for x in VARIANTS if x[0] in vs]:
                 page = ctx.new_page()
+                if var:
+                    page.add_init_script(f"localStorage.setItem({var[2]!r}, JSON.stringify({var[3]!r}))")
+                name = v if not var else f"{v}-{var[1]}"
                 errs = []
                 page.on("pageerror", lambda e, errs=errs: errs.append(f"uncaught: {e}"))
                 # "Failed to load resource" console lines duplicate the response check below, which tells this site's
@@ -88,10 +95,10 @@ def main():
                         .filter(e => e.getBoundingClientRect().right > cw + 1 && !e.closest('.tablebox'))
                         .slice(0, 3).map(e => e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\\s+/).join('.') : ''))""", cw)
                     errs.append(f"page scrolls sideways: {sw}px content in a {cw}px window (widest: {', '.join(wide) or 'outside #app'})")
-                page.screenshot(path=str(out / f"{v}-{size}.png"), full_page=True)
+                page.screenshot(path=str(out / f"{name}-{size}.png"), full_page=True)
                 status = "ok" if not errs else "FAIL"
-                print(f"{status:4} {size:7} {v}")
-                failures += [f"{v} @ {w}px: {e}" for e in errs]
+                print(f"{status:4} {size:7} {name}")
+                failures += [f"{name} @ {w}px: {e}" for e in errs]
                 page.close()
             ctx.close()
         browser.close()
