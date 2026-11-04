@@ -473,7 +473,10 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .rate-score b { font-family: var(--display); font-size: 38px; font-weight: 700; letter-spacing: .01em; }
 .rate-score span { font-size: var(--fs-xs); color: var(--muted); margin-top: 2px; }
 .rate-badge small { font-size: var(--fs-xs); font-weight: 600; color: var(--accent-text); white-space: nowrap; }
-.rating .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.rating .kpis { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.rating .kpi b small { font-size: var(--fs-xs); color: var(--muted); font-weight: 400; margin-left: 2px; }
+.rate-uplift { margin: 0 0 14px; font-size: var(--fs-sm); line-height: 1.6; }
+.rate-uplift .lbl { display: block; }
 .rating .kpi b { font-size: var(--fs-xl); }
 .rate-pos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
 .rate-pos > div { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: var(--r-sm); background: var(--sunk); min-width: 0; }
