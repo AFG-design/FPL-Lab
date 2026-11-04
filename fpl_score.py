@@ -91,3 +91,38 @@ def as_submitted(picks, pos):
 def played_from_live(live):
     """{id: (minutes, points)} from FPL's /event/{gw}/live/ response (already summed over a double gameweek)."""
     return {e["id"]: (e["stats"]["minutes"], e["stats"]["total_points"]) for e in live["elements"]}
+
+
+# ---------------------------------------------------------------- the Supercomputer's pick (F1b)
+MAX = {"GKP": 1, "DEF": 5, "MID": 5, "FWD": 3}
+
+
+def supercomputer_pick(squad, pos, xp):
+    """What the model would have fielded from your 15, using only the forecast saved before the deadline.
+
+    squad: your 15 ids (as submitted); pos: {id: position}; xp: {id: projected points} from history/proj_gwN.json.
+    Returns score_team's team shape: the legal XI with the most projected points, captain = highest xP in it, vice =
+    the next, bench = spare keeper first then outfield players by xP (highest first, so the likeliest point-scorer is
+    first to come on).
+    Missing / ambiguous: xp None (no saved forecast for that gameweek) -> None, never a re-run. A player missing from
+    the saved forecast counts as 0 xP (the snapshot leaves out players projected 0 with no FPL estimate either).
+    Equal xP is broken by the order you submitted, so the result never changes between builds.
+    """
+    if xp is None:
+        return None
+    order = {i: k for k, i in enumerate(squad)}
+    rank = sorted(squad, key=lambda i: (-xp.get(i, 0.0), order[i]))
+    xi, n = [], {k: 0 for k in MAX}
+    for p_ in ("GKP", "DEF", "MID", "FWD"):          # the minimum of each position first, best first
+        for i in [i for i in rank if pos[i] == p_][:MIN[p_]]:
+            xi.append(i); n[p_] += 1
+    for i in rank:                                    # then the best of the rest, within each position's maximum
+        if len(xi) == 11:
+            break
+        if i not in xi and pos[i] != "GKP" and n[pos[i]] < MAX[pos[i]]:
+            xi.append(i); n[pos[i]] += 1
+    xi.sort(key=lambda i: order[i])
+    by_xp = sorted(xi, key=lambda i: (-xp.get(i, 0.0), order[i]))
+    rest = [i for i in rank if i not in xi]
+    bench = [i for i in rest if pos[i] == "GKP"] + [i for i in rest if pos[i] != "GKP"]
+    return {"xi": xi, "bench": bench, "captain": by_xp[0], "vice": by_xp[1], "pos": pos}
