@@ -1061,9 +1061,11 @@ for x in [t["element_in"] for t in transfers] + [t["element_out"] for t in trans
 
 # ---------------------------------------------------------------- you vs the model on your own 15 (F1)
 # Each finished gameweek: the model picks its best XI, captain and vice from the 15 you actually had, using only the
-# forecast saved before that deadline (history/proj_gwN.json), and both teams are scored on what happened by FPL's
-# rules (fpl_score.py: auto-subs, vice armband, chips). Scores are before hits: this tests team selection, not
-# transfers. Then the record and winning run (fpl_score.streak).
+# forecast saved before that deadline (history/proj_gwN.json). The score is YOUR ACTUAL points against the points the
+# model EXPECTED its pick to get before the deadline (fpl_score.expected, rounded to the nearest point by
+# fpl_score.target; agreed 4 Nov): beat it and you win the week, equal is a draw, below is a defeat. Both teams are
+# also scored on what happened by FPL's rules (fpl_score.py: auto-subs, vice armband, chips), shown as information.
+# Scores are before hits: this tests team selection, not transfers. Then the record and winning run (fpl_score.streak).
 # Missing / late / ambiguous: no saved forecast for a gameweek -> no head-to-head for it, never a re-run with today's
 # model (so the record starts at GW8); a gameweek not finished yet -> not scored (players still to play would look
 # like non-starters); picks or live data that couldn't be fetched -> that week is skipped and counted in "skipped".
@@ -1089,7 +1091,10 @@ try:
         side = lambda t, r: {"pts": r["total"], "xi": t["xi"], "bench": t["bench"], "cap": t["captain"], "vice": t["vice"],
                              "armband": r["captain"], "subs": r["subs"], "formation": "-".join(
                                  str(sum(pos_all[i] == k for i in r["xi"])) for k in ("DEF", "MID", "FWD"))}
-        vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(a["total"], b["total"]),
+        exp_m = fpl_score.expected(mod_t, sx, chip)
+        par = fpl_score.target(exp_m)
+        vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(a["total"], par),
+                         "target": {"exp": round(exp_m, 1), "par": par},
                          "you": side(you_t, a), "model": side(mod_t, b), "fpl_pts": pk["entry_history"]["points"],
                          "xp": {str(i): round(sx.get(i, 0.0), 2) for i in squad_g},
                          "pts": {str(i): played_g.get(i, (0, 0))[1] for i in squad_g}})

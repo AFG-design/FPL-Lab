@@ -147,9 +147,18 @@ def main(path):
             n_ = {k: sum(pos_.get(i) == k for i in w["model"]["xi"]) for k in ("GKP", "DEF", "MID", "FWD")}
             if n_["GKP"] != 1 or n_["DEF"] < 3 or n_["MID"] < 2 or n_["FWD"] < 1:
                 errors.append(f"You vs the model GW{w['gw']}: the model's XI isn't a legal formation ({n_})")
-            want = "W" if w["you"]["pts"] > w["model"]["pts"] else "L" if w["you"]["pts"] < w["model"]["pts"] else "D"
-            if w["res"] != want:
-                errors.append(f"You vs the model GW{w['gw']}: result {w['res']} but {w['you']['pts']}-{w['model']['pts']}")
+            # the week is your actual points against the model's expected points for its pick, rounded (the target)
+            tg_ = w.get("target") or {}
+            xp_ = {int(k): v for k, v in w.get("xp", {}).items()}
+            m_ = w["model"]
+            cnt_ = m_["xi"] + (m_["bench"] if w.get("chip") == "bboost" else [])
+            exp_ = sum(xp_.get(i, 0) for i in cnt_) + (2 if w.get("chip") == "3xc" else 1) * xp_.get(m_["cap"], 0)
+            if tg_.get("par") is None or abs(tg_.get("exp", -999) - exp_) > 0.2 or abs(tg_["par"] - tg_["exp"]) > 0.5:
+                errors.append(f"You vs the model GW{w['gw']}: target {tg_} doesn't match the saved forecast ({exp_:.1f})")
+            else:
+                want = "W" if w["you"]["pts"] > tg_["par"] else "L" if w["you"]["pts"] < tg_["par"] else "D"
+                if w["res"] != want:
+                    errors.append(f"You vs the model GW{w['gw']}: result {w['res']} but {w['you']['pts']} v target {tg_['par']}")
             if w["you"]["pts"] != w["fpl_pts"]:
                 warnings.append(f"You vs the model GW{w['gw']}: your team scores {w['you']['pts']} by our rules but {w['fpl_pts']} on FPL")
         rec = vm.get("record", {})

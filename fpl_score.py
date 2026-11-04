@@ -133,9 +133,24 @@ MILESTONES = [(3, "Hat-trick"), (6, "Six-pointer"), (10, "Double figures"), (19,
 MAX_WILDCARDS = 2
 
 
-def result(you, model):
-    """W, D or L for you. A draw is an exactly equal score (FPL points are whole numbers)."""
-    return "W" if you > model else "L" if you < model else "D"
+def expected(team, xp, chip=None):
+    """What the model expected its pick to score, from the forecast saved before the deadline: the XI's projected
+    points (all 15 with Bench Boost) plus the captain's again (twice again with Triple Captain). No auto-subs: this is
+    the figure the model stood by at the deadline. A player missing from the saved forecast counts as 0."""
+    counted = team["xi"] + (team["bench"] if chip == "bboost" else [])
+    extra = 2 if chip == "3xc" else 1
+    return sum(xp.get(i, 0.0) for i in counted) + extra * xp.get(team["captain"], 0.0)
+
+
+def target(exp):
+    """The whole-number score to beat: the model's expected points rounded to the nearest point, halves up (48.5 -> 49).
+    FPL points are whole numbers, so a decimal target could never be drawn; rounding makes a draw possible but rare."""
+    return int(exp + 0.5) if exp >= 0 else -int(-exp + 0.5)
+
+
+def result(you, par):
+    """W, D or L for you: your actual points against the model's target (its expected points, rounded)."""
+    return "W" if you > par else "L" if you < par else "D"
 
 
 def streak(results, season_from_gw1=False):
