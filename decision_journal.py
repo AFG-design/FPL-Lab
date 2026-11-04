@@ -49,6 +49,7 @@ def player_row(pid, dl, proj, fixtures, gw, team):
     fx = [[f["team_a"], 1] if f["team_h"] == team else [f["team_h"], 0]
           for f in fixtures if f.get("event") == gw and team in (f["team_h"], f["team_a"])]
     return {"xp1": round(xp[0], 2) if xp else 0.0, "xp5": round(sum(xp), 2) if xp else 0.0,
+            "xp": [round(x, 2) for x in xp] if xp else [0.0] * len(dl.get("plan_gws") or [gw]),
             "start": mins[0], "xmin": mins[2], "status": pr[2] if pr and len(pr) > 2 else None,
             "chance": pr[3] if pr and len(pr) > 3 else None, "fx": fx, "absent": xp is None}
 
@@ -68,3 +69,51 @@ def entry(gw, dl, proj, my_moves, picks, fixtures, best, team_of):
     return {"gw": gw, "chip": picks.get("active_chip"), "hits": picks["entry_history"].get("event_transfers_cost", 0),
             "you": {"moves": mine, "captain": cap}, "model": model, "both": both, "yours": yours, "skipped": skipped,
             "players": {str(i): player_row(i, dl, proj, fixtures, gw, team_of.get(i)) for i in sorted(ids)}}
+
+
+# ---------------------------------------------------------------- how it turned out (D5c)
+WINDOW = 5   # transfers are judged over the five gameweeks from the one they were made for (agreed 4 Nov)
+
+
+def outcome(e, played, finished):
+    """How the entry's calls turned out so far. played: {gw: {pid: (minutes, points, starts)}} for finished gameweeks
+    (FPL's live data, a double gameweek already summed); finished: the finished gameweek numbers.
+
+    Each move is judged on the two players' own points over the gameweeks from e["gw"] to e["gw"] + 4 that have
+    finished, whether or not you started them (it judges the signing, not the lineup), next to what the forecast saved
+    before the deadline projected for the same gameweeks. A Free Hit week is judged on that week only (the moves were
+    undone after it). The deadline week also gets an assumptions check: did each player start, and how many minutes
+    against the minutes expected.
+    Missing / late: no finished gameweek in the window yet -> None (the page says when results start); a player with no
+    entry in a finished gameweek (no match, or not in FPL's data) played 0 minutes and scored 0; a player whose
+    forecast was missing ("absent") projects 0 and the page already says he wasn't in the forecast.
+    Returns {"gws": [done], "of": window length, "moves": {"out-in": {...}}, "captain": {...}} or None.
+    """
+    g0 = e["gw"]
+    span = [g0] if e.get("chip") == "freehit" else list(range(g0, g0 + WINDOW))
+    done = [g for g in span if g in set(finished) and g in played]
+    if not done:
+        return None
+    P = e["players"]
+    pts = lambda i, g: played[g].get(i, (0, 0, 0))[1]
+    xp_at = lambda i, k: (P[str(i)].get("xp") or [0.0] * WINDOW)[k] if k < len(P[str(i)].get("xp") or []) else 0.0
+    proj = lambda i: sum(xp_at(i, g - g0) for g in done)
+    act = lambda i: sum(pts(i, g) for g in done)
+
+    def check(i):
+        m, _, st = played.get(g0, {}).get(i, (0, 0, 0)) if g0 in done else (None, None, None)
+        return None if m is None else {"started": bool(st), "mins": m, "start_chance": P[str(i)].get("start"),
+                                       "xmin": P[str(i)].get("xmin")}
+
+    moves = {}
+    for o, i in e["you"]["moves"] + ((e.get("model") or {}).get("moves") or []):
+        k = f"{o}-{i}"
+        if k in moves:
+            continue
+        moves[k] = {"out": o, "in": i, "out_pts": act(o), "in_pts": act(i), "gain": act(i) - act(o),
+                    "proj_gain": round(proj(i) - proj(o), 2), "check": {"out": check(o), "in": check(i)}}
+    cap = None
+    if g0 in done:
+        yc, mc = e["you"]["captain"], (e.get("model") or {}).get("captain")
+        cap = {"you": yc, "you_pts": pts(yc, g0), "model": mc, "model_pts": pts(mc, g0) if mc else None}
+    return {"gws": done, "of": len(span), "moves": moves, "captain": cap}

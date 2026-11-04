@@ -1163,6 +1163,11 @@ try:
         jw.append(decision_journal.entry(g, dl_, json.load(open(pj_f)) if os.path.exists(pj_f) else None, mine, pk,
                                          fixtures, best_,
                                          {pid: e["team"] for pid, e in elements.items()}))
+    # how each call turned out so far (D5c): every finished gameweek's minutes, points and starts from FPL's live data
+    j_played = {g: {el["id"]: (el["stats"]["minutes"], el["stats"]["total_points"], el["stats"].get("starts", 0))
+                    for el in live[g]["elements"]} for g in finished_gws if g in live}
+    for e_ in jw:
+        e_["outcome"] = decision_journal.outcome(e_, j_played, finished_gws)
     journal = {"weeks": jw, "no_snapshot": j_none, "skipped": j_skip}
 except Exception as ex:   # never let this stop the build
     print("decision journal not built:", ex)
@@ -1447,7 +1452,7 @@ out = {
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
              "xp_cur": xp_cur_meta,   # xP table live column: snapshot used, or why it's missing (None outside a live GW)
              "deadline": next_ev["deadline_time"] if next_ev else None, "proj_gws": proj_gws, "plan_gws": proj_gws[:PLAN_GWS],
-             "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw,
+             "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw, "finished_gws": finished_gws,
              "squad_gw": squad_gw, "fh_restored": fh_active,   # squad and bank come from GW squad_gw (the week before a Free Hit)
              "price_deadlines": boot["game_config"]["settings"].get("price_change_deadlines", []),
              "priors_season": next(iter((priors or {}).get("players", {}).values()), {}).get("season"),
