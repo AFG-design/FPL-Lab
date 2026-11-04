@@ -97,7 +97,7 @@ function vNext() {
   // A player with no projection counts as 0 xP.
   const why1 = m => { const d = xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length), cash = Math.round((sellPrice(m.out) - P[m.in].price) * 10) / 10;
     return `${esc(P[m.in].name)}: ${sgn(d)} xP over ${PG.length} GW${PG.length === 1 ? "" : "s"} vs ${esc(P[m.out].name)}${cash > 0 ? `, frees ${money(cash)}` : cash < 0 ? `, costs ${money(-cash)}` : ", same money"}`; };
-  const mvList = n ? `<ul class="dc-moves">${moves0.map(m => `<li><span class="out"><span class="sr">Out: </span>${esc(P[m.out].name)}</span><span class="arr" aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)}</span><span class="muted mono">${money(P[m.in].price)}</span><small class="dc-why">${why1(m)}</small></li>`).join("")}</ul>`
+  const mvList = n ? `<ul class="dc-moves">${moves0.map(m => `<li><span class="out"><span class="sr">Out: </span>${esc(P[m.out].name)}</span><span class="arr" aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)}</span><span class="muted mono">${money(P[m.in].price)}</span><small class="dc-why">${why1(m)}</small>${reasonBtn(m.gw, m.out, m.in, "why")}</li>`).join("")}</ul>`
     : `<p class="dc-do">Roll: no transfers planned</p>`;
   const tBody = `${mvList}
     <dl class="dc-nums">

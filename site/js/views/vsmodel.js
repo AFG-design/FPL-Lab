@@ -57,8 +57,9 @@ function vmModelItems(t, xpOf, ptsOf, squad, done, chip) {
   return { xi: t.xi.map(i => item(i, false)).filter(Boolean), bench: (t.bench || []).map(i => item(i, true)).filter(Boolean) };
 }
 
-const vmMoves = t => t.out?.length
-  ? `<ul class="vm-moves">${t.out.map((o, k) => `<li><span class="out">▼ ${vmNm(o)}</span> <span class="in">▲ <button type="button" class="linkish" data-p="${t.in[k]}">${vmNm(t.in[k])}</button></span></li>`).join("")}</ul>
+// gw: given only for the week to come, where each suggestion gets a "Why not?" (D5b)
+const vmMoves = (t, gw) => t.out?.length
+  ? `<ul class="vm-moves">${t.out.map((o, k) => `<li><span class="out">▼ ${vmNm(o)}</span> <span class="in">▲ <button type="button" class="linkish" data-p="${t.in[k]}">${vmNm(t.in[k])}</button></span>${gw ? reasonBtn(gw, o, t.in[k], "whynot") : ""}</li>`).join("")}</ul>
      <p class="note">${t.hits ? `${t.hits} hit${t.hits > 1 ? "s" : ""}: −${t.hits * 4} taken off its projection` : "No hits"}</p>`
   : `<p class="note">No transfers: it kept the 15 you had.</p>`;
 
@@ -106,7 +107,8 @@ function vmNext(n) {
       <p class="note">The target is fixed at the deadline${n.deadline ? ` (${esc(ukTime(n.deadline))})` : ""}. Until then it follows the model's latest plans and can change with each refresh.</p></div>
     <div class="panel" style="max-width:720px"><div class="bar"><h3>What the model suggests</h3><span class="tag">${esc(vmPlan(t.plan))}</span></div>
       ${luPitch(items.xi, [], { label: `The model's GW${n.gw} XI`, note: "Its bench isn't saved with the plan." })}
-      ${vmMoves(t)}
+      ${vmMoves(t, n.gw)}
+      <p class="note">Not making one of these? Tap Why not? to note your reason; it goes in the decision journal.</p>
       <p class="note">Big number: projected points for GW${n.gw} (captain ×2 included).</p></div>`;
 }
 
@@ -118,13 +120,14 @@ function vmNext(n) {
 const jPct = x => x == null ? "–" : Math.round(x * 100) + "%";
 function jFx(r) { return r.fx?.length ? r.fx.map(([o, h]) => `${esc(T[o]?.short || "?")} (${h ? "H" : "A"})`).join(" + ") : "No match"; }
 function jFlag(r) { return r.status && r.status !== "a" ? ` <span class="tag warn" title="FPL flag before the deadline">${r.chance != null ? r.chance + "%" : esc(r.status)}</span>` : ""; }
-function jRow([o, i], e) {
+function jRow([o, i], e, kind) {
   const po = e.players[o] || {}, pi = e.players[i] || {};
   const d = (pi.xp5 || 0) - (po.xp5 || 0);
   const side = (id, r) => `<button type="button" class="linkish" data-p="${id}">${vmNm(id)}</button>${jFlag(r)}${r.absent ? ' <span class="muted">(not in the forecast)</span>' : ""}`;
   return `<li class="j-row"><div class="j-move"><span class="out">▼ ${side(o, po)}</span><span class="in">▲ ${side(i, pi)}</span></div>
     <div class="j-facts"><span>xP next 5: ${f1(po.xp5)} → <b>${f1(pi.xp5)}</b> <b class="${d >= 0 ? "up" : "down"}">${sgn(d)}</b></span>
-      <span>Start chance: ${jPct(po.start)} → ${jPct(pi.start)}</span><span>GW${e.gw}: ${jFx(pi)}</span></div></li>`;
+      <span>Start chance: ${jPct(po.start)} → ${jPct(pi.start)}</span><span>GW${e.gw}: ${jFx(pi)}</span></div>
+    <div class="j-why">${reasonBtn(e.gw, o, i, kind)}</div></li>`;
 }
 function journalPanel(gw, isNext) {
   const J = D.journal, e = J?.weeks?.find(x => x.gw === gw);
@@ -137,15 +140,15 @@ function journalPanel(gw, isNext) {
     return `<div class="panel j-panel">${head}<p class="note">${why}</p></div>`;
   }
   const r = id => e.players[id] || {};
-  const grp = (title, list, empty) => `<div class="j-grp"><h4>${title} <span class="muted">${list.length}</span></h4>${list.length ? `<ul>${list.map(m => jRow(m, e)).join("")}</ul>` : `<p class="note">${empty}</p>`}</div>`;
+  const grp = (title, list, empty, kind) => `<div class="j-grp"><h4>${title} <span class="muted">${list.length}</span></h4>${list.length ? `<ul>${list.map(m => jRow(m, e, kind)).join("")}</ul>` : `<p class="note">${empty}</p>`}</div>`;
   const yc = e.you.captain, mc = e.model?.captain;
   return `<div class="panel j-panel">${head}
     ${e.chip === "freehit" ? '<p class="vm-assumed"><b>Free Hit:</b> these moves were for this week only.</p>' : ""}
     <div class="j-cap"><span>Captain</span><span>You: <b>${vmNm(yc)}</b> ${f1(r(yc).xp1)} xP</span>${e.model ? `<span>Model: <b>${vmNm(mc)}</b> ${f1(r(mc).xp1)} xP${mc === yc ? ' <span class="pill good">Same</span>' : ""}</span>` : ""}</div>
     ${e.model ? `<p class="note">The model's suggestion: ${esc(vmPlan(e.model.plan))}${e.model.hits ? `, ${e.model.hits} hit${e.model.hits > 1 ? "s" : ""}` : ", no hits"}. Your hits: ${e.hits ? "−" + e.hits : "none"}.</p>` : '<p class="note">No saved plan for this week, so there is nothing to compare your moves with.</p>'}
-    ${grp("You and the model", e.both, "No move in common.")}
-    ${grp("Your calls", e.yours, "None: every move you made was one it suggested.")}
-    ${e.model ? grp("Its suggestions you skipped", e.skipped, "None: you made every move it suggested.") : ""}
+    ${grp("You and the model", e.both, "No move in common.", "why")}
+    ${grp("Your calls", e.yours, "None: every move you made was one it suggested.", "why")}
+    ${e.model ? grp("Its suggestions you skipped", e.skipped, "None: you made every move it suggested.", "whynot") : ""}
     <p class="note">xP next 5: projected points over the five gameweeks from GW${gw}, as saved before the deadline. Start chance and flags as they stood then.</p></div>`;
 }
 
