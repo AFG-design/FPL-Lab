@@ -110,8 +110,10 @@ function pairsHTML(g) {
 }
 function whyOut(o, g) {
   const p = P[o], bits = [];
-  if (p.status !== "a") bits.push(p.news || "flagged");
-  if (p.mflag) bits.push(p.mflag.toLowerCase());
+  // FPL's news note and the model's flag are outside text: escaped, as everywhere else they're shown (the result is
+  // inserted as HTML in the suggestion cards)
+  if (p.status !== "a") bits.push(esc(p.news || "flagged"));
+  if (p.mflag) bits.push(esc(p.mflag.toLowerCase()));
   else if (p.nailed < 60) bits.push(`not nailed (${p.nailed})`);
   if ((p.price_proj?.[0] ?? 0) <= -80 && fallCostsYou(o)) bits.push(priceMove(p.price_proj[0]));
   bits.push(`${f1(xpFrom(o, g, PG.length))} xP over ${PG.length} GWs`);

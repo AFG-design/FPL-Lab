@@ -27,6 +27,7 @@ Starts its own static server and a headless Chromium, then runs each check again
     match" in a blank); the three-week run only in the Planner; prices only in Your plan, matching the selling price;
     "×2" only on the projected captain.
   - Set-piece tags: Pens / 2nd on pens / Corners / FKs from FPL's taker order show on player lists; no duty, no tag.
+  - News text: FPL's injury note in the Planner's transfer reasons is shown as text, never read as HTML.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -491,6 +492,24 @@ def check_sp_tags(page):
     return fails
 
 
+def check_news_escaped(page):
+    """FPL's news note is shown as text, never read as HTML, in the Planner's transfer reasons (whyOut)."""
+    r = page.evaluate("""() => {
+      const p = D.players.find(x => P[x.id]) , keep = { st: p.status, news: p.news };
+      p.status = "d"; p.news = '<img src=x data-bad="1">Knock & <b>doubt</b>';
+      const html = whyOut(p.id, PG[0]);
+      const box = document.createElement("div"); box.innerHTML = html;
+      Object.assign(p, { status: keep.st, news: keep.news });
+      return { tags: box.querySelectorAll("img, b").length, text: box.textContent };
+    }""")
+    fails = []
+    if r["tags"]:
+        fails.append(f"News text: the note was read as HTML in transfer reasons ({r['tags']} tags made)")
+    if "<img" not in r["text"] or "Knock & " not in r["text"]:
+        fails.append(f"News text: the note wasn't shown as written ({r['text'][:80]})")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -535,7 +554,8 @@ def main():
         page.wait_for_selector(".view-planner", timeout=20000)
         for name, fn in (("vice", lambda: check_vice(page)), ("replan", lambda: check_replan(page)),
                          ("free hit note", lambda: check_fh_note(page)),
-                         ("set-piece tags", lambda: check_sp_tags(page))):
+                         ("set-piece tags", lambda: check_sp_tags(page)),
+                         ("news text", lambda: check_news_escaped(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
