@@ -859,3 +859,18 @@ tr.is-rival td { background: var(--accent-soft); }
 @media (max-width: 600px) {
   .j-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- decision journal reasons (D5b) ---------- */
+.rs-btn { display: inline-block; margin-top: 4px; padding: 2px 8px; border: 1px dashed var(--line-strong); border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; text-align: left; }
+.rs-btn:hover { color: var(--fg); border-color: var(--accent-text); }
+.rs-btn.set { border-style: solid; border-color: var(--accent-text); color: var(--fg); border-radius: var(--r-sm); }
+.rs-btn .rs-k { font-weight: 650; color: var(--accent-text); }
+.j-why { grid-column: 1 / -1; }
+.vm-moves li .rs-btn { margin-left: 8px; }
+.dc-moves li .rs-btn { flex-basis: auto; font-weight: 400; }
+.rs-move { display: flex; gap: 10px; flex-wrap: wrap; }
+.rs-move .out { color: var(--bad); }
+.rs-move .in { color: var(--good); }
+.rs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.rs-note { display: grid; gap: 4px; font-size: var(--fs-sm); color: var(--muted); margin-bottom: 12px; }
+.rs-note textarea { font: inherit; color: var(--fg); background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px; resize: vertical; }

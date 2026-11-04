@@ -809,6 +809,38 @@ def check_journal(page):
     return [f"Journal: {x}" for x in r]
 
 
+def check_reasons(page):
+    """D5b: a Why not? saved from the dialog shows on the move, survives a reload from storage, never runs a note as
+    HTML, and sync merges item by item with the newest edit winning."""
+    r = page.evaluate("""() => {
+      const out = [], V = D.vs_model, t = V && V.next && V.next.target;
+      if (!t || !t.out.length) return out;
+      const keep = JSON.stringify(REASONS), g = V.next.gw, o = t.out[0], i = t.in[0];
+      REASONS.items = {}; S.vmgw = "n" + g; setView("vsmodel");
+      const b = document.querySelector(`[data-reason="${g}:${o}:${i}:whynot"]`);
+      if (!b) { out.push("no Why not? on the week to come"); return out; }
+      b.click();
+      document.querySelector('#dlgBody [data-rtag="fixtures"]').click();
+      document.querySelector("#rsNote").value = '<img src=x onerror="window.__xss=1">';
+      document.querySelector("#rsSave").click();
+      const shown = document.querySelector(`[data-reason="${g}:${o}:${i}:whynot"]`);
+      if (!shown || !/Fixtures/.test(shown.textContent)) out.push("saved reason not shown on the move");
+      if (shown && shown.querySelector("img")) out.push("note was drawn as HTML");
+      if (window.__xss) out.push("note ran as script");
+      if (!(JSON.parse(localStorage.getItem("fpl.reasons")).items[`${g}:${o}-${i}`] || {}).tags?.includes("fixtures")) out.push("not saved to storage");
+      const k = `${g}:${o}-${i}`, mine = REASONS.items[k];
+      mergeReasons({ items: { [k]: { ...mine, tags: ["gut"], t: mine.t - 1000 } } });
+      if (REASONS.items[k].tags[0] !== "fixtures") out.push("an older synced copy overwrote a newer edit");
+      mergeReasons({ items: { [k]: { ...mine, tags: ["gut"], t: mine.t + 1000 }, "1:2-3": { gw: 1, out: 2, in: 3, tags: ["price"], t: 5 } } });
+      if (REASONS.items[k].tags[0] !== "gut" || !REASONS.items["1:2-3"]) out.push("a newer synced copy wasn't taken");
+      Object.assign(REASONS, JSON.parse(keep)); store.set("fpl.reasons", REASONS);
+      if ($("#dlg").open) $("#dlg").close();
+      S.vmgw = null; setView("planner");
+      return out;
+    }""")
+    return [f"Reasons: {x}" for x in r]
+
+
 def main():
     missing = [f for f in ("data.json", "data-extra.json") if not (SITE / f).exists()]
     if missing:
@@ -835,7 +867,8 @@ def main():
                          ("fixture horizon", lambda: check_fixture_horizon(page)),
                          ("you vs the model", lambda: check_vs_model(page)),
                          ("review: no saved forecast", lambda: check_review_no_forecast(page)),
-                         ("decision journal", lambda: check_journal(page))):
+                         ("decision journal", lambda: check_journal(page)),
+                         ("journal reasons", lambda: check_reasons(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
