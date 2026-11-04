@@ -26,6 +26,7 @@ Starts its own static server and a headless Chromium, then runs each check again
     actual points carry the armband once (never doubled again); one difficulty chip per fixture (two in a double, "No
     match" in a blank); the three-week run only in the Planner; prices only in Your plan, matching the selling price;
     "×2" only on the projected captain.
+  - Set-piece tags: Pens / 2nd on pens / Corners / FKs from FPL's taker order show on player lists; no duty, no tag.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -468,6 +469,28 @@ def check_lineup(browser, url):
     return out + errs
 
 
+def check_sp_tags(page):
+    """Set-piece tags (S4): FPL's taker order shows as one tag on player lists, even where only 2 other tags fit."""
+    r = page.evaluate("""() => {
+      const tagText = p => { const d = document.createElement("div"); d.innerHTML = playerTags(p, 2); return d.textContent; };
+      const find = f => D.players.find(f);
+      const cases = [
+        [find(p => p.sp?.pen === 1), "Pens"], [find(p => p.sp?.pen === 2), "2nd on pens"],
+        [find(p => p.sp?.cor === 1), "Corners"], [find(p => p.sp?.fk === 1), "FKs"]];
+      const none = find(p => !p.sp || (!p.sp.pen && !p.sp.cor && !p.sp.fk));
+      return { cases: cases.filter(([p]) => p).map(([p, want]) => ({ name: p.name, want, got: tagText(p) })),
+               none: none ? { name: none.name, got: tagText(none) } : null,
+               missing: cases.filter(([p]) => !p).map(([, w]) => w) };
+    }""")
+    fails = [f"Set-piece tag: {c['name']} should show '{c['want']}' (tags: {c['got'] or 'none'})"
+             for c in r["cases"] if c["want"] not in c["got"]]
+    if r["none"] and any(w in r["none"]["got"] for w in ("Pens", "Corners", "FKs")):
+        fails.append(f"Set-piece tag: {r['none']['name']} has no FPL duty but shows one ({r['none']['got']})")
+    if r["missing"]:
+        print(f"  (set-piece tags: no player in this build for {', '.join(r['missing'])}, not checked)")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -511,7 +534,8 @@ def main():
         page.goto(f"{url}#planner")
         page.wait_for_selector(".view-planner", timeout=20000)
         for name, fn in (("vice", lambda: check_vice(page)), ("replan", lambda: check_replan(page)),
-                         ("free hit note", lambda: check_fh_note(page))):
+                         ("free hit note", lambda: check_fh_note(page)),
+                         ("set-piece tags", lambda: check_sp_tags(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
