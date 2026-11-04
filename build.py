@@ -14,6 +14,7 @@ from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
 import fpl_score
+import decision_journal
 import deadline_snapshot
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
@@ -1091,7 +1092,8 @@ try:
         dl_f = os.path.join(HERE, "history", f"deadline_gw{g}.json")
         dl_ = json.load(open(dl_f)) if os.path.exists(dl_f) else {}
         sug = fpl_score.best_suggestion(dl_.get("plans"), g)
-        if sug:
+        if sug:   # out[k] -> in[k] like for like (the optimiser doesn't pair them)
+            sug["out"], sug["in"] = fpl_score.pair_moves(sug["out"], sug["in"], pos_all)
             sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + played_g.get(sug["captain"], (0, 0))[1]
             tgt = {"basis": "suggested", "assumed": False, "exp": round(sug["exp"], 1), "plan": sug["plan"],
                    "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"], "in": sug["in"], "captain": sug["captain"],
@@ -1116,6 +1118,7 @@ try:
         nd_ = json.load(open(nf_))
         ns_ = fpl_score.best_suggestion(nd_.get("plans"), next_gw)
         if ns_:
+            ns_["out"], ns_["in"] = fpl_score.pair_moves(ns_["out"], ns_["in"], pos_all)
             vm_next["target"] = {"exp": round(ns_["exp"], 1), "par": fpl_score.target(ns_["exp"]), "plan": ns_["plan"],
                                  "hits": ns_["hits"], "out": ns_["out"], "in": ns_["in"], "captain": ns_["captain"],
                                  "xi": ns_["xi"], "built": nd_.get("built")}
@@ -1126,6 +1129,44 @@ try:
 except Exception as ex:   # never let this stop the build; the tab says it's unavailable
     print("you vs the model not built:", ex)
     vs_model = None
+
+# ---------------------------------------------------------------- decision journal (D5a)
+# Each gameweek whose deadline has passed and that has a deadline snapshot (history/deadline_gwN.json, GW10 on): your
+# transfers and captain next to the model's suggestion for that week (the same plan the You vs the model target uses),
+# with what the app knew about every player involved before the deadline (decision_journal.py has the rules).
+# Missing / late / ambiguous: no snapshot -> no entry, the week is listed in "no_snapshot" (GW8 and GW9: saving began at
+# GW10); picks for the week not fetched -> skipped and listed in "skipped"; the gameweek in progress counts once its
+# deadline has passed (its picks are then final). Never stops the build: on an error, journal is None and the tab says so.
+journal = None
+try:
+    jw, j_none, j_skip = [], [], []
+    j_picks = dict(past)
+    if picks and picks_gw and picks_gw not in j_picks:
+        j_picks[picks_gw] = picks
+    for g in sorted(set(j_picks) | ({picks_gw} if picks_gw else set())):
+        if g < 8:
+            continue
+        dl_f = os.path.join(HIST, f"deadline_gw{g}.json")
+        if not os.path.exists(dl_f):
+            j_none.append(g)
+            continue
+        pk = j_picks.get(g)
+        if not pk:
+            j_skip.append(g)
+            continue
+        dl_ = json.load(open(dl_f))
+        pj_f = os.path.join(HIST, f"proj_gw{g}.json")
+        mine = [[t["element_out"], t["element_in"]] for t in sorted(transfers, key=lambda t: t["time"]) if t["event"] == g]
+        best_ = fpl_score.best_suggestion(dl_.get("plans"), g)
+        if best_:
+            best_["out"], best_["in"] = fpl_score.pair_moves(best_["out"], best_["in"], pos_all)
+        jw.append(decision_journal.entry(g, dl_, json.load(open(pj_f)) if os.path.exists(pj_f) else None, mine, pk,
+                                         fixtures, best_,
+                                         {pid: e["team"] for pid, e in elements.items()}))
+    journal = {"weeks": jw, "no_snapshot": j_none, "skipped": j_skip}
+except Exception as ex:   # never let this stop the build
+    print("decision journal not built:", ex)
+    journal = None
 
 # ---------------------------------------------------------------- set pieces (with change history)
 sp_now = {}
@@ -1234,6 +1275,7 @@ keep |= {t[0] for w in review["weeks"] for t in w.get("team", [])}
 keep |= {int(i) for t_ in [w["target"] for w in (vs_model or {}).get("weeks", [])] + [((vs_model or {}).get("next") or {}).get("target") or {}]
          for i in t_.get("xi", []) + t_.get("in", []) + t_.get("out", [])}
 keep |= {int(i) for w in (vs_model or {}).get("weeks", []) for i in w["xp"]}
+keep |= {int(i) for w in (journal or {}).get("weeks", []) for i in w["players"]}
 keep |= {x[0] for t in template for k in ("missing", "diffs") for x in t[k]}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
@@ -1425,7 +1467,7 @@ out = {
     "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
                    "tie": optimise.TIE, "strategy": optimise.STRATEGY},
     "accuracy": accuracy,
-    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "journal": journal, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

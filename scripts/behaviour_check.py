@@ -777,6 +777,38 @@ def check_review_no_forecast(page):
     return [f"Review: {x}" for x in r]
 
 
+def check_journal(page):
+    """D5a: the journal panel shows one row per move in each group exactly as the data has them, and a week with no
+    entry says why instead of drawing nothing. Uses a made-up entry built from next week's suggestion, because the first
+    real entry only exists once a deadline with a saved snapshot has passed."""
+    r = page.evaluate("""() => {
+      const out = [], V = D.vs_model, J = D.journal;
+      if (!J) return ["no journal in the data"];
+      setView("vsmodel");
+      if (V && V.weeks && V.weeks.length) {
+        S.vmgw = String(V.weeks[0].gw); render();
+        const p = document.querySelector(".j-panel");
+        if (!p) out.push("no journal panel"); else if (!J.weeks.some(e => e.gw === V.weeks[0].gw) && !/No entry|saved/.test(p.textContent)) out.push("empty week doesn't say why");
+      }
+      const t = V && V.next && V.next.target;
+      if (t && t.out.length) {
+        const keep = J.weeks, row = id => ({ xp1: 1, xp5: 5, start: 0.9, xmin: 80, status: "a", chance: null, fx: [], absent: false });
+        const mv = t.out.map((o, k) => [o, t.in[k]]), players = {};
+        mv.flat().concat([t.captain]).forEach(i => players[i] = row(i));
+        J.weeks = [{ gw: V.next.gw, chip: null, hits: 0, you: { moves: mv.slice(0, 1), captain: t.captain },
+          model: { plan: t.plan, moves: mv, hits: 0, captain: t.captain }, both: mv.slice(0, 1), yours: [], skipped: mv.slice(1), players }];
+        S.vmgw = "n" + V.next.gw; render();
+        const counts = [...document.querySelectorAll(".j-grp")].map(g => g.querySelectorAll(".j-row").length);
+        const want = [1, 0, mv.length - 1];
+        if (counts.join() !== want.join()) out.push(`groups show ${counts}, data ${want}`);
+        J.weeks = keep;
+      }
+      S.vmgw = null; setView("planner");
+      return out;
+    }""")
+    return [f"Journal: {x}" for x in r]
+
+
 def main():
     missing = [f for f in ("data.json", "data-extra.json") if not (SITE / f).exists()]
     if missing:
@@ -802,7 +834,8 @@ def main():
                          ("plan expiry", lambda: check_plan_expiry(page)),
                          ("fixture horizon", lambda: check_fixture_horizon(page)),
                          ("you vs the model", lambda: check_vs_model(page)),
-                         ("review: no saved forecast", lambda: check_review_no_forecast(page))):
+                         ("review: no saved forecast", lambda: check_review_no_forecast(page)),
+                         ("decision journal", lambda: check_journal(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
