@@ -12,6 +12,11 @@ function rankChart(h) {
     <polyline points="${h.map((d, i) => `${x(i)},${y(d.rank)}`).join(" ")}" fill="none" class="s1" stroke-width="2.5"/>
     ${h.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.rank)}" r="${i === h.length - 1 ? 5 : 3}" fill="${i === h.length - 1 ? "var(--armband)" : "var(--turf-2)"}"/><text x="${x(i)}" y="${H - 8}" text-anchor="middle">${d.gw}</text>`).join("")}</svg>`;
 }
+// "GW1–7" for a run of gameweeks, "GW3, GW5" otherwise
+function revGwList(gs) {
+  const s = gs.slice().sort((a, b) => a - b), run = s.every((g, k) => !k || g === s[k - 1] + 1);
+  return s.length > 2 && run ? `GW${s[0]}–${s[s.length - 1]}` : s.map(g => `GW${g}`).join(", ");
+}
 /* ---------- decision score: your choices judged on what the model knew before the deadline ---------- */
 function decisionPanel(R) {
   const W = R.weeks.filter(w => w.decision);
@@ -28,7 +33,7 @@ function decisionPanel(R) {
       <td class="n ${d.cap_loss > 0.05 ? "down" : ""}">${d.cap_loss > 0.05 ? "−" + f1(d.cap_loss) : "0"}</td>
       <td class="n ${d.lineup_loss > 0.05 ? "down" : ""}">${d.lineup_loss > 0.05 ? "−" + f1(d.lineup_loss) : "0"}</td>
       <td class="n ${d.tx_gain == null ? "" : d.tx_gain >= 0 ? "up" : "down"}">${d.tx_gain == null ? '<span class="muted">–</span>' : sgn(d.tx_gain)}</td>
-      <td class="n">${f1(d.proj)}${d.src === "rerun" ? '<sup class="muted" title="Re-run with the current model">*</sup>' : ""} → <b>${w.pts}</b></td><td class="n ${d.luck >= 0 ? "up" : "down"}">${sgn(d.luck)}</td></tr>`;
+      <td class="n">${f1(d.proj)} → <b>${w.pts}</b></td><td class="n ${d.luck >= 0 ? "up" : "down"}">${sgn(d.luck)}</td></tr>`;
   }).join("");
   return `<div class="panel"><div class="bar"><h3>${term("decision", "Decision score")}</h3><span class="grade big g-${overall}" aria-label="Season grade ${overall}">${overall}</span></div>
     <p class="note" style="margin-top:0">Each gameweek's choices judged on the projections available <i>before</i> the deadline, not on what happened. A bad week can still be a good decision.</p>
@@ -39,7 +44,7 @@ function decisionPanel(R) {
       <div class="kpi"><span class="lbl">${term("luck", "Luck")}</span><b class="${tot.luck >= 0 ? "up" : "down"}">${sgn(tot.luck)}</b><span class="delta muted">points scored vs projected</span></div>
     </div>
     <div class="tablebox"><table><thead><tr><th>GW</th><th>Grade</th><th>Captain <span class="muted">→ model</span></th><th class="n">Cap</th><th class="n">XI</th><th class="n">Moves</th><th class="n">Proj → actual</th><th class="n">Luck</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="note">A = within half a point of the model's best choices; B within 1.5; C within 3; D more. Starts from GW3, when the model has enough data.${W.some(w => w.decision.src === "rerun") ? " * No projection was saved before this deadline, so the week is re-run with the current model." : ""}</p></div>`;
+    <p class="note">A = within half a point of the model's best choices; B within 1.5; C within 3; D more. Graded from GW${W[0].gw}: only weeks with a forecast saved before their deadline count.${R.no_forecast?.length ? ` ${revGwList(R.no_forecast)}: no saved forecast, so not graded.` : ""}</p></div>`;
 }
 function vReview() {
   const h = D.history, L = D.live, R = D.review, mx = Math.max(...h.map(x => x.pts));
@@ -55,7 +60,8 @@ function vReview() {
   if (w.moves.length) { const net = w.moves.reduce((a, m) => a + m.in_pts - m.out_pts, 0) - w.hits; lines.push([net >= 0 ? "good" : "warn", `Transfers: ${w.moves.map(m => `${nm(m.out)} → ${nm(m.in)} (${m.out_pts} → ${m.in_pts})`).join(", ")}${w.hits ? `, −${w.hits} hit` : ""}. Net ${net >= 0 ? "+" : ""}${net} this week.`]); }
   else if (w.wildcard || w.freehit) lines.push(["info", `${w.wildcard ? "Wildcard" : "Free Hit"} week: ${w.n_tx} changes.`]);
   else lines.push(["info", "Transfers: none made."]);
-  if (w.xi_proj != null) lines.push(["info", `Model: your starting XI was ${w.proj_src === "rerun" ? "projected (re-run with the current model)" : "projected before the deadline"} ${f1(w.xi_proj)} (before captain) and scored ${w.xi_actual}.`]);
+  lines.push(w.xi_proj != null ? ["info", `Model: your starting XI was projected before the deadline ${f1(w.xi_proj)} (before captain) and scored ${w.xi_actual}.`]
+    : ["info", `Model: no saved forecast for GW${w.gw}. Forecasts are saved before each deadline from GW8, and the app doesn't re-run today's model on old weeks.`]);
   const best = R.transfers.slice().sort((a, b) => b.gain - a.gain).slice(0, 5), worst = R.transfers.slice().sort((a, b) => a.gain - b.gain).slice(0, 5);
   const txl = list => `<div class="tablebox"><table><thead><tr><th>GW</th><th>Move</th><th class="n">GWs</th><th class="n">Net</th></tr></thead><tbody>${list.map(t => `<tr><td>${t.gw}${t.wildcard ? ' <span class="tag">WC</span>' : ""}</td><td>${nm(t.out)} → ${nm(t.in)}</td><td class="n">${t.gws}</td><td class="n ${t.gain >= 0 ? "up" : "down"}">${t.gain > 0 ? "+" : ""}${t.gain}</td></tr>`).join("")}</tbody></table></div>`;
   return `${live}
@@ -73,7 +79,7 @@ function vReview() {
   ${decisionPanel(R)}
   ${templatePanel()}
   <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Pts</th><th class="n">Avg</th><th class="n">Rank</th><th>Captain</th><th class="n">Cap lost</th><th class="n">Bench</th><th class="n">Best possible</th><th class="n">Model XI</th><th>Chip</th></tr></thead>
-    <tbody>${R.weeks.slice().reverse().map(x => `<tr><td>${x.gw}</td><td class="n"><b>${x.pts}</b>${x.hits ? ` <span class="down">−${x.hits}</span>` : ""}</td><td class="n">${x.avg ?? "–"}</td><td class="n">${rankFmt(x.rank)}</td><td>${nm(x.captain)} <span class="muted">${x.cap_pts}</span></td><td class="n ${x.cap_lost ? "down" : ""}">${x.cap_lost ? "−" + x.cap_lost : "0"}</td><td class="n">${x.bench_pts}</td><td class="n">${x.best_possible}</td><td class="n">${x.xi_proj != null ? `${f1(x.xi_proj)} → ${x.xi_actual}` : "–"}</td><td>${x.chip ? `<span class="tag">${({ "3xc": "TC", bboost: "BB", freehit: "FH", wildcard: "WC" })[x.chip] || x.chip}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
+    <tbody>${R.weeks.slice().reverse().map(x => `<tr><td>${x.gw}</td><td class="n"><b>${x.pts}</b>${x.hits ? ` <span class="down">−${x.hits}</span>` : ""}</td><td class="n">${x.avg ?? "–"}</td><td class="n">${rankFmt(x.rank)}</td><td>${nm(x.captain)} <span class="muted">${x.cap_pts}</span></td><td class="n ${x.cap_lost ? "down" : ""}">${x.cap_lost ? "−" + x.cap_lost : "0"}</td><td class="n">${x.bench_pts}</td><td class="n">${x.best_possible}</td><td class="n">${x.xi_proj != null ? `${f1(x.xi_proj)} → ${x.xi_actual}` : `<span class="muted" title="No forecast was saved before the GW${x.gw} deadline">No saved forecast</span>`}</td><td>${x.chip ? `<span class="tag">${({ "3xc": "TC", bboost: "BB", freehit: "FH", wildcard: "WC" })[x.chip] || x.chip}</span>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
   <div class="statgrid"><div class="panel"><h3>Best transfers</h3>${txl(best)}</div><div class="panel"><h3>Worst transfers</h3>${txl(worst)}</div></div>
   <div class="grid2"><div class="panel"><h3>Overall rank</h3>${rankChart(h)}</div>
     <div class="panel"><h3>Points per gameweek</h3><div class="gwbars">${h.map(x => `<div title="GW${x.gw}: ${x.pts} pts"><span class="num" style="color:var(--fg);font-weight:600">${x.pts}</span><i style="height:${x.pts / mx * 60}px;${x.chip ? "background:var(--armband)" : ""}"></i>${x.gw}</div>`).join("")}</div>
@@ -86,11 +92,11 @@ function pastTeamPanel(R) {
   if (!W.some(w => w.gw === S.revGw)) S.revGw = W[W.length - 1].gw;
   const w = W.find(x => x.gw === S.revGw);
   const subIn = new Set(w.autosubs.map(a => a[0])), subOut = new Set(w.autosubs.map(a => a[1]));
-  const pre = w.proj_src !== "rerun", projLbl = pre ? "Projected before the deadline" : "Re-run with the current model";
+  const pre = w.proj_src === "snapshot", projLbl = "Projected before the deadline";
   const card = ([id, slot, mult, pts, mins, xp]) => { const p = P[id]; if (!p) return "";
     const capB = mult >= 2 ? `<span class="badge" aria-hidden="true">${mult === 3 ? "TC" : "C"}</span>` : "";
     const sc = mult ? pts * mult : pts, tag = subIn.has(id) ? '<span class="subtag in">▲ sub on</span>' : subOut.has(id) ? '<span class="subtag out">▼ sub off</span>' : "";
-    const label = `${p.name}: ${pts} points${mult >= 2 ? ` (×${mult} as captain)` : ""}, ${mins} minutes${xp != null ? `, ${pre ? "projected" : "re-run projection"} ${xp}` : ""}`;
+    const label = `${p.name}: ${pts} points${mult >= 2 ? ` (×${mult} as captain)` : ""}, ${mins} minutes${xp != null ? `, projected ${xp}` : ""}`;
     return `<button class="pc past ${sc >= 10 ? "haul" : ""}" data-p="${id}" aria-label="${esc(label)}">${capB}
       <img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">
       <span class="nm">${esc(p.name)}</span><span class="xp">${sc}</span>
@@ -101,9 +107,9 @@ function pastTeamPanel(R) {
   const chip = w.chip ? ({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[w.chip] || w.chip : "";
   return `<div class="panel"><div class="bar"><h3>Your team by gameweek</h3>
       <div class="seg" role="group" aria-label="Gameweek">${W.map(x => `<button data-revgw="${x.gw}" aria-pressed="${x.gw === w.gw}">GW${x.gw}</button>`).join("")}</div></div>
-    <p class="note" style="margin-top:0"><b>${w.pts} pts</b>${w.hits ? ` (−${w.hits} hit)` : ""} · average ${w.avg ?? "–"} · rank ${rankFmt(w.rank)}${chip ? ` · ${chip}` : ""}${proj != null ? ` · ${projLbl.toLowerCase()}: ${f1(proj)}` : ""}${w.decision ? ` · decision grade <span class="grade g-${w.decision.grade}">${w.decision.grade}</span>` : ""}</p>
+    <p class="note" style="margin-top:0"><b>${w.pts} pts</b>${w.hits ? ` (−${w.hits} hit)` : ""} · average ${w.avg ?? "–"} · rank ${rankFmt(w.rank)}${chip ? ` · ${chip}` : ""}${proj != null ? ` · ${projLbl.toLowerCase()}: ${f1(proj)}` : " · no saved forecast"}${w.decision ? ` · decision grade <span class="grade g-${w.decision.grade}">${w.decision.grade}</span>` : ""}</p>
     <div class="pitchwrap"><div class="pitch" role="group" aria-label="Starting XI, GW${w.gw}">${rows}</div><div class="bench" role="group" aria-label="Bench"><span class="lbl">Bench</span>${bench.map(card).join("")}</div>
-      <div class="pitch-key"><span>Big number: points scored (doubled for the captain)</span><span>Then minutes and ${pre ? "the projection made before that deadline" : "the projection re-run with the current model (none was saved before this deadline)"}</span></div></div>
+      <div class="pitch-key"><span>Big number: points scored (doubled for the captain)</span><span>Then minutes${pre ? " and the projection made before that deadline" : ". No forecast was saved before this deadline (saving began at GW8), so no projection is shown"}</span></div></div>
     ${w.moves.length ? `<p class="note">Transfers that week: ${w.moves.map(m => `${esc(P[m.out]?.name || "?")} → ${esc(P[m.in]?.name || "?")}`).join(", ")}.</p>` : ""}</div>`;
 }
 
