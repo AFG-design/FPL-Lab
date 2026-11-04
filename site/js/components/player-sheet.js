@@ -92,8 +92,6 @@ function openPlayer(id) {
   const pills = [
     p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}">${esc(p.news || "Flagged")}</span>` : "",
     p.mflag ? `<span class="pill warn">${esc(p.mflag)}</span>` : "",
-    p.sp?.cor === 1 ? '<span class="pill good">Corners</span>' : "",
-    p.sp?.fk === 1 ? '<span class="pill good">Free kicks</span>' : "",
     eu ? `<span class="pill mut">Also plays ${esc(eu.eu)}</span>` : "",
   ].join("") + playerTags(p, 6);
 

@@ -25,10 +25,22 @@ function playerTagList(p) {
   const u = p.upos || "";
   if (p.pos === "DEF" && /[MF]/.test(u.replace(/S/g, ""))) out.push(["oop", "Plays further forward", `FPL lists him as a defender; Understat has him playing as ${u.includes("F") ? "a forward" : "a midfielder"} too`]);
   else if (p.pos === "MID" && /F/.test(u)) out.push(["oop", "Plays up front", "FPL lists him as a midfielder; Understat has him playing as a forward too"]);
-  if (p.sp?.pen === 1) out.push(["pen", "Pens", "First-choice penalty taker"]);
   return out;
 }
+// Set-piece duty as one tag, from FPL's own taker order (penalties_order, corners_and_indirect_freekicks_order,
+// direct_freekicks_order): Pens / 2nd on pens, Corners, FKs. Only first choice counts for corners and free kicks.
+// Missing: FPL gives no order for most players, so no tag; a club with no order set shows no tags at all (FPL fills
+// these in through the season), never a guess from past takes.
+function spTag(p) {
+  const s = p.sp || {}, bits = [], why = [];
+  if (s.pen === 1) { bits.push("Pens"); why.push("first-choice penalty taker"); }
+  else if (s.pen === 2) { bits.push("2nd on pens"); why.push("second-choice penalty taker"); }
+  if (s.cor === 1) { bits.push("Corners"); why.push("takes corners and indirect free kicks"); }
+  if (s.fk === 1) { bits.push("FKs"); why.push("takes direct free kicks"); }
+  return bits.length ? ["pen", bits.join(" · "), `FPL lists him as ${why.join(", ")}`] : null;
+}
+// max limits the other tags; the set-piece tag always shows (it's what you scan for while browsing) and comes first
 function playerTags(p, max = 3) {
-  const t = playerTagList(p).slice(0, max);
+  const sp = spTag(p), t = [...(sp ? [sp] : []), ...playerTagList(p).slice(0, max)];
   return t.length ? `<span class="ptags">${t.map(([k, l, why]) => `<span class="ptag t-${k}" title="${esc(why)}">${l}</span>`).join("")}</span>` : "";
 }
