@@ -239,7 +239,7 @@ function plannerEditor() {
     <div class="kpi"><span class="lbl">GW${g} ${term("ft", "free transfers")}</span><b>${wk.ft}</b><span class="delta muted">${wk.hits ? `${wk.hits} hit (−${wk.hits * 4})` : `next week: ${wk.next}`}</span></div>
   </div>
   ${problems.length ? `<p class="verdict" style="border-color:var(--bad)">${problems.map(w => `GW${w.gw}: ${w.bank < 0 ? `over budget by ${money(-w.bank)}` : ""}${w.bank < 0 && w.over.length ? "; " : ""}${w.over.length ? `more than 3 players from ${w.over.join(", ")}` : ""}`).join(". ")}. Adjust the plan before you make it on the FPL site.</p>` : ""}
-  <div class="grid2">
+  <div class="grid2 lu-cols">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       <div class="gwsel" role="group" aria-label="Gameweek">${gwButtons}</div>
       <div class="bar lu-bar"><h3>GW${g} team · ${esc(planName())}</h3>${lineupToggle()}</div>

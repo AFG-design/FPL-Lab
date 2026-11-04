@@ -392,7 +392,10 @@ tr.is-rival td { background: var(--accent-soft); }
 .dcc > b { font-family: var(--display); font-size: 22px; font-weight: 700; }
 
 /* pitch on the left, research and checks on the right */
-.home-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.home-main { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* the Planner's lineup column gets the same share (about 65%), so five cards fit side by side */
+.grid2.lu-cols { grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); }
 .home-pitch { display: grid; gap: 10px; min-width: 0; }
 .home-pitch .bar { margin: 0; }
 .home-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
@@ -447,6 +450,10 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu .lvc-nocount .xp { color: var(--muted); }
 .bench-note { margin: 0; padding: 8px 12px; font-size: var(--fs-xs); color: var(--muted); border-top: 1px solid var(--line); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 1000px) {
+  .grid2.lu-cols { grid-template-columns: minmax(0, 1fr); }
+}
 
 @media (max-width: 1100px) {
   .dcards { grid-template-columns: minmax(0, 1fr); }
@@ -564,7 +571,9 @@ tr.is-rival td { background: var(--accent-soft); }
   .tp-del { margin-left: 0; }
 }
 
-/* ---------- lineup: Cards | Kits (components/pitch.js). Both share markup; Review's own pitch is untouched ---------- */
+/* ---------- lineup: Cards | Kits (components/pitch.js). Each has its own markup; Review's own pitch is untouched ----------
+   The rules below written for .lu-kits are the earlier card rules, unchanged, now scoped to Kits (its pitch and its
+   bench strip). Cards has its own block after them. */
 .lu-head { display: inline-flex; align-items: center; gap: 8px; }
 .lu-bar { margin: 0; }
 .lu-bar h3 { font-size: var(--fs-lg); }
@@ -572,27 +581,27 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-toggle button:focus-visible { outline: 2px solid var(--hi); outline-offset: 1px; }
 .lu .pitch { gap: 8px; padding: 14px 8px 12px; container: lupitch / inline-size; }
 .lu .row { gap: 6px; }
-.lu .lu-pc { flex: 0 1 156px; width: auto; min-width: 0; padding: 0; text-align: left; container-type: inline-size; border-radius: 8px;
+.lu-kits .lu-pc { flex: 0 1 156px; width: auto; min-width: 0; padding: 0; text-align: left; container-type: inline-size; border-radius: 8px;
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 75%, transparent), 0 2px 6px rgb(0 0 0 / 25%); }
-.lu .pc.newin { box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 75%, transparent), inset 0 -2px 0 var(--good), 0 2px 6px rgb(0 0 0 / 25%); }
-.lu .lu-box { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; box-sizing: border-box; min-height: 62px; padding: 8px 9px; }
-.lu .lu-kit { position: relative; width: 28px; height: 28px; }
-.lu .shirt { display: block; width: 100%; height: 100%; margin: 0; object-fit: contain; }
-.lu .flag { top: -7px; left: -9px; }
+.lu-kits .pc.newin { box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 75%, transparent), inset 0 -2px 0 var(--good), 0 2px 6px rgb(0 0 0 / 25%); }
+.lu-kits .lu-box { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-items: center; gap: 7px; box-sizing: border-box; min-height: 62px; padding: 8px 9px; }
+.lu-kits .lu-kit { position: relative; width: 28px; height: 28px; }
+.lu-kits .shirt { display: block; width: 100%; height: 100%; margin: 0; object-fit: contain; }
+.lu-kits .flag { top: -7px; left: -9px; }
 .lu-role { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; background: var(--hi); color: var(--hi-fg); box-shadow: 0 0 0 2px var(--surface); }
 .lu-role.v { background: var(--fg); color: var(--bg); }
-.lu .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm nm" "sub xp" "ex ex"; align-items: center; column-gap: 6px; min-width: 0; }
-.lu .lu-line { display: contents; }
-.lu .nm { grid-area: nm; min-width: 0; overflow: hidden; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.1; white-space: nowrap; text-overflow: ellipsis; }
-.lu .nm, .lu .lu-sub { display: block; }
-.lu .nm .lu-in { display: inline-block; margin-left: 4px; vertical-align: 2px; }
-.lu .xp { grid-area: xp; font-size: 21px; line-height: 1; }
-.lu .lu-sub { grid-area: sub; overflow: hidden; font-size: 11px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
-.lu .lu-sub:has(.fdr) { display: flex; flex-wrap: wrap; gap: 2px; text-overflow: clip; }
-.lu .lu-sub .fdr { font-size: 10px; padding: 1px 3px; }
-.lu .lu-sub .fdr .eudot { display: none; }
+.lu-kits .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm nm" "sub xp" "ex ex"; align-items: center; column-gap: 6px; min-width: 0; }
+.lu-kits .lu-line { display: contents; }
+.lu-kits .nm { grid-area: nm; min-width: 0; overflow: hidden; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.1; white-space: nowrap; text-overflow: ellipsis; }
+.lu-kits .nm, .lu-kits .lu-sub { display: block; }
+.lu-kits .nm .lu-in { display: inline-block; margin-left: 4px; vertical-align: 2px; }
+.lu-kits .xp { grid-area: xp; font-size: 21px; line-height: 1; }
+.lu-kits .lu-sub { grid-area: sub; overflow: hidden; font-size: 11px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
+.lu-kits .lu-sub:has(.fdr) { display: flex; flex-wrap: wrap; gap: 2px; text-overflow: clip; }
+.lu-kits .lu-sub .fdr { font-size: 10px; padding: 1px 3px; }
+.lu-kits .lu-sub .fdr .eudot { display: none; }
 .lu-x { margin-left: 2px; font-family: var(--sans, inherit); font-size: 11px; font-weight: 700; color: var(--muted); }
-.lu .lu-ex { grid-area: ex; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1px 4px; min-width: 0; margin-top: 3px; font-size: 10.5px; color: var(--muted); }
+.lu-kits .lu-ex { grid-area: ex; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1px 4px; min-width: 0; margin-top: 3px; font-size: 10.5px; color: var(--muted); }
 .lu-price { white-space: nowrap; font-weight: 600; }
 .lu-run { display: inline-flex; gap: 3px; }
 .lu-dot { display: inline-flex; overflow: hidden; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 25%); }
@@ -600,46 +609,13 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-dot.blank { background: none; box-shadow: inset 0 0 0 1.5px var(--faint); }
 .lu-in { flex: none; padding: 0 3px; border-radius: 3px; font-size: 8.5px; font-weight: 800; letter-spacing: .04em; line-height: 13px; background: var(--good); color: var(--accent-fg); }
 
-/* stacked cards: kit and number on top, name and fixture below. The whole lineup switches together, when its pitch is
-   too narrow for its busiest row (lu-r3/4/5) to show roughly 118px cards side by side */
-
-@container lupitch (max-width: 640px) { .lu-cards.lu-r5 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
-
-@container lupitch (max-width: 516px) { .lu-cards.lu-r4 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
-
-@container lupitch (max-width: 392px) { .lu-cards.lu-r3 .lu-box { grid-template-columns: auto 1fr; grid-template-areas: "kit xp" "nm nm" "sub sub" "ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; } }
-
-@container lupitch (max-width: 640px) {
-  .lu-cards.lu-r5 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
-  .lu-cards.lu-r5 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
-  .lu-cards.lu-r5 .lu-txt { display: contents; }
-  .lu-cards.lu-r5 .xp { justify-self: end; font-size: 19px; }
-  .lu-cards.lu-r5 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-}
-
-@container lupitch (max-width: 516px) {
-  .lu-cards.lu-r4 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
-  .lu-cards.lu-r4 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
-  .lu-cards.lu-r4 .lu-txt { display: contents; }
-  .lu-cards.lu-r4 .xp { justify-self: end; font-size: 19px; }
-  .lu-cards.lu-r4 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-}
-
-@container lupitch (max-width: 392px) {
-  .lu-cards.lu-r3 .lu-long .nm { font-size: 12.5px; letter-spacing: 0; }
-  .lu-cards.lu-r3 .lu-kit { grid-area: kit; width: 24px; height: 24px; }
-  .lu-cards.lu-r3 .lu-txt { display: contents; }
-  .lu-cards.lu-r3 .xp { justify-self: end; font-size: 19px; }
-  .lu-cards.lu-r3 .nm { display: -webkit-box; min-height: 2.2em; white-space: normal; overflow-wrap: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-}
-
 /* the bench strip: each chip on its own width (all four are the same) */
 @container (max-width: 134px) {
-  .lu .lu-bn .lu-box { grid-template-columns: auto auto 1fr; grid-template-areas: "slot kit xp" "nm nm nm" "sub sub sub" "ex ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; }
-  .lu .lu-bn .lu-slot { grid-area: slot; }
-  .lu .lu-bn .lu-kit { grid-area: kit; width: 22px; height: 22px; }
-  .lu .lu-bn .lu-txt { display: contents; }
-  .lu .lu-bn .xp { justify-self: end; font-size: 17px; }
+  .lu-kits .lu-bn .lu-box { grid-template-columns: auto auto 1fr; grid-template-areas: "slot kit xp" "nm nm nm" "sub sub sub" "ex ex ex"; gap: 2px 4px; min-height: 0; padding: 6px 7px; }
+  .lu-kits .lu-bn .lu-slot { grid-area: slot; }
+  .lu-kits .lu-bn .lu-kit { grid-area: kit; width: 22px; height: 22px; }
+  .lu-kits .lu-bn .lu-txt { display: contents; }
+  .lu-kits .lu-bn .xp { justify-self: end; font-size: 17px; }
 }
 
 /* Kits: a kit above a dark nameplate; the plate stays dark on the turf in both themes */
@@ -666,19 +642,131 @@ tr.is-rival td { background: var(--accent-soft); }
 }
 
 /* bench: a compact strip in both styles, keeper first, then subs 1, 2, 3 in order */
-.lu .lu-bench { gap: 6px; padding: 8px; }
-.lu .lu-bn { flex: 0 1 172px; }
-.lu .lu-bn .lu-box { grid-template-columns: auto 24px minmax(0, 1fr); min-height: 48px; padding: 6px 8px; gap: 6px; }
-.lu .lu-bn .lu-kit { width: 24px; height: 24px; }
-.lu .lu-bn .xp { font-size: 18px; }
+.lu-kits .lu-bench { gap: 6px; padding: 8px; }
+.lu-kits .lu-bn { flex: 0 1 172px; }
+.lu-kits .lu-bn .lu-box { grid-template-columns: auto 24px minmax(0, 1fr); min-height: 48px; padding: 6px 8px; gap: 6px; }
+.lu-kits .lu-bn .lu-kit { width: 24px; height: 24px; }
+.lu-kits .lu-bn .xp { font-size: 18px; }
 .lu-slot { display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 4px; box-sizing: border-box; font-size: 10.5px; font-weight: 750; background: var(--accent-soft); color: var(--accent-text); }
 
 
+/* Cards: centred cards in three parts (components/pitch.js luCardC).
+   1 identity: shirt, then the name (up to two lines, never broken mid-word); badges sit in the top corners, clear of both
+   2 the number with its unit (and ×2 / C ×2), "Assumed" in words when it applies, then fixtures or the match state
+   3 a footer under a hairline for what the screen adds: the next-3 run and Sell/Buy price, or Current GW's notes
+   Cards in a row share one height and their footers line up; a card with more lines (a double, a note) is just taller. */
+.lu-cards .pitch { gap: 10px; padding: 16px 10px 14px;
+  background: radial-gradient(120% 60% at 50% -10%, var(--floodlight), transparent 60%),
+    repeating-linear-gradient(180deg, var(--turf) 0 56px, color-mix(in srgb, var(--turf-2) 55%, var(--turf)) 56px 112px); }
+.lu-cards .pitch::before, .lu-cards .pitch::after { opacity: .55; }
+.lu-cards { --lu-gap: 8px; }
+.lu-cards .row { gap: var(--lu-gap); align-items: stretch; }
+.lu-cards .luc { flex: 0 1 var(--lu-w, 120px); width: auto; min-width: 0; padding: 0; text-align: center; container-type: inline-size; border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--turf)); border: 1px solid color-mix(in srgb, var(--line-strong) 80%, transparent);
+  box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 70%, transparent), 0 2px 6px rgb(0 0 0 / 22%); }
+.lu-cards .luc.newin { box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 70%, transparent), inset 0 -2px 0 var(--good), 0 2px 6px rgb(0 0 0 / 22%); }
+.lu-cards .luc:hover { border-color: var(--accent-text); }
+.lu-cards .luc:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.lu-cards .luc.sel { outline: 2px solid var(--hi); outline-offset: 1px; border-color: var(--hi); }
+.lu-cards .lu-box { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; box-sizing: border-box; height: 100%; padding: 6px 6px 5px; }
+
+/* badges: in the columns either side of the shirt, stacked when there are two, so they never sit on the shirt or name */
+.lu-cards .lu-bdg { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.lu-cards .lu-bdg.l { grid-area: l; justify-self: start; align-items: flex-start; }
+.lu-cards .lu-bdg.r { grid-area: r; justify-self: end; align-items: flex-end; }
+.lu-cards .lu-role, .lu-cards .flag { position: static; box-shadow: none; }
+.lu-cards .lu-role { width: 17px; height: 17px; font-size: 10.5px; }
+.lu-cards .flag { min-width: 0; height: 16px; padding: 0 4px; border-radius: 8px; font-size: 10px; line-height: 16px; }
+.lu-cards .lu-in { line-height: 15px; padding: 0 4px; font-size: 9px; }
+.lu-cards .lu-slot { height: 17px; }
+
+/* 1 identity: the shirt leaves room for the corner badges either side */
+.lu-cards .lu-id { display: grid; grid-template: "l k r" auto "n n n" auto / minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 2px 3px; width: 100%; min-width: 0; }
+.lu-cards .lu-kit { grid-area: k; width: 28px; height: 28px; }
+.lu-cards .lu-id .nm { grid-area: n; justify-self: center; }
+.lu-cards .shirt { display: block; width: 100%; height: 100%; margin: 0; object-fit: contain; }
+.lu-cards .nm { display: -webkit-box; max-width: 100%; overflow: hidden; font-family: var(--display); font-size: 16px; font-weight: 700; letter-spacing: .01em; line-height: 1.05;
+  white-space: normal; overflow-wrap: normal; word-break: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lu-cards .lu-long .nm { font-size: 15px; }
+.lu-cards .lu-xlong .nm { font-size: 14px; letter-spacing: 0; }
+
+/* 2 the number, then fixtures or the match state */
+.lu-cards .lu-pts { display: inline-flex; align-items: baseline; justify-content: center; gap: 3px; margin-top: 1px; line-height: 1; }
+.lu-cards .xp { font-family: var(--display); font-size: 25px; font-weight: 700; line-height: 1; letter-spacing: .01em; }
+.lu-cards .xp.asm { color: var(--fg); text-decoration: underline dotted var(--muted) 1.5px; text-underline-offset: 3px; }
+.lu-cards .lu-unit { font-size: 11px; font-weight: 600; color: var(--muted); }
+.lu-cards .lu-mult { font-size: 11px; font-weight: 800; color: var(--hi-text); }
+.lu-cards .lu-asm { font-size: 10px; font-style: italic; color: var(--muted); line-height: 1.2; }
+.lu-cards .lu-sub { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; margin: 2px 0; font-size: 11px; line-height: 1.25; color: var(--muted); }
+.lu-cards .lu-sub .fdr { font-size: 10px; padding: 1px 4px; }
+.lu-cards .lu-sub .fdr .eudot { display: none; }
+
+/* 3 footer: pushed to the bottom so footers line up across a row */
+.lu-cards .lu-foot { display: grid; gap: 2px; justify-items: center; width: 100%; margin-top: auto; padding-top: 4px; border-top: 1px solid var(--line); font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+.lu-cards .lu-fl { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 5px; max-width: 100%; }
+.lu-cards .lu-fk { white-space: nowrap; }
+.lu-cards .lu-price { font-weight: 650; color: var(--fg); }
+.lu-cards .lu-price.buy { color: var(--accent-text); }
+.lu-cards .lu-dot { width: 10px; height: 10px; }
+
+/* Current GW */
+.lu-cards .lvc-playing .lu-sub { color: var(--good); }
+.lu-cards .lvc-dnp .lu-sub { color: var(--bad); }
+.lu-cards .luc.lvc-nocount { opacity: .78; }
+.lu-cards .lvc-nocount .xp { color: var(--muted); }
+
+/* every card in a lineup takes the width its busiest row allows (up to 120px), so a three-card row matches the rest */
+.lu-cards.lu-r4 .pitch .luc { --lu-w: min(120px, calc((100cqw - 3 * var(--lu-gap)) / 4)); }
+.lu-cards.lu-r5 .pitch .luc { --lu-w: min(120px, calc((100cqw - 4 * var(--lu-gap)) / 5)); }
+
+/* bench: the same cards, keeper then subs 1, 2, 3, the slot in the top-left corner */
+.lu-cards .lu-bench { align-items: stretch; gap: 8px; padding: 10px; }
+.lu-cards .lu-bn { flex: 0 1 120px; }
+
+/* narrow cards (busy rows on smaller screens): smaller faces, the run without its words (the key and label say it) */
+@container (max-width: 100px) {
+  .lu-cards .lu-box { padding: 5px 4px; }
+
+  /* too narrow for badges beside the shirt: they get their own row above it */
+
+  /* the badge row keeps its height on every card, so shirts and names still line up across a row */
+  .lu-cards .lu-id { grid-template: "l r" minmax(17px, auto) "k k" auto "n n" auto / minmax(0, 1fr) minmax(0, 1fr); row-gap: 1px; }
+  .lu-cards .lu-bdg { flex-flow: row wrap; gap: 2px; }
+  .lu-cards .lu-bdg.r { justify-content: flex-end; }
+  .lu-cards .lu-kit { justify-self: center; width: 24px; height: 24px; }
+  .lu-cards .nm { font-size: 14px; }
+  .lu-cards .lu-long .nm { font-size: 13px; }
+  .lu-cards .lu-xlong .nm { font-size: 12px; }
+  .lu-cards .xp { font-size: 21px; }
+  .lu-cards .lu-unit, .lu-cards .lu-mult { font-size: 10px; }
+  .lu-cards .lu-fk { display: none; }
+  .lu-cards .lu-foot { font-size: 10px; padding-top: 4px; }
+}
+
+@container (max-width: 74px) {
+  .lu-cards .lu-role { width: 15px; height: 15px; font-size: 9.5px; }
+  .lu-cards .flag { height: 14px; padding: 0 3px; font-size: 9px; line-height: 14px; }
+  .lu-cards .lu-in, .lu-cards .lu-slot { font-size: 8.5px; }
+  .lu-cards .lu-box { padding: 5px 2px 4px; }
+  .lu-cards .lu-kit { width: 22px; height: 22px; }
+  .lu-cards .nm { font-size: 13px; letter-spacing: 0; }
+  .lu-cards .lu-long .nm { font-size: 11.5px; }
+  .lu-cards .lu-xlong .nm { font-size: 11px; }
+  .lu-cards .xp { font-size: 19px; }
+  .lu-cards .lu-unit { display: none; }
+  .lu-cards .lu-sub .fdr { padding: 1px 2px; font-size: 9.5px; }
+  .lu-cards .lu-sub, .lu-cards .lu-foot { font-size: 9.5px; }
+}
+
 @media (max-width: 640px) {
   .lu .pitch { padding: 12px 4px 10px; gap: 6px; }
-  .lu .row, .lu .lu-bench { gap: 4px; }
-  .lu .lu-bench { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 4px; }
-  .lu .lu-bn { max-width: none; }
-  .lu .lu-bench .lbl { display: none; }
+  .lu-kits .row, .lu-kits .lu-bench { gap: 4px; }
+  .lu-kits .lu-bench { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 6px 4px; }
+  .lu-kits .lu-bn { max-width: none; }
+  .lu-kits .lu-bench .lbl { display: none; }
+  .lu-cards { --lu-gap: 4px; }
+  .lu-cards .pitch { padding: 12px 4px 10px; gap: 8px; }
+  .lu-cards .lu-bench { gap: 4px; padding: 6px 4px; }
+  .lu-cards .lu-bench .lbl { display: none; }
   .lu-head .tag { display: none; }
 }

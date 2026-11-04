@@ -150,7 +150,7 @@ function pvMine() {
     <div class="kpi"><span class="lbl">Bank</span><b>${money(D.manager.bank)}</b><span class="delta muted">before any moves</span></div>
   </div>
   ${D.meta.fh_restored ? `<p class="note" style="margin:0">Free Hit active in GW${D.meta.picks_gw}: plans start from the squad and bank FPL gives back for GW${PG[0]} (your GW${D.meta.squad_gw} team).</p>` : ""}
-  <div class="grid2">
+  <div class="grid2 lu-cols">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       ${pvGwSel(base.weeks, g)}
       <div class="bar lu-bar"><h3>GW${g} team · as it is</h3>${lineupToggle()}</div>
@@ -226,7 +226,7 @@ function pvStrategy(mode) {
   </div>
   ${r.filled.length ? `<p class="note">${r.filled.map(x => "GW" + x).join(", ")} ${r.filled.length === 1 ? "is" : "are"} beyond the optimiser's ${D.plans[r.key].weeks.length}-GW plan: shown with no transfers and the best XI.</p>` : ""}
   ${r.dropped > 0 ? `<p class="verdict" style="border-color:var(--warn)">${r.dropped} move${r.dropped === 1 ? "" : "s"} in this plan named a player who is no longer in the data, so ${r.dropped === 1 ? "it was" : "they were"} left out. The numbers above are without ${r.dropped === 1 ? "it" : "them"}.</p>` : ""}
-  <div class="grid2">
+  <div class="grid2 lu-cols">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
       ${pvGwSel(r.sc.weeks, g)}
       <div class="bar lu-bar"><h3>GW${g} team · ${MODES[mode]}</h3>${lineupToggle()}</div>
