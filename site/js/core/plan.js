@@ -23,7 +23,9 @@ const planLabel = key => { const [m, k] = key.includes("_") ? key.split("_") : [
 function verdict(g, strong = 3, marg = 1) {
   return g >= strong ? { t: "Strong", c: "good" } : g >= marg ? { t: "Marginal", c: "warn" } : { t: "Coin flip", c: "mut" };
 }
-const vPill = v => `<span class="pill ${v.c}">${v.t}</span>`;
+// One confidence scale everywhere (U1): Strong / Marginal / Coin flip from verdict(). v.tag adds a separate, neutral
+// pill for context that isn't confidence (e.g. "Field's pick": most managers around your rank captain him).
+const vPill = v => `<span class="pill ${v.c}">${v.t}</span>${v.tag ? ` <span class="pill mut">${v.tag}</span>` : ""}`;
 function variance(pos, x) { return pos === "MID" ? 1.9 * x + 0.23 * x * x : ({ GKP: 2.8, DEF: 3.3, FWD: 3.8 }[pos] || 3) * x; }
 function spreadVsField(mult, g) {
   const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
