@@ -126,3 +126,94 @@ def supercomputer_pick(squad, pos, xp):
     rest = [i for i in rank if i not in xi]
     bench = [i for i in rest if pos[i] == "GKP"] + [i for i in rest if pos[i] != "GKP"]
     return {"xi": xi, "bench": bench, "captain": by_xp[0], "vice": by_xp[1], "pos": pos}
+
+
+# ---------------------------------------------------------------- you vs the model: record and streak (F1c)
+MILESTONES = [(3, "Hat-trick"), (6, "Six-pointer"), (10, "Double figures"), (19, "Half-season")]
+MAX_WILDCARDS = 2
+
+
+def expected(team, xp, chip=None):
+    """What the model expected its pick to score, from the forecast saved before the deadline: the XI's projected
+    points (all 15 with Bench Boost) plus the captain's again (twice again with Triple Captain). No auto-subs: this is
+    the figure the model stood by at the deadline. A player missing from the saved forecast counts as 0."""
+    counted = team["xi"] + (team["bench"] if chip == "bboost" else [])
+    extra = 2 if chip == "3xc" else 1
+    return sum(xp.get(i, 0.0) for i in counted) + extra * xp.get(team["captain"], 0.0)
+
+
+HIT = 4
+
+
+def best_suggestion(plans, gw):
+    """The model's highest projected score for gameweek gw from what it suggested before the deadline.
+
+    plans: history/deadline_gw{N}.json "plans" ({key: {"weeks": [{"gw", "out", "in", "hits", "captain", "xi", "xp"}]}}),
+    every strategy the Planner offered (best / safe / chase, roll / one / two transfers). Each plan's week for gw is
+    worth its xP less 4 per hit; the best of them is the target, so the model is judged on its best-case suggestion.
+    Equal totals: the first plan in the saved order wins, so the result never changes between builds.
+    Missing: no plans, or no plan with a week for gw -> None (the caller falls back and marks it assumed).
+    Returns {"plan": key, "exp": net xP, "xp": gross xP, "hits", "out", "in", "captain", "xi"} or None.
+    """
+    best = None
+    for key, p in (plans or {}).items():
+        wk = next((w for w in p.get("weeks", []) if w.get("gw") == gw), None)
+        if wk is None:
+            continue
+        net = wk["xp"] - HIT * wk.get("hits", 0)
+        if best is None or net > best["exp"]:
+            best = {"plan": key, "exp": net, "xp": wk["xp"], "hits": wk.get("hits", 0), "out": wk.get("out", []),
+                    "in": wk.get("in", []), "captain": wk.get("captain"), "xi": wk.get("xi", [])}
+    return best
+
+
+def target(exp):
+    """The whole-number score to beat: the model's expected points rounded to the nearest point, halves up (48.5 -> 49).
+    FPL points are whole numbers, so a decimal target could never be drawn; rounding makes a draw possible but rare."""
+    return int(exp + 0.5) if exp >= 0 else -int(-exp + 0.5)
+
+
+def result(you, par):
+    """W, D or L for you: your actual points against the model's target (its expected points, rounded)."""
+    return "W" if you > par else "L" if you < par else "D"
+
+
+def streak(results, season_from_gw1=False):
+    """Record and winning run from the weeks' results in order (["W", "D", "L", ...]).
+
+    Rules (agreed 4 Nov):
+      - the run counts wins against the model in a row; a draw always ends it (a wildcard can't save a draw);
+      - a defeat ends it unless you hold a Streak Wildcard: one is used and the run carries on, that week adding nothing;
+        with no run going (run 0) a defeat costs nothing and no wildcard is used;
+      - each milestone of the current run (3, 6, 10, 19 wins) earns one wildcard, held up to 2 (one earned with 2 held
+        is lost, and counted as such); wildcards are kept when a run ends;
+      - Invincibles: every one of the season's 38 gameweeks won. Only possible when the record covers GW1
+        (season_from_gw1); this season's record starts at GW8, so it stays locked.
+    Returns {"record": {W, D, L}, "run", "best", "held", "used", "earned", "lost", "milestones": [...], "invincible"}.
+    """
+    run = best = held = used = earned = lost = 0
+    got = set()                                   # milestones reached in the current run
+    for r in results:
+        if r == "W":
+            run += 1
+            for n, _ in MILESTONES:
+                if run == n and n not in got:
+                    got.add(n); earned += 1
+                    if held < MAX_WILDCARDS:
+                        held += 1
+                    else:
+                        lost += 1
+        elif r == "D":
+            run, got = 0, set()
+        elif r == "L":
+            if run > 0 and held > 0:
+                held -= 1; used += 1
+            else:
+                run, got = 0, set()
+        best = max(best, run)
+    rec = {k: results.count(k) for k in "WDL"}
+    return {"record": rec, "run": run, "best": best, "held": held, "used": used, "earned": earned, "lost": lost,
+            "milestones": [{"n": n, "name": name, "reached": run >= n, "best": best >= n} for n, name in MILESTONES]
+                          + [{"n": 38, "name": "Invincibles", "reached": False, "best": False,
+                              "locked": not season_from_gw1}],
+            "invincible": bool(season_from_gw1 and rec["W"] == 38)}

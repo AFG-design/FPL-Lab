@@ -183,3 +183,87 @@ class Supercomputer(unittest.TestCase):
             sc = supercomputer_pick(you["xi"] + you["bench"], pos, {int(k): v for k, v in d["xp_saved"].items()})
             got = (score_team(you, pl)["total"], score_team(sc, pl)["total"], sc["captain"])
             self.assertEqual(got, want[g], f"GW{g}")
+
+
+from fpl_score import streak, result, expected, target
+
+
+class Streak(unittest.TestCase):
+    def test_result(self):
+        self.assertEqual([result(5, 3), result(3, 3), result(2, 3)], ["W", "D", "L"])
+
+    def test_expected_and_target(self):
+        xp = {i: 1.0 for i in POS}; xp[10] = 6.0
+        self.assertAlmostEqual(expected(team(), xp), 10 * 1 + 6 * 2)
+        self.assertAlmostEqual(expected(team(), xp, "3xc"), 10 * 1 + 6 * 3)
+        self.assertAlmostEqual(expected(team(), xp, "bboost"), 14 * 1 + 6 * 2)
+        del xp[3]
+        self.assertAlmostEqual(expected(team(), xp), 9 * 1 + 6 * 2)      # missing from the forecast counts as 0
+        self.assertEqual([target(48.8), target(48.5), target(48.49), target(-1.5)], [49, 49, 48, -2])
+
+    def test_best_suggestion_is_highest_after_hits(self):
+        from fpl_score import best_suggestion
+        wk = lambda xp, hits=0: {"weeks": [{"gw": 10, "out": [], "in": [], "hits": hits, "captain": 1, "xi": [1], "xp": xp},
+                                           {"gw": 11, "xp": 99, "hits": 0}]}
+        plans = {"roll": wk(47.3), "two": wk(49.5), "chase_hit": wk(52.0, hits=1), "tie": wk(49.5)}
+        b = best_suggestion(plans, 10)
+        self.assertEqual((b["plan"], b["exp"]), ("two", 49.5))      # 52 - 4 = 48 after the hit; ties keep the first
+        self.assertIsNone(best_suggestion({}, 10))
+        self.assertIsNone(best_suggestion(plans, 12))                 # no plan has a week for GW12
+        self.assertIsNone(best_suggestion(None, 10))
+
+    def test_real_gw10_suggestions(self):
+        """The plans saved before the GW10 deadline: the best is two transfers (Rogers and De Cuyper out, Gabriel and Rudoni in), 49.5 -> 50."""
+        from fpl_score import best_suggestion
+        with open(os.path.join(HERE, "..", "history", "deadline_gw10.json")) as f:
+            b = best_suggestion(json.load(f)["plans"], 10)
+        self.assertEqual((b["exp"], target(b["exp"]), b["hits"]), (49.5, 50, 0))
+
+    def test_real_gw8_and_gw9_against_expected(self):
+        """Your actual points against what the model expected its pick from your 15 to score: two wins."""
+        with open(os.path.join(HERE, "fpl_score_real.json")) as f:
+            data = json.load(f)
+        want = {"8": (52, 49, "W"), "9": (70, 47, "W")}
+        for g, d in data.items():
+            pos = {int(k): v for k, v in d["pos"].items()}
+            pl = {int(k): tuple(v) for k, v in d["played"].items()}
+            xp = {int(k): v for k, v in d["xp_saved"].items()}
+            you = as_submitted(d["picks"], pos)
+            m = supercomputer_pick(you["xi"] + you["bench"], pos, xp)
+            a, par = score_team(you, pl)["total"], target(expected(m, xp))
+            self.assertEqual((a, par, result(a, par)), want[g], f"GW{g}")
+
+    def test_wins_build_the_run_draw_ends_it(self):
+        s = streak(list("WWD"))
+        self.assertEqual((s["run"], s["best"], s["record"]), (0, 2, {"W": 2, "D": 1, "L": 0}))
+
+    def test_hat_trick_earns_a_wildcard_that_saves_a_defeat(self):
+        s = streak(list("WWWL"))
+        self.assertEqual((s["run"], s["held"], s["used"], s["earned"]), (3, 0, 1, 1))
+        s = streak(list("WWWLW"))
+        self.assertEqual(s["run"], 4)                     # the saved defeat adds nothing; the next win carries on
+
+    def test_defeat_without_wildcard_ends_run(self):
+        self.assertEqual(streak(list("WWL"))["run"], 0)
+
+    def test_draw_is_never_saved(self):
+        s = streak(list("WWWD"))
+        self.assertEqual((s["run"], s["held"], s["used"]), (0, 1, 0))   # wildcard kept for later
+
+    def test_defeat_with_no_run_costs_nothing(self):
+        s = streak(list("WWWDL"))
+        self.assertEqual((s["run"], s["held"], s["used"]), (0, 1, 0))
+
+    def test_hold_at_most_two(self):
+        s = streak(["W"] * 19)                            # milestones at 3, 6, 10, 19
+        self.assertEqual((s["earned"], s["held"], s["lost"]), (4, 2, 2))
+
+    def test_milestones_reset_with_a_new_run(self):
+        s = streak(list("WWWD") + list("WWW"))
+        self.assertEqual((s["earned"], s["held"]), (2, 2))
+
+    def test_invincibles_locked_this_season(self):
+        inv = streak(["W"] * 31)["milestones"][-1]
+        self.assertEqual((inv["name"], inv["locked"]), ("Invincibles", True))
+        self.assertTrue(streak(["W"] * 38, season_from_gw1=True)["invincible"])
+        self.assertFalse(streak(["W"] * 37 + ["D"], season_from_gw1=True)["invincible"])
