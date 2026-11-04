@@ -13,6 +13,7 @@ from fplmodel import prepare, project, POS, DEFAULTS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
+import fpl_score
 import deadline_snapshot
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
@@ -1058,6 +1059,48 @@ for x in [t["element_in"] for t in transfers] + [t["element_out"] for t in trans
         [w[k] for w in review["weeks"] for k in ("captain", "best_cap", "model_cap") if w.get(k)]:
     pass  # players referenced in the review are kept below
 
+# ---------------------------------------------------------------- you vs the model on your own 15 (F1)
+# Each finished gameweek: the model picks its best XI, captain and vice from the 15 you actually had, using only the
+# forecast saved before that deadline (history/proj_gwN.json), and both teams are scored on what happened by FPL's
+# rules (fpl_score.py: auto-subs, vice armband, chips). Scores are before hits: this tests team selection, not
+# transfers. Then the record and winning run (fpl_score.streak).
+# Missing / late / ambiguous: no saved forecast for a gameweek -> no head-to-head for it, never a re-run with today's
+# model (so the record starts at GW8); a gameweek not finished yet -> not scored (players still to play would look
+# like non-starters); picks or live data that couldn't be fetched -> that week is skipped and counted in "skipped".
+# Your side is also checked against FPL's own points ("fpl_pts"); validate.py flags any week that doesn't match.
+vs_model = None
+try:
+    pos_all = {pid: POS[e["element_type"]] for pid, e in elements.items()}
+    vm_weeks, vm_skipped = [], []
+    for g, pk in sorted(past.items()):
+        f_ = os.path.join(HERE, "history", f"proj_gw{g}.json")
+        if not os.path.exists(f_):
+            continue
+        if not pk or g not in live:
+            vm_skipped.append(g)
+            continue
+        sx = {int(k): v[0] for k, v in json.load(open(f_))["players"].items()}
+        played_g = fpl_score.played_from_live(live[g])
+        chip = pk.get("active_chip")
+        you_t = fpl_score.as_submitted(pk, pos_all)
+        squad_g = you_t["xi"] + you_t["bench"]
+        mod_t = fpl_score.supercomputer_pick(squad_g, pos_all, sx)
+        a, b = fpl_score.score_team(you_t, played_g, chip), fpl_score.score_team(mod_t, played_g, chip)
+        side = lambda t, r: {"pts": r["total"], "xi": t["xi"], "bench": t["bench"], "cap": t["captain"], "vice": t["vice"],
+                             "armband": r["captain"], "subs": r["subs"], "formation": "-".join(
+                                 str(sum(pos_all[i] == k for i in r["xi"])) for k in ("DEF", "MID", "FWD"))}
+        vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(a["total"], b["total"]),
+                         "you": side(you_t, a), "model": side(mod_t, b), "fpl_pts": pk["entry_history"]["points"],
+                         "xp": {str(i): round(sx.get(i, 0.0), 2) for i in squad_g},
+                         "pts": {str(i): played_g.get(i, (0, 0))[1] for i in squad_g}})
+    if vm_weeks:
+        st_ = fpl_score.streak([w["res"] for w in vm_weeks], season_from_gw1=vm_weeks[0]["gw"] == 1)
+        vs_model = {"from_gw": vm_weeks[0]["gw"], "weeks": vm_weeks, "skipped": vm_skipped, **st_,
+                    "next": {"gw": next_gw, "deadline": next_ev["deadline_time"] if next_ev else None}}
+except Exception as ex:   # never let this stop the build; the tab says it's unavailable
+    print("you vs the model not built:", ex)
+    vs_model = None
+
 # ---------------------------------------------------------------- set pieces (with change history)
 sp_now = {}
 for tid in teams:
@@ -1162,6 +1205,7 @@ keep |= {i for row in sp_now.values() for v in row.values() for i in v}
 keep |= {c[k] for c in sp_changes for k in ("old", "new") if c.get(k)}
 keep |= keep_extra
 keep |= {t[0] for w in review["weeks"] for t in w.get("team", [])}
+keep |= {int(i) for w in (vs_model or {}).get("weeks", []) for i in w["xp"]}
 keep |= {x[0] for t in template for k in ("missing", "diffs") for x in t[k]}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
@@ -1353,7 +1397,7 @@ out = {
     "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
                    "tie": optimise.TIE, "strategy": optimise.STRATEGY},
     "accuracy": accuracy,
-    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "setpieces": setpieces,
+    "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }

@@ -183,3 +183,46 @@ class Supercomputer(unittest.TestCase):
             sc = supercomputer_pick(you["xi"] + you["bench"], pos, {int(k): v for k, v in d["xp_saved"].items()})
             got = (score_team(you, pl)["total"], score_team(sc, pl)["total"], sc["captain"])
             self.assertEqual(got, want[g], f"GW{g}")
+
+
+from fpl_score import streak, result
+
+
+class Streak(unittest.TestCase):
+    def test_result(self):
+        self.assertEqual([result(5, 3), result(3, 3), result(2, 3)], ["W", "D", "L"])
+
+    def test_wins_build_the_run_draw_ends_it(self):
+        s = streak(list("WWD"))
+        self.assertEqual((s["run"], s["best"], s["record"]), (0, 2, {"W": 2, "D": 1, "L": 0}))
+
+    def test_hat_trick_earns_a_wildcard_that_saves_a_defeat(self):
+        s = streak(list("WWWL"))
+        self.assertEqual((s["run"], s["held"], s["used"], s["earned"]), (3, 0, 1, 1))
+        s = streak(list("WWWLW"))
+        self.assertEqual(s["run"], 4)                     # the saved defeat adds nothing; the next win carries on
+
+    def test_defeat_without_wildcard_ends_run(self):
+        self.assertEqual(streak(list("WWL"))["run"], 0)
+
+    def test_draw_is_never_saved(self):
+        s = streak(list("WWWD"))
+        self.assertEqual((s["run"], s["held"], s["used"]), (0, 1, 0))   # wildcard kept for later
+
+    def test_defeat_with_no_run_costs_nothing(self):
+        s = streak(list("WWWDL"))
+        self.assertEqual((s["run"], s["held"], s["used"]), (0, 1, 0))
+
+    def test_hold_at_most_two(self):
+        s = streak(["W"] * 19)                            # milestones at 3, 6, 10, 19
+        self.assertEqual((s["earned"], s["held"], s["lost"]), (4, 2, 2))
+
+    def test_milestones_reset_with_a_new_run(self):
+        s = streak(list("WWWD") + list("WWW"))
+        self.assertEqual((s["earned"], s["held"]), (2, 2))
+
+    def test_invincibles_locked_this_season(self):
+        inv = streak(["W"] * 31)["milestones"][-1]
+        self.assertEqual((inv["name"], inv["locked"]), ("Invincibles", True))
+        self.assertTrue(streak(["W"] * 38, season_from_gw1=True)["invincible"])
+        self.assertFalse(streak(["W"] * 37 + ["D"], season_from_gw1=True)["invincible"])

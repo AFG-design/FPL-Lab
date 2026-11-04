@@ -126,3 +126,54 @@ def supercomputer_pick(squad, pos, xp):
     rest = [i for i in rank if i not in xi]
     bench = [i for i in rest if pos[i] == "GKP"] + [i for i in rest if pos[i] != "GKP"]
     return {"xi": xi, "bench": bench, "captain": by_xp[0], "vice": by_xp[1], "pos": pos}
+
+
+# ---------------------------------------------------------------- you vs the model: record and streak (F1c)
+MILESTONES = [(3, "Hat-trick"), (6, "Six-pointer"), (10, "Double figures"), (19, "Half-season")]
+MAX_WILDCARDS = 2
+
+
+def result(you, model):
+    """W, D or L for you. A draw is an exactly equal score (FPL points are whole numbers)."""
+    return "W" if you > model else "L" if you < model else "D"
+
+
+def streak(results, season_from_gw1=False):
+    """Record and winning run from the weeks' results in order (["W", "D", "L", ...]).
+
+    Rules (agreed 4 Nov):
+      - the run counts wins against the model in a row; a draw always ends it (a wildcard can't save a draw);
+      - a defeat ends it unless you hold a Streak Wildcard: one is used and the run carries on, that week adding nothing;
+        with no run going (run 0) a defeat costs nothing and no wildcard is used;
+      - each milestone of the current run (3, 6, 10, 19 wins) earns one wildcard, held up to 2 (one earned with 2 held
+        is lost, and counted as such); wildcards are kept when a run ends;
+      - Invincibles: every one of the season's 38 gameweeks won. Only possible when the record covers GW1
+        (season_from_gw1); this season's record starts at GW8, so it stays locked.
+    Returns {"record": {W, D, L}, "run", "best", "held", "used", "earned", "lost", "milestones": [...], "invincible"}.
+    """
+    run = best = held = used = earned = lost = 0
+    got = set()                                   # milestones reached in the current run
+    for r in results:
+        if r == "W":
+            run += 1
+            for n, _ in MILESTONES:
+                if run == n and n not in got:
+                    got.add(n); earned += 1
+                    if held < MAX_WILDCARDS:
+                        held += 1
+                    else:
+                        lost += 1
+        elif r == "D":
+            run, got = 0, set()
+        elif r == "L":
+            if run > 0 and held > 0:
+                held -= 1; used += 1
+            else:
+                run, got = 0, set()
+        best = max(best, run)
+    rec = {k: results.count(k) for k in "WDL"}
+    return {"record": rec, "run": run, "best": best, "held": held, "used": used, "earned": earned, "lost": lost,
+            "milestones": [{"n": n, "name": name, "reached": run >= n, "best": best >= n} for n, name in MILESTONES]
+                          + [{"n": 38, "name": "Invincibles", "reached": False, "best": False,
+                              "locked": not season_from_gw1}],
+            "invincible": bool(season_from_gw1 and rec["W"] == 38)}

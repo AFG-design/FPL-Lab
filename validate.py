@@ -133,6 +133,32 @@ def main(path):
                 lag = None
             if lag is None or lag > 15 * 60:
                 warnings.append(f"Pre-deadline snapshot for GW{g} wasn't rewritten this build (saved {sp_.get('built')})")
+    # you vs the model (F1): impossible teams or results are errors; your score not matching FPL's is a warning (it
+    # would mean the scoring rules missed something, so the head-to-head can't be trusted that week)
+    vm = D.get("vs_model")
+    if vm:
+        pos_ = {p["id"]: p["pos"] for p in D["players"]}
+        for w in vm.get("weeks", []):
+            sq_ = set(int(i) for i in w.get("xp", {}))
+            for side in ("you", "model"):
+                t_ = w[side]
+                if len(t_["xi"]) != 11 or len(set(t_["xi"]) | set(t_["bench"])) != 15 or not set(t_["xi"]) <= sq_:
+                    errors.append(f"You vs the model GW{w['gw']}: the {side} side isn't 11 + 4 from the same 15")
+            n_ = {k: sum(pos_.get(i) == k for i in w["model"]["xi"]) for k in ("GKP", "DEF", "MID", "FWD")}
+            if n_["GKP"] != 1 or n_["DEF"] < 3 or n_["MID"] < 2 or n_["FWD"] < 1:
+                errors.append(f"You vs the model GW{w['gw']}: the model's XI isn't a legal formation ({n_})")
+            want = "W" if w["you"]["pts"] > w["model"]["pts"] else "L" if w["you"]["pts"] < w["model"]["pts"] else "D"
+            if w["res"] != want:
+                errors.append(f"You vs the model GW{w['gw']}: result {w['res']} but {w['you']['pts']}-{w['model']['pts']}")
+            if w["you"]["pts"] != w["fpl_pts"]:
+                warnings.append(f"You vs the model GW{w['gw']}: your team scores {w['you']['pts']} by our rules but {w['fpl_pts']} on FPL")
+        rec = vm.get("record", {})
+        if sum(rec.values()) != len(vm.get("weeks", [])):
+            errors.append(f"You vs the model: record {rec} doesn't add up to {len(vm['weeks'])} weeks")
+        if vm.get("held", 0) > 2 or vm.get("run", 0) > vm.get("best", 0):
+            errors.append(f"You vs the model: impossible streak (run {vm.get('run')}, best {vm.get('best')}, wildcards {vm.get('held')})")
+        if vm.get("skipped"):
+            warnings.append(f"You vs the model: GW{', GW'.join(map(str, vm['skipped']))} skipped (picks or live data missing)")
     if all(p.get("starts") is None for p in D["players"]):
         warnings.append("No season starts from FPL this build: Points leaders shows '–' for Starts")
     if not extra:
