@@ -770,3 +770,6 @@ tr.is-rival td { background: var(--accent-soft); }
   .lu-cards .lu-bench .lbl { display: none; }
   .lu-head .tag { display: none; }
 }
+
+/* Home Transfers card: one-line reason per move (U2) */
+.dc-moves .dc-why { flex-basis: 100%; display: block; color: var(--muted); font-weight: 400; font-size: var(--fs-xs); margin-top: 2px; }
