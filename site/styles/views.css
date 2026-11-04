@@ -781,3 +781,25 @@ tr.is-rival td { background: var(--accent-soft); }
 /* Fixtures: longer horizon (C5) */
 .fixtures .fx-est { opacity: .62; font-style: italic; }
 .fixtures .th-sort { font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; }
+
+/* ---------- You vs the model (F1d) ---------- */
+.vm-intro .seg { flex-wrap: wrap; margin: 4px 0 10px; }
+.vm-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 14px 0 4px; }
+.vm-side { display: grid; gap: 2px; min-width: 0; }
+.vm-side:last-child { text-align: right; }
+.vm-side .lbl { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.vm-side b { font-family: var(--display); font-size: 44px; font-weight: 700; line-height: 1; }
+.vm-res { font-size: var(--fs-sm); padding: 4px 12px; }
+.vm-assumed { border-left: 3px solid var(--warn); background: var(--sunk); padding: 10px 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: var(--fs-sm); margin: 12px 0 0; }
+.grid2.vm-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.vm-moves { list-style: none; padding: 0; margin: 10px 0 4px; display: grid; gap: 4px; }
+.vm-moves .out { color: var(--bad); }
+.vm-moves .in { color: var(--good); }
+
+@media (max-width: 1000px) {
+  .grid2.vm-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .vm-side b { font-size: 34px; }
+}

@@ -1098,12 +1098,16 @@ try:
                                  str(sum(pos_all[i] == k for i in r["xi"])) for k in ("DEF", "MID", "FWD"))}
         hits_g = pk["entry_history"].get("event_transfers_cost", 0) or 0
         dl_f = os.path.join(HERE, "history", f"deadline_gw{g}.json")
-        sug = fpl_score.best_suggestion(json.load(open(dl_f)).get("plans"), g) if os.path.exists(dl_f) else None
+        dl_ = json.load(open(dl_f)) if os.path.exists(dl_f) else {}
+        sug = fpl_score.best_suggestion(dl_.get("plans"), g)
         if sug:
             sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + played_g.get(sug["captain"], (0, 0))[1]
             tgt = {"basis": "suggested", "assumed": False, "exp": round(sug["exp"], 1), "plan": sug["plan"],
                    "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"], "in": sug["in"], "captain": sug["captain"],
-                   "xi": sug["xi"], "actual": sug_pts - fpl_score.HIT * sug["hits"]}
+                   "xi": sug["xi"], "actual": sug_pts - fpl_score.HIT * sug["hits"],
+                   # per player, for the pitch (F1d): xP saved before the deadline (first plan gameweek) and actual
+                   "xi_xp": {str(i): (dl_.get("xp", {}).get(str(i)) or [0])[0] for i in sug["xi"]},
+                   "xi_pts": {str(i): played_g.get(i, (0, 0))[1] for i in sug["xi"]}}
         else:
             tgt = {"basis": "your 15", "assumed": True, "exp": round(fpl_score.expected(mod_t, sx, chip), 1)}
         tgt["par"] = fpl_score.target(sug["exp"] if sug else fpl_score.expected(mod_t, sx, chip))
@@ -1113,10 +1117,21 @@ try:
                          "you": side(you_t, a), "model": side(mod_t, b), "fpl_pts": pk["entry_history"]["points"],
                          "xp": {str(i): round(sx.get(i, 0.0), 2) for i in squad_g},
                          "pts": {str(i): played_g.get(i, (0, 0))[1] for i in squad_g}})
+    # the week to come (F1d): the model's best suggestion so far. The deadline snapshot is rewritten every build until
+    # the deadline, so this target can still move until then; missing snapshot or plans -> "target": None (tab says so)
+    vm_next = {"gw": next_gw, "deadline": next_ev["deadline_time"] if next_ev else None, "target": None}
+    nf_ = os.path.join(HERE, "history", f"deadline_gw{next_gw}.json") if next_gw else None
+    if nf_ and os.path.exists(nf_):
+        nd_ = json.load(open(nf_))
+        ns_ = fpl_score.best_suggestion(nd_.get("plans"), next_gw)
+        if ns_:
+            vm_next["target"] = {"exp": round(ns_["exp"], 1), "par": fpl_score.target(ns_["exp"]), "plan": ns_["plan"],
+                                 "hits": ns_["hits"], "out": ns_["out"], "in": ns_["in"], "captain": ns_["captain"],
+                                 "xi": ns_["xi"], "built": nd_.get("built")}
     if vm_weeks:
         st_ = fpl_score.streak([w["res"] for w in vm_weeks], season_from_gw1=vm_weeks[0]["gw"] == 1)
         vs_model = {"from_gw": vm_weeks[0]["gw"], "weeks": vm_weeks, "skipped": vm_skipped, **st_,
-                    "next": {"gw": next_gw, "deadline": next_ev["deadline_time"] if next_ev else None}}
+                    "next": vm_next}
 except Exception as ex:   # never let this stop the build; the tab says it's unavailable
     print("you vs the model not built:", ex)
     vs_model = None
@@ -1225,8 +1240,9 @@ keep |= {i for row in sp_now.values() for v in row.values() for i in v}
 keep |= {c[k] for c in sp_changes for k in ("old", "new") if c.get(k)}
 keep |= keep_extra
 keep |= {t[0] for w in review["weeks"] for t in w.get("team", [])}
-keep |= {int(i) for w in (vs_model or {}).get("weeks", []) for i in list(w["xp"]) + w["target"].get("xi", [])
-         + w["target"].get("in", []) + w["target"].get("out", [])}
+keep |= {int(i) for t_ in [w["target"] for w in (vs_model or {}).get("weeks", [])] + [((vs_model or {}).get("next") or {}).get("target") or {}]
+         for i in t_.get("xi", []) + t_.get("in", []) + t_.get("out", [])}
+keep |= {int(i) for w in (vs_model or {}).get("weeks", []) for i in w["xp"]}
 keep |= {x[0] for t in template for k in ("missing", "diffs") for x in t[k]}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
