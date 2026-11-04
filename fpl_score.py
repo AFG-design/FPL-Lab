@@ -189,30 +189,39 @@ def streak(results, season_from_gw1=False):
         is lost, and counted as such); wildcards are kept when a run ends;
       - Invincibles: every one of the season's 38 gameweeks won. Only possible when the record covers GW1
         (season_from_gw1); this season's record starts at GW8, so it stays locked.
-    Returns {"record": {W, D, L}, "run", "best", "held", "used", "earned", "lost", "milestones": [...], "invincible"}.
+    Returns {"record": {W, D, L}, "run", "best", "held", "used", "earned", "lost", "trail", "milestones": [...],
+    "invincible"}. trail has one entry per week: {"run" after it, "held" after it, "saved" (a wildcard saved a defeat),
+    "earned" (milestone name or None), "ended" (a run of 1+ ended), "lost" (only when a wildcard was earned with 2 held)}.
     """
     run = best = held = used = earned = lost = 0
     got = set()                                   # milestones reached in the current run
+    trail = []                                    # per week, for the streak card (F1e)
     for r in results:
+        step = {"saved": False, "earned": None, "ended": False}
         if r == "W":
             run += 1
-            for n, _ in MILESTONES:
+            for n, name in MILESTONES:
                 if run == n and n not in got:
-                    got.add(n); earned += 1
+                    got.add(n); earned += 1; step["earned"] = name
                     if held < MAX_WILDCARDS:
                         held += 1
                     else:
-                        lost += 1
+                        lost += 1; step["lost"] = True
         elif r == "D":
+            step["ended"] = run > 0
             run, got = 0, set()
         elif r == "L":
             if run > 0 and held > 0:
-                held -= 1; used += 1
+                held -= 1; used += 1; step["saved"] = True
             else:
+                step["ended"] = run > 0
                 run, got = 0, set()
         best = max(best, run)
+        step["run"], step["held"] = run, held
+        trail.append(step)
     rec = {k: results.count(k) for k in "WDL"}
     return {"record": rec, "run": run, "best": best, "held": held, "used": used, "earned": earned, "lost": lost,
+            "trail": trail,
             "milestones": [{"n": n, "name": name, "reached": run >= n, "best": best >= n} for n, name in MILESTONES]
                           + [{"n": 38, "name": "Invincibles", "reached": False, "best": False,
                               "locked": not season_from_gw1}],

@@ -243,6 +243,13 @@ class Streak(unittest.TestCase):
         s = streak(list("WWWLW"))
         self.assertEqual(s["run"], 4)                     # the saved defeat adds nothing; the next win carries on
 
+    def test_trail_marks_each_week(self):
+        t = streak(list("WWWLWD"))["trail"]
+        self.assertEqual([x["run"] for x in t], [1, 2, 3, 3, 4, 0])
+        self.assertEqual(t[2]["earned"], "Hat-trick")
+        self.assertTrue(t[3]["saved"]); self.assertTrue(t[5]["ended"])
+        self.assertEqual([x["held"] for x in t], [0, 0, 1, 0, 0, 0])
+
     def test_defeat_without_wildcard_ends_run(self):
         self.assertEqual(streak(list("WWL"))["run"], 0)
 

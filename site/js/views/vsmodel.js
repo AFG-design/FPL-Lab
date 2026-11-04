@@ -110,6 +110,42 @@ function vmNext(n) {
       <p class="note">Big number: projected points for GW${n.gw} (captain ×2 included).</p></div>`;
 }
 
+// The streak card (F1e). Everything comes from fpl_score.streak via build.py: run, best, record, wildcards, milestones
+// and trail (one entry per week). The page adds nothing of its own except "wins to go", which is n − run.
+// Missing / ambiguous: no trail (an older data file) -> circles without the saved / milestone marks, still correct
+// W/D/L; a week whose target was assumed gets a dotted circle and the key explains it; next week's "?" circle only
+// when the data has a gameweek to come.
+const VM_LET = { W: "W", D: "D", L: "L" };
+function vmStreak(V) {
+  const run = V.run || 0, trail = V.trail || [], held = V.held || 0, n = V.next;
+  const head = run ? `${run} win${run === 1 ? "" : "s"} in a row` : "No winning run";
+  const sub = run ? `Best run this season: ${V.best}` : `Best run this season: ${V.best || 0}.${n?.gw ? ` Win GW${n.gw} to start a new one.` : ""}`;
+  const dots = V.weeks.map((w, k) => {
+    const t = trail[k] || {}, word = vmRes[w.res][0];
+    const extra = [t.saved ? "a Streak Wildcard saved the run" : "", t.earned ? `${t.earned} reached: Streak Wildcard earned` : "", t.ended ? "run ended" : "", w.target?.assumed ? "assumed target" : ""].filter(Boolean);
+    return `<button type="button" class="vm-dot r${w.res}${w.target?.assumed ? " asm" : ""}${t.saved ? " saved" : ""}" data-vmgw="${w.gw}" aria-label="GW${w.gw}: ${word}, ${w.you_net} v ${w.target.par}${extra.length ? ", " + extra.join(", ") : ""}">
+      <span class="vm-l" aria-hidden="true">${VM_LET[w.res]}</span><span class="vm-g">GW${w.gw}</span>${t.earned ? '<span class="vm-star" aria-hidden="true">★</span>' : ""}</button>`;
+  }).join("") + (n?.gw ? `<button type="button" class="vm-dot rN" data-vmgw="n${n.gw}" aria-label="GW${n.gw}: to play${n.target ? `, target ${n.target.par}` : ""}"><span class="vm-l" aria-hidden="true">?</span><span class="vm-g">GW${n.gw}</span></button>` : "");
+  const rec = V.record || { W: 0, D: 0, L: 0 };
+  const nextM = (V.milestones || []).find(m => !m.locked && m.n > run);
+  const ms = (V.milestones || []).map(m => {
+    const state = m.locked ? "locked" : m.reached ? "got" : m.best ? "best" : "";
+    const note = m.locked ? "Counts from next season" : m.reached ? "In this run" : m.best ? "Reached earlier" : m === nextM ? `${m.n - run} win${m.n - run === 1 ? "" : "s"} to go` : `${m.n} wins`;
+    return `<li class="vm-ms ${state}"><b>${esc(m.name)}</b><span>${m.n === 38 ? "38–0 season" : `${m.n} in a row`}</span><span class="vm-msn">${note}</span></li>`;
+  }).join("");
+  const slots = Array.from({ length: 2 }, (_, k) => `<span class="vm-wc${k < held ? " on" : ""}" aria-hidden="true"></span>`).join("");
+  return `<div class="panel vm-streak">
+      <div class="vm-run"><div><span class="lbl">Winning run</span><b>${head}</b><span class="note">${sub}</span></div>
+        <div class="vm-rec" aria-label="Record: won ${rec.W}, drawn ${rec.D}, lost ${rec.L}"><span><b>${rec.W}</b>Won</span><span><b>${rec.D}</b>Drawn</span><span><b>${rec.L}</b>Lost</span></div></div>
+      <div class="vm-dots" role="group" aria-label="Results week by week, oldest first">${dots}</div>
+      <p class="note vm-key">W win · D draw · L defeat · ? to play · ★ milestone${V.weeks.some(w => w.target?.assumed) ? " · dotted: target assumed (no saved suggestion)" : ""}${V.used ? " · ringed: saved by a wildcard" : ""}</p>
+      <div class="vm-cols2">
+        <div><h3>Streak Wildcards</h3><div class="vm-wcs" aria-label="Holding ${held} of 2">${slots}<span><b>${held}</b> of 2 held</span></div>
+          <p class="note">Earned at each milestone of a run. One saves the run from a defeat; a draw always ends it.${V.used ? ` Used: ${V.used}.` : ""}${V.lost ? ` ${V.lost} missed because you already held 2.` : ""}</p></div>
+        <div><h3>Milestones</h3><ul class="vm-mss">${ms}</ul></div>
+      </div></div>`;
+}
+
 function vVsModel() {
   const V = D.vs_model;
   if (!V || !V.weeks?.length) return stateView({ kind: "empty", title: "You vs the model isn't ready", body: "It needs a finished gameweek with a forecast saved before its deadline. It appears after the next data refresh." });
@@ -117,7 +153,7 @@ function vVsModel() {
   const opts = [...(n?.gw ? [[`n${n.gw}`, `GW${n.gw}`]] : []), ...weeks.map(w => [String(w.gw), `GW${w.gw}`])];
   if (!opts.some(([k]) => k === S.vmgw)) S.vmgw = String(weeks[0].gw);
   const w = weeks.find(x => String(x.gw) === S.vmgw);
-  return `<div class="panel vm-intro"><h2>You vs the model</h2>
+  return `${vmStreak(V)}<div class="panel vm-intro"><h2>You vs the model</h2>
       <p>Each gameweek your actual points, after hits, against the model's target: its highest projected score for that week from what it suggested before the deadline, rounded. Beat it to win the week.</p>
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
