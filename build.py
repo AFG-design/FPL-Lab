@@ -13,6 +13,7 @@ from fplmodel import prepare, project, POS, DEFAULTS
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
+import deadline_snapshot
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
 OUT = sys.argv[2] if len(sys.argv) > 2 else "data.json"
@@ -455,6 +456,10 @@ if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next
             for i, p in players.items() if p["xp"].get(next_gw, 0) > 0 or p["ep_fpl"] > 0}
     json.dump({"gw": next_gw, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "players": snap},
               open(os.path.join(HIST, f"proj_gw{next_gw}.json"), "w"), separators=(",", ":"))
+    # the rest of what we knew before the deadline: plan-horizon xP, minutes, outcome chances, odds and the strategy
+    # plans (deadline_snapshot.py says what each part holds and what it does when an input is missing)
+    deadline_snapshot.write(HIST, deadline_snapshot.build(next_gw, proj_gws[:PLAN_GWS], players, squad_ids, bank, ft,
+                                                          plans, market, fixtures))
 
 
 def corr_mae(pairs):
@@ -1434,6 +1439,8 @@ out["sources"] = {
     "news": {"players": len(NH)},
     "status": {"gws": sorted(int(g) for g in (st_.get("gws") or {})), "updated": st_.get("updated")},
     "template": {"gws": sorted(int(g) for g in TPL.get("gws", {}))},
+    # pre-deadline snapshots kept (deadline_snapshot.py); data only, not shown yet
+    "deadline": {"gws": sorted(int(f_[11:-5]) for f_ in os.listdir(HIST) if f_.startswith("deadline_gw") and f_.endswith(".json"))},
 }
 
 out["meta"]["build_secs"] = round(time.time() - t0, 1)
