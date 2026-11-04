@@ -1104,9 +1104,11 @@ for tid, t in teams.items():
                      "att": round(rating[tid]["att"], 2), "def": round(rating[tid]["def"], 2), "trend": trend,
                      "fx": {g: [{"opp": o, "home": h, "xgf": round(mf, 2), "xga": round(ma, 2), "fdr": fd, "eu": euro_flags.get((tid, g))}
                                 for (o, h, mf, ma, fd) in upcoming[tid].get(g, [])] for g in proj_gws},
-                     # fixtures further ahead (12 GWs) for fixture-swing alerts: [gw, opponent, home]
-                     "far": sorted([gg, opp, home] for (gg, opp, home, f) in ctx["team_fix"][tid]
-                                   if next_gw and gg and next_gw <= gg < next_gw + 12)}
+                     # every remaining fixture for the rest of the season: [gw, opponent, home, FPL difficulty]. Fixture
+                     # swings read the next 12 GWs; Fixtures shows up to GW38 (C5). A fixture FPL hasn't given a
+                     # gameweek yet (postponed, gg None) isn't listed; FPL's difficulty is None if missing.
+                     "far": sorted([gg, opp, home, f["team_h_difficulty"] if home else f["team_a_difficulty"]]
+                                   for (gg, opp, home, f) in ctx["team_fix"][tid] if next_gw and gg and gg >= next_gw)}
 
 # ---------------------------------------------------------------- AFG suggestion (fan-factor punt layer; the model is unchanged)
 afg_out = None

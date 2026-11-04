@@ -32,6 +32,7 @@ Starts its own static server and a headless Chromium, then runs each check again
   - One confidence scale (U1): Home's decision cards use only Strong / Marginal / Coin flip, plus a Field's pick tag.
   - Move reason (U2): a planned move on Home's Transfers card has a one-line reason (xP over the plan, money).
   - Plan expiry (D4): a saved path whose signing turns doubtful or whose club blanks shows Review; reviewed clears it.
+  - Fixture horizon (C5): Rest of season to GW38, estimates marked past the model's weeks, Matches column, sorting.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -649,6 +650,43 @@ def check_plan_expiry(page):
     return fails
 
 
+def check_fixture_horizon(page):
+    """C5: Fixtures reaches the rest of the season with FPL difficulty, marks estimated cells past the model's weeks,
+    counts matches in Difficulty mode and sorts by Avg, total or team."""
+    r = page.evaluate("""() => {
+      const keep = { v: S.view, m: S.fxMode, n: S.fxN, s: S.fxSort }, out = {};
+      S.view = "fixtures"; S.fxMode = "fdr"; S.fxN = "all"; S.fxSort = "avg"; render();
+      const heads = [...document.querySelectorAll(".fixtures thead th")].map(h => h.textContent.trim());
+      const gwHeads = heads.filter(h => /^GW[0-9]+$/.test(h));
+      const last = Math.max(...Object.values(T).flatMap(t => (t.far || []).map(f => f[0])));
+      out.gws = [gwHeads[0], gwHeads[gwHeads.length - 1], gwHeads.length, "GW" + GWS[0], "GW" + last, last - GWS[0] + 1];
+      out.matchesCol = heads.includes("Matches");
+      const rowMatches = [...document.querySelectorAll(".fixtures tbody tr")].map(tr => +tr.children[2].textContent);
+      out.matchesOk = rowMatches.every(x => x > 0);
+      S.fxMode = "att"; render();
+      out.est = document.querySelectorAll(".fixtures .fx-est").length;
+      out.estInModelWeeks = [...document.querySelectorAll(".fixtures tbody tr:first-child td.fxc")].slice(0, GWS.length).some(td => td.querySelector(".fx-est"));
+      S.fxSort = "team"; render();
+      const names = [...document.querySelectorAll(".fixtures tbody .fx-club")].map(x => x.lastElementChild.textContent);
+      out.sortedTeam = names.join("|") === [...names].sort((a, b) => a.localeCompare(b)).join("|");
+      S.fxSort = "total"; render();
+      const tots = [...document.querySelectorAll(".fixtures tbody tr")].map(tr => +tr.children[3].textContent);
+      out.sortedTotal = tots.every((x, k) => k === 0 || tots[k - 1] >= x);
+      Object.assign(S, { view: keep.v, fxMode: keep.m, fxN: keep.n, fxSort: keep.s }); render();
+      return out;
+    }""")
+    f, g = [], r["gws"]
+    if g[0] != g[3] or g[1] != g[4] or g[2] != g[5]:
+        f.append(f"Fixture horizon: Rest of season shows {g[0]}–{g[1]} ({g[2]} GWs), expected {g[3]}–{g[4]} ({g[5]})")
+    if not r["matchesCol"] or not r["matchesOk"]:
+        f.append("Fixture horizon: Difficulty mode has no Matches column, or a team shows no matches")
+    if not r["est"] or r["estInModelWeeks"]:
+        f.append(f"Fixture horizon: estimate marking wrong ({r['est']} estimated cells; any in the model's weeks: {r['estInModelWeeks']})")
+    if not r["sortedTeam"] or not r["sortedTotal"]:
+        f.append(f"Fixture horizon: sorting by team ({r['sortedTeam']}) or total ({r['sortedTotal']}) doesn't order the rows")
+    return f
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -698,7 +736,8 @@ def main():
                          ("squad uplift", lambda: check_uplift(page)),
                          ("one confidence scale", lambda: check_one_scale(page)),
                          ("move reason", lambda: check_move_reason(page)),
-                         ("plan expiry", lambda: check_plan_expiry(page))):
+                         ("plan expiry", lambda: check_plan_expiry(page)),
+                         ("fixture horizon", lambda: check_fixture_horizon(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
