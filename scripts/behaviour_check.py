@@ -31,6 +31,7 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Squad uplift (K1): 'With your plan' is the squad after its moves, scored like the rating; no moves = same.
   - One confidence scale (U1): Home's decision cards use only Strong / Marginal / Coin flip, plus a Field's pick tag.
   - Move reason (U2): a planned move on Home's Transfers card has a one-line reason (xP over the plan, money).
+  - Plan expiry (D4): a saved path whose signing turns doubtful or whose club blanks shows Review; reviewed clears it.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -608,6 +609,46 @@ def check_move_reason(page):
     return [f"Move reason: '{r['text']}' is missing {missing}"] if missing else []
 
 
+def check_plan_expiry(page):
+    """D4: a saved path that relies on a player who has since become doubtful, or whose club now blanks, shows Review
+    with the changes listed; Mark as reviewed clears it; a path saved before this was recorded shows no flag."""
+    r = page.evaluate("""() => {
+      const keepD = getDrafts(), out = {};
+      const g = PG[0], g2 = PG[1], sq = squadAt(g);
+      const o = sq.find(i => P[i].pos === "MID"), inn = D.players.filter(p => p.pos === "MID" && !sq.includes(p.id) && p.status === "a" && fxFor(p.team, g2).length === 1)[0];
+      const d = tpStamp({ id: "exp", name: "Expiry test", moves: [{ gw: g, out: o, in: inn.id }], ov: {}, mode: "balanced", saved: Date.now() });
+      out.clean = tpChanges(d).worse.length;
+      const keepP = { st: inn.status, ch: inn.chance }, keepFx = T[inn.team].fx[g2];
+      inn.status = "d"; inn.chance = 25; T[inn.team].fx[g2] = [];
+      const ch = tpChanges(d);
+      out.worse = ch.worse;
+      setDrafts([d]); TP.sel = "d:exp"; TP.gw = g; S.view = "planner"; S.pview = "compare"; render();
+      out.pill = !!document.querySelector(".tp-review");
+      out.box = document.querySelector(".tp-review-box")?.textContent || "";
+      document.querySelector("[data-tpreviewed]")?.click();
+      out.cleared = !(tpChanges(getDrafts()[0])?.worse.length) && !document.querySelector(".tp-review");
+      const old = { ...d }; delete old.deps;
+      out.oldFlag = tpChanges(old);
+      Object.assign(inn, { status: keepP.st, chance: keepP.ch }); T[inn.team].fx[g2] = keepFx;
+      setDrafts(keepD); render();
+      return { ...out, name: inn.name, g2 };
+    }""")
+    fails = []
+    if r["clean"]:
+        fails.append(f"Plan expiry: a just-saved path already shows {r['clean']} change(s)")
+    if not any("25%" in w for w in r["worse"]):
+        fails.append(f"Plan expiry: {r['name']} going to 25% wasn't flagged ({r['worse']})")
+    if not any(f"GW{r['g2']} now a blank" in w for w in r["worse"]):
+        fails.append(f"Plan expiry: a new blank in GW{r['g2']} wasn't flagged ({r['worse']})")
+    if not r["pill"] or "Review this path" not in r["box"]:
+        fails.append("Plan expiry: the Review pill or the change list isn't shown in Transfer paths")
+    if not r["cleared"]:
+        fails.append("Plan expiry: Mark as reviewed didn't clear the flag")
+    if r["oldFlag"] is not None:
+        fails.append("Plan expiry: a path saved before this was recorded shows a flag")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -656,7 +697,8 @@ def main():
                          ("news text", lambda: check_news_escaped(page)),
                          ("squad uplift", lambda: check_uplift(page)),
                          ("one confidence scale", lambda: check_one_scale(page)),
-                         ("move reason", lambda: check_move_reason(page))):
+                         ("move reason", lambda: check_move_reason(page)),
+                         ("plan expiry", lambda: check_plan_expiry(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
