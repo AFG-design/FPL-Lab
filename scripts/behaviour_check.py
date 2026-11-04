@@ -29,6 +29,7 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Set-piece tags: Pens / 2nd on pens / Corners / FKs from FPL's taker order show on player lists; no duty, no tag.
   - News text: FPL's injury note in the Planner's transfer reasons is shown as text, never read as HTML.
   - Squad uplift (K1): 'With your plan' is the squad after its moves, scored like the rating; no moves = same.
+  - One confidence scale (U1): Home's decision cards use only Strong / Marginal / Coin flip, plus a Field's pick tag.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -564,6 +565,28 @@ def check_uplift(page):
     return fails
 
 
+def check_one_scale(page):
+    """U1: every verdict on Home's decision cards and the Planner's captain table uses Strong / Marginal / Coin flip
+    (whose pick it is, "Your pick" / "Re-plan's pick", is the only other label). "Field's pick" is a tag beside it."""
+    r = page.evaluate("""() => {
+      const SCALE = ["Strong", "Marginal", "Coin flip"], WHO = ["Your pick", "Re-plan's pick"];
+      S.home = "next"; setView("week");
+      const cards = [...document.querySelectorAll(".dcard h3 .pillwrap")].map(w => [...w.querySelectorAll(".pill")].map(x => x.textContent));
+      const bad = cards.filter(p => !SCALE.includes(p[0]) || p.slice(1).some(t => t !== "Field's pick"));
+      // the lineup verdict follows the bench gap on the 1 / 0.4 scale
+      return { n: cards.length, bad, cards };
+    }""")
+    fails = []
+    if r["n"] != 3:
+        fails.append(f"One scale: expected 3 decision cards on Home, found {r['n']}")
+    fails += [f"One scale: a Home card shows {b} (only Strong / Marginal / Coin flip, plus a Field's pick tag)" for b in r["bad"]]
+    for gap, want in ((0.2, "Coin flip"), (0.5, "Marginal"), (1.2, "Strong")):
+        got = page.evaluate(f"verdict({gap}, 1, 0.4).t")
+        if got != want:
+            fails.append(f"One scale: a {gap}-point lineup/captain gap reads {got}, expected {want}")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -610,7 +633,8 @@ def main():
                          ("free hit note", lambda: check_fh_note(page)),
                          ("set-piece tags", lambda: check_sp_tags(page)),
                          ("news text", lambda: check_news_escaped(page)),
-                         ("squad uplift", lambda: check_uplift(page))):
+                         ("squad uplift", lambda: check_uplift(page)),
+                         ("one confidence scale", lambda: check_one_scale(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)

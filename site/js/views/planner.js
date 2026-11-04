@@ -99,7 +99,8 @@ function pairsHTML(g) {
   return `<h3 style="margin-top:14px">Pairs that fund an upgrade</h3>
     <p class="note" style="margin-top:0">Two moves together, where one sale frees the money for a bigger upgrade. Only shown when the pair clearly beats the best single move.</p>
     ${list.map(r => {
-      const v = r.hits ? { t: "Worth the hit (Chase rank)", c: "warn" } : verdict(r.gain, 3, 1);   // only hits that pass the hit rule are listed
+      // only hits that pass the hit rule are listed; the gain is after the hit, and the −4 pill says it took one
+      const v = { ...verdict(r.gain, 3, 1), tag: r.hits ? "Chase rank" : null };
       const line = (o, n) => `<div class="move"><span class="out">▼ ${esc(P[o].name)}</span><span class="in">▲ <button data-p="${n}" style="all:unset;cursor:pointer">${esc(P[n].name)}</button></span><span class="muted mono">${money(P[n].price)} · ${T[P[n].team].short}</span></div>`;
       const up = P[r.n1].price - P[r.o1].price > P[r.n2].price - P[r.o2].price ? [r.o1, r.n1, r.o2, r.n2] : [r.o2, r.n2, r.o1, r.n1];
       return `<div class="sugg"><div class="sg-top"><div class="moves" style="margin:0">${line(r.o1, r.n1)}${line(r.o2, r.n2)}</div><span class="sg-gain ${r.gain > 0.05 ? "up" : "down"}">${sgn(r.gain)}</span></div>
@@ -132,7 +133,7 @@ function whyIn(i, g) {
 function suggestionsHTML(g) {
   const list = transferSuggestions(g), w = ftTable().find(r => r.gw === g), freeLeft = Math.max(0, w.ft - w.n);
   const rows = list.map(s2 => {
-    const v = s2.hit ? { t: "Worth the hit (Chase rank)", c: "warn" } : verdict(s2.gain, 3, 1);   // only hits that pass the hit rule are listed
+    const v = { ...verdict(s2.gain, 3, 1), tag: s2.hit ? "Chase rank" : null };   // only hits that pass the hit rule are listed
     const po = P[s2.out], pi = P[s2.in];
     return `<div class="sugg">
       <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" style="all:unset;cursor:pointer">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · <span class="club-dot" style="--club:${clubCol(pi)}" aria-hidden="true"></span>${T[pi.team].short}</span></div>
@@ -159,7 +160,9 @@ function captainsHTML() {
     const capX = xpg(t.cap, g);
     if (tc && g <= tc.to && (!bestTc || capX > bestTc.x)) bestTc = { g, id: t.cap, x: capX };
     const gap = opts.length > 1 ? capX - Math.max(...opts.filter(i => i !== t.cap).map(i => xpg(i, g))) : 0;
-    const v = t.capMine ? { t: "Your pick", c: "mut" } : t.fromPlan ? { t: "Re-plan's pick", c: "mut" } : F && (F.cap[t.cap] || 0) >= 50 && gap > -0.3 ? { t: "Safe pick", c: "good" } : verdict(gap, 1, 0.4);
+    // whose pick it is (yours / Re-plan's) stays as its own label; otherwise the confidence scale, with the field tag
+    const v = t.capMine ? { t: "Your pick", c: "mut" } : t.fromPlan ? { t: "Re-plan's pick", c: "mut" }
+      : { ...verdict(gap, 1, 0.4), tag: F && (F.cap[t.cap] || 0) >= 50 ? "Field's pick" : null };
     return `<tr><td><b>GW${g}</b></td>
       <td><span class="pname">${esc(P[t.cap].name)}</span> ${vPill(v)}<br><span class="muted" style="font-size:12.5px">${fxText(P[t.cap], g)} · ${f1(capX)} xP${F ? ` · ${(F.cap[t.cap] || 0).toFixed(0)}% field C` : ""}</span></td>
       <td>${opts.filter(i => i !== t.cap).slice(0, 2).map(i => `<div class="capalt"><span>${esc(P[i].name)} <span class="muted">${f1(xpg(i, g))}${F ? ` · ${(F.cap[i] || 0).toFixed(0)}%` : ""}</span></span><button class="btn" data-setcap="${g}:${i}">Make C</button></div>`).join("")}
