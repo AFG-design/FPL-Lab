@@ -127,3 +127,59 @@ class RealGameweeks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+from fpl_score import supercomputer_pick
+
+
+class Supercomputer(unittest.TestCase):
+    SQUAD = XI + BENCH
+
+    def xp(self, **over):
+        out = {i: 1.0 for i in self.SQUAD}
+        out.update({int(k[1:]): v for k, v in over.items()})
+        return out
+
+    def test_no_saved_forecast_no_pick(self):
+        self.assertIsNone(supercomputer_pick(self.SQUAD, POS, None))
+
+    def test_best_legal_xi_captain_vice(self):
+        t = supercomputer_pick(self.SQUAD, POS, self.xp(p13=5, p14=4, p15=6, p12=0.5, p10=7))
+        self.assertEqual(len(t["xi"]), 11)
+        self.assertIn(15, t["xi"]); self.assertIn(13, t["xi"]); self.assertIn(14, t["xi"])
+        self.assertEqual((t["captain"], t["vice"]), (10, 15))
+        self.assertEqual(t["bench"][0], 12)               # spare keeper first
+
+    def test_formation_limits_hold(self):
+        # every defender projects highest: still only 5 of them, and at least 2 midfielders and 1 forward
+        pos = {**POS, 6: "DEF", 7: "DEF"}                 # 7 defenders in the squad
+        xp = self.xp(**{f"p{i}": 9 for i in (2, 3, 4, 5, 6, 7, 13)})
+        t = supercomputer_pick(self.SQUAD, pos, xp)
+        n = {k: sum(pos[i] == k for i in t["xi"]) for k in ("GKP", "DEF", "MID", "FWD")}
+        self.assertEqual(n["GKP"], 1); self.assertEqual(n["DEF"], 5)
+        self.assertGreaterEqual(n["MID"], 2); self.assertGreaterEqual(n["FWD"], 1)
+
+    def test_missing_player_counts_as_zero_and_bench_by_xp(self):
+        xp = self.xp(p13=3, p14=2, p15=5); del xp[9]       # 9 missing from the saved forecast
+        t = supercomputer_pick(self.SQUAD, POS, xp)
+        self.assertNotIn(9, t["xi"])
+        self.assertEqual(t["bench"][0], 12)
+        self.assertEqual(t["bench"][1:], sorted(t["bench"][1:], key=lambda i: -xp.get(i, 0)))
+
+    def test_ties_follow_your_order(self):
+        a = supercomputer_pick(self.SQUAD, POS, self.xp())
+        self.assertEqual(a["xi"], XI)                     # all equal: your XI, your captain order
+        self.assertEqual(a, supercomputer_pick(self.SQUAD, POS, self.xp()))
+
+    def test_real_gw8_and_gw9(self):
+        """Your 15 with the forecasts saved before GW8 and GW9: both weeks finish level."""
+        with open(os.path.join(HERE, "fpl_score_real.json")) as f:
+            data = json.load(f)
+        want = {"8": (52, 52, 411), "9": (70, 70, 411)}   # you, Supercomputer, its captain (Haaland)
+        for g, d in data.items():
+            pos = {int(k): v for k, v in d["pos"].items()}
+            pl = {int(k): tuple(v) for k, v in d["played"].items()}
+            you = as_submitted(d["picks"], pos)
+            sc = supercomputer_pick(you["xi"] + you["bench"], pos, {int(k): v for k, v in d["xp_saved"].items()})
+            got = (score_team(you, pl)["total"], score_team(sc, pl)["total"], sc["captain"])
+            self.assertEqual(got, want[g], f"GW{g}")
