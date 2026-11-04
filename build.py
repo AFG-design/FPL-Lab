@@ -1060,16 +1060,21 @@ for x in [t["element_in"] for t in transfers] + [t["element_out"] for t in trans
     pass  # players referenced in the review are kept below
 
 # ---------------------------------------------------------------- you vs the model on your own 15 (F1)
-# Each finished gameweek: the model picks its best XI, captain and vice from the 15 you actually had, using only the
-# forecast saved before that deadline (history/proj_gwN.json). The score is YOUR ACTUAL points against the points the
-# model EXPECTED its pick to get before the deadline (fpl_score.expected, rounded to the nearest point by
-# fpl_score.target; agreed 4 Nov): beat it and you win the week, equal is a draw, below is a defeat. Both teams are
-# also scored on what happened by FPL's rules (fpl_score.py: auto-subs, vice armband, chips), shown as information.
-# Scores are before hits: this tests team selection, not transfers. Then the record and winning run (fpl_score.streak).
-# Missing / late / ambiguous: no saved forecast for a gameweek -> no head-to-head for it, never a re-run with today's
-# model (so the record starts at GW8); a gameweek not finished yet -> not scored (players still to play would look
-# like non-starters); picks or live data that couldn't be fetched -> that week is skipped and counted in "skipped".
-# Your side is also checked against FPL's own points ("fpl_pts"); validate.py flags any week that doesn't match.
+# Each finished gameweek, YOUR ACTUAL points (after hits) against the model's HIGHEST PROJECTED score for that week from
+# what it suggested before the deadline (agreed 4 Nov): every strategy plan saved in history/deadline_gwN.json (best,
+# safe, chase; roll, one or two transfers), each worth its week's xP less 4 per hit, and the best of them is the target
+# (fpl_score.best_suggestion), rounded to the nearest point (fpl_score.target). Beat it: win; equal: draw; below: defeat.
+# Then the record and winning run (fpl_score.streak).
+# Missing / late / ambiguous:
+#   - no saved suggestion for the week (history/deadline_gwN.json starts at GW10): the target is assumed instead, from
+#     the model's best pick from your own 15 with the forecast saved before that deadline (proj_gwN.json, no hits),
+#     and the week is marked target.basis = "your 15" and target.assumed = True so the tab says so;
+#   - no saved forecast at all -> no head-to-head for that week, never a re-run with today's model (record starts GW8);
+#   - a gameweek not finished yet -> not scored (players still to play would look like non-starters);
+#   - picks or live data that couldn't be fetched -> that week is skipped and counted in "skipped".
+# Both your team and the model's pick from your 15 are also scored on what happened by FPL's rules (auto-subs, vice,
+# chips) for the side-by-side pitches; the suggested XI's actual points are shown too (no auto-subs: its bench isn't
+# saved). These are information only. Your side is checked against FPL's own points ("fpl_pts") in validate.py.
 vs_model = None
 try:
     pos_all = {pid: POS[e["element_type"]] for pid, e in elements.items()}
@@ -1091,10 +1096,20 @@ try:
         side = lambda t, r: {"pts": r["total"], "xi": t["xi"], "bench": t["bench"], "cap": t["captain"], "vice": t["vice"],
                              "armband": r["captain"], "subs": r["subs"], "formation": "-".join(
                                  str(sum(pos_all[i] == k for i in r["xi"])) for k in ("DEF", "MID", "FWD"))}
-        exp_m = fpl_score.expected(mod_t, sx, chip)
-        par = fpl_score.target(exp_m)
-        vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(a["total"], par),
-                         "target": {"exp": round(exp_m, 1), "par": par},
+        hits_g = pk["entry_history"].get("event_transfers_cost", 0) or 0
+        dl_f = os.path.join(HERE, "history", f"deadline_gw{g}.json")
+        sug = fpl_score.best_suggestion(json.load(open(dl_f)).get("plans"), g) if os.path.exists(dl_f) else None
+        if sug:
+            sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + played_g.get(sug["captain"], (0, 0))[1]
+            tgt = {"basis": "suggested", "assumed": False, "exp": round(sug["exp"], 1), "plan": sug["plan"],
+                   "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"], "in": sug["in"], "captain": sug["captain"],
+                   "xi": sug["xi"], "actual": sug_pts - fpl_score.HIT * sug["hits"]}
+        else:
+            tgt = {"basis": "your 15", "assumed": True, "exp": round(fpl_score.expected(mod_t, sx, chip), 1)}
+        tgt["par"] = fpl_score.target(sug["exp"] if sug else fpl_score.expected(mod_t, sx, chip))
+        you_net = a["total"] - hits_g
+        vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(you_net, tgt["par"]), "target": tgt,
+                         "you_net": you_net, "hits": hits_g,
                          "you": side(you_t, a), "model": side(mod_t, b), "fpl_pts": pk["entry_history"]["points"],
                          "xp": {str(i): round(sx.get(i, 0.0), 2) for i in squad_g},
                          "pts": {str(i): played_g.get(i, (0, 0))[1] for i in squad_g}})
@@ -1210,7 +1225,8 @@ keep |= {i for row in sp_now.values() for v in row.values() for i in v}
 keep |= {c[k] for c in sp_changes for k in ("old", "new") if c.get(k)}
 keep |= keep_extra
 keep |= {t[0] for w in review["weeks"] for t in w.get("team", [])}
-keep |= {int(i) for w in (vs_model or {}).get("weeks", []) for i in w["xp"]}
+keep |= {int(i) for w in (vs_model or {}).get("weeks", []) for i in list(w["xp"]) + w["target"].get("xi", [])
+         + w["target"].get("in", []) + w["target"].get("out", [])}
 keep |= {x[0] for t in template for k in ("missing", "diffs") for x in t[k]}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():

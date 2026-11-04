@@ -142,6 +142,31 @@ def expected(team, xp, chip=None):
     return sum(xp.get(i, 0.0) for i in counted) + extra * xp.get(team["captain"], 0.0)
 
 
+HIT = 4
+
+
+def best_suggestion(plans, gw):
+    """The model's highest projected score for gameweek gw from what it suggested before the deadline.
+
+    plans: history/deadline_gw{N}.json "plans" ({key: {"weeks": [{"gw", "out", "in", "hits", "captain", "xi", "xp"}]}}),
+    every strategy the Planner offered (best / safe / chase, roll / one / two transfers). Each plan's week for gw is
+    worth its xP less 4 per hit; the best of them is the target, so the model is judged on its best-case suggestion.
+    Equal totals: the first plan in the saved order wins, so the result never changes between builds.
+    Missing: no plans, or no plan with a week for gw -> None (the caller falls back and marks it assumed).
+    Returns {"plan": key, "exp": net xP, "xp": gross xP, "hits", "out", "in", "captain", "xi"} or None.
+    """
+    best = None
+    for key, p in (plans or {}).items():
+        wk = next((w for w in p.get("weeks", []) if w.get("gw") == gw), None)
+        if wk is None:
+            continue
+        net = wk["xp"] - HIT * wk.get("hits", 0)
+        if best is None or net > best["exp"]:
+            best = {"plan": key, "exp": net, "xp": wk["xp"], "hits": wk.get("hits", 0), "out": wk.get("out", []),
+                    "in": wk.get("in", []), "captain": wk.get("captain"), "xi": wk.get("xi", [])}
+    return best
+
+
 def target(exp):
     """The whole-number score to beat: the model's expected points rounded to the nearest point, halves up (48.5 -> 49).
     FPL points are whole numbers, so a decimal target could never be drawn; rounding makes a draw possible but rare."""

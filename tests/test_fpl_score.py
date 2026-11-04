@@ -201,6 +201,24 @@ class Streak(unittest.TestCase):
         self.assertAlmostEqual(expected(team(), xp), 9 * 1 + 6 * 2)      # missing from the forecast counts as 0
         self.assertEqual([target(48.8), target(48.5), target(48.49), target(-1.5)], [49, 49, 48, -2])
 
+    def test_best_suggestion_is_highest_after_hits(self):
+        from fpl_score import best_suggestion
+        wk = lambda xp, hits=0: {"weeks": [{"gw": 10, "out": [], "in": [], "hits": hits, "captain": 1, "xi": [1], "xp": xp},
+                                           {"gw": 11, "xp": 99, "hits": 0}]}
+        plans = {"roll": wk(47.3), "two": wk(49.5), "chase_hit": wk(52.0, hits=1), "tie": wk(49.5)}
+        b = best_suggestion(plans, 10)
+        self.assertEqual((b["plan"], b["exp"]), ("two", 49.5))      # 52 - 4 = 48 after the hit; ties keep the first
+        self.assertIsNone(best_suggestion({}, 10))
+        self.assertIsNone(best_suggestion(plans, 12))                 # no plan has a week for GW12
+        self.assertIsNone(best_suggestion(None, 10))
+
+    def test_real_gw10_suggestions(self):
+        """The plans saved before the GW10 deadline: the best is two transfers (Rogers and De Cuyper out, Gabriel and Rudoni in), 49.5 -> 50."""
+        from fpl_score import best_suggestion
+        with open(os.path.join(HERE, "..", "history", "deadline_gw10.json")) as f:
+            b = best_suggestion(json.load(f)["plans"], 10)
+        self.assertEqual((b["exp"], target(b["exp"]), b["hits"]), (49.5, 50, 0))
+
     def test_real_gw8_and_gw9_against_expected(self):
         """Your actual points against what the model expected its pick from your 15 to score: two wins."""
         with open(os.path.join(HERE, "fpl_score_real.json")) as f:
