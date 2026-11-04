@@ -28,6 +28,7 @@ Starts its own static server and a headless Chromium, then runs each check again
     "×2" only on the projected captain.
   - Set-piece tags: Pens / 2nd on pens / Corners / FKs from FPL's taker order show on player lists; no duty, no tag.
   - News text: FPL's injury note in the Planner's transfer reasons is shown as text, never read as HTML.
+  - Squad uplift (K1): 'With your plan' is the squad after its moves, scored like the rating; no moves = same.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -529,6 +530,40 @@ def check_news_escaped(page):
     return fails
 
 
+def check_uplift(page):
+    """K1: the squad rating's "With your plan" figure is the squad after the plan's moves, scored like the rating
+    (best XI + captain, minus 4 a hit), and with no moves it equals the squad as it stands."""
+    r = page.evaluate("""() => {
+      const keep = SB.moves.slice(), out = {};
+      SB.moves = []; RATE.key = ""; const a = squadRatingData();
+      out.none = a ? { same: a.plan.score === a.score && Math.abs(a.plan.pts - a.mine) < 1e-9, moves: a.plan.moves.length } : null;
+      const rec = recommendedPlan();
+      const mv = rec ? planMoves(D.plans[rec]) : [];
+      SB.moves = mv; RATE.key = ""; const b = squadRatingData();
+      if (b && mv.length) {
+        const gws = b.gws; let ft = Math.min(5, D.manager.free_transfers), pts = 0;
+        gws.forEach(g => { const n = mv.filter(m => m.gw === g).length, h = Math.max(0, n - ft); ft = n > ft ? 1 : Math.min(5, ft - n + 1);
+          pts += bestXI(squadAt(g, mv), g, null).pts - 4 * h; });
+        out.plan = { got: b.plan.pts, want: pts, moves: b.plan.moves.length };
+        S.home = "next"; setView("week");
+        out.shown = !!document.querySelector(".rate-uplift") && document.querySelector(".rating").textContent.includes(b.score + " → " + b.plan.score);
+      }
+      SB.moves = keep; RATE.key = ""; render();
+      return out;
+    }""")
+    fails = []
+    if r.get("none") and (not r["none"]["same"] or r["none"]["moves"]):
+        fails.append(f"Uplift: with no moves the plan figure differs from the squad ({r['none']})")
+    if r.get("plan"):
+        if abs(r["plan"]["got"] - r["plan"]["want"]) > 1e-6:
+            fails.append(f"Uplift: plan points {r['plan']['got']:.2f}, expected {r['plan']['want']:.2f}")
+        if not r.get("shown"):
+            fails.append("Uplift: the 'score to score with plan' line isn't shown on Home")
+    else:
+        print("  (uplift: the recommended plan has no moves this build; only the no-moves case checked)")
+    return fails
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -574,7 +609,8 @@ def main():
         for name, fn in (("vice", lambda: check_vice(page)), ("replan", lambda: check_replan(page)),
                          ("free hit note", lambda: check_fh_note(page)),
                          ("set-piece tags", lambda: check_sp_tags(page)),
-                         ("news text", lambda: check_news_escaped(page))):
+                         ("news text", lambda: check_news_escaped(page)),
+                         ("squad uplift", lambda: check_uplift(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
