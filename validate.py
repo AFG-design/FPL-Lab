@@ -180,6 +180,8 @@ def main(path):
             t_ = w.get("target") or {}
             if t_.get("basis") == "suggested" and set(map(int, t_.get("xi_xp", {}))) != set(t_.get("xi", [])):
                 errors.append(f"You vs the model GW{w['gw']}: projected points missing for part of the suggested XI")
+        if len(vm.get("trail", [])) != len(vm.get("weeks", [])) or (vm.get("trail") and vm["trail"][-1]["run"] != vm.get("run")):
+            errors.append("You vs the model: the streak trail doesn't match the weeks or the current run")
         rec = vm.get("record", {})
         if sum(rec.values()) != len(vm.get("weeks", [])):
             errors.append(f"You vs the model: record {rec} doesn't add up to {len(vm['weeks'])} weeks")

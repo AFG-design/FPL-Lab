@@ -723,6 +723,16 @@ def check_vs_model(page):
       setView("vsmodel");
       if (!V || !V.weeks || !V.weeks.length) return document.querySelector(".view-vsmodel .state") ? [] : ["no data but no empty state"];
       const word = { W: "Win", D: "Draw", L: "Defeat" };
+      // F1e streak card: headline run, one circle per week (+ "?" for the week to come), record, wildcards held
+      const head = document.querySelector(".vm-run b")?.textContent.trim();
+      const wantHead = V.run ? `${V.run} win${V.run === 1 ? "" : "s"} in a row` : "No winning run";
+      if (head !== wantHead) out.push(`streak says '${head}', data run ${V.run}`);
+      const dots = [...document.querySelectorAll(".vm-dot .vm-l")].map(d => d.textContent.trim());
+      const wantDots = V.weeks.map(w => w.res).concat(V.next && V.next.gw ? ["?"] : []);
+      if (dots.join() !== wantDots.join()) out.push(`circles ${dots} but data ${wantDots}`);
+      const rec = [...document.querySelectorAll(".vm-rec b")].map(b => +b.textContent);
+      if (rec.join() !== [V.record.W, V.record.D, V.record.L].join()) out.push(`record shows ${rec}, data ${JSON.stringify(V.record)}`);
+      if (document.querySelectorAll(".vm-wc.on").length !== V.held) out.push(`wildcards shown don't match ${V.held} held`);
       for (const w of V.weeks) {
         S.vmgw = String(w.gw); render();
         const nums = [...document.querySelectorAll(".vm-score .vm-side b")].map(b => b.textContent.trim());
