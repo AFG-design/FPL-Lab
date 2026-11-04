@@ -841,6 +841,37 @@ def check_reasons(page):
     return [f"Reasons: {x}" for x in r]
 
 
+def check_journal_summary(page):
+    """D5d: with no results the summary says when it starts; with results it adds each group and each reason exactly,
+    with "+" meaning the call paid off (a skipped suggestion that lost points counts as + for you)."""
+    r = page.evaluate("""() => {
+      const out = [], J = D.journal, V = D.vs_model;
+      if (!J) return out;
+      const keepW = J.weeks, keepR = JSON.stringify(REASONS);
+      J.weeks = []; setView("vsmodel");
+      if (!/starts once/.test(document.querySelector(".j-sum")?.textContent || "")) out.push("empty summary doesn't say when it starts");
+      const row = { xp1: 1, xp5: 5, start: 0.9, xmin: 80, status: "a", chance: null, fx: [], absent: false, xp: [1, 1, 1, 1, 1] };
+      const chk = (st, m) => ({ started: st, mins: m, start_chance: 0.9, xmin: 80 });
+      const mv = (o, i, gain) => ({ out: o, in: i, out_pts: 2, in_pts: 2 + gain, gain, proj_gain: 1, check: { in: chk(gain > 0, gain > 0 ? 90 : 0), out: chk(true, 90) } });
+      J.weeks = [{ gw: 90, chip: null, hits: 0, you: { moves: [[1, 2], [3, 4]], captain: 2 }, model: { plan: "best", moves: [[1, 2], [5, 6]], hits: 0, captain: 2 },
+        both: [[1, 2]], yours: [[3, 4]], skipped: [[5, 6]], players: { 1: row, 2: row, 3: row, 4: row, 5: row, 6: row },
+        outcome: { gws: [90], of: 5, moves: { "1-2": mv(1, 2, 3), "3-4": mv(3, 4, 6), "5-6": mv(5, 6, -4) }, captain: null } }];
+      REASONS.items = {}; setReason(90, 3, 4, "why", ["gut"], ""); setReason(90, 5, 6, "whynot", ["minutes"], "");
+      render();
+      const t = document.querySelector(".j-sum").textContent;
+      if (!/own moves gained \+6/.test(t)) out.push("your calls total wrong");
+      if (!/would have gained −4/.test(t)) out.push("skipped total wrong");
+      if (!/Overriding the model: \+10/.test(t)) out.push("override total wrong");
+      const tags = [...document.querySelectorAll(".j-sum tbody")].pop().textContent;
+      if (!/Why:Gutfeel1\+6/.test(tags.replace(/\s+/g, "")) || !/Whynot:Minutesrisk1\+4/.test(tags.replace(/\s+/g, ""))) out.push(`reason rows wrong: ${tags.replace(/\s+/g, " ")}`);
+      if (!/1 of 3 players it gave a 75%\+ start chance didn't start|1 of 6 players/.test(t)) out.push("start-chance miss line wrong");
+      J.weeks = keepW; Object.assign(REASONS, JSON.parse(keepR)); store.set("fpl.reasons", REASONS);
+      setView("planner");
+      return out;
+    }""")
+    return [f"Journal summary: {x}" for x in r]
+
+
 def main():
     missing = [f for f in ("data.json", "data-extra.json") if not (SITE / f).exists()]
     if missing:
@@ -868,7 +899,8 @@ def main():
                          ("you vs the model", lambda: check_vs_model(page)),
                          ("review: no saved forecast", lambda: check_review_no_forecast(page)),
                          ("decision journal", lambda: check_journal(page)),
-                         ("journal reasons", lambda: check_reasons(page))):
+                         ("journal reasons", lambda: check_reasons(page)),
+                         ("journal summary", lambda: check_journal_summary(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
