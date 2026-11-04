@@ -167,6 +167,58 @@ function journalPanel(gw, isNext) {
     <p class="note">xP next 5: projected points over the five gameweeks from GW${gw}, as saved before the deadline. Start chance and flags as they stood then. ${oc ? `Results: each player's own points over ${e.chip === "freehit" ? `GW${gw} (Free Hit)` : `GW${gw}–${gw + 4}`} as they're played, whether or not you started him.` : `Results appear here once GW${gw} has been played, and build up over the five weeks.`}</p></div>`;
 }
 
+// Season summary of the journal (D5d), worked out in the page from the journal's results (data) and your reasons
+// (this browser / plan sync). "+" always means the call paid off for you:
+//   - a move you made (both, or your own call): his points minus the player you sold, over the weeks played so far;
+//   - a suggestion you skipped: minus what it would have gained (it lost points -> skipping it was right -> +).
+// Missing / ambiguous: no results yet -> says when the summary starts; a move with no result yet (its first week not
+// played) isn't counted; reasons only on this device when sync is off (the dialog already says so); a move tagged with
+// two reasons counts under both, so the reason rows can add up to more than the total, and the page says so.
+function jSummary() {
+  const W = (D.journal?.weeks || []).filter(e => e.outcome);
+  if (!W.length) return `<div class="panel j-sum"><h3>Journal: season so far</h3><p class="note">The summary starts once your first journal week (GW10) has been played: how your own calls, the model's suggestions you skipped and each reason have paid off.</p></div>`;
+  const g = { both: { n: 0, net: 0, proj: 0 }, yours: { n: 0, net: 0, proj: 0 }, skipped: { n: 0, net: 0, proj: 0 } };
+  const tags = {}, miss = { hi: 0, hiN: 0, lo: 0, loN: 0, minErr: 0, minN: 0 };
+  let partial = false;
+  W.forEach(e => {
+    const oc = e.outcome; if (oc.gws.length < oc.of) partial = true;
+    [["both", "why", 1], ["yours", "why", 1], ["skipped", "whynot", -1]].forEach(([grp, kind, sign]) => (e[grp] || []).forEach(([o, i]) => {
+      const m = oc.moves[`${o}-${i}`]; if (!m) return;
+      g[grp].n++; g[grp].net += m.gain; g[grp].proj += m.proj_gain;
+      const r = reasonOf(e.gw, o, i);
+      (r?.tags || []).forEach(t => { const k = `${kind}:${t}`; tags[k] = tags[k] || { kind, t, n: 0, net: 0 }; tags[k].n++; tags[k].net += sign * m.gain; });
+      [m.check.in, m.check.out].forEach(c => {
+        if (!c || c.start_chance == null) return;
+        if (c.start_chance >= 0.75) { miss.hiN++; if (!c.started) miss.hi++; }
+        if (c.start_chance < 0.5) { miss.loN++; if (c.started) miss.lo++; }
+        if (c.xmin != null) { miss.minN++; miss.minErr += c.mins - c.xmin; }
+      });
+    }));
+  });
+  const pts = x => { const r = Math.round(x); return `${r > 0 ? "+" : r < 0 ? "−" : "±"}${Math.abs(r)}`; };
+  const row = (label, o, sign, note) => `<tr><th scope="row">${label}<small class="muted">${note}</small></th><td class="n">${o.n}</td><td class="n"><b class="${sign * o.net > 0 ? "up" : sign * o.net < 0 ? "down" : ""}">${pts(sign * o.net)}</b></td><td class="n muted">${pts(sign * o.proj)}</td></tr>`;
+  const tagRows = Object.values(tags).sort((a, b) => b.net - a.net).map(x => `<tr><th scope="row">${x.kind === "why" ? "Why" : "Why not"}: ${esc(REASON_WORD[x.t])}</th><td class="n">${x.n}</td><td class="n"><b class="${x.net > 0 ? "up" : x.net < 0 ? "down" : ""}">${pts(x.net)}</b></td></tr>`).join("");
+  const over = g.yours.net - g.skipped.net;
+  const missLines = [
+    miss.hiN ? `${miss.hi} of ${miss.hiN} players it gave a 75%+ start chance didn't start` : "",
+    miss.loN ? `${miss.lo} of ${miss.loN} it gave under 50% did start` : "",
+    miss.minN ? `minutes: ${miss.minErr / miss.minN >= 0 ? "+" : "−"}${Math.abs(Math.round(miss.minErr / miss.minN))} a player on average against expected` : "",
+    g.skipped.n + g.both.n ? `its moves gained ${pts(g.skipped.net + g.both.net)} against ${pts(g.skipped.proj + g.both.proj)} projected` : ""].filter(Boolean);
+  return `<div class="panel j-sum"><div class="bar"><h3>Journal: season so far</h3><span class="tag">${W.length} week${W.length === 1 ? "" : "s"}${partial ? " · some still being played" : ""}</span></div>
+    <p class="vm-sumline"><b>Your calls v the model's:</b> your own moves gained <b class="${g.yours.net >= 0 ? "up" : "down"}">${pts(g.yours.net)}</b>; the suggestions you skipped would have gained ${pts(g.skipped.net)}. Overriding the model: <b class="${over > 0 ? "up" : over < 0 ? "down" : ""}">${pts(over)}</b> to you.</p>
+    <div class="tablebox"><table class="j-tbl"><caption class="sr">Moves by group</caption><thead><tr><th scope="col"></th><th scope="col" class="n">Moves</th><th scope="col" class="n">For you</th><th scope="col" class="n"><abbr title="Projected before the deadline for the same weeks">Proj.</abbr></th></tr></thead><tbody>
+      ${row("You and the model", g.both, 1, "Moves you both made")}
+      ${row("Your calls", g.yours, 1, "Moves it didn't suggest")}
+      ${row("Suggestions you skipped", g.skipped, -1, "+ means skipping was right")}
+    </tbody></table></div>
+    <h4>By reason</h4>
+    ${tagRows ? `<div class="tablebox"><table class="j-tbl"><caption class="sr">Points by reason</caption><thead><tr><th scope="col"></th><th scope="col" class="n">Calls</th><th scope="col" class="n">For you</th></tr></thead><tbody>${tagRows}</tbody></table></div><p class="note">A call with two reasons counts under both.</p>`
+      : `<p class="note">No reasons tagged on these weeks yet. Add a Why? or Why not? on the journal rows and they're counted here.</p>`}
+    <h4>Where the model missed</h4>
+    ${missLines.length ? `<ul class="j-miss">${missLines.map(x => `<li>${x}</li>`).join("")}</ul>` : '<p class="note">Nothing to check yet.</p>'}
+    <p class="note">Points are each player's own over the weeks played so far of each move's 5-week window, whether or not you started him. "Projected" is what the forecast saved before the deadline expected for the same weeks.</p></div>`;
+}
+
 // The streak card (F1e). Everything comes from fpl_score.streak via build.py: run, best, record, wildcards, milestones
 // and trail (one entry per week). The page adds nothing of its own except "wins to go", which is n − run.
 // Missing / ambiguous: no trail (an older data file) -> circles without the saved / milestone marks, still correct
@@ -215,5 +267,6 @@ function vVsModel() {
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
     ${w ? vmWeek(w) : vmNext(n)}
-    ${journalPanel(w ? w.gw : n.gw, !w)}`;
+    ${journalPanel(w ? w.gw : n.gw, !w)}
+    ${jSummary()}`;
 }
