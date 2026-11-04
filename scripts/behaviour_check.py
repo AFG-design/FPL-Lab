@@ -27,6 +27,7 @@ Starts its own static server and a headless Chromium, then runs each check again
     match" in a blank); the three-week run only in the Planner; prices only in Your plan, matching the selling price;
     "×2" only on the projected captain.
   - Set-piece tags: Pens / 2nd on pens / Corners / FKs from FPL's taker order show on player lists; no duty, no tag.
+  - News text: FPL's injury note in the Planner's transfer reasons is shown as text, never read as HTML.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -161,6 +162,21 @@ def check_fh_note(page):
     return fails
 
 
+# Timing-safe helpers for the focus checks. The app re-draws a view and then moves focus, and background work after load
+# (plan sync, player detail) can re-draw once more, so a check reads focus by waiting up to `ms` for it rather than
+# looking once. It still fails if focus never arrives.
+def wait_true(page, js, ms=3000):
+    try:
+        page.wait_for_function(js, timeout=ms)
+        return True
+    except Exception:
+        return False
+
+
+# the plan as saved, without its save time: a background save of the same plan isn't a change
+PLAN_JS = "JSON.stringify((({ updated, ...r }) => r)(sbState()))"
+
+
 def check_extra(browser, url):
     """Player detail (data-extra.json): a file from another build is never merged, a failed download is retried, and
     when every try fails Stats shows an error with Try again (not a blank or half-filled page)."""
@@ -210,6 +226,7 @@ def check_home(browser, url):
     page.on("pageerror", lambda e: errs.append(f"homepage uncaught: {e}"))
     page.goto(f"{url}#week")
     page.wait_for_selector(".home", timeout=20000)
+    page.wait_for_load_state("networkidle")
     want = page.evaluate("gwInProgress() ? 'current' : 'next'")
     if page.evaluate("S.home") != want:
         out.append(f"first visit opened {page.evaluate('S.home')}, expected {want} (gameweek in progress: {want == 'current'})")
@@ -222,16 +239,16 @@ def check_home(browser, url):
       editPlan(() => { SB.moves = SB.moves.filter(m => m.gw !== g); SB.moves.push({ gw: g, out, in: inn }); });
       const xi = myTeam().xi; setOv(g, o => { o.cap = xi[xi.length - 1]; });
       render();
-      return JSON.stringify(sbState());
+      return JSON.stringify((({ updated, ...r }) => r)(sbState()));
     }""")
     page.click("#hometab-current")
-    page.wait_for_selector(".home-current")
-    page.focus("#hometab-current")
-    page.keyboard.press("ArrowLeft")
+    page.wait_for_selector('.home-current')
+    page.wait_for_selector('#hometab-current[aria-selected="true"]')
+    page.press("#hometab-current", "ArrowLeft")   # focuses the tab and presses in one step, so a re-draw can't slip between
     page.wait_for_selector(".home-next")
-    if page.evaluate("document.activeElement && document.activeElement.id") != "hometab-next":
+    if not wait_true(page, "document.activeElement && document.activeElement.id === 'hometab-next'"):
         out.append("arrow key switched the view but focus didn't follow the tab")
-    if page.evaluate("JSON.stringify(sbState())") != before:
+    if page.evaluate(PLAN_JS) != before:
         out.append("switching views changed the plan, lineup or captain choices")
     if page.evaluate("JSON.parse(localStorage.getItem('fpl.home'))") != "next":
         out.append("the view you picked wasn't remembered")
@@ -241,7 +258,7 @@ def check_home(browser, url):
     page.wait_for_selector(".home")
     if page.evaluate("S.home") != "next":
         out.append("after a reload the remembered view wasn't used")
-    if page.evaluate("JSON.stringify(sbState())") != before:
+    if page.evaluate(PLAN_JS) != before:
         out.append("the plan didn't survive a reload")
     # finished gameweek: Current GW shows FPL's points, not a recomputed total
     fin = page.evaluate("D.meta.cur_finished && D.live && D.live.gw === D.meta.cur_gw ? D.live.points : null")
@@ -396,14 +413,16 @@ def check_lineup(browser, url):
     page.on("pageerror", lambda e: errs.append(f"lineup uncaught: {e}"))
     page.goto(f"{url}#week")
     page.wait_for_selector(".home")
+    page.wait_for_load_state("networkidle")
     if not page.locator(".pitchwrap.lu-cards").count():
         out.append("lineup doesn't default to Cards")
-    before = page.evaluate("JSON.stringify([sbState(), SB.gw, S.home])")
+    view = "JSON.stringify([" + PLAN_JS + ", SB.gw, S.home])"
+    before = page.evaluate(view)
     page.click('[data-lineup="kits"]')
     page.wait_for_selector(".pitchwrap.lu-kits")
-    if page.evaluate("document.activeElement?.dataset.lineup") != "kits":
+    if not wait_true(page, "document.activeElement?.dataset.lineup === 'kits'"):
         out.append("focus didn't stay on the Kits button")
-    if page.evaluate("JSON.stringify([sbState(), SB.gw, S.home])") != before:
+    if page.evaluate(view) != before:
         out.append("switching lineup style changed the plan or view")
     slots = page.evaluate("[...document.querySelectorAll('.lu-bench .lu-slot')].map(x => x.textContent)")
     if slots != ["GK", "1", "2", "3"]:
@@ -460,6 +479,7 @@ def check_lineup(browser, url):
     page.on("pageerror", lambda e: errs.append(f"lineup (storage blocked) uncaught: {e}"))
     page.goto(f"{url}#week")
     page.wait_for_selector(".home")
+    page.wait_for_load_state("networkidle")
     if not page.locator(".pitchwrap.lu-cards").count():
         out.append("with storage blocked the lineup isn't Cards")
     page.click('[data-lineup="kits"]')
@@ -488,6 +508,24 @@ def check_sp_tags(page):
         fails.append(f"Set-piece tag: {r['none']['name']} has no FPL duty but shows one ({r['none']['got']})")
     if r["missing"]:
         print(f"  (set-piece tags: no player in this build for {', '.join(r['missing'])}, not checked)")
+    return fails
+
+
+def check_news_escaped(page):
+    """FPL's news note is shown as text, never read as HTML, in the Planner's transfer reasons (whyOut)."""
+    r = page.evaluate("""() => {
+      const p = D.players.find(x => P[x.id]) , keep = { st: p.status, news: p.news };
+      p.status = "d"; p.news = '<img src=x data-bad="1">Knock & <b>doubt</b>';
+      const html = whyOut(p.id, PG[0]);
+      const box = document.createElement("div"); box.innerHTML = html;
+      Object.assign(p, { status: keep.st, news: keep.news });
+      return { tags: box.querySelectorAll("img, b").length, text: box.textContent };
+    }""")
+    fails = []
+    if r["tags"]:
+        fails.append(f"News text: the note was read as HTML in transfer reasons ({r['tags']} tags made)")
+    if "<img" not in r["text"] or "Knock & " not in r["text"]:
+        fails.append(f"News text: the note wasn't shown as written ({r['text'][:80]})")
     return fails
 
 
@@ -535,7 +573,8 @@ def main():
         page.wait_for_selector(".view-planner", timeout=20000)
         for name, fn in (("vice", lambda: check_vice(page)), ("replan", lambda: check_replan(page)),
                          ("free hit note", lambda: check_fh_note(page)),
-                         ("set-piece tags", lambda: check_sp_tags(page))):
+                         ("set-piece tags", lambda: check_sp_tags(page)),
+                         ("news text", lambda: check_news_escaped(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
