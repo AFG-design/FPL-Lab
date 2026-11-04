@@ -51,5 +51,34 @@ class Journal(unittest.TestCase):
         self.assertTrue(all(str(i) in e["players"] for mv in e["skipped"] for i in mv))
 
 
+class Outcome(unittest.TestCase):
+    def entry(self, chip=None):
+        pk = {**PICKS, "active_chip": chip}
+        return entry(10, DL, PROJ, [[7, 4]], pk, FX, best_suggestion(DL["plans"], 10), TEAM)
+
+    def test_nothing_finished_yet(self):
+        from decision_journal import outcome
+        self.assertIsNone(outcome(self.entry(), {}, []))
+
+    def test_two_weeks_in(self):
+        from decision_journal import outcome
+        played = {10: {4: (90, 8, 1), 7: (0, 0, 0), 9: (90, 2, 1), 3: (60, 6, 1), 2: (90, 1, 1)},
+                  11: {4: (90, 2, 1), 7: (90, 6, 1), 3: (90, 3, 1)}}
+        o = outcome(self.entry(), played, [10, 11])
+        self.assertEqual((o["gws"], o["of"]), ([10, 11], 5))
+        m = o["moves"]["7-4"]                       # yours: 7 out (not in the forecast), 4 in
+        self.assertEqual((m["in_pts"], m["out_pts"], m["gain"], m["proj_gain"]), (10, 6, 4, 10))
+        self.assertEqual(m["check"]["out"], {"started": False, "mins": 0, "start_chance": None, "xmin": None})
+        self.assertIn("2-3", o["moves"])            # the model's moves are judged too (2 had 1 pt, 3 had 9)
+        self.assertEqual(o["moves"]["2-3"]["gain"], 9 - 1)
+        self.assertEqual((o["captain"]["you_pts"], o["captain"]["model_pts"]), (2, 2))
+
+    def test_free_hit_is_one_week(self):
+        from decision_journal import outcome
+        played = {10: {4: (90, 8, 1)}, 11: {4: (90, 20, 1)}}
+        o = outcome(self.entry("freehit"), played, [10, 11])
+        self.assertEqual((o["gws"], o["of"], o["moves"]["7-4"]["in_pts"]), ([10], 1, 8))
+
+
 if __name__ == "__main__":
     unittest.main()

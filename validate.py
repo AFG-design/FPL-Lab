@@ -240,6 +240,16 @@ def main(path):
                 errors.append(f"Journal GW{e['gw']}: a move swaps players in different positions")
             if e.get("model") and e["gw"] in tg_plan and tg_plan[e["gw"]] and tg_plan[e["gw"]] != e["model"]["plan"]:
                 errors.append(f"Journal GW{e['gw']}: model plan {e['model']['plan']} isn't the You vs the model target's {tg_plan[e['gw']]}")
+        fin_ = set(D["meta"].get("finished_gws") or [])
+        for e in jr.get("weeks", []):
+            oc = e.get("outcome")
+            if not oc:
+                continue
+            if any(g < e["gw"] or g >= e["gw"] + oc["of"] for g in oc["gws"]) or (fin_ and not set(oc["gws"]) <= fin_):
+                errors.append(f"Journal GW{e['gw']}: results use gameweeks {oc['gws']} outside its window or not finished")
+            for k, m in oc["moves"].items():
+                if m["gain"] != m["in_pts"] - m["out_pts"]:
+                    errors.append(f"Journal GW{e['gw']}: {k} gain {m['gain']} isn't {m['in_pts']} - {m['out_pts']}")
         if jr.get("skipped"):
             warnings.append(f"Journal: picks not fetched for GW{', GW'.join(map(str, jr['skipped']))}, so no entry")
 

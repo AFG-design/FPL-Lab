@@ -874,3 +874,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .rs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
 .rs-note { display: grid; gap: 4px; font-size: var(--fs-sm); color: var(--muted); margin-bottom: 12px; }
 .rs-note textarea { font: inherit; color: var(--fg); background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px; resize: vertical; }
+
+/* ---------- decision journal results (D5c) ---------- */
+.j-res { grid-column: 1 / -1; display: grid; gap: 2px; font-size: var(--fs-sm); background: var(--sunk); border-radius: var(--r-sm); padding: 6px 10px; }
+.j-capres { font-size: var(--fs-sm); }

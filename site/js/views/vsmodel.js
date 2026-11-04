@@ -120,6 +120,21 @@ function vmNext(n) {
 const jPct = x => x == null ? "–" : Math.round(x * 100) + "%";
 function jFx(r) { return r.fx?.length ? r.fx.map(([o, h]) => `${esc(T[o]?.short || "?")} (${h ? "H" : "A"})`).join(" + ") : "No match"; }
 function jFlag(r) { return r.status && r.status !== "a" ? ` <span class="tag warn" title="FPL flag before the deadline">${r.chance != null ? r.chance + "%" : esc(r.status)}</span>` : ""; }
+// how a move turned out so far (D5c): both players' own points over the finished weeks of its window, next to what
+// was projected for the same weeks, and the deadline week's assumptions check
+const jGws = gs => gs.length > 1 ? `GW${gs[0]}–${gs[gs.length - 1]}` : `GW${gs[0]}`;
+function jCheck(id, c) {
+  if (!c) return "";
+  const exp = [c.xmin != null ? `expected ${c.xmin}` : "", c.start_chance != null ? `${jPct(c.start_chance)} to start` : ""].filter(Boolean).join(", ");
+  return `${vmNm(id)} ${c.started ? "started" : c.mins ? "came off the bench" : "didn't play"}, ${c.mins} min${exp ? ` (${exp})` : ""}`;
+}
+function jResult(o, i, e) {
+  const oc = e.outcome, m = oc?.moves?.[`${o}-${i}`];
+  if (!m) return "";
+  const full = oc.gws.length === oc.of;
+  return `<div class="j-res"><span><b>${full ? "Result" : "So far"}</b> · ${jGws(oc.gws)} (${oc.gws.length} of ${oc.of}): ${vmNm(i)} ${m.in_pts} v ${vmNm(o)} ${m.out_pts} <b class="${m.gain > 0 ? "up" : m.gain < 0 ? "down" : ""}">${m.gain > 0 ? "+" : m.gain < 0 ? "−" : "±"}${Math.abs(m.gain)}</b> <span class="muted">· projected ${sgn(m.proj_gain)} for those weeks</span></span>
+    ${m.check.in || m.check.out ? `<span class="muted">GW${e.gw}: ${[jCheck(i, m.check.in), jCheck(o, m.check.out)].filter(Boolean).join(" · ")}</span>` : ""}</div>`;
+}
 function jRow([o, i], e, kind) {
   const po = e.players[o] || {}, pi = e.players[i] || {};
   const d = (pi.xp5 || 0) - (po.xp5 || 0);
@@ -127,7 +142,7 @@ function jRow([o, i], e, kind) {
   return `<li class="j-row"><div class="j-move"><span class="out">▼ ${side(o, po)}</span><span class="in">▲ ${side(i, pi)}</span></div>
     <div class="j-facts"><span>xP next 5: ${f1(po.xp5)} → <b>${f1(pi.xp5)}</b> <b class="${d >= 0 ? "up" : "down"}">${sgn(d)}</b></span>
       <span>Start chance: ${jPct(po.start)} → ${jPct(pi.start)}</span><span>GW${e.gw}: ${jFx(pi)}</span></div>
-    <div class="j-why">${reasonBtn(e.gw, o, i, kind)}</div></li>`;
+    ${jResult(o, i, e)}<div class="j-why">${reasonBtn(e.gw, o, i, kind)}</div></li>`;
 }
 function journalPanel(gw, isNext) {
   const J = D.journal, e = J?.weeks?.find(x => x.gw === gw);
@@ -141,15 +156,15 @@ function journalPanel(gw, isNext) {
   }
   const r = id => e.players[id] || {};
   const grp = (title, list, empty, kind) => `<div class="j-grp"><h4>${title} <span class="muted">${list.length}</span></h4>${list.length ? `<ul>${list.map(m => jRow(m, e, kind)).join("")}</ul>` : `<p class="note">${empty}</p>`}</div>`;
-  const yc = e.you.captain, mc = e.model?.captain;
+  const yc = e.you.captain, mc = e.model?.captain, oc = e.outcome, cp = oc?.captain;
   return `<div class="panel j-panel">${head}
     ${e.chip === "freehit" ? '<p class="vm-assumed"><b>Free Hit:</b> these moves were for this week only.</p>' : ""}
-    <div class="j-cap"><span>Captain</span><span>You: <b>${vmNm(yc)}</b> ${f1(r(yc).xp1)} xP</span>${e.model ? `<span>Model: <b>${vmNm(mc)}</b> ${f1(r(mc).xp1)} xP${mc === yc ? ' <span class="pill good">Same</span>' : ""}</span>` : ""}</div>
+    <div class="j-cap"><span>Captain</span><span>You: <b>${vmNm(yc)}</b> ${f1(r(yc).xp1)} xP</span>${e.model ? `<span>Model: <b>${vmNm(mc)}</b> ${f1(r(mc).xp1)} xP${mc === yc ? ' <span class="pill good">Same</span>' : ""}</span>` : ""}${cp ? `<span class="j-capres">Scored: you ${cp.you_pts}${e.model && cp.model_pts != null && mc !== yc ? `, model ${cp.model_pts}` : ""} <span class="muted">(before the armband)</span></span>` : ""}</div>
     ${e.model ? `<p class="note">The model's suggestion: ${esc(vmPlan(e.model.plan))}${e.model.hits ? `, ${e.model.hits} hit${e.model.hits > 1 ? "s" : ""}` : ", no hits"}. Your hits: ${e.hits ? "−" + e.hits : "none"}.</p>` : '<p class="note">No saved plan for this week, so there is nothing to compare your moves with.</p>'}
     ${grp("You and the model", e.both, "No move in common.", "why")}
     ${grp("Your calls", e.yours, "None: every move you made was one it suggested.", "why")}
     ${e.model ? grp("Its suggestions you skipped", e.skipped, "None: you made every move it suggested.", "whynot") : ""}
-    <p class="note">xP next 5: projected points over the five gameweeks from GW${gw}, as saved before the deadline. Start chance and flags as they stood then.</p></div>`;
+    <p class="note">xP next 5: projected points over the five gameweeks from GW${gw}, as saved before the deadline. Start chance and flags as they stood then. ${oc ? `Results: each player's own points over ${e.chip === "freehit" ? `GW${gw} (Free Hit)` : `GW${gw}–${gw + 4}`} as they're played, whether or not you started him.` : `Results appear here once GW${gw} has been played, and build up over the five weeks.`}</p></div>`;
 }
 
 // The streak card (F1e). Everything comes from fpl_score.streak via build.py: run, best, record, wildcards, milestones
