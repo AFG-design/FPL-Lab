@@ -173,6 +173,9 @@ def main(path):
                 warnings.append(f"You vs the model GW{w['gw']}: no saved suggestion, target assumed from the model's best pick from your 15")
             if w["you"]["pts"] != w["fpl_pts"]:
                 warnings.append(f"You vs the model GW{w['gw']}: your team scores {w['you']['pts']} by our rules but {w['fpl_pts']} on FPL")
+        for t_ in [w["target"] for w in vm.get("weeks", [])] + [(vm.get("next") or {}).get("target") or {}]:
+            if any(pos_.get(o) != pos_.get(i) for o, i in zip(t_.get("out", []), t_.get("in", []))):
+                errors.append(f"You vs the model: the model's moves {t_.get('out')} -> {t_.get('in')} aren't paired by position")
         nt_ = (vm.get("next") or {}).get("target")
         if nt_ and (len(nt_.get("xi", [])) != 11 or abs(nt_["par"] - nt_["exp"]) > 0.5 or len(nt_.get("out", [])) != len(nt_.get("in", []))):
             errors.append(f"You vs the model: next week's target doesn't add up ({nt_.get('exp')}/{nt_.get('par')}, {len(nt_.get('xi', []))} in the XI)")
@@ -217,6 +220,28 @@ def main(path):
     dup_fpl += [int(k) for k, v in us.items() if int(k) in ov.values() and ov.get(v["us_id"]) != int(k)]
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
+
+    # decision journal (D5a): every move is accounted for once, every player mentioned has a row, and the model's plan is
+    # the same one the You vs the model target used for that week
+    jr = D.get("journal")
+    if jr:
+        tg_plan = {w["gw"]: w["target"].get("plan") for w in (D.get("vs_model") or {}).get("weeks", [])}
+        for e in jr.get("weeks", []):
+            key = lambda xs: sorted(map(tuple, xs))
+            mm = (e.get("model") or {}).get("moves", [])
+            if key(e["both"] + e["yours"]) != key(e["you"]["moves"]) or key(e["both"] + e["skipped"]) != key(mm):
+                errors.append(f"Journal GW{e['gw']}: moves don't add up (both + yours / both + skipped)")
+            need = {i for mv in e["you"]["moves"] + mm for i in mv} | {e["you"]["captain"], (e.get("model") or {}).get("captain")}
+            miss = sorted(i for i in need if i is not None and str(i) not in e["players"])
+            if miss:
+                errors.append(f"Journal GW{e['gw']}: no pre-deadline row for players {miss}")
+            pos_j = {p["id"]: p["pos"] for p in D["players"]}
+            if any(pos_j.get(o) != pos_j.get(i) for o, i in mm + e["you"]["moves"]):
+                errors.append(f"Journal GW{e['gw']}: a move swaps players in different positions")
+            if e.get("model") and e["gw"] in tg_plan and tg_plan[e["gw"]] and tg_plan[e["gw"]] != e["model"]["plan"]:
+                errors.append(f"Journal GW{e['gw']}: model plan {e['model']['plan']} isn't the You vs the model target's {tg_plan[e['gw']]}")
+        if jr.get("skipped"):
+            warnings.append(f"Journal: picks not fetched for GW{', GW'.join(map(str, jr['skipped']))}, so no entry")
 
     # Review: "projected before the deadline" must be the saved snapshot wherever one exists, and a week without one
     # shows nothing projected at all (F1f: "no saved forecast", never a re-run with today's model)

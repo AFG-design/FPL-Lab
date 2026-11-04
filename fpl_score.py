@@ -167,6 +167,23 @@ def best_suggestion(plans, gw):
     return best
 
 
+def pair_moves(outs, ins, pos):
+    """Transfers as FPL makes them: each player out paired with a player in for the same position. The optimiser lists
+    outs and ins separately (in no particular pairing), so pairing by list order can show a midfielder replaced by a
+    defender. Within a position the original order is kept. Ambiguous input (positions that don't balance, or a player
+    missing from pos) -> ValueError, never a made-up pairing."""
+    outs, ins = list(outs), list(ins)
+    if len(outs) != len(ins) or any(i not in pos for i in outs + ins):
+        raise ValueError(f"can't pair moves {outs} -> {ins}")
+    left, pairs = list(ins), []
+    for o in outs:
+        i = next((x for x in left if pos[x] == pos[o]), None)
+        if i is None:
+            raise ValueError(f"no {pos[o]} coming in for {o}")
+        left.remove(i); pairs.append((o, i))
+    return [o for o, _ in pairs], [i for _, i in pairs]
+
+
 def target(exp):
     """The whole-number score to beat: the model's expected points rounded to the nearest point, halves up (48.5 -> 49).
     FPL points are whole numbers, so a decimal target could never be drawn; rounding makes a draw possible but rare."""

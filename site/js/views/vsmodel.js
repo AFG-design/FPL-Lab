@@ -110,6 +110,45 @@ function vmNext(n) {
       <p class="note">Big number: projected points for GW${n.gw} (captain ×2 included).</p></div>`;
 }
 
+// Decision journal (D5a): your moves and captain next to the model's suggestion for the same week, with what the app
+// knew about each player before the deadline (build.py's journal block, decision_journal.py). Shown per gameweek.
+// Missing / ambiguous: no entry for a finished week (no deadline snapshot: GW8, GW9) -> says why; the week to come ->
+// says when its entry is saved; a player missing from the snapshot -> "not in the forecast", never a made-up 0; start
+// chance unknown -> "–"; Free Hit -> the moves were for one week only, and the page says so.
+const jPct = x => x == null ? "–" : Math.round(x * 100) + "%";
+function jFx(r) { return r.fx?.length ? r.fx.map(([o, h]) => `${esc(T[o]?.short || "?")} (${h ? "H" : "A"})`).join(" + ") : "No match"; }
+function jFlag(r) { return r.status && r.status !== "a" ? ` <span class="tag warn" title="FPL flag before the deadline">${r.chance != null ? r.chance + "%" : esc(r.status)}</span>` : ""; }
+function jRow([o, i], e) {
+  const po = e.players[o] || {}, pi = e.players[i] || {};
+  const d = (pi.xp5 || 0) - (po.xp5 || 0);
+  const side = (id, r) => `<button type="button" class="linkish" data-p="${id}">${vmNm(id)}</button>${jFlag(r)}${r.absent ? ' <span class="muted">(not in the forecast)</span>' : ""}`;
+  return `<li class="j-row"><div class="j-move"><span class="out">▼ ${side(o, po)}</span><span class="in">▲ ${side(i, pi)}</span></div>
+    <div class="j-facts"><span>xP next 5: ${f1(po.xp5)} → <b>${f1(pi.xp5)}</b> <b class="${d >= 0 ? "up" : "down"}">${sgn(d)}</b></span>
+      <span>Start chance: ${jPct(po.start)} → ${jPct(pi.start)}</span><span>GW${e.gw}: ${jFx(pi)}</span></div></li>`;
+}
+function journalPanel(gw, isNext) {
+  const J = D.journal, e = J?.weeks?.find(x => x.gw === gw);
+  const head = `<div class="bar"><h3>Decision journal · GW${gw}</h3><span class="tag">Saved before the deadline</span></div>`;
+  if (!J) return `<div class="panel j-panel">${head}<p class="note">The journal isn't in this data update. It comes back on the next refresh.</p></div>`;
+  if (!e) {
+    const why = isNext ? `GW${gw}'s entry is saved when the deadline passes${D.vs_model?.next?.deadline ? ` (${esc(ukTime(D.vs_model.next.deadline))})` : ""}: your transfers and captain next to the model's suggestion, with what it knew about each player.`
+      : J.no_snapshot?.includes(gw) ? `No entry for GW${gw}: the model's suggestions weren't saved before that deadline (saving began at GW10).`
+      : J.skipped?.includes(gw) ? `No entry for GW${gw}: your picks couldn't be fetched this update.` : `No entry for GW${gw}.`;
+    return `<div class="panel j-panel">${head}<p class="note">${why}</p></div>`;
+  }
+  const r = id => e.players[id] || {};
+  const grp = (title, list, empty) => `<div class="j-grp"><h4>${title} <span class="muted">${list.length}</span></h4>${list.length ? `<ul>${list.map(m => jRow(m, e)).join("")}</ul>` : `<p class="note">${empty}</p>`}</div>`;
+  const yc = e.you.captain, mc = e.model?.captain;
+  return `<div class="panel j-panel">${head}
+    ${e.chip === "freehit" ? '<p class="vm-assumed"><b>Free Hit:</b> these moves were for this week only.</p>' : ""}
+    <div class="j-cap"><span>Captain</span><span>You: <b>${vmNm(yc)}</b> ${f1(r(yc).xp1)} xP</span>${e.model ? `<span>Model: <b>${vmNm(mc)}</b> ${f1(r(mc).xp1)} xP${mc === yc ? ' <span class="pill good">Same</span>' : ""}</span>` : ""}</div>
+    ${e.model ? `<p class="note">The model's suggestion: ${esc(vmPlan(e.model.plan))}${e.model.hits ? `, ${e.model.hits} hit${e.model.hits > 1 ? "s" : ""}` : ", no hits"}. Your hits: ${e.hits ? "−" + e.hits : "none"}.</p>` : '<p class="note">No saved plan for this week, so there is nothing to compare your moves with.</p>'}
+    ${grp("You and the model", e.both, "No move in common.")}
+    ${grp("Your calls", e.yours, "None: every move you made was one it suggested.")}
+    ${e.model ? grp("Its suggestions you skipped", e.skipped, "None: you made every move it suggested.") : ""}
+    <p class="note">xP next 5: projected points over the five gameweeks from GW${gw}, as saved before the deadline. Start chance and flags as they stood then.</p></div>`;
+}
+
 // The streak card (F1e). Everything comes from fpl_score.streak via build.py: run, best, record, wildcards, milestones
 // and trail (one entry per week). The page adds nothing of its own except "wins to go", which is n − run.
 // Missing / ambiguous: no trail (an older data file) -> circles without the saved / milestone marks, still correct
@@ -157,5 +196,6 @@ function vVsModel() {
       <p>Each gameweek your actual points, after hits, against the model's target: its highest projected score for that week from what it suggested before the deadline, rounded. Beat it to win the week.</p>
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
-    ${w ? vmWeek(w) : vmNext(n)}`;
+    ${w ? vmWeek(w) : vmNext(n)}
+    ${journalPanel(w ? w.gw : n.gw, !w)}`;
 }

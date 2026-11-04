@@ -842,3 +842,20 @@ tr.is-rival td { background: var(--accent-soft); }
   .vm-cols2 { grid-template-columns: minmax(0, 1fr); }
   .vm-run > div > b { font-size: 32px; }
 }
+
+/* ---------- You vs the model: decision journal (D5a) ---------- */
+.j-cap { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; margin: 4px 0 8px; }
+.j-cap > span:first-child { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.j-grp { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.j-grp h4 { margin: 0 0 6px; font-size: var(--fs-sm); }
+.j-grp ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.j-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 4px 16px; align-items: start; }
+.j-move { display: grid; gap: 2px; }
+.j-move .out { color: var(--bad); }
+.j-move .in { color: var(--good); }
+.j-facts { display: grid; gap: 2px; font-size: var(--fs-sm); color: var(--muted); }
+.tag.warn { color: var(--warn); }
+
+@media (max-width: 600px) {
+  .j-row { grid-template-columns: minmax(0, 1fr); }
+}

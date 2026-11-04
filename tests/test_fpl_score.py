@@ -212,6 +212,15 @@ class Streak(unittest.TestCase):
         self.assertIsNone(best_suggestion(plans, 12))                 # no plan has a week for GW12
         self.assertIsNone(best_suggestion(None, 10))
 
+    def test_pair_moves_like_for_like(self):
+        from fpl_score import pair_moves
+        pos = {1: "MID", 2: "DEF", 3: "DEF", 4: "MID", 5: "FWD"}
+        self.assertEqual(pair_moves([1, 2], [3, 4], pos), ([1, 2], [4, 3]))
+        with self.assertRaises(ValueError):
+            pair_moves([1], [5], pos)                                   # midfielder out, forward in
+        with self.assertRaises(ValueError):
+            pair_moves([1, 2], [3], pos)
+
     def test_real_gw10_suggestions(self):
         """The plans saved before the GW10 deadline: the best is two transfers (Rogers and De Cuyper out, Gabriel and Rudoni in), 49.5 -> 50."""
         from fpl_score import best_suggestion
