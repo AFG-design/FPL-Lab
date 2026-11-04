@@ -15,6 +15,7 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - a per-GW points series (s_pts) whose length isn't the current gameweek, or a DefCon record with odd points,
     fewer than 2 points per hit, or fewer minutes than its 60+ minute games need; more starts than minutes
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
+  - before a deadline: history/deadline_gw{g}.json missing, stale, for other weeks or without your players (warnings)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
@@ -28,6 +29,7 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
     use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
     snapshots, e.g. with no ODDS_API_KEY.
 """
+import datetime as dt
 import json, math, os, sys
 from collections import Counter
 
@@ -112,6 +114,25 @@ def main(path):
         errors.append(f"squad has {len(sq)} picks ({len(set(sq))} different): plans need 15 different players")
     if D["meta"].get("fh_restored") and D["meta"].get("squad_gw") != (D["meta"].get("picks_gw") or 0) - 1:
         errors.append(f"Free Hit restore used GW{D['meta'].get('squad_gw')}'s squad, expected GW{(D['meta'].get('picks_gw') or 0) - 1}")
+    # pre-deadline snapshot (deadline_snapshot.py): written every build until the deadline, so a missing or stale one now
+    # means this gameweek's record would be lost. A warning (Health page), not an error: it must not stop the publish.
+    dl = D["meta"].get("deadline")
+    if g and dl and dl > (D["meta"].get("built") or ""):
+        sp_ = load(os.path.join(HERE, "history", f"deadline_gw{g}.json"))
+        if sp_ is None:
+            warnings.append(f"No pre-deadline snapshot for GW{g} (history/deadline_gw{g}.json): its 5-GW xP, minutes, odds and plans won't be kept")
+        else:
+            if sp_.get("gw") != g or sp_.get("plan_gws") != D["meta"].get("plan_gws"):
+                warnings.append(f"Pre-deadline snapshot for GW{g} is for GW{sp_.get('gw')} / weeks {sp_.get('plan_gws')}, not this build's {D['meta'].get('plan_gws')}")
+            gone = [s_["id"] for s_ in D.get("squad", []) if str(s_["id"]) not in sp_.get("xp", {})]
+            if gone:
+                warnings.append(f"Pre-deadline snapshot for GW{g} is missing {len(gone)} of your players")
+            try:
+                lag = (dt.datetime.fromisoformat(D["meta"]["built"]) - dt.datetime.fromisoformat(sp_["built"])).total_seconds()
+            except Exception:
+                lag = None
+            if lag is None or lag > 15 * 60:
+                warnings.append(f"Pre-deadline snapshot for GW{g} wasn't rewritten this build (saved {sp_.get('built')})")
     if all(p.get("starts") is None for p in D["players"]):
         warnings.append("No season starts from FPL this build: Points leaders shows '–' for Starts")
     if not extra:
