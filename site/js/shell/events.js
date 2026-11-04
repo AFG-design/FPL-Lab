@@ -16,6 +16,7 @@ function bind() {
     const nb = document.querySelectorAll("[data-lineup]")[idx]; if (!nb) return;
     window.scrollBy(0, nb.getBoundingClientRect().top - top); nb.focus({ preventScroll: true });
   });
+  on("[data-vmgw]", b => { S.vmgw = b.dataset.vmgw; render(); });
   on("[data-fx]", b => { S.fxMode = b.dataset.fx; store.set("fpl.fxMode", S.fxMode); render(); });
   on("[data-fxn]", b => { S.fxN = b.dataset.fxn === "all" ? "all" : +b.dataset.fxn; render(); });
   on("[data-fxsort]", b => { S.fxSort = b.dataset.fxsort; render(); });

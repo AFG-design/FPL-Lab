@@ -714,6 +714,36 @@ def check_sw(browser, url):
     return fails
 
 
+def check_vs_model(page):
+    """F1d: You vs the model shows, for every finished week, your after-hits points and the model's target exactly as
+    the data has them, the right result word, 11 players on each pitch, and the assumed note only on assumed weeks.
+    No vs_model in the data: the empty state must show instead."""
+    r = page.evaluate("""() => {
+      const V = D.vs_model, out = [];
+      setView("vsmodel");
+      if (!V || !V.weeks || !V.weeks.length) return document.querySelector(".view-vsmodel .state") ? [] : ["no data but no empty state"];
+      const word = { W: "Win", D: "Draw", L: "Defeat" };
+      for (const w of V.weeks) {
+        S.vmgw = String(w.gw); render();
+        const nums = [...document.querySelectorAll(".vm-score .vm-side b")].map(b => b.textContent.trim());
+        if (nums[0] !== String(w.you_net) || nums[1] !== String(w.target.par)) out.push(`GW${w.gw}: shows ${nums} but data has ${w.you_net} v ${w.target.par}`);
+        const res = document.querySelector(".vm-res")?.textContent.trim();
+        if (res !== word[w.res]) out.push(`GW${w.gw}: result says ${res}, data ${w.res}`);
+        const xi = [...document.querySelectorAll(".vm-cols .pitch")].map(p => p.querySelectorAll(".lu-pc").length);
+        if (xi.length !== 2 || xi.some(n => n !== 11)) out.push(`GW${w.gw}: pitches have ${xi} players`);
+        if (!!document.querySelector(".vm-assumed") !== !!w.target.assumed) out.push(`GW${w.gw}: assumed note ${w.target.assumed ? "missing" : "shown wrongly"}`);
+      }
+      if (V.next && V.next.target) {
+        S.vmgw = "n" + V.next.gw; render();
+        const par = document.querySelectorAll(".vm-score .vm-side b")[1]?.textContent.trim();
+        if (par !== String(V.next.target.par)) out.push(`next GW: target shows ${par}, data ${V.next.target.par}`);
+      }
+      S.vmgw = null; setView("planner");
+      return out;
+    }""")
+    return [f"You vs the model: {x}" for x in r]
+
+
 def main():
     missing = [f for f in ("data.json", "data-extra.json") if not (SITE / f).exists()]
     if missing:
@@ -737,7 +767,8 @@ def main():
                          ("one confidence scale", lambda: check_one_scale(page)),
                          ("move reason", lambda: check_move_reason(page)),
                          ("plan expiry", lambda: check_plan_expiry(page)),
-                         ("fixture horizon", lambda: check_fixture_horizon(page))):
+                         ("fixture horizon", lambda: check_fixture_horizon(page)),
+                         ("you vs the model", lambda: check_vs_model(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)

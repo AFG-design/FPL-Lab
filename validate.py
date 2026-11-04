@@ -173,6 +173,13 @@ def main(path):
                 warnings.append(f"You vs the model GW{w['gw']}: no saved suggestion, target assumed from the model's best pick from your 15")
             if w["you"]["pts"] != w["fpl_pts"]:
                 warnings.append(f"You vs the model GW{w['gw']}: your team scores {w['you']['pts']} by our rules but {w['fpl_pts']} on FPL")
+        nt_ = (vm.get("next") or {}).get("target")
+        if nt_ and (len(nt_.get("xi", [])) != 11 or abs(nt_["par"] - nt_["exp"]) > 0.5 or len(nt_.get("out", [])) != len(nt_.get("in", []))):
+            errors.append(f"You vs the model: next week's target doesn't add up ({nt_.get('exp')}/{nt_.get('par')}, {len(nt_.get('xi', []))} in the XI)")
+        for w in vm.get("weeks", []):
+            t_ = w.get("target") or {}
+            if t_.get("basis") == "suggested" and set(map(int, t_.get("xi_xp", {}))) != set(t_.get("xi", [])):
+                errors.append(f"You vs the model GW{w['gw']}: projected points missing for part of the suggested XI")
         rec = vm.get("record", {})
         if sum(rec.values()) != len(vm.get("weeks", [])):
             errors.append(f"You vs the model: record {rec} doesn't add up to {len(vm['weeks'])} weeks")
