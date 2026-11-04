@@ -754,6 +754,29 @@ def check_vs_model(page):
     return [f"You vs the model: {x}" for x in r]
 
 
+def check_review_no_forecast(page):
+    """F1f: a gameweek with no forecast saved before its deadline shows "no saved forecast" in Review, with no xP on its
+    cards and no decision grade; weeks with a saved forecast keep theirs."""
+    r = page.evaluate("""() => {
+      const R = D.review, out = [];
+      if (!R || !R.weeks) return out;
+      const none = R.weeks.filter(w => w.proj_src === "none" && w.team), saved = R.weeks.filter(w => w.proj_src === "snapshot" && w.team);
+      for (const w of none.slice(0, 1).concat(saved.slice(-1))) {
+        S.revGw = w.gw; setView("review");
+        const meta = [...document.querySelectorAll(".pc.past .pc-meta")].map(m => m.textContent);
+        const note = [...document.querySelectorAll(".view-review .panel")].find(p => p.querySelector("[data-revgw]"))?.textContent || "";
+        if (w.proj_src === "none") {
+          if (meta.some(t => t.includes("xP"))) out.push(`GW${w.gw}: cards show xP with no saved forecast`);
+          if (!/no saved forecast/i.test(note)) out.push(`GW${w.gw}: doesn't say "no saved forecast"`);
+        } else if (!meta.some(t => t.includes("xP"))) out.push(`GW${w.gw}: saved forecast but no xP on the cards`);
+      }
+      if (R.weeks.some(w => w.proj_src === "none" && w.decision)) out.push("a week with no saved forecast is graded");
+      setView("planner");
+      return out;
+    }""")
+    return [f"Review: {x}" for x in r]
+
+
 def main():
     missing = [f for f in ("data.json", "data-extra.json") if not (SITE / f).exists()]
     if missing:
@@ -778,7 +801,8 @@ def main():
                          ("move reason", lambda: check_move_reason(page)),
                          ("plan expiry", lambda: check_plan_expiry(page)),
                          ("fixture horizon", lambda: check_fixture_horizon(page)),
-                         ("you vs the model", lambda: check_vs_model(page))):
+                         ("you vs the model", lambda: check_vs_model(page)),
+                         ("review: no saved forecast", lambda: check_review_no_forecast(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)

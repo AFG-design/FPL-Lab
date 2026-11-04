@@ -911,20 +911,15 @@ for g, pk in sorted(past.items()):
         for t in tx:
             moves.append({"in": t["element_in"], "out": t["element_out"], "in_pts": pts_of(t["element_in"], g),
                           "out_pts": pts_of(t["element_out"], g)})
-    # how the model saw this gameweek beforehand: the projection saved before its deadline where there is one
-    # (history/proj_gw{g}.json, GW8 on), otherwise a re-run of the current model on data from before it
+    # how the model saw this gameweek beforehand: only the projection saved before its deadline
+    # (history/proj_gw{g}.json, GW8 on). Missing (GW1-7, saving began at GW8): no projection, no model captain and
+    # proj_src "none", so Review says "no saved forecast"; never a re-run with today's model, which would know things
+    # the app didn't know at the time (agreed 4 Nov, F1f)
     sx = pre_deadline_xp(g)
-    try:
-        if sx is not None:
-            xi_proj = sum(sx.get(i, 0.0) for i in xi_ids)
-            model_cap = max(xi_ids, key=lambda i: sx.get(i, 0.0))
-        else:
-            if g < 3:
-                raise ValueError("too early in the season to judge the model")
-            pr = project(ctx, g, 1, {"use_flags": False})["players"]
-            xi_proj = sum(pr[i]["xp"].get(g, 0) for i in xi_ids if i in pr)
-            model_cap = max(xi_ids, key=lambda i: pr.get(i, {}).get("xp", {}).get(g, 0))
-    except Exception:
+    if sx is not None:
+        xi_proj = sum(sx.get(i, 0.0) for i in xi_ids)
+        model_cap = max(xi_ids, key=lambda i: sx.get(i, 0.0))
+    else:
         xi_proj, model_cap = None, None
     ev = next(e for e in events if e["id"] == g)
     review["weeks"].append({
@@ -935,7 +930,7 @@ for g, pk in sorted(past.items()):
         "bench_pts": h["points_on_bench"], "best_possible": best_total, "left": max(0, best_total - h["points"]),
         "moves": moves, "wildcard": g in wc_set, "freehit": g in fh_set, "n_tx": len(tx),
         "xi_proj": round(xi_proj, 1) if xi_proj is not None else None,
-        "proj_src": "snapshot" if sx is not None else "rerun",   # saved before the deadline, or re-run with today's model
+        "proj_src": "snapshot" if sx is not None else "none",   # saved before the deadline, or no saved forecast
         "xi_actual": sum(pts_of(i, g) for i in xi_ids),
     })
 # decision score: judge each week's choices on the projections available before it (not on what happened)
@@ -955,24 +950,20 @@ def best_xi_by(ids, val):
     return xi
 
 
-proj_cache = {}
 for w in review["weeks"]:
     g = w["gw"]
     pk = past.get(g)
-    if g < 3 or not pk:
+    sx = pre_deadline_xp(g)
+    if sx is None or not pk:   # no saved forecast (GW1-7): not graded, Review says why (F1f)
         continue
     try:
         pr = project(ctx, g, 3, {"use_flags": False})["players"]
     except Exception:
         continue
-    sx = pre_deadline_xp(g)
-    proj_cache[g] = (pr, sx)
-    if sx is not None:   # this gameweek as it was projected before the deadline; later weeks of the 3 from the re-run
-        xp1 = lambda i: sx.get(i, 0.0)
-        xp3 = lambda i: sx.get(i, 0.0) + sum(v for k, v in pr.get(i, {}).get("xp", {}).items() if k != g)
-    else:
-        xp1 = lambda i: pr.get(i, {}).get("xp", {}).get(g, 0.0)
-        xp3 = lambda i: sum(pr.get(i, {}).get("xp", {}).values())
+    # this gameweek as it was projected before the deadline; the two weeks after it (transfers are judged over 3)
+    # from a projection made on data up to that deadline, as before
+    xp1 = lambda i: sx.get(i, 0.0)
+    xp3 = lambda i: sx.get(i, 0.0) + sum(v for k, v in pr.get(i, {}).get("xp", {}).items() if k != g)
     ids = [p["element"] for p in pk["picks"]]
     chip = pk.get("active_chip")
     xi = ids if chip == "bboost" else [p["element"] for p in pk["picks"] if p["position"] <= 11]
@@ -987,7 +978,7 @@ for w in review["weeks"]:
     grade = "A" if loss <= 0.5 and tx_gain >= -0.5 else "B" if loss <= 1.5 else "C" if loss <= 3 else "D"
     w["decision"] = {"cap_loss": round(cap_loss, 2), "model_cap": best_cap, "lineup_loss": round(max(0.0, lineup_loss), 2),
                      "tx_gain": round(tx_gain, 2) if w["moves"] else None, "proj": round(proj_total, 1),
-                     "luck": round(w["pts"] - proj_total, 1), "grade": grade, "src": "snapshot" if sx is not None else "rerun"}
+                     "luck": round(w["pts"] - proj_total, 1), "grade": grade, "src": "snapshot"}
 
 # each past team as picked: slot, multiplier, real points, and the projection made before that deadline
 for w in review["weeks"]:
@@ -995,10 +986,9 @@ for w in review["weeks"]:
     if not pk:
         continue
     g = w["gw"]
-    pr, sx = proj_cache.get(g, (None, None))
-    xp_of = (lambda i: sx.get(i, 0.0)) if sx is not None else (lambda i: pr.get(i, {}).get("xp", {}).get(g, 0.0))
+    sx = pre_deadline_xp(g)   # no saved forecast -> no xP on the cards (None), never a re-run
     w["team"] = [[p["element"], p["position"], p["multiplier"], pts_of(p["element"], g), mins_of(p["element"], g),
-                  round(xp_of(p["element"]), 2) if (pr or sx is not None) else None] for p in pk["picks"]]
+                  round(sx.get(p["element"], 0.0), 2) if sx is not None else None] for p in pk["picks"]]
     w["autosubs"] = [[a["element_in"], a["element_out"]] for a in pk.get("automatic_subs", [])]
 
 # ---- template tracker: your team against the top-10k template, week by week
@@ -1047,6 +1037,7 @@ for k, t in enumerate(real_tx):
     ledger.append({"gw": t["event"], "in": t["element_in"], "out": t["element_out"], "gws": len(window), "gain": gain,
                    "wildcard": t["event"] in wc_set})
 review["transfers"] = ledger
+review["no_forecast"] = [w["gw"] for w in review["weeks"] if w["proj_src"] == "none"]
 review["totals"] = {
     "cap_lost": sum(w["cap_lost"] for w in review["weeks"]),
     "bench": sum(w["bench_pts"] for w in review["weeks"] if w["chip"] != "bboost"),

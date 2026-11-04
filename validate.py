@@ -218,8 +218,13 @@ def main(path):
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
 
-    # Review: "projected before the deadline" must be the saved snapshot wherever one exists
+    # Review: "projected before the deadline" must be the saved snapshot wherever one exists, and a week without one
+    # shows nothing projected at all (F1f: "no saved forecast", never a re-run with today's model)
     for w in (D.get("review") or {}).get("weeks", []):
+        if not os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')):
+            if w.get("proj_src") != "none" or w.get("xi_proj") is not None or w.get("decision") or w.get("model_cap") \
+                    or any(t[5] is not None for t in w.get("team", [])):
+                errors.append(f'Review GW{w["gw"]}: no forecast was saved before this deadline but the review shows a projection')
         if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')) and w.get("xi_proj") is not None:
             if w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
                 errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but the review re-ran the model')
