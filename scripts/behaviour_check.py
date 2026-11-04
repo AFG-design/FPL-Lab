@@ -30,6 +30,7 @@ Starts its own static server and a headless Chromium, then runs each check again
   - News text: FPL's injury note in the Planner's transfer reasons is shown as text, never read as HTML.
   - Squad uplift (K1): 'With your plan' is the squad after its moves, scored like the rating; no moves = same.
   - One confidence scale (U1): Home's decision cards use only Strong / Marginal / Coin flip, plus a Field's pick tag.
+  - Move reason (U2): a planned move on Home's Transfers card has a one-line reason (xP over the plan, money).
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -587,6 +588,26 @@ def check_one_scale(page):
     return fails
 
 
+def check_move_reason(page):
+    """U2: each move planned for the next GW has a one-line reason on Home's Transfers card: the players' own xP over the
+    plan length and the money, from your real selling price."""
+    r = page.evaluate("""() => {
+      const keep = { moves: SB.moves.slice(), src: SB.source, solved: SB.solved }, g = D.meta.next_gw, sq = squadAt(g);
+      const out = sq.find(i => P[i].pos === "MID");
+      const inn = D.players.filter(p => p.pos === "MID" && !sq.includes(p.id) && p.price <= sellPrice(out) + D.manager.bank).sort((a, b) => b.xp5 - a.xp5)[0].id;
+      SB.moves = [{ gw: g, out, in: inn }]; SB.solved = null; S.home = "next"; setView("week");
+      const li = document.querySelector(".dc-moves li .dc-why");
+      const d = xpFrom(inn, g, PG.length) - xpFrom(out, g, PG.length), cash = Math.round((sellPrice(out) - P[inn].price) * 10) / 10;
+      const res = { text: li ? li.textContent : null, want: [P[inn].name, sgn(d), P[out].name, cash > 0 ? "frees" : cash < 0 ? "costs" : "same money"] };
+      Object.assign(SB, keep); render();
+      return res;
+    }""")
+    if r["text"] is None:
+        return ["Move reason: no one-line reason under a planned move on Home"]
+    missing = [w for w in r["want"] if w not in r["text"]]
+    return [f"Move reason: '{r['text']}' is missing {missing}"] if missing else []
+
+
 def check_sw(browser, url):
     ctx = browser.new_context(service_workers="allow")
     page = ctx.new_page()
@@ -634,7 +655,8 @@ def main():
                          ("set-piece tags", lambda: check_sp_tags(page)),
                          ("news text", lambda: check_news_escaped(page)),
                          ("squad uplift", lambda: check_uplift(page)),
-                         ("one confidence scale", lambda: check_one_scale(page))):
+                         ("one confidence scale", lambda: check_one_scale(page)),
+                         ("move reason", lambda: check_move_reason(page))):
             got = fn()
             failures += got
             print(("✗ " if got else "✓ ") + name)
