@@ -16,33 +16,56 @@ function teamStrength(t) {
 }
 function winClass(p) { return p >= 0.6 ? "d1" : p >= 0.45 ? "d2" : p >= 0.3 ? "d3" : p >= 0.2 ? "d4" : "d5"; }
 function csClass(p) { return p >= 0.45 ? "d1" : p >= 0.35 ? "d2" : p >= 0.25 ? "d3" : p >= 0.15 ? "d4" : "d5"; }
+// Fixtures beyond the model's projection weeks (C5): FPL's own difficulty from the full fixture list (t.far), and for the
+// other modes an estimate from the team ratings (league average x attack x opponent's defence, with home advantage,
+// as fixture swings use). Those cells are marked as estimates. A gameweek with no fixture is a blank, as before.
+// Missing: no FPL difficulty for a fixture -> 3, the default used everywhere else.
+function fxCells(t, g) {
+  if (GWS.includes(g)) return t.fx[g] || [];
+  const L = D.meta.league_goals || 1.4, H = 1.05;
+  return (t.far || []).filter(f => f[0] === g && T[f[1]]).map(([, opp, home, fdr]) => {
+    const o = T[opp];
+    return { opp, home, fdr: fdr ?? 3, est: true,
+      xgf: L * t.att * o.def * (home ? H : 1 / H), xga: L * o.att * t.def * (home ? 1 / H : H) };
+  });
+}
 function vFixtures() {
   const mode = ["fdr", "overall", "att", "def"].includes(S.fxMode) ? S.fxMode : "fdr";
-  const n = Math.min(S.fxN || 6, GWS.length), gws = GWS.slice(0, n);
+  const lastGw = Math.max(GWS[GWS.length - 1] || 0, ...Object.values(T).flatMap(t => (t.far || []).map(f => f[0])));
+  const allGws = Array.from({ length: Math.max(0, lastGw - (GWS[0] || lastGw) + 1) }, (_, k) => GWS[0] + k);
+  const n = S.fxN === "all" ? allGws.length : Math.min(S.fxN || 6, allGws.length), gws = allGws.slice(0, n);
+  const anyEst = gws.some(g => !GWS.includes(g));
   const myTeams = new Set(D.squad.map(s => P[s.id]?.team));
+  const sortBy = ["avg", "total", "team"].includes(S.fxSort) ? S.fxSort : "avg";
   const rows = Object.values(T).map(t => {
-    let sum = 0, cnt = 0;
+    let sum = 0, cnt = 0, nMatch = 0;
     const cells = gws.map(g => {
-      const fx = t.fx[g] || [];
+      const fx = fxCells(t, g);
+      nMatch += fx.length;
       if (!fx.length) { if (mode === "fdr") { sum += 5; cnt++; } return `<td class="fxc">${blankChip(g)}</td>`; }
       return `<td class="fxc">${fx.map(x => {
-        if (mode === "fdr") { sum += x.fdr || 3; cnt++; return fdrChip(x, { gw: g, size: "cellchip" }); }
+        if (mode === "fdr") { sum += x.fdr || 3; cnt++; return fdrChip(x, { gw: g, size: "cellchip" }); }   // FPL's own, model weeks or not
         let label, cls, v;
         if (mode === "overall") { const r = wdl(x.xgf, x.xga); v = r.w; label = Math.round(r.w * 100) + "%"; cls = winClass(r.w); }
         else if (mode === "att") { v = x.xgf; label = x.xgf.toFixed(1); cls = attClass(x.xgf); }
         else { v = csChance(x.xga); label = Math.round(v * 100) + "%"; cls = csClass(v); }
         sum += v; cnt++;
         const r = wdl(x.xgf, x.xga);
-        const tip = `${T[x.opp].name} ${x.home ? "(home)" : "(away)"}: win ${Math.round(r.w * 100)}%, draw ${Math.round(r.d * 100)}%, loss ${Math.round(r.l * 100)}%. Projected ${x.xgf.toFixed(1)}–${x.xga.toFixed(1)}, clean sheet ${Math.round(csChance(x.xga) * 100)}%${x.eu ? `. Also plays ${x.eu}` : ""}`;
-        return `<span class="${cls}" title="${esc(tip)}" data-fxtip="${esc(tip)}" tabindex="0">${oppTxt(x)} <small>${label}</small>${x.eu ? '<i class="eudot" aria-label="European game nearby"></i>' : ""}</span>`;
+        const tip = `${x.est ? "Estimate from team ratings (past the model's projection weeks). " : ""}${T[x.opp].name} ${x.home ? "(home)" : "(away)"}: win ${Math.round(r.w * 100)}%, draw ${Math.round(r.d * 100)}%, loss ${Math.round(r.l * 100)}%. Projected ${x.xgf.toFixed(1)}–${x.xga.toFixed(1)}, clean sheet ${Math.round(csChance(x.xga) * 100)}%${x.eu ? `. Also plays ${x.eu}` : ""}`;
+        return `<span class="${cls}${x.est ? " fx-est" : ""}" title="${esc(tip)}" data-fxtip="${esc(tip)}" tabindex="0">${oppTxt(x)} <small>${label}</small>${x.eu ? '<i class="eudot" aria-label="European game nearby"></i>' : ""}</span>`;
       }).join("")}</td>`;
     }).join("");
     const st = teamStrength(t);
     const avg = cnt ? sum / cnt : 0;
     const avgTxt = mode === "fdr" ? avg.toFixed(1) : mode === "att" ? avg.toFixed(2) : Math.round(avg * 100) + "%";
+    // total over the window: a double counts both games and a blank adds nothing, so it rewards doubles where the
+    // average can't. Expected wins / goals / clean sheets; for FPL difficulty, the number of matches (summing
+    // difficulty would make a double look harder).
+    const tot = mode === "fdr" ? nMatch : sum, totTxt = mode === "fdr" ? String(nMatch) : sum.toFixed(1);
     const strength = mode === "fdr" ? "" : `<td class="n">${Math.round(mode === "att" ? st.att : mode === "def" ? st.def : st.pts)}%</td>`;
-    return { sum: mode === "fdr" ? -avg : avg, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish fx-club">${badge(t.id, 20)}<span>${t.name}</span></button></td>${strength}<td class="n"><b>${avgTxt}</b></td>${cells}</tr>` };
-  }).sort((a, b) => b.sum - a.sum);
+    const good = v => mode === "fdr" ? -v : v;   // higher is better for every sort key
+    return { name: t.name, avg: good(avg), total: tot, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish fx-club">${badge(t.id, 20)}<span>${t.name}</span></button></td>${strength}<td class="n"><b>${avgTxt}</b></td><td class="n">${totTxt}</td>${cells}</tr>` };
+  }).sort((a, b) => sortBy === "team" ? a.name.localeCompare(b.name) : b[sortBy] - a[sortBy] || a.name.localeCompare(b.name));
   const help = {
     fdr: "FPL's official fixture difficulty for each match, 1 easiest to 5 hardest. Easiest run first.",
     overall: "Each team's chance of winning each fixture, from the model's projected goals for and against. Best run first.",
@@ -50,13 +73,16 @@ function vFixtures() {
     def: "Each team's chance of keeping a clean sheet, from the model. Best run for defenders and keepers first.",
   }[mode];
   const strengthHead = { overall: "Strength", att: "Attack", def: "Defence" }[mode];
-  const lengths = [...new Set([3, 5, GWS.length].filter(k => k <= GWS.length))];
+  const lengths = [...new Set([3, 5, GWS.length, 10].filter(k => k <= allGws.length))].map(k => [k, `${k} GWs`]);
+  if (allGws.length > (lengths[lengths.length - 1]?.[0] || 0)) lengths.push(["all", `Rest of season`]);
+  const totHead = { fdr: "Matches", overall: "Exp. wins", att: "Exp. goals", def: "Exp. CS" }[mode];
+  const sortTh = (k, label, cls = "n") => `<th class="${cls}" aria-sort="${sortBy === k ? (k === "team" ? "ascending" : "descending") : "none"}"><button type="button" class="linkish th-sort" data-fxsort="${k}">${label}${sortBy === k ? " ▾" : ""}</button></th>`;
   return `<div class="panel fixtures"><div class="bar"><h2>Fixtures</h2>
     <div class="fx-controls">
       <div class="seg" role="group" aria-label="Colour by">${[["fdr", "Difficulty"], ["overall", "Win chance"], ["att", "Attack"], ["def", "Clean sheet"]].map(([k, l]) => `<button data-fx="${k}" aria-pressed="${mode === k}">${l}</button>`).join("")}</div>
-      <div class="seg" role="group" aria-label="Gameweeks">${lengths.map(k => `<button data-fxn="${k}" aria-pressed="${n === k}">${k} GWs</button>`).join("")}</div></div></div>
-    <div class="fx-help"><p class="note">${help}${mode === "fdr" ? "" : " Colours use the same green-to-red scale; tap a fixture for win, draw and loss chances."}${mode === "fdr" ? "" : " Capitals = home."} Yellow edge = a team you own players from.</p>${mode === "fdr" ? fdrKey() : ""}</div>
-    <div class="tablebox tick"><table><thead><tr><th class="sticky-col">Team</th>${mode === "fdr" ? "" : `<th class="n">${term("strength", strengthHead + " %")}</th>`}<th class="n">${mode === "fdr" ? "Avg FDR" : "Avg"}</th>${gws.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>${swingsPanel()}`;
+      <div class="seg" role="group" aria-label="Gameweeks">${lengths.map(([k, l]) => `<button data-fxn="${k}" aria-pressed="${(S.fxN === "all" ? "all" : n) === k}">${l}</button>`).join("")}</div></div></div>
+    <div class="fx-help"><p class="note">${help}${mode === "fdr" ? "" : " Colours use the same green-to-red scale; tap a fixture for win, draw and loss chances."}${mode === "fdr" ? "" : " Capitals = home."} Yellow edge = a team you own players from. Sort by Avg, the window's total (a double counts twice, a blank adds nothing) or team.${anyEst && mode !== "fdr" ? ` Faded cells past GW${GWS[GWS.length - 1]} are estimates from the team ratings: the model's own fixture projections stop there.` : ""}</p>${mode === "fdr" ? fdrKey() : ""}</div>
+    <div class="tablebox tick"><table><thead><tr>${sortTh("team", "Team", "sticky-col")}${mode === "fdr" ? "" : `<th class="n">${term("strength", strengthHead + " %")}</th>`}${sortTh("avg", mode === "fdr" ? "Avg FDR" : "Avg")}${sortTh("total", totHead)}${gws.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>${swingsPanel()}`;
 }
 
 /* ---------- fixture swings: when a team's run turns easy or hard ---------- */

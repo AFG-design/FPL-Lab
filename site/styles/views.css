@@ -777,3 +777,7 @@ tr.is-rival td { background: var(--accent-soft); }
 /* Transfer paths: plan expiry (D4) */
 .tp-review-box { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--warn) 10%, transparent); }
 .tp-review-box .alerts { margin: 6px 0 8px; }
+
+/* Fixtures: longer horizon (C5) */
+.fixtures .fx-est { opacity: .62; font-style: italic; }
+.fixtures .th-sort { font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; }

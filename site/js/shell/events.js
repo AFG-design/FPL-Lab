@@ -17,7 +17,8 @@ function bind() {
     window.scrollBy(0, nb.getBoundingClientRect().top - top); nb.focus({ preventScroll: true });
   });
   on("[data-fx]", b => { S.fxMode = b.dataset.fx; store.set("fpl.fxMode", S.fxMode); render(); });
-  on("[data-fxn]", b => { S.fxN = +b.dataset.fxn; render(); });
+  on("[data-fxn]", b => { S.fxN = b.dataset.fxn === "all" ? "all" : +b.dataset.fxn; render(); });
+  on("[data-fxsort]", b => { S.fxSort = b.dataset.fxsort; render(); });
   on("[data-field]", b => { S.field = b.dataset.field; render(); });
   on("[data-mode]", b => {
     S.mode = b.dataset.mode; store.set("fpl.mode", S.mode);
