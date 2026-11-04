@@ -14,6 +14,12 @@
 //   - Forecasts: every row is recalculated on the current data.json, so all totals share one forecast. A saved path
 //     remembers its Net xP when it was saved (net, over h gameweeks); if the forecast has since moved it by 0.5 or more
 //     over the same horizon, the row says so with the old figure. Paths saved before this was recorded show no flag.
+//   - Plan expiry (D4): a saved path also remembers, for the players it relies on (everyone it brings in and every
+//     captain it picks), their FPL status, chance of playing, club and number of matches in each gameweek it covers.
+//     If any of these has since got worse or changed (fit -> doubtful or out, a lower chance, a blank or a moved
+//     fixture, a new club), the row shows "Review" with each change listed. Improvements (a player back to fit, a new
+//     double) are listed too but don't trigger the flag on their own. Saving the path again clears it. Paths saved
+//     before this was recorded show no flag; a player no longer in the data is already shown as dropped.
 //   - Squad changes (a new gameweek, a Free Hit restore): saved paths are stored per squad, so paths made for your
 //     previous squad show as "needs recalculating" with no totals until you recalculate (moves that no longer apply are
 //     dropped, and the row says how many) or discard them.
@@ -42,11 +48,39 @@ function solvedFrom(sc) {
 // vs Hold from the two Net figures as shown (to 0.1), so the row always adds up on screen
 const r1 = x => Math.round(x * 10) / 10;
 const tpGain = (r, hold) => r1(r1(r.sc.tot) - r1(hold.sc.tot));
-// a saved path's Net xP now, so a later forecast change can be shown against it
+// a saved path's Net xP now, so a later forecast change can be shown against it; and what it relies on (tpDeps)
 function tpStamp(d) {
   const moves = cleanMoves(d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
   const sc = withDraft(d, () => scoreMoves(moves, d.solved || null));
-  return { ...d, net: r1(sc.tot), h: PG.length, built: D.meta.built };
+  return { ...d, net: r1(sc.tot), h: PG.length, built: D.meta.built, deps: tpDeps(moves, sc) };
+}
+// the players a path relies on (signings and captains), as they stood: [status, chance, club, {gw: matches}]
+function tpDeps(moves, sc) {
+  const ids = new Set([...moves.map(m => m.in), ...sc.weeks.map(w => w.team.cap)].filter(i => P[i]));
+  const out = {};
+  ids.forEach(i => { const p = P[i]; out[i] = [p.status, p.chance ?? null, p.team, Object.fromEntries(PG.map(g => [g, fxFor(p.team, g).length]))]; });
+  return out;
+}
+const chanceOf = (st, ch) => st === "a" && ch == null ? 100 : ch == null ? (["i", "s", "n", "u"].includes(st) ? 0 : 50) : ch;
+const fxWord = n => n === 0 ? "a blank" : n === 1 ? "one match" : n === 2 ? "a double" : `${n} matches`;
+// what has changed for those players since the path was saved: { worse: [text], better: [text] } or null (no record)
+function tpChanges(d) {
+  if (!d.deps) return null;
+  const worse = [], better = [];
+  for (const [id, [st, ch, team, fx]] of Object.entries(d.deps)) {
+    const p = P[id]; if (!p) continue;                       // gone from the data: shown as "dropped" already
+    const was = chanceOf(st, ch), now = chanceOf(p.status, p.chance), nm = p.name;
+    if (now < was) worse.push(`${nm}: ${now === 0 ? `now out${p.news ? ` (${p.news})` : ""}` : `now ${now}% to play`} (was ${was}%)`);
+    else if (now > was) better.push(`${nm}: now ${now === 100 ? "fit" : now + "%"} (was ${was}%)`);
+    if (p.team !== team) { worse.push(`${nm}: now at ${T[p.team]?.short || "another club"}`); continue; }
+    for (const [g, n] of Object.entries(fx)) {
+      if (!PG.includes(+g)) continue;
+      const m = fxFor(p.team, +g).length;
+      if (m < n) worse.push(`${nm}: GW${g} now ${fxWord(m)} (was ${fxWord(n)})`);
+      else if (m > n) better.push(`${nm}: GW${g} now ${fxWord(m)} (was ${fxWord(n)})`);
+    }
+  }
+  return { worse, better };
 }
 const MOVED = 0.5;   // Net xP change, after a forecast update, worth flagging on a saved path
 const tpProblems = sc => sc.weeks.filter(w => w.bank < 0 || w.over.length).map(w => `GW${w.gw}: ${w.bank < 0 ? `over budget by ${money(-w.bank)}` : `more than 3 from ${w.over.join(", ")}`}`);
@@ -72,7 +106,8 @@ function tpRows() {
     const sc = withDraft(d, () => scoreMoves(moves, d.solved || null));
     rows.push({ key: "d:" + (d.id || "i" + k), idx: k, name: d.name || `Path ${k + 1}`, kind: "draft", d, mode: MODES[d.mode] ? d.mode : S.mode,
       sub: `Saved · ${MODES[d.mode] || MODES[S.mode]}${d.from ? ` · from ${d.from}` : ""}`, sc, moves, ov: d.ov || {}, dropped, solved: d.solved || null,
-      moved: d.net != null && d.h === PG.length && Math.abs(r1(sc.tot) - d.net) >= MOVED ? d : null, problems: tpProblems(sc) });
+      moved: d.net != null && d.h === PG.length && Math.abs(r1(sc.tot) - d.net) >= MOVED ? d : null, problems: tpProblems(sc),
+      changes: tpChanges(d) });
   });
   // the active plan: marked on the row it matches (same moves, captains and total), otherwise a row of its own
   const act = scoreMoves(SB.moves), live = rows.filter(r => r.sc);
@@ -150,7 +185,12 @@ function vTpaths() {
   };
   const body = rows.map(r => {
     const isSel = r.key === sel.key;
-    const flag = r.problems?.length ? `<span class="pill bad">Invalid</span>` : r.moved ? `<span class="pill warn" title="Net xP was ${f1(r.moved.net)} when saved${r.moved.saved ? ` (${whenTxt(new Date(r.moved.saved).toISOString())})` : ""}; the forecast has changed since">Forecast moved · was ${f1(r.moved.net)}</span>` : r.dropped ? `<span class="pill warn">${r.dropped} dropped</span>` : "";
+    const ch = r.changes, rv = ch?.worse.length ? ch : null;
+    const review = rv ? `<span class="pill warn tp-review" title="${esc(`Since this path was saved: ${[...rv.worse, ...rv.better].join("; ")}. Save the path again to clear this.`)}">Review · ${rv.worse.length} change${rv.worse.length === 1 ? "" : "s"}</span>` : "";
+    // flags stack: an invalid path can also have gone stale, and both are worth knowing
+    const flag = [r.problems?.length ? `<span class="pill bad">Invalid</span>` : "", review,
+      r.moved ? `<span class="pill warn" title="Net xP was ${f1(r.moved.net)} when saved${r.moved.saved ? ` (${whenTxt(new Date(r.moved.saved).toISOString())})` : ""}; the forecast has changed since">Forecast moved · was ${f1(r.moved.net)}</span>` : "",
+      r.dropped ? `<span class="pill warn">${r.dropped} dropped</span>` : ""].filter(Boolean).join(" ");
     const name = `<th scope="row" class="sticky-col tp-n"><button type="button" data-tprow="${esc(r.key)}" aria-pressed="${isSel}">
         <span class="tp-nm">${esc(r.name)}${r.active ? ' <span class="pill good">Active plan</span>' : ""} ${flag}</span><small>${esc(r.sub || "")}</small>
         ${r.sc ? `<small class="tp-mob">Net ${f1(r.sc.tot)} · ${r.kind === "hold" ? "baseline" : sgn(tpGain(r, hold)) + " vs Hold"}</small>` : ""}</button></th>`;
@@ -195,7 +235,12 @@ function tpStrip(r, g, rows) {
       <button class="btn sm" data-tpdup="${esc(r.key)}" ${getDrafts().length >= 3 ? 'disabled title="3 paths saved"' : ""}>Duplicate</button>
       ${!r.active && rows.some(x => x.kind === "active") ? `<button class="btn sm" data-tpover="${esc(r.key)}" title="Replace this path with your active plan">Save Your plan over it</button>` : ""}
       <button class="btn sm tp-del" data-tpdel="${esc(r.key)}">Delete</button></div>` : "";
-  return `<section class="tp-strip" aria-label="${esc(r.name)}, GW${g}">
+  // plan expiry (D4): what changed for the players this saved path relies on, readable on a phone (not only a tooltip)
+  const ch = r.kind === "draft" && r.changes?.worse.length ? r.changes : null;
+  const review = ch ? `<div class="tp-review-box" role="status"><b>Review this path: things it relies on have changed since you saved it.</b>
+      <ul class="alerts">${ch.worse.map(t => `<li class="warn"><span>${esc(t)}</span></li>`).join("")}${ch.better.map(t => `<li class="info"><span>${esc(t)}</span></li>`).join("")}</ul>
+      <button class="btn sm" data-tpreviewed="${esc(r.key)}">Mark as reviewed</button></div>` : "";
+  return `<section class="tp-strip" aria-label="${esc(r.name)}, GW${g}">${review}
     <div class="tp-strip-h"><button type="button" class="tp-x" data-tpclose="1" aria-expanded="true" aria-label="Close GW${g} details">▾</button><h3>GW${g} · ${esc(r.name)}</h3>
       <button class="linkish tp-edit" data-tpedit="${esc(r.key)}|${g}">${editTxt}</button></div>
     ${mv.length ? `<ul class="tp-moves">${mv.map(m => `<li><span class="out"><span class="sr">Out: </span>${esc(P[m.out].name)}${owned.has(m.out) && !r.moves.some(x => x.in === m.out) ? ` <small class="muted">sells ${money(sellPrice(m.out))}</small>` : ""}</span><span aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)} <small class="muted">${money(P[m.in].price)}</small></span></li>`).join("")}</ul>`
@@ -296,6 +341,11 @@ function bindTpaths() {
   on("[data-tpren]", () => {
     const k = tpDraftIdx(TP.sel), v = ($("#tpRename")?.value || "").trim(); if (k < 0 || !v) return;
     const ds = tpIds(getDrafts()); ds[k] = { ...ds[k], name: v.slice(0, 24) }; setDrafts(ds); pick("d:" + ds[k].id); TP.msg = `Renamed to “${v.slice(0, 24)}”.`; render();
+  });
+  // keep the path as it is but record today's status, chances and fixtures, so the Review flag clears
+  on("[data-tpreviewed]", () => {
+    const k = tpDraftIdx(TP.sel); if (k < 0) return;
+    const ds = tpIds(getDrafts()); ds[k] = tpStamp({ ...ds[k] }); setDrafts(ds); pick("d:" + ds[k].id); TP.msg = "Marked as reviewed."; render();
   });
   on("[data-tpdup]", () => {
     const r = tpFind(TP.sel), ds = tpIds(getDrafts()); if (!r || r.kind !== "draft" || ds.length >= 3) return;
