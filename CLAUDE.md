@@ -1,7 +1,30 @@
 # Working rules for FPL LAB
 
+This file is the single source of truth for how FPL LAB is built. Any other instructions (claude.ai project,
+memory) point here; if they disagree, this file wins. When the owner settles a new rule, add it here in the
+same PR.
+
 Static site on GitHub Pages (`site/`); `build.py` rebuilds `site/data.json` every 30 minutes (Refresh workflow),
 then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing design.
+
+## How to work
+- Build on a branch and open a PR for the owner to review. Never merge until the owner says "merge", and don't
+  start the next item until the owner says so.
+- Only build things that add real value. When asked about a feature, give an honest worth-it verdict first.
+- Explain changes plainly in the PR: what was wrong, what changed, what it's worth.
+
+## Data and cost
+- No paid data sources or APIs, and no Claude API in the app. Free sources only (public FPL API, Understat,
+  football-data.co.uk odds).
+- FPL Review is the owner's personal subscription: manual CSV exports for his own use only. Never scrape it,
+  commit its data to the repo or publish it on the site.
+
+## Fixed features and wording
+- AFG suggestion, Model and Data health are still being tested: keep their names, locations and behaviour
+  unchanged unless the owner asks.
+- Planner strategies: Balanced and Play safe never take a hit; only Chase rank may consider a −4. No moves for
+  the sake of it, only for a projected net gain.
+- Call it "the model" in the app, never "Supercomputer".
 
 ## Missing, late or ambiguous data
 - Every change states what it does when its input is missing, late (e.g. odds not out, status log not saved
@@ -30,6 +53,7 @@ Also judge a change on the part it targets, not only on total points: the backte
 60+ chance, expected minutes) and each scoring part on its own (raw, before the final calibration, which can hide a
 part that is badly off). `bench.py` prints 5-GW totals (what the planner uses) next to the 1-GW scores; quote both.
 A change that helps its own part but not the total is still worth recording in the model log.
+Keep a change only if it also holds up on past seasons, not just the current one.
 
 `--compare` flags any segment (position, price band, flagged/unflagged, top 30, GW) with n ≥ 30 where MAE
 worsens by more than 0.05 or bias moves by more than 0.2. A change that improves the headline but trips a
@@ -42,7 +66,7 @@ segment must be called out in the PR, with the numbers. Put the before/after tab
   projected vs actual).
 
 ## Testing
-- Check the page at ~390px and ~1280px wide. `npm run layout` (scripts/layout_check.py) opens every screen at
+- Check the page at ~390px and ~1280px wide, in both dark and light mode. `npm run layout` (scripts/layout_check.py) opens every screen at
   both widths and fails on JS errors, error cards, sideways page scroll or missing site files; the Check site
   workflow runs it on every PR and keeps the screenshots as an artifact. `scripts/screenshots.py` is for the
   README shots.
