@@ -19,12 +19,11 @@ then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing
 - FPL Review is the owner's personal subscription: manual CSV exports for his own use only. Never scrape it,
   commit its data to the repo or publish it on the site.
 
-## Fixed features and wording
-- AFG suggestion, Model and Data health are still being tested: keep their names, locations and behaviour
-  unchanged unless the owner asks.
-- Planner strategies: Balanced and Play safe never take a hit; only Chase rank may consider a −4. No moves for
-  the sake of it, only for a projected net gain.
-- Call it "the model" in the app, never "Supercomputer".
+## Tabs and planner
+- AFG suggestion, Model and Data health can be changed, but their tabs stay where they are.
+- Planner strategies: Balanced and Play safe never take a hit; only Chase rank may consider a −4. Every
+  strategy must always weigh making no moves (rolling the free transfer) and pick it when it's the best option
+  that gameweek. No moves for the sake of it, only for a projected net gain.
 
 ## Missing, late or ambiguous data
 - Every change states what it does when its input is missing, late (e.g. odds not out, status log not saved
