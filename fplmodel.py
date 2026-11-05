@@ -655,6 +655,7 @@ def project(ctx, as_of, horizon=6, params=None):
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
         per_gw, detail, dist, assumed = {}, {}, {}, set()
         xm_next = ps_next = p60_next = 0.0
+        start_next = sub_next = None   # chance of starting / coming on in one match next gameweek; None: no match (blank)
         for k, g in enumerate(gws):
             ko = kick.get((tid, g))
             if P["use_flags"]:
@@ -681,6 +682,7 @@ def project(ctx, as_of, horizon=6, params=None):
                 m = ps * m_start + pb * m_sub
                 if k == 0:
                     ps_next += ps; p60_next += p60_given_start * ps
+                    start_next, sub_next = ps, pb   # the same for each match of a double, so never above 100%
                     xm_next += m          # expected minutes next gameweek, after flags, rotation and return ramp
                 p60 = ps * p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
@@ -733,6 +735,7 @@ def project(ctx, as_of, horizon=6, params=None):
             "has_prior": bool(pr),
             "min_src": "xmins" if pid in xm_pred else "counts",   # counts: no fixture in the horizon for the xMins inputs
             "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
+            "start_next": start_next, "sub_next": sub_next,
         }
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}
 

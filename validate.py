@@ -133,6 +133,24 @@ def main(path):
                 lag = None
             if lag is None or lag > 15 * 60:
                 warnings.append(f"Pre-deadline snapshot for GW{g} wasn't rewritten this build (saved {sp_.get('built')})")
+            # start chance as the forecast used it: never above FPL's flag or his chance before flags, and only missing
+            # for a blank. Missing: a player not in data.json (no flag or chance to test against) is skipped.
+            row_ = {p_["id"]: p_ for p_ in D["players"]}
+            wrong, none_ = [], []
+            for k_, m_ in sp_.get("mins", {}).items():
+                p_ = row_.get(int(k_))
+                if p_ is None:
+                    continue
+                s_ = m_[0]
+                if s_ is None:
+                    if (sp_.get("xp", {}).get(k_) or [0])[0] > 0:
+                        none_.append(k_)
+                elif not 0 <= s_ <= 1 or s_ > (p_.get("p_start") or 0) + 0.011 or (p_.get("chance") is not None and s_ > p_["chance"] / 100 + 0.011):
+                    wrong.append(p_["name"])
+            if wrong:
+                warnings.append(f"Pre-deadline snapshot for GW{g}: start chance above the flag or the model's own for {', '.join(wrong[:5])}")
+            if none_:
+                warnings.append(f"Pre-deadline snapshot for GW{g}: no start chance for {len(none_)} players with xP (first ids {', '.join(none_[:5])})")
     # you vs the model (F1): impossible teams or results are errors; your score not matching FPL's is a warning (it
     # would mean the scoring rules missed something, so the head-to-head can't be trusted that week)
     vm = D.get("vs_model")

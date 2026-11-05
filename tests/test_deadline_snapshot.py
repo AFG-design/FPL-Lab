@@ -8,7 +8,7 @@ GWS = [11, 12, 13]
 
 
 def player(xp, dist=True, **kw):
-    p = {"xp": dict(zip(GWS, xp)), "p_start": 0.9, "psub": 0.05, "xmin": 81,
+    p = {"xp": dict(zip(GWS, xp)), "p_start": 0.9, "psub": 0.05, "start_next": 0.45, "sub_next": 0.03, "xmin": 81,
          "dist": {11: [0.12, 0.35, 0.4, 1, 9]} if dist else {}}
     p.update(kw)
     return p
@@ -29,10 +29,16 @@ class Snapshot(unittest.TestCase):
         self.assertEqual(s["xp"]["4"], [0, 1.2, 3.3])            # xP only in a later plan week still kept
         self.assertNotIn("2", s["xp"])                            # no xP and not yours: dropped
         self.assertIn("3", s["xp"])                               # yours, even with no xP
-        self.assertEqual(s["mins"]["1"], [0.9, 0.05, 81])
+        self.assertEqual(s["mins"]["1"], [0.45, 0.03, 81])        # as the forecast used them, not p_start / psub
         self.assertEqual(s["dist"]["1"], [0.12, 0.35, 0.4])
         self.assertNotIn("3", s["dist"])                          # no simulation: no row, not a made-up one
         self.assertEqual((s["squad"], s["bank"], s["ft"], s["plan_gws"]), ([1, 3], 1.5, 2, GWS))
+
+    def test_blank_or_missing_start_chance_stays_none(self):
+        blank = {1: player([0, 4.0, 0], start_next=None, sub_next=None)}
+        self.assertEqual(build(11, GWS, blank, [1], 0, 1, PLANS, MARKET, FIX, built="t")["mins"]["1"], [None, None, 81])
+        old = {1: {"xp": {12: 4.0}, "p_start": 0.9, "psub": 0.05, "xmin": 81}}   # never falls back to the figure before flags
+        self.assertEqual(build(11, GWS, old, [1], 0, 1, PLANS, MARKET, FIX, built="t")["mins"]["1"], [None, None, 81])
 
     def test_odds_as_they_stood_and_gaps_recorded(self):
         s = build(11, GWS, PLAYERS, [1], 0, 1, PLANS, MARKET, FIX, built="t")
