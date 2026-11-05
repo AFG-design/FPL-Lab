@@ -3,7 +3,8 @@
 proj_gw{N} keeps next GW's xP, FPL's ep_next, status and chance. These are overwritten every build and were lost once the
 deadline passed, so they're kept here, rewritten each build until the deadline (the last build before it stays):
   - xp: each player's xP for every plan gameweek (the 5-GW numbers the Planner uses, not only next GW)
-  - mins: [start chance, chance of a sub appearance, expected minutes next GW]
+  - mins: [start chance, chance of a sub appearance, expected minutes next GW], all as the forecast used them: after
+    FPL's flag, rotation and the return ramp. Start and sub chances are per match, so a double can't show over 100%
   - dist: next GW's simulated outcomes [chance of 10+, chance of 6+, chance of 2 or fewer]
   - odds: the market's expected goals for each plan-gameweek fixture as they stood (odds/odds.json only keeps the latest)
   - plans: each strategy plan's moves, captains, hits and totals, and the squad, bank and free transfers it started from
@@ -13,6 +14,8 @@ Missing / late / ambiguous input (nothing is made up; each gap is recorded in "m
     that fixture is listed under missing.odds_fixtures, and "odds" holds only fixtures that had odds
   - no plans (no squad yet, or the solver failed): "plans" is {} and missing.plans says why
   - no simulation for a player: no "dist" row for him
+  - no match next gameweek (blank), or a player row without the figures: start and sub chance are None, never 0 or a
+    number from before the flags (the journal shows "–"; validate.py warns if a player with xP has none)
 Players are kept when they have any plan-gameweek xP above 0 or are in the squad, as in proj_gw{N}.
 """
 import datetime as dt
@@ -25,7 +28,7 @@ def build(gw, plan_gws, players, squad_ids, bank, ft, plans, market, fixtures, b
     sq = set(squad_ids)
     keep = {i: p for i, p in players.items() if i in sq or any(p["xp"].get(g, 0) > 0 for g in plan_gws)}
     xp = {str(i): [round(p["xp"].get(g, 0), 2) for g in plan_gws] for i, p in keep.items()}
-    mins = {str(i): [p.get("p_start"), p.get("psub"), p.get("xmin")] for i, p in keep.items()}
+    mins = {str(i): [p.get("start_next"), p.get("sub_next"), p.get("xmin")] for i, p in keep.items()}
     dist = {}
     for i, p in keep.items():
         d = (p.get("dist") or {}).get(gw)
