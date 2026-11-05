@@ -347,6 +347,9 @@ for pid, e in elements.items():
         "xgi90": round(r["xg90"] + r["xa90"], 2), "xg90": round(r["xg90"], 2), "xa90": round(r["xa90"], 2),
         "xgi90_4": round(xgi4, 2), "xgi90_6": round(xgi6, 2), "pts4": pts4, "pts6": pts6, "mins4": m4,
         "dc90": round(r["dc90"], 1), "dc_rate": round(r["p_dc"], 2), "p_start": round(r["p_start"], 2),
+        # next gameweek, per match, after flags, rotation and return ramp: what the forecast used (p_start is before them)
+        "start_next": None if r["start_next"] is None else round(r["start_next"], 2),
+        "sub_next": None if r["sub_next"] is None else round(r["sub_next"], 2),
         "xmin": round(r["xmin"]), "status": e["status"], "news": e["news"], "chance": e["chance_of_playing_next_round"],
         "ret": cur_gw in ctx.get("out", {}).get(pid, ()),   # missed his club's last game through injury or a ban
         "yc": e["yellow_cards"], "rc": e["red_cards"], "upos": (US.get("players", {}).get(str(pid)) or {}).get("upos", ""),
