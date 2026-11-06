@@ -82,7 +82,9 @@ def _priors(season, code_to_id):
         s, r = last[pid]
         out[str(pid)] = {"season": s, "mins": round(m / t["w"]), "xg90": t["xg"] / m * 90, "xa90": t["xa"] / m * 90,
                          "bonus90": t["bonus"] / m * 90, "saves90": t["saves"] / m * 90,
-                         "dc90": t["dc"] / m * 90,
+                         # per 90 of the minutes in seasons that recorded DC; None when none did (before
+                         # 2025/26), so fplmodel gives the prior no weight for DC rather than reading it as 0
+                         "dc90": t["dc"] / t["dc_min"] * 90 if t["dc_min"] else None,
                          "yc90": t["yc"] / m * 90, "pts90": t["pts"] / m * 90, "last_pts": _num(r["total_points"], int),
                          "last_mins": _num(r["minutes"], int), "last_xgi": _num(r.get("expected_goal_involvements"))}
     return {"players": out}
