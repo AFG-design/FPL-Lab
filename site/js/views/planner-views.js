@@ -73,6 +73,10 @@ function planScore(pl, moves) {
   return { weeks, tot, ftLeft: weeks.length ? weeks[weeks.length - 1].next : 0 };
 }
 // the rule each strategy plays by, with the numbers from this build (data.plan_rules, set in optimise.py)
+function useModelPlan(key, mode) {
+  const plan = D.plans[key], moves = cleanMoves(planMoves(plan));
+  activatePlan({ moves, mode, solved: solvedFrom(planScore(plan, moves)) }, "plan:" + key);
+}
 function pvRule(mode) {
   const R = D.plan_rules || {}, n = x => (x ?? 0).toFixed(x % 1 ? 1 : 0);
   const profit = R.min_profit != null ? ` It only suggests transfers that beat keeping your squad by at least ${n(R.min_profit)} point${R.min_profit === 1 ? "" : "s"}.` : "";
@@ -306,8 +310,7 @@ function bindPlannerViews() {
   on("[data-pvvar]", b => { const [m, k] = b.dataset.pvvar.split(":"); PV.variant[m] = k; render(); });
   on("[data-pvuse]", b => {
     const [m] = b.dataset.pvuse.split(":"), r = pvStrat(m); if (!r.key) return;
-    S.mode = m; store.set("fpl.mode", m); tpEditing(null);
-    setPlan(r.moves, "plan:" + r.key, solvedFrom(r.sc));   // the optimiser's lineups too, so Your plan shows the same total
+    activatePlan({ moves: r.moves, mode: m, solved: solvedFrom(r.sc) }, "plan:" + r.key);
     S.pview = "edit"; store.set("fpl.pview", "edit");
     render(); window.scrollTo({ top: 0 });
     toast(`${MODES[m]} plan is now Your plan: ${sgn(r.gain)} over ${PG.length} GWs. Undo is in Your moves.`);
