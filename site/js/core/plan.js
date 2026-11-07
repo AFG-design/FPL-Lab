@@ -119,9 +119,9 @@ function cleanMoves(moves) {
   return ok;
 }
 function sanitize() { SB.moves = cleanMoves(SB.moves); }
-function ftTable(moves = SB.moves) {
+function ftTable(moves = SB.moves, weeks = PG) {
   let ft = Math.min(5, D.manager.free_transfers);
-  return PG.map(g => {
+  return weeks.map(g => {
     const n = moves.filter(m => m.gw === g).length, hits = Math.max(0, n - ft);
     const row = { gw: g, ft, n, hits };
     ft = n > ft ? 1 : Math.min(5, ft - n + 1);
