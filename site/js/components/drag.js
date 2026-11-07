@@ -14,7 +14,6 @@ function formationProblem(xi) {
   return c.DEF > 5 ? "Five defenders is the most you can start." : c.FWD > 3 ? "Three forwards is the most you can start." : "";
 }
 function makeTransfer(g, out, inn) {
-  SB.prev = { moves: SB.moves.slice(), source: SB.source };
   editPlan(() => {
     const same = SB.moves.find(m => m.gw === g && m.in === out);
     if (same) { same.in = inn; if (same.in === same.out) SB.moves = SB.moves.filter(m => m !== same); }  // swap a signing made this week: still one transfer
