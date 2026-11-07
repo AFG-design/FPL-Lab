@@ -278,6 +278,9 @@ def check_home(browser, url):
 
 TPATHS = r"""async () => {
   const out = [], near = (a, b) => Math.abs(a - b) < 1e-6;
+  // Start this isolated scenario with two FTs: one move now leaves two next week, so three then cost four points.
+  D.manager.free_transfers = 2;
+  _pv = { key: "", res: {} }; // discard rows calculated with the live allowance
   setDrafts([]); setPlan([], "custom"); SB.ov = {}; S.mode = "balanced"; setHorizon(5);
   const g = PG[0], g2 = PG[1], sq = squadAt(g), bank = D.manager.bank;
   const best = (pos, not, cap) => D.players.filter(p => p.pos === pos && !not.includes(p.id) && p.ok !== false && p.price <= cap + 1e-9).sort((a, b) => xpFrom(b.id, g, 5) - xpFrom(a.id, g, 5))[0];
@@ -476,6 +479,9 @@ def check_lineup(browser, url):
     page.goto(f"{url}#week")
     page.wait_for_selector(".home")
     page.wait_for_load_state("networkidle")
+    # Home opens on Current GW during matches. These assertions exercise the projected XI.
+    page.click("#hometab-next")
+    page.wait_for_selector(".home-next .pitchwrap")
     if not page.locator(".pitchwrap.lu-cards").count():
         out.append("lineup doesn't default to Cards")
     view = "JSON.stringify([" + PLAN_JS + ", SB.gw, S.home])"
