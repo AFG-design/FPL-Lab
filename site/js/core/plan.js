@@ -49,12 +49,13 @@ const sameMoves = (a, b) => mvKey(a) === mvKey(b);
 function sbKey() { return `fpl.sb.${D.meta.team_id}.${D.meta.next_gw}.${D.squad.map(s => s.id).join("-")}`; }
 function loadSandbox() {
   const keepGw = SB && PG.includes(SB.gw) ? SB.gw : PG[0], keepSel = SB?.sel ?? null;
-  const saved = store.get(sbKey());
-  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", prev: SB?.prev || null, ov: {}, solved: null, rules: { locked: [], banned: [], maxHits: null } };
+  const scope = sbKey(), sameSquad = SB?.scope === scope;
+  if (!sameSquad) TP.undo = null;
+  const saved = store.get(scope);
+  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", scope, prev: sameSquad ? SB.prev : null, ov: {}, solved: null, rules: { locked: [], banned: [], maxHits: null } };
   if (saved && Array.isArray(saved.moves)) {
-    SB.moves = saved.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw));
-    SB.source = saved.source || "custom"; SB.updated = saved.updated || 0;
-    applyExtras(saved);
+    SB.updated = saved.updated || 0;
+    applyExtras(saved); SB.sel = keepSel;
   } else {
     const rec = recommendedPlan();
     SB.moves = rec ? planMoves(D.plans[rec]) : [];
@@ -62,24 +63,44 @@ function loadSandbox() {
   }
   sanitize();
 }
-function sbState() { return { moves: SB.moves, source: SB.source, updated: SB.updated, ov: SB.ov, solved: SB.solved, rules: SB.rules, drafts: store.get(sbKey() + ".drafts") || [] }; }
+// Legacy local/synced plans use the same flat fields. Missing lineup means automatic
+// selection, missing overrides mean none, and a missing strategy keeps the device's choice.
+function completePlan(src = SB) {
+  return JSON.parse(JSON.stringify({ moves: src.moves || [], ov: src.ov || {},
+    solved: src.solved || null, mode: MODES[src.mode] ? src.mode : S.mode }));
+}
+function applyPlan(src, source) {
+  const plan = completePlan(src);
+  SB.moves = cleanMoves(plan.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
+  SB.ov = Object.fromEntries(Object.entries(plan.ov).filter(([g]) => GWS.includes(+g)));
+  SB.solved = plan.solved; SB.source = source || "custom"; SB.sel = null;
+  S.mode = plan.mode; store.set("fpl.mode", S.mode);
+}
+function rememberPlan() {
+  SB.prev = { ...completePlan(), source: SB.source, scope: sbKey(), editing: tpEditing() };
+}
+function undoPlan() {
+  const prev = SB.prev; SB.prev = null;
+  if (!prev || prev.scope !== sbKey()) return;
+  applyPlan(prev, prev.source); tpEditing(prev.editing || null); saveSandbox();
+}
+function sbState() { return { ...completePlan(), source: SB.source, updated: SB.updated, rules: SB.rules, drafts: store.get(sbKey() + ".drafts") || [] }; }
 function applyExtras(src) {
-  SB.ov = {};
-  Object.entries(src.ov || {}).forEach(([g, o]) => { if (GWS.includes(+g)) SB.ov[+g] = o; });
+  applyPlan(src, src.source);
   SB.rules = Object.assign({ locked: [], banned: [], maxHits: null }, src.rules || {});
   SB.rules.locked = SB.rules.locked.filter(i => P[i]); SB.rules.banned = SB.rules.banned.filter(i => P[i]);
-  SB.solved = src.solved || null;   // saved before this field existed: none, so lineups are picked as usual
 }
 function saveSandbox() { SB.updated = Date.now(); _base = null; store.set(sbKey(), sbState()); syncPush(); }
 function setOv(g, fn) { SB.ov[g] = SB.ov[g] || { start: [], bench: [] }; fn(SB.ov[g]); saveSandbox(); }
 // solved: the optimiser's own lineup and captain per week ({gw: {sq, xi, cap}}), kept with the moves it chose them
 // for (Re-plan). Anything else that sets or edits the plan clears it, so a lineup never outlives its squad.
-function setPlan(moves, source, solved = null) {
-  SB.prev = { moves: SB.moves.slice(), source: SB.source };
-  SB.moves = moves.map(m => ({ ...m })); SB.source = source; SB.sel = null; SB.solved = solved;
-  sanitize(); saveSandbox();
+function activatePlan(plan, source, editing = null) {
+  rememberPlan(); applyPlan(plan, source); tpEditing(editing); saveSandbox();
 }
-function editPlan(fn) { fn(); SB.source = "custom"; SB.solved = null; sanitize(); saveSandbox(); }
+function setPlan(moves, source, solved = null) {
+  activatePlan({ moves, solved, ov: SB.ov }, source, tpEditing());
+}
+function editPlan(fn) { rememberPlan(); fn(); SB.source = "custom"; SB.solved = null; sanitize(); saveSandbox(); }
 function planName() {
   if (SB.source.startsWith("replan:")) return "Re-planned" + (SB.source.endsWith("balanced") ? "" : ` (${MODES[SB.source.split(":")[1]]})`);
   if (SB.source.startsWith("plan:")) { const k = SB.source.slice(5); if (D.plans[k] && sameMoves(planMoves(D.plans[k]), SB.moves)) return planLabel(k) + " plan"; }

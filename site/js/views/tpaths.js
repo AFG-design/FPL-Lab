@@ -32,7 +32,6 @@
 const TP = { sel: store.get("fpl.tpsel") || "hold", gw: null, form: false, settings: false, busy: false, msg: "", undo: null, del: null };
 const tpMode = () => (["balanced", "safe", "chase"].includes(TP.mode) ? TP.mode : S.mode);
 const tpId = () => "p" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
-const ovEmpty = ov => !Object.values(ov || {}).some(o => o && (o.start?.length || o.bench?.length || o.cap || o.vice || o.order?.length));
 const capsOf = sc => sc.weeks.map(w => w.team.cap).join(",");
 function withDraft(d, fn) {
   const keep = { ov: SB.ov, mode: S.mode };
@@ -42,7 +41,7 @@ function withDraft(d, fn) {
 // the server optimiser's own lineups as a "solved" record, so the plan scores the same once it's yours
 function solvedFrom(sc) {
   const out = {};
-  sc.weeks.forEach(w => { if (!w.filled) out[w.gw] = { sq: w.sq.slice(), xi: w.team.xi.slice(), cap: w.team.cap }; });
+  sc.weeks.forEach(w => { out[w.gw] = { sq: w.sq.slice(), xi: w.team.xi.slice(), cap: w.team.cap, vice: w.team.vice, bench: w.team.bench.slice() }; });
   return out;
 }
 // vs Hold from the two Net figures as shown (to 0.1), so the row always adds up on screen
@@ -104,14 +103,18 @@ function tpRows() {
     const valid = d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw));
     const moves = cleanMoves(valid), dropped = d.moves.length - moves.length;
     const sc = withDraft(d, () => scoreMoves(moves, d.solved || null));
+    const hasOverrides = Object.values(d.ov || {}).some(o => o && (o.cap || o.vice || o.start?.length || o.bench?.length || o.order?.length));
+    const overrideNote = hasOverrides ? ` · Saved overrides: ${sgn(sc.tot - withDraft({ ...d, ov: {} }, () => scoreMoves(moves, d.solved || null)).tot)} xP` : "";
     rows.push({ key: "d:" + (d.id || "i" + k), idx: k, name: d.name || `Path ${k + 1}`, kind: "draft", d, mode: MODES[d.mode] ? d.mode : S.mode,
-      sub: `Saved · ${MODES[d.mode] || MODES[S.mode]}${d.from ? ` · from ${d.from}` : ""}`, sc, moves, ov: d.ov || {}, dropped, solved: d.solved || null,
+      sub: `Saved · ${MODES[d.mode] || MODES[S.mode]}${d.from ? ` · from ${d.from}` : ""}${overrideNote}`, sc, moves, ov: d.ov || {}, dropped, solved: d.solved || null,
       moved: d.net != null && d.h === PG.length && Math.abs(r1(sc.tot) - d.net) >= MOVED ? d : null, problems: tpProblems(sc),
       changes: tpChanges(d) });
   });
   // the active plan: marked on the row it matches (same moves, captains and total), otherwise a row of its own
   const act = scoreMoves(SB.moves), live = rows.filter(r => r.sc);
-  const hit = live.find(r => sameMoves(r.moves, SB.moves) && Math.abs(r.sc.tot - act.tot) < 0.05 && capsOf(r.sc) === capsOf(act));
+  const current = completePlan();
+  const matches = live.filter(r => samePath(completePlan(r), current));
+  const hit = matches.find(r => r.kind === "draft" && r.key === "d:" + tpEditing()) || matches[0];
   if (hit) hit.active = true;
   else rows.push({ key: "active", name: "Your plan", sub: `Active · not saved as a path · ${MODES[S.mode]}`, kind: "active", active: true, sc: act, moves: SB.moves.slice(),
     ov: SB.ov, mode: S.mode, solved: SB.solved, problems: tpProblems(act) });
@@ -262,15 +265,12 @@ function tpStrip(r, g, rows) {
 function tpFind(key) { return tpRows().find(r => r.key === key); }
 function tpDraftIdx(key) { const r = tpFind(key); return r && r.kind === "draft" ? r.idx : -1; }
 function tpActivate(r) {
-  tpEditing(r.kind === "draft" ? r.d.id || r.key.slice(2) : null);
-  if (r.kind === "hold") setPlan([], "custom");
-  else if (r.kind === "model") { S.mode = r.mode; store.set("fpl.mode", r.mode); setPlan(r.moves, "plan:" + r.pk, r.solved); }
-  else if (r.kind === "draft") { SB.ov = JSON.parse(JSON.stringify(r.ov || {})); S.mode = r.mode; store.set("fpl.mode", r.mode); setPlan(r.moves, "custom", r.solved || null); }
+  const editing = r.kind === "draft" ? r.d.id || r.key.slice(2) : null;
+  activatePlan(r, r.kind === "model" ? "plan:" + r.pk : "custom", editing);
 }
 // a saved path from any row: its moves, strategy, captain choices and (for model rows) the optimiser's lineups
 function tpNewDraftRaw(r, name) {
-  return { id: tpId(), name: name.slice(0, 24), moves: r.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(r.ov || {})), mode: r.mode || S.mode,
-    solved: r.solved ? JSON.parse(JSON.stringify(r.solved)) : null, saved: Date.now(), built: D.meta.built, from: r.name };
+  return { id: tpId(), name: name.slice(0, 24), ...completePlan(r), saved: Date.now(), built: D.meta.built, from: r.name };
 }
 function tpNewDraft(r, name) {
   return tpStamp(tpNewDraftRaw(r, name));
@@ -279,14 +279,15 @@ function tpNewDraft(r, name) {
 const tpIds = ds => ds.map((d, k) => d.id ? d : { ...d, id: "i" + k });
 async function tpOptimise() {
   if (TP.busy || SOLVE.busy) return;
-  const r = tpFind(TP.sel) || tpFind("hold"), mode = tpMode(), ds = tpIds(getDrafts());
+  const r = tpFind(TP.sel) || tpFind("hold"), mode = tpMode(), ds = tpIds(getDrafts()), scope = sbKey();
   if (r.kind !== "draft" && ds.length >= 3) { TP.msg = "3 paths are saved, so there's no room for an optimised one. Delete a path first."; render(); return; }
   TP.busy = true; SOLVE.busy = true; TP.undo = null; TP.msg = "Loading the optimiser…"; render();
   try {
     const t0 = performance.now();
     const res = await optimiseMoves(mode, { ov: r.ov || {}, rules: SB.rules, poolExtra: r.moves.map(m => m.in), status: m => { TP.msg = m; render(); } });
     const secs = ((performance.now() - t0) / 1000).toFixed(1);
-    const now = getDrafts().length === ds.length ? ds : tpIds(getDrafts());
+    if (scope !== sbKey()) throw new Error("Your starting squad changed during optimisation");
+    const now = tpIds(getDrafts());
     if (r.kind === "draft") {
       const k = now.findIndex(d => d.id === r.key.slice(2)), prev = now[k];
       now[k] = tpStamp({ ...prev, moves: res.moves, solved: res.solved, mode, saved: Date.now() });
@@ -356,7 +357,7 @@ function bindTpaths() {
     const r = tpFind(TP.sel), ds = tpIds(getDrafts()); if (!r || r.kind !== "draft") return;
     const a = tpFind("active"); if (!a) return;
     const prev = JSON.parse(JSON.stringify(ds));
-    ds[r.idx] = tpStamp({ ...ds[r.idx], moves: a.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now() });
+    ds[r.idx] = tpStamp({ ...ds[r.idx], ...completePlan(), saved: Date.now() });
     setDrafts(ds); TP.undo = { list: prev };
     TP.msg = `“${r.name}” now holds your active plan.`; render();
   });
@@ -388,11 +389,16 @@ function bindTpaths() {
 // offer to save changes back to it. Missing path (deleted, or from another squad): no bar.
 const tpEditKey = () => sbKey() + ".editing";
 function tpEditing(id) { if (id === undefined) return store.get(tpEditKey()); store.set(tpEditKey(), id || null); }
+function samePath(a, b) {
+  return sameMoves(a.moves, b.moves) && a.mode === b.mode
+    && JSON.stringify(a.ov) === JSON.stringify(b.ov) && JSON.stringify(a.solved) === JSON.stringify(b.solved);
+}
 function tpEditInfo() {
   const id = tpEditing(); if (!id) return null;
   const ds = getDrafts(), k = ds.findIndex((d, n) => (d.id || "i" + n) === id); if (k < 0) return null;
-  const d = ds[k], same = sameMoves(cleanMoves(d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw))), SB.moves)
-    && JSON.stringify(d.ov || {}) === JSON.stringify(SB.ov || {}) && (d.mode || S.mode) === S.mode;
+  const d = ds[k], saved = completePlan(d);
+  saved.moves = cleanMoves(saved.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
+  const same = samePath(saved, completePlan());
   return { d, k, same };
 }
 function tpEditBar() {
@@ -405,13 +411,12 @@ function bindTpEdit() {
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el));
   on("[data-tpesave]", () => {
     const e = tpEditInfo(); if (!e) return; const ds = tpIds(getDrafts());
-    ds[e.k] = tpStamp({ ...ds[e.k], moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now() });
+    ds[e.k] = tpStamp({ ...ds[e.k], ...completePlan(), saved: Date.now() });
     setDrafts(ds); tpEditing(ds[e.k].id); render(); toast(`Saved to “${e.d.name}”.`);
   });
   on("[data-tpediscard]", () => {
     const e = tpEditInfo(); if (!e) return;
-    SB.ov = JSON.parse(JSON.stringify(e.d.ov || {})); if (MODES[e.d.mode]) { S.mode = e.d.mode; store.set("fpl.mode", S.mode); }
-    setPlan(cleanMoves(e.d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw))), "custom", e.d.solved || null);
+    activatePlan(e.d, "custom", tpEditing());
     render(); toast(`Back to “${e.d.name}” as saved. Undo is in Your moves.`);
   });
   on("[data-tpestop]", () => { tpEditing(null); render(); });

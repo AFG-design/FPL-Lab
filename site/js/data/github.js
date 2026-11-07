@@ -49,8 +49,7 @@ async function syncPull() {
     if (typeof mergeReasons === "function" && mergeReasons(doc.reasons)) render();
     const r = doc.plans?.[sbKey()];
     if (r && (r.updated || 0) > (SB.updated || 0)) {
-      SB.moves = (r.moves || []).filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw));
-      SB.source = r.source || "custom"; SB.updated = r.updated; applyExtras(r); sanitize(); _base = null;
+      SB.updated = r.updated; SB.prev = null; applyExtras(r); _base = null;
       if (Array.isArray(r.drafts)) store.set(sbKey() + ".drafts", r.drafts);
       store.set(sbKey(), sbState());
       setSyncMsg("Plan loaded from your other device");

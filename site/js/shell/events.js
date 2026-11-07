@@ -23,9 +23,9 @@ function bind() {
   on("[data-fxsort]", b => { S.fxSort = b.dataset.fxsort; render(); });
   on("[data-field]", b => { S.field = b.dataset.field; render(); });
   on("[data-mode]", b => {
-    S.mode = b.dataset.mode; store.set("fpl.mode", S.mode);
-    // a plan picked from the options follows the strategy; a hand-edited plan is kept
-    if (SB.source.startsWith("plan:")) { const k = recommendedPlan(); if (k) setPlan(planMoves(D.plans[k]), "plan:" + k); }
+    const mode = b.dataset.mode, k = SB.source.startsWith("plan:") && recommendedPlan(mode);
+    if (k) useModelPlan(k, mode);
+    else { rememberPlan(); S.mode = mode; store.set("fpl.mode", mode); saveSandbox(); }
     render();
   });
   on("[data-sync]", () => openSync());
@@ -34,7 +34,6 @@ function bind() {
   on("[data-horizon]", b => { setHorizon(+b.dataset.horizon); render(); });
   on("[data-pair]", b => {
     const [o1, n1, o2, n2] = b.dataset.pair.split(":").map(Number), g = SB.gw;
-    SB.prev = { moves: SB.moves.slice(), source: SB.source };
     editPlan(() => {
       for (const [o, n] of [[o1, n1], [o2, n2]]) {
         const same = SB.moves.find(m => m.gw === g && m.in === o);
@@ -46,23 +45,18 @@ function bind() {
   on("[data-draftsave]", () => {
     const ds = getDrafts(); if (ds.length >= 3) return;
     const name = ($("#draftName")?.value || "").trim() || `Draft ${ds.length + 1}`;
-    ds.push(tpStamp({ id: tpId(), name, moves: SB.moves.map(m => ({ ...m })), ov: JSON.parse(JSON.stringify(SB.ov)), mode: S.mode, solved: SB.solved, saved: Date.now(), from: "Your plan" }));
+    ds.push(tpStamp({ id: tpId(), name, ...completePlan(), saved: Date.now(), from: "Your plan" }));
     setDrafts(ds); render();
   });
   on("[data-draftload]", b => {
     const d = getDrafts()[+b.dataset.draftload]; if (!d) return;
-    SB.prev = { moves: SB.moves.slice(), source: SB.source };
-    SB.ov = JSON.parse(JSON.stringify(d.ov || {}));
-    if (d.mode && MODES[d.mode]) { S.mode = d.mode; store.set("fpl.mode", S.mode); }
-    tpEditing(d.id || "i" + b.dataset.draftload);   // Your plan offers to save changes back to this draft
-    setPlan(d.moves, "custom", d.solved || null); render();
+    activatePlan(d, "custom", d.id || "i" + b.dataset.draftload); render();
   });
   on("[data-draftdel]", b => { const ds = getDrafts(); ds.splice(+b.dataset.draftdel, 1); setDrafts(ds); render(); });
   on("[data-ptab]", b => { S.ptab = b.dataset.ptab; store.set("fpl.ptab", S.ptab); render(); });
   on("[data-sugg]", b => {
     const [o, n] = b.dataset.sugg.split(":").map(Number), g = SB.gw;
     const gainTxt = (b.closest(".sugg")?.querySelector(".sg-gain")?.textContent || "").trim();
-    SB.prev = { moves: SB.moves.slice(), source: SB.source };
     editPlan(() => {
       const same = SB.moves.find(m => m.gw === g && m.in === o);
       if (same) same.in = n; else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === o)); SB.moves.push({ gw: g, out: o, in: n }); }
@@ -73,7 +67,6 @@ function bind() {
   });
   on("[data-afgmove]", b => {
     const [o, n] = b.dataset.afgmove.split(":").map(Number), g = D.meta.next_gw;
-    SB.prev = { moves: SB.moves.slice(), source: SB.source };
     editPlan(() => {
       const same = SB.moves.find(m => m.gw === g && m.in === o);
       if (same) same.in = n; else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === o)); SB.moves.push({ gw: g, out: o, in: n }); }
@@ -101,9 +94,9 @@ function bind() {
   on("[data-unwatch]", b => { watchEdit(+b.dataset.unwatch, false); S.cmpTeam = null; });
   const cf = $("#cmpForm"); if (cf) cf.onsubmit = e => { e.preventDefault(); const v = +$("#cmpId").value.trim(); if (v > 0) { S.cmpTeam = v; WATCH.msg = ""; render(); } };
   const ls = $("#leagueSel"); if (ls) ls.onchange = e => { S.league = +e.target.value; S.rival = null; render(); };
-  on("[data-plan]", b => { const k = b.dataset.plan; setPlan(planMoves(D.plans[k]), "plan:" + k); render(); });
-  on("[data-loadplan]", b => { const k = b.dataset.loadplan; setPlan(planMoves(D.plans[k]), "plan:" + k); render(); });
-  on("[data-undoplan]", () => { if (SB.prev) { const p = SB.prev; SB.prev = null; SB.moves = p.moves; SB.source = p.source; sanitize(); saveSandbox(); render(); } });
+  on("[data-plan]", b => { const k = b.dataset.plan; useModelPlan(k, k.includes("_") ? k.split("_")[0] : "balanced"); render(); });
+  on("[data-loadplan]", b => { const k = b.dataset.loadplan; useModelPlan(k, k.includes("_") ? k.split("_")[0] : "balanced"); render(); });
+  on("[data-undoplan]", () => { undoPlan(); render(); });
   on("[data-v-go]", b => setView(b.dataset.vGo));
   on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
   on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
@@ -117,7 +110,7 @@ function bind() {
   on("[data-howto]", b => openMovesSummary(+b.dataset.howto));
   on("[data-cancel]", () => { SB.sel = null; render(); });
   on("[data-pick]", b => { makeTransfer(SB.gw, SB.sel, +b.dataset.pick); render(); });
-  on("[data-undo]", b => { SB.prev = { moves: SB.moves.slice(), source: SB.source }; editPlan(() => SB.moves.splice(+b.dataset.undo, 1)); render(); });
+  on("[data-undo]", b => { editPlan(() => SB.moves.splice(+b.dataset.undo, 1)); render(); });
   on("[data-reset]", () => { setPlan([], "custom"); render(); });
   on("th[data-sort]", th => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });
   on("[data-stsort]", th => { S.stSort = th.dataset.stsort; render(); });

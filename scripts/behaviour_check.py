@@ -398,6 +398,62 @@ TPATHS = r"""async () => {
 }"""
 
 
+# Deterministic GW10 fixture. Use the real scorer, path activation, Re-plan and sync reader.
+# The isolated page closes after this check. No plan is written to GitHub.
+COMPLETE_PLAN = r"""async () => {
+  const errors = [], check = (ok, msg) => { if (!ok) errors.push(msg); };
+  syncPush = () => {}; render = () => {}; setSyncMsg = () => {};
+  const positions = ["GKP","DEF","DEF","DEF","MID","MID","MID","MID","FWD","FWD","FWD","GKP","DEF","DEF","MID"];
+  const players = positions.map((pos, i) => ({ id: i+1, pos, team: i+1, price: 5, status: "a", nailed: 100,
+    xp: { 10: [12,12,10,10,10,10,10,10,10,10,10,0,0,0,0][i] } }));
+  P = Object.fromEntries(players.map(p => [p.id,p]));
+  T = Object.fromEntries(players.map(p => [p.team, { short: "T", fx: {} }]));
+  GWS = PG = [10]; S.mode = "safe";
+  D = { players, meta: { team_id: "regression", next_gw: 10, built: "fixture" }, plans: {},
+    squad: players.map(p => ({ id: p.id, sell: 5 })), manager: { bank: 0, free_transfers: 1 } };
+  loadSandbox();
+  const sq = squadAt(10), xi = sq.slice(0,11), bench = sq.slice(11);
+  const solved = { 10: { sq, xi, cap: 1, vice: 4, bench } };
+  SB.ov = { 10: { cap: 3, vice: 2 } }; SB.solved = { 10: { sq, xi, cap: 2 } };
+  tpEditing("previous");
+  const previous = JSON.stringify(completePlan());
+  const score = () => scoreMoves(SB.moves);
+  check(score().tot === 124 && score().weeks[0].team.cap === 3, "fixture should start on 124 with captain 3");
+  const draft = { id: "path", name: "Path", moves: [], solved, mode: "chase", ov: {} };
+  setDrafts([draft]);
+  tpActivate({ ...draft, kind: "model", pk: "chase_best" });
+  const team = score().weeks[0].team;
+  check(score().tot === 126 && team.cap === 1 && team.vice === 4 && S.mode === "chase"
+    && !Object.keys(SB.ov).length, "Use plan did not apply 126, captain 1 and the path's vice and strategy");
+  undoPlan();
+  check(JSON.stringify(completePlan()) === previous && tpEditing() === "previous"
+    && score().tot === 124 && score().weeks[0].team.cap === 3, "Undo did not restore the complete 124-point plan");
+  tpActivate({ ...draft, kind: "draft", key: "d:path", d: draft });
+  check(tpEditInfo().same, "a freshly applied path should match its saved state");
+  optimiseMoves = async () => ({ moves: [], solved: { 10: { ...solved[10], xi: [...xi.slice(0,10),15], bench: [12,13,14,11] } } });
+  leanText = () => "";
+  await runReplan();
+  check(!tpEditInfo().same && tpEditBar().includes("data-tpesave"), "XI-only Re-plan did not offer Save changes");
+  SB.solved = { 10: { ...solved[10], cap: 2 } };
+  check(!tpEditInfo().same && tpEditBar().includes("data-tpesave"), "captain-only change did not offer Save changes");
+  P[16] = { ...P[1], id: 16 };
+  SB.moves = [{ gw: 10, out: 1, in: 16 }]; rememberPlan();
+  D.meta.next_gw = 11; GWS = PG = [11]; loadSandbox(); undoPlan();
+  check(!SB.prev && !SB.moves.length, "GW10 Undo survived the GW11 deadline");
+
+  const legacy = { moves: [{ gw: 11, out: 1, in: 16 }], source: "custom", updated: Date.now()+1000, ov: { 11: { cap: 3 } },
+    drafts: [{ id: "old", name: "Old path", moves: [] }] };
+  syncGet = async () => ({ doc: { plans: { [sbKey()]: legacy } } });
+  await syncPull();
+  check(SB.updated === legacy.updated && SB.moves[0]?.in === 16 && SB.ov[11]?.cap === 3 && SB.solved === null
+    && getDrafts()[0]?.id === "old", "legacy synced plan or draft did not load");
+  legacy.mode = "balanced"; legacy.updated++;
+  await syncPull();
+  check(S.mode === "balanced" && store.get(sbKey()).mode === "balanced", "synced strategy did not persist locally");
+  return errors;
+}"""
+
+
 def check_tpaths(browser, url):
     ctx = browser.new_context(service_workers="block")
     page = ctx.new_page()
@@ -407,6 +463,7 @@ def check_tpaths(browser, url):
     page.wait_for_selector(".view-planner", timeout=20000)
     try:
         out = page.evaluate(TPATHS)
+        out += page.evaluate(COMPLETE_PLAN)
     except Exception as e:
         out = [f"transfer paths check crashed: {e}"]
     ctx.close()

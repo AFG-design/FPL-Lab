@@ -417,7 +417,12 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   PG.forEach((g, w) => {
     res.moves.filter(m => m.gw === g).forEach(m => { sq = sq.map(i => i === m.out ? m.in : i); });
     const wk = res.weeks?.[w];
-    if (wk && wk.gw === g && wk.xi?.length === 11) solved[g] = { sq: sq.slice(), xi: wk.xi.slice(), cap: wk.captain };
+    if (wk && wk.gw === g && wk.xi?.length === 11) {
+      solved[g] = { sq: sq.slice(), xi: wk.xi.slice(), cap: wk.captain };
+      // The browser solver supplies XI and captain. Record the resulting vice and bench as shown.
+      const team = withMode(mode, () => bestXI(sq, g, {}, solved));
+      Object.assign(solved[g], { vice: team.vice, bench: team.bench });
+    }
   });
   return { moves: res.moves, solved, none };
 }
@@ -426,7 +431,9 @@ async function runReplan() {
   SOLVE.busy = true; SOLVE.msg = "Loading the optimiser…"; render();
   try {
     const t0 = performance.now();
+    const scope = sbKey();
     const res = await optimiseMoves(S.mode, { ov: SB.ov, rules: SB.rules, poolExtra: SB.moves.map(m => m.in), status: m => { SOLVE.msg = m; render(); } });
+    if (scope !== sbKey()) throw new Error("Your starting squad changed during Re-plan");
     const before = scoreMoves(SB.moves).tot;
     setPlan(res.moves, "replan:" + S.mode, res.solved);
     const after = scoreMoves(SB.moves).tot, cur = baseScore().tot;
