@@ -19,6 +19,7 @@ permissions:
   id-token: write
 
 concurrency:
+  # Serialise the full refresh, including the Pages deployment.
   group: pages
   cancel-in-progress: false
 
@@ -54,47 +55,36 @@ jobs:
     needs: check
     if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Install the optimiser
         run: pip install -r requirements.txt
-      - name: Sample other managers' teams (only does work once per gameweek)
-        continue-on-error: true
+      - name: Build, validate and push refresh data
         env:
           FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
-        run: python3 crowd.py "$FPL_TEAM_ID"
-      - name: Update shots data from Understat (only new matches)
-        continue-on-error: true
-        run: python3 understat.py
-      - name: Update betting-market odds (football-data.co.uk)
-        continue-on-error: true
-        run: python3 odds.py
-      - name: Update player odds (The Odds API; only at 72 h, 24 h and 3 h before each deadline)
-        continue-on-error: true
-        env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-        run: python3 odds_players.py
-      - name: Build data.json from the FPL API
-        env:
-          FPL_TEAM_ID: ${{ vars.FPL_TEAM_ID || '8122679' }}
-        run: python3 build.py "$FPL_TEAM_ID" site/data.json
-      # Hard-fails on impossible or contradictory data (validate.py). A failure stops this job here: nothing is
-      # committed or uploaded and the deploy job doesn't run, so the last good data.json stays live.
-      - name: Validate data.json
-        run: python3 validate.py site/data.json
-      - name: Save sampled data to the repository
-        continue-on-error: true
         run: |
           git config user.name "fpl-lab-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add crowd/ understat/ odds/ history/ site/badges/
-          if ! git diff --cached --quiet; then
-            git commit -m "Data update" && git pull --rebase && git push
-          fi
+          python3 scripts/refresh.py
+      - name: Keep sampled data for recovery if the refresh fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-refresh-${{ github.run_attempt }}
+          path: |
+            history/
+            crowd/
+            understat/
+            odds/
+            ${{ runner.temp }}/refresh-attempt-*.tar.gz
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
