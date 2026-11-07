@@ -2,11 +2,31 @@
 /* ---------- Planner ---------- */
 // The optimiser's plans per strategy are shown in the strategy tabs (views/planner-views.js).
 const adjTotal = sc => sc.weeks.reduce((a, w) => a + w.team.xi.reduce((b, i) => b + adjXI(i, w.gw), 0) + (w.team.cap ? adjCap(w.team.cap, w.gw) : 0) - 4 * w.hits, 0);
+// Score points over the selected horizon, but count hits through every saved move.
+// ftTable is also the source for scoreMoves; only costs outside its scoring window need adding.
+function suggestionScore(moves, sc, cur, curAdj, before) {
+  const after = ftTable(moves, GWS), hitWeeks = [];
+  let extra = 0, beyond = 0;
+  for (const [i, week] of after.entries()) {
+    const delta = week.hits - before[i].hits;
+    extra += delta;
+    if (i >= sc.weeks.length) beyond += delta;
+    if (delta > 0) hitWeeks.push({ gw: week.gw, hits: delta });
+  }
+  const gain = sc.tot - cur.tot - 4 * beyond;
+  if (extra > 0 && (S.mode !== "chase" || extra > (D.plan_rules?.max_hits?.chase ?? 1)
+    || gain < extra * (D.plan_rules?.hit_gain ?? 2))) return null;
+  return { gain, adj: adjTotal(sc) - curAdj - 4 * beyond, hitWeeks };
+}
+function hitPills(weeks) {
+  return weeks.map(w => ` <span class="pill bad">GW${w.gw} · −${4 * w.hits} hit</span>`).join("");
+}
 let _sugg = { key: "", list: [] };
 function transferSuggestions(g) {
   const key = `${mvKey(SB.moves)}|${g}|${S.mode}|${S.horizon}|${JSON.stringify(SB.ov)}|${JSON.stringify(SB.rules)}|${D.meta.built}`;
   if (_sugg.key === key) return _sugg.list;
   const cur = scoreMoves(SB.moves), curAdj = adjTotal(cur), sq = squadAt(g), bank = bankAt(g);
+  const before = ftTable(SB.moves, GWS);
   const base = new Set(D.squad.map(s => s.id)), boughtInPlan = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
   const out = [];
   sq.forEach(o => {
@@ -23,9 +43,8 @@ function transferSuggestions(g) {
       mv = cleanMoves(mv);
       const sc = scoreMoves(mv);
       if (sc.weeks.some(w => w.bank < 0 || w.over.length)) return;
-      const hitNow = sc.weeks.find(w => w.gw === g).hits > cur.weeks.find(w => w.gw === g).hits;
-      if (hitNow && (S.mode !== "chase" || sc.tot - cur.tot < (D.plan_rules?.hit_gain ?? 2))) return;   // hit rule
-      best.push({ out: o, in: n.id, gain: sc.tot - cur.tot, adj: adjTotal(sc) - curAdj, hit: hitNow, moves: mv });
+      const score = suggestionScore(mv, sc, cur, curAdj, before);
+      if (score) best.push({ out: o, in: n.id, moves: mv, ...score });
     });
     best.sort((a, b) => b.adj - a.adj);
     out.push(...best.slice(0, 2));
@@ -41,6 +60,7 @@ function pairSuggestions(g) {
   const key = `${mvKey(SB.moves)}|${g}|${S.mode}|${S.horizon}|${JSON.stringify(SB.ov)}|${JSON.stringify(SB.rules)}|${D.meta.built}`;
   if (_pairs.key === key) return _pairs.list;
   const cur = scoreMoves(SB.moves), curAdj = adjTotal(cur), sq = squadAt(g), bank = bankAt(g);
+  const before = ftTable(SB.moves, GWS);
   const base = new Set(D.squad.map(s => s.id)), bought = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
   const sellOf = o => (base.has(o) && !bought.has(o) ? sellPrice(o) : P[o].price);
   const H = PG.filter(x => x >= g).length;
@@ -78,9 +98,8 @@ function pairSuggestions(g) {
     mv = cleanMoves(mv);
     const sc = scoreMoves(mv);
     if (sc.weeks.some(w => w.bank < 0 || w.over.length)) continue;
-    const hits = sc.weeks.find(w => w.gw === g).hits - cur.weeks.find(w => w.gw === g).hits;
-    if (hits && (S.mode !== "chase" || hits > (D.plan_rules?.max_hits?.chase ?? 1) || sc.tot - cur.tot < (D.plan_rules?.hit_gain ?? 2) * hits)) continue;   // hit rule
-    res.push({ ...c, gain: sc.tot - cur.tot, adj: adjTotal(sc) - curAdj, hits, moves: mv });
+    const score = suggestionScore(mv, sc, cur, curAdj, before);
+    if (score) res.push({ ...c, moves: mv, ...score });
   }
   res.sort((x, y) => y.adj - x.adj);
   const bestSingle = Math.max(0, ...transferSuggestions(g).map(x => x.adj));
@@ -100,11 +119,11 @@ function pairsHTML(g) {
     <p class="note" style="margin-top:0">Two moves together, where one sale frees the money for a bigger upgrade. Only shown when the pair clearly beats the best single move.</p>
     ${list.map(r => {
       // only hits that pass the hit rule are listed; the gain is after the hit, and the −4 pill says it took one
-      const v = { ...verdict(r.gain, 3, 1), tag: r.hits ? "Chase rank" : null };
+      const v = { ...verdict(r.gain, 3, 1), tag: r.hitWeeks.length ? "Chase rank" : null };
       const line = (o, n) => `<div class="move"><span class="out">▼ ${esc(P[o].name)}</span><span class="in">▲ <button data-p="${n}" style="all:unset;cursor:pointer">${esc(P[n].name)}</button></span><span class="muted mono">${money(P[n].price)} · ${T[P[n].team].short}</span></div>`;
       const up = P[r.n1].price - P[r.o1].price > P[r.n2].price - P[r.o2].price ? [r.o1, r.n1, r.o2, r.n2] : [r.o2, r.n2, r.o1, r.n1];
       return `<div class="sugg"><div class="sg-top"><div class="moves" style="margin:0">${line(r.o1, r.n1)}${line(r.o2, r.n2)}</div><span class="sg-gain ${r.gain > 0.05 ? "up" : "down"}">${sgn(r.gain)}</span></div>
-        <div class="sg-meta">${vPill(v)}${r.hits ? ` <span class="pill bad">−${4 * r.hits} hit</span>` : ""}</div>
+        <div class="sg-meta">${vPill(v)}${hitPills(r.hitWeeks)}</div>
         <div class="sg-why">Moving ${esc(P[up[2]].name)} to ${esc(P[up[3]].name)} frees the money for ${esc(P[up[0]].name)} → ${esc(P[up[1]].name)}. In: ${whyIn(up[1], g)}</div>
         <button class="btn primary sg-add" data-pair="${r.o1}:${r.n1}:${r.o2}:${r.n2}">Add both to plan</button></div>`;
     }).join("")}`;
@@ -131,14 +150,16 @@ function whyIn(i, g) {
   return bits.join(" · ");
 }
 function suggestionsHTML(g) {
+  // Without the starting allowance the app cannot tell whether adding a move costs points.
+  if (!Number.isInteger(D.manager.free_transfers)) return '<p class="muted">Transfer suggestions are unavailable until the free-transfer allowance is known.</p>';
   const list = transferSuggestions(g), w = ftTable().find(r => r.gw === g), freeLeft = Math.max(0, w.ft - w.n);
   const rows = list.map(s2 => {
-    const v = { ...verdict(s2.gain, 3, 1), tag: s2.hit ? "Chase rank" : null };   // only hits that pass the hit rule are listed
+    const v = { ...verdict(s2.gain, 3, 1), tag: s2.hitWeeks.length ? "Chase rank" : null };   // only hits that pass the hit rule are listed
     const po = P[s2.out], pi = P[s2.in];
     return `<div class="sugg">
       <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" style="all:unset;cursor:pointer">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · <span class="club-dot" style="--club:${clubCol(pi)}" aria-hidden="true"></span>${T[pi.team].short}</span></div>
         <span class="sg-gain ${s2.gain > 0.05 ? "up" : "down"}">${sgn(s2.gain)}</span></div>
-      <div class="sg-meta">${vPill(v)}${s2.hit ? ' <span class="pill bad">−4 hit</span>' : ""}<span class="fx sgfx">${fxChips(pi, g, 4)}</span></div>
+      <div class="sg-meta">${vPill(v)}${hitPills(s2.hitWeeks)}<span class="fx sgfx">${fxChips(pi, g, 4)}</span></div>
       <div class="sg-why"><b>Out:</b> ${whyOut(s2.out, g)}<br><b>In:</b> ${whyIn(s2.in, g)}</div>
       <button class="btn primary sg-add" data-sugg="${s2.out}:${s2.in}">Add to plan</button></div>`;
   }).join("");
