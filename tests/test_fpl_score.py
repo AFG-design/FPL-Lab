@@ -222,11 +222,12 @@ class Streak(unittest.TestCase):
             pair_moves([1, 2], [3], pos)
 
     def test_real_gw10_suggestions(self):
-        """The plans saved before the GW10 deadline: the best is two transfers (Rogers and De Cuyper out, Gabriel and Rudoni in), 49.5 -> 50."""
+        """The plans saved before the GW10 deadline: the best is two transfers (Rogers and De Cuyper out, Gabriel and Rudoni in), 50.48 -> 50."""
         from fpl_score import best_suggestion
         with open(os.path.join(HERE, "..", "history", "deadline_gw10.json")) as f:
             b = best_suggestion(json.load(f)["plans"], 10)
-        self.assertEqual((b["exp"], target(b["exp"]), b["hits"]), (49.5, 50, 0))
+        self.assertEqual((b["exp"], target(b["exp"]), b["hits"]), (50.48, 50, 0))
+        self.assertEqual((b["out"], b["in"]), ([40, 115], [4, 183]))
 
     def test_real_gw8_and_gw9_against_expected(self):
         """Your actual points against what the model expected its pick from your 15 to score: two wins."""
