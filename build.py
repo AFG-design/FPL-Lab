@@ -1577,7 +1577,10 @@ for p_ in out["players"]:
     if ex:
         extra[str(p_["id"])] = ex
 with open(os.path.join(os.path.dirname(os.path.abspath(OUT)), "data-extra.json"), "w") as f:
-    json.dump({"built": out["meta"]["built"], "players": extra}, f, separators=(",", ":"))
+    json.dump({"built": out["meta"]["built"], "players": extra,
+               # Independent API history/picks evidence: never derive this from own_picks or fh_active.
+               "squad_source": squad_state.validation_source(history, picks_gw, next_gw,
+                   lambda g: get(f"/entry/{TEAM_ID}/event/{g}/picks/"), TEAM_ID)}, f, separators=(",", ":"))
 with open(OUT, "w") as f:
     json.dump(out, f, separators=(",", ":"))
 print(f"wrote {OUT}: {len(out['players'])} players, GW{next_gw}, FT {ft}, plans {list(plans)}, {out['meta']['build_secs']}s")

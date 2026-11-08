@@ -33,3 +33,21 @@ def team_value(own_picks, bank, now_cost, fh_active):
     if fh_active:
         return round(bank + sum(now_cost[p["element"]] for p in own_picks["picks"]) / 10, 1)
     return own_picks["entry_history"]["value"] / 10
+
+
+def validation_source(history, picks_gw, next_gw, fetch, team_id):
+    """Keep FPL history/picks evidence independent of owned_picks and its restore flags.
+
+    Only a current Free Hit with a following deadline needs an older squad. Fetch failures propagate: missing
+    evidence must not silently certify a restore. GW38 has no next squad to plan, matching owned_picks.
+    """
+    chips = history["chips"]
+    restore = next_gw is not None and picks_gw and next_gw > picks_gw and any(
+        c["name"] == "freehit" and c["event"] == picks_gw for c in chips)
+    before = None
+    if restore:
+        if picks_gw <= 1:
+            raise ValueError("Free Hit history has no previous gameweek to restore")
+        pk = fetch(picks_gw - 1)
+        before = {"gw": pk["entry_history"]["event"], "ids": [p["element"] for p in pk["picks"]]}
+    return {"team_id": team_id, "picks_gw": picks_gw, "chips": chips, "before_free_hit": before}
