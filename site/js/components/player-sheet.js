@@ -51,12 +51,12 @@ function whyXP(p, g) {
   // minutes
   const last = (p.s_min || []).slice(-4), played = last.filter(m => m > 0).length;
   const mins = [`<b>${p.xmin} expected minutes</b>${fx.length > 1 ? " across his two games" : ""}.`];
-  if (p.status !== "a" || (p.chance != null && p.chance < 100)) mins.push(`FPL lists him at ${p.chance ?? 0}%${p.news ? `: ${esc(p.news)}` : ""}.`);
+  if (p.status !== "a" || (p.chance != null && p.chance < 100)) mins.push(`FPL lists him ${p.chance == null ? "as flagged, with no chance given" : `at ${fplChance(p.chance)}`}${p.news ? `: ${esc(p.news)}` : ""}.`);
   if ((p.assumed || []).length) mins.push(`<span class="asm" title="${ASM_TIP}">Projections for GW${p.assumed.join(", GW")} are assumed: FPL gives no return date or chance, so a gradual return is pencilled in.</span>`);
   if (p.ret) mins.push(`${last.length && last[last.length - 1] > 0 ? `He played only ${last[last.length - 1]} minutes in his club's last game, with injury news since, so it's treated as a knock, not being dropped` : `He missed his club's last game${p.status === "a" ? " but FPL now has him available, so it's treated as a knock, not being dropped" : ""}`}. Players coming back start less often in their first game back, so his start chance is reduced.`);
   else if (last.length && last[last.length - 1] === 0 && played >= 2) {
     if (p.status === "a" && !p.news) mins.push("He didn't play in his club's last game with no injury news, which the model reads as a sign he may have lost his place.");
-    else mins.push(`He missed his club's last game (FPL news since: ${p.news ? esc(p.news) : `flagged at ${p.chance ?? 0}%`}).`);
+    else mins.push(`He missed his club's last game (FPL news since: ${p.news ? esc(p.news) : p.chance == null ? "flagged, no chance given" : `flagged at ${fplChance(p.chance)}`}).`);
   }
   else if (p.p_start < 0.6 && played) mins.push(`${startsText(p)}${p.psub > 0.15 ? " He often comes off the bench." : ""} The model gives him a ${Math.round(p.p_start * 100)}% chance to start next game, weighting the latest games most.`);
   else if (p.p_start >= 0.85) mins.push(`A regular starter: minutes in his last ${last.length} were ${last.join(", ")}.`);

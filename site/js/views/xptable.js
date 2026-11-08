@@ -95,7 +95,7 @@ function vXpTable() {
         <img class="shirt" src="${shirtURL(p)}" alt="" loading="lazy" onerror="this.remove()">
         <span class="xwho"><span class="xname"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>
           <button type="button" class="xstar" data-xstar="${p.id}" aria-pressed="${star}" aria-label="${star ? "Remove" : "Add"} ${esc(p.name)} ${star ? "from" : "to"} starred players">${star ? "★" : "☆"}</button>
-          ${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news || "Flagged")}">${p.chance ?? 0}%</span>` : ""}</span>
+          ${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news || "Flagged")}">${fplChance(p.chance)}</span>` : ""}</span>
           <span class="muted xmeta">${T[p.team].short} <span class="xpos">${p.pos}</span><span class="xprice"> · ${money(p.price)}</span></span></span></span></td>
       <td class="n xwide">${p.price.toFixed(1)}</td>
       <td class="n xwide">${(t.sum / p.price).toFixed(1)}${part ? "*" : ""}</td>

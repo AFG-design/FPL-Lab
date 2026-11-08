@@ -41,7 +41,7 @@ function starsPanel() {
   const rows = ids.sort((a, b) => xpFrom(b, g, 5) - xpFrom(a, g, 5)).map(i => {
     const p = P[i], s = STARS.ids[i], dp = s.price != null ? Math.round((p.price - s.price) * 10) / 10 : 0;
     const pr = p.price_proj?.[0], last = p.newsh?.[p.newsh.length - 1], fresh = last && Date.now() - new Date(last[0]) < 3 * 864e5;
-    return `<tr><td><button data-p="${i}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}">${p.chance ?? 0}%</span>` : ""}${fresh ? ` <span class="pill mut" title="${esc(newsLine(last.slice(1)))}">news ${agoTxt(last[0])}</span>` : ""}</td>
+    return `<tr><td><button data-p="${i}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}">${fplChance(p.chance)}</span>` : ""}${fresh ? ` <span class="pill mut" title="${esc(newsLine(last.slice(1)))}">news ${agoTxt(last[0])}</span>` : ""}</td>
       <td class="n">${p.price.toFixed(1)}${dp ? ` <span class="${dp > 0 ? "up" : "down"}">${dp > 0 ? "▲" : "▼"}${Math.abs(dp).toFixed(1)}</span>` : ""}</td>
       <td class="n ${pr >= 75 ? "up" : pr <= -75 ? "down" : "muted"}">${pr != null ? `${pr.toFixed(0)}%` : "–"}</td>
       <td><span class="fx">${fxChips(p, g, 3)}</span></td><td class="n"><b>${xpCell(i, g)}</b></td><td class="n">${f1(xpFrom(i, g, 5))}</td></tr>`;

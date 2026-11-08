@@ -69,8 +69,11 @@ function tpChanges(d) {
   for (const [id, [st, ch, team, fx]] of Object.entries(d.deps)) {
     const p = P[id]; if (!p) continue;                       // gone from the data: shown as "dropped" already
     const was = chanceOf(st, ch), now = chanceOf(p.status, p.chance), nm = p.name;
-    if (now < was) worse.push(`${nm}: ${now === 0 ? `now out${p.news ? ` (${p.news})` : ""}` : `now ${now}% to play`} (was ${was}%)`);
-    else if (now > was) better.push(`${nm}: now ${now === 100 ? "fit" : now + "%"} (was ${was}%)`);
+    // Keep the planner's assumed comparison above, but describe only the chance FPL actually supplied.
+    const unknown = status => `${(STATUS_WORD[status] || "Flagged").toLowerCase()}, no chance given`;
+    const before = fplChance(ch, unknown(st)), after = fplChance(p.chance, unknown(p.status));
+    if (now < was) worse.push(`${nm}: now ${after}${p.chance != null ? " to play" : ""}${p.news ? ` (${p.news})` : ""} (was ${before})`);
+    else if (now > was) better.push(`${nm}: now ${after}${p.chance != null ? " to play" : ""} (was ${before})`);
     if (p.team !== team) { worse.push(`${nm}: now at ${T[p.team]?.short || "another club"}`); continue; }
     for (const [g, n] of Object.entries(fx)) {
       if (!PG.includes(+g)) continue;
