@@ -4,6 +4,50 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 8 Nov 2026 — FL-062: team ratings skip unfinished matches
+
+- Baseline: main `6664c58`; frozen public API responses through finished GW9, shared unchanged by both runs.
+  Live 0–0 scores were being treated as results even though the team's cumulative GW xG had been stripped by
+  `finished_only`. In the deterministic regression, team 1's unblended attack fell 1.010369 → 0.943747 at kick-off;
+  the fix keeps it exactly 1.010369. This is a live-data correctness fix, not a fitted parameter change.
+- One shared unfinished-team/GW rule now drives `build.finished_only` and `prepare`. A team with any unfinished
+  fixture contributes none of that GW's player stats, team xG or opponent-adjustment history. `team_ratings` requires
+  `finished` and excludes a completed fixture if either side still has a match outstanding in that GW: its xG
+  against cannot be recovered from the other team's incomplete cumulative total. Fully completed teams elsewhere
+  in the GW still count. Both matches of a double enter once the team has completed them.
+- Missing/false `finished`, including provisional-only completion, means wait for confirmed completion; scores
+  alone never establish it. Missing scores on a finished fixture are still skipped. No zero-xG substitute, no
+  historical data rewritten, and no change to the pre-match betting-market blend.
+
+Backtest (`backtest.py raw --json ...` and `--status-log`, then `--compare`; GW3–9, n=2,673):
+
+| Status log | MAE before → after | Correlation before → after | Bias before → after |
+|---|---|---|---|
+| Without | 1.810144 → 1.810144 | 0.429364 → 0.429364 | -0.039818 → -0.039818 |
+| With | 1.764375 → 1.764375 | 0.442675 → 0.442675 | -0.086012 → -0.086012 |
+
+The complete JSON metrics are identical in each comparison, including every segment, minutes accuracy and raw
+scoring part. No threshold flags and nothing moved. Minutes MAE (without/with log): 20.01/19.04;
+start Brier .1236/.1184; 60+ Brier .1390/.1343, all unchanged.
+
+`bench.py` functions run separately against baseline and candidate code, with identical frozen inputs, archive
+odds and default parameters; 1-GW and 5-GW metric dictionaries compare exactly equal on all three seasons:
+
+| Season | 1-GW MAE before → after | 1-GW corr before → after | 1-GW picks before → after | 5-GW corr before → after | 5-GW picks before → after |
+|---|---|---|---|---|---|
+| 2026/27, GW3–9 | 1.764 → 1.764 | .443 → .443 | 4.21 → 4.21 | .598 → .598 | 18.13 → 18.13 |
+| 2025/26 | 1.858 → 1.858 | .411 → .411 | 4.45 → 4.45 | .523 → .523 | 19.13 → 19.13 |
+| 2024/25 | 1.763 → 1.763 | .428 → .428 | 4.22 → 4.22 | .557 → .557 | 19.01 → 19.01 |
+
+Paired bootstrap (2,000 resamples over GWs, seed 1): captain, top-5 and positional picks each have difference
+0.00, 95% CI [0.00, 0.00] in every season. Captain changes: 0/7, 0/35, 0/35. The 5-GW picks differences and
+95% CIs are also 0.00 [0.00, 0.00] (3, 30 and 30 origins). Finished-week backtests are neutral as expected;
+the targeted benefit is preventing live and partial-double data from changing team strength prematurely.
+
+Regression coverage: live score changes versus pre-kick-off, partial and completed doubles, unaffected completed
+teams in a live GW, missing/provisional flags, and raw versus already-filtered live rows. Fresh build validation
+has zero errors (existing warnings: assumed GW8–9 targets and no GW11 match odds).
+
 ## 1 Nov 2026 — double-gameweek simulation seeds (PR #40); DGW under-projection found
 - Bug (code review): fixture seed pid*1000 + g*10 + len(detail); detail[g] is set after the fixture loop, so both
   matches of a DGW shared one seed (identical start, rate and team-goal draws). Second fixture now has its own

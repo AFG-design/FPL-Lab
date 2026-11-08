@@ -244,15 +244,28 @@ def news_absences(boot, elements, pstats, team_fix, out):
     return dict(res)
 
 
+def unfinished_team_weeks(fixtures):
+    """FPL live stats are cumulative per GW: wait for every match in a team's double.
+
+    Scores appear at kick-off, so they do not establish completion. A missing/false finished flag (including
+    provisional-only completion) is treated as unfinished: omit that team's whole week, never invent zero xG.
+    """
+    return {(t, f["event"]) for f in fixtures if f.get("event") and not f.get("finished")
+            for t in (f["team_h"], f["team_a"])}
+
+
 def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
     """Index the raw API responses once; reused across projections."""
     elements = {e["id"]: e for e in boot["elements"]}
     teams = {t["id"]: t for t in boot["teams"]}
+    pending = unfinished_team_weeks(fixtures)
     pstats = defaultdict(dict)
     dc_hit = defaultdict(dict)
     pts_gw = defaultdict(dict)
     for g, data in live.items():
         for x in data["elements"]:
+            if (elements.get(x["id"], {}).get("team"), g) in pending:
+                continue
             pstats[x["id"]][g] = x["stats"]
             pts_gw[x["id"]][g] = x["stats"]["total_points"]
             dc_hit[x["id"]][g] = any(s["identifier"] == "defensive_contribution" and s["points"] > 0
@@ -262,6 +275,11 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         if f["event"]:
             team_fix[f["team_h"]].append((f["event"], f["team_a"], True, f))
             team_fix[f["team_a"]].append((f["event"], f["team_h"], False, f))
+    opp_of = defaultdict(list)
+    for tid, lst in team_fix.items():
+        for g, opp, home, f in lst:
+            if f.get("finished") and (tid, g) not in pending:
+                opp_of[(tid, g)].append(opp)
     team_gw_xg = defaultdict(lambda: defaultdict(float))
     for pid, gws in pstats.items():
         t = elements.get(pid, {}).get("team")
@@ -296,7 +314,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
     return {
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
-        "team_gw_xg": team_gw_xg, "scoring": boot["game_config"]["scoring"],
+        "team_gw_xg": team_gw_xg, "pending_team_gws": pending, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
         "out_late": out_late, "out_doubt": out_doubt,
         # status and chance saved before each deadline: {gw: {pid: (status, chance)}} (empty with no status log)
@@ -313,10 +331,13 @@ def team_ratings(ctx, as_of, P):
     games = defaultdict(list)
     for f in fixtures:
         g = f["event"]
-        if not g or g >= as_of or f["team_h_score"] is None:
+        if not g or g >= as_of or not f.get("finished") or f["team_h_score"] is None or f["team_a_score"] is None:
             continue
         w = P["team_recency"] ** max(0, as_of - 1 - g)
         h, a = f["team_h"], f["team_a"]
+        # Either side's incomplete double makes its cumulative xG unusable for this match, including xG against.
+        if (h, g) in ctx["pending_team_gws"] or (a, g) in ctx["pending_team_gws"]:
+            continue
         nh = sum(1 for x in team_fix[h] if x[0] == g)
         na = sum(1 for x in team_fix[a] if x[0] == g)
         xh = team_gw_xg[h][g] / nh if nh else 0
@@ -494,10 +515,7 @@ def project(ctx, as_of, horizon=6, params=None):
         pos_prior[pos] = {k: num[k] / mins * 90 for k in ("xg", "xa", "bonus", "saves", "yc", "dc")}
         pos_prior[pos]["dchit"] = hits / n60 if n60 else 0
 
-    opp_of = defaultdict(list)
-    for tid, lst in ctx["team_fix"].items():
-        for (g, opp, home, f) in lst:
-            opp_of[(tid, g)].append(opp)
+    opp_of = ctx["opp_of"]
     sp = ctx.get("sp")
     sp_fac = {}
     if sp and P["sp_match"]:

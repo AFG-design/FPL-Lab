@@ -9,7 +9,7 @@ Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 import json, os, sys, time, urllib.request, datetime as dt
 from collections import Counter, defaultdict
 
-from fplmodel import prepare, project, POS, DEFAULTS
+from fplmodel import prepare, project, POS, DEFAULTS, unfinished_team_weeks
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
@@ -56,8 +56,7 @@ live = {g: get(f"/event/{g}/live/") for g in range(1, cur_gw + 1)}
 def finished_only(g, data):
     """A gameweek's live rows for the model: only players whose club has finished all its matches that week.
     Mid-gameweek, players yet to play show 0 minutes, which the model would read as being dropped."""
-    pending = {t for f in fixtures if f["event"] == g and not (f.get("finished") or f.get("finished_provisional"))
-               for t in (f["team_h"], f["team_a"])}
+    pending = {t for t, week in unfinished_team_weeks(fixtures) if week == g}
     if not pending:
         return data
     team = {e["id"]: e["team"] for e in boot["elements"]}
