@@ -15,8 +15,12 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - a per-GW points series (s_pts) whose length isn't the current gameweek, or a DefCon record with odd points,
     fewer than 2 points per hit, or fewer minutes than its 60+ minute games need; more starts than minutes
   - a Review week whose pre-deadline snapshot (history/proj_gw{g}.json) exists but wasn't used
-  - before a deadline: history/deadline_gw{g}.json missing, stale, for other weeks or without your players (warnings)
+  - free transfers outside 0-5, a negative/non-finite bank, or squad prices that break FPL's half-profit rule
+  - a Free Hit restore that disagrees with independent FPL chip history and the pre-Free-Hit picks
+  - an empty squad after the first deadline
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
+  - before a deadline: history/deadline_gw{g}.json missing, stale, for other weeks or without your players
+  - legacy data without squad_source evidence outside a required Free Hit restore
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
   - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
@@ -39,18 +43,81 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 def load(path):
     try:
-        return json.load(open(path))
+        with open(path) as f:
+            return json.load(f)
     except FileNotFoundError:
         return None
 
 
 def is_bad(x):
-    return x is None or not isinstance(x, (int, float)) or math.isnan(x) or math.isinf(x)
+    return x is None or type(x) not in (int, float) or math.isnan(x) or math.isinf(x)
+
+
+def check_squad(D, detail, errors, warnings):
+    """Check money in integer £0.1m units and restore against independent FPL history/picks.
+
+    Old builds without source evidence warn in normal weeks; a required Free Hit restore without evidence errors.
+    Missing or stale source data cannot certify a restore. Before GW1 an empty squad is allowed.
+    """
+    meta, manager = D["meta"], D.get("manager", {})
+    ft, bank = manager.get("free_transfers"), manager.get("bank")
+    if type(ft) is not int or not 0 <= ft <= 5:
+        errors.append(f"free_transfers = {ft}: must be an integer between 0 and 5")
+    if is_bad(bank) or bank < 0:
+        errors.append(f"bank = {bank}: must be finite and non-negative")
+    sq = D.get("squad", [])
+    ids = [s["id"] for s in sq]
+    if (ids or meta.get("picks_gw")) and (len(ids) != 15 or len(set(ids)) != 15):
+        errors.append(f"squad has {len(ids)} picks ({len(set(ids))} different): plans need 15 different players")
+    players = {p["id"]: p for p in D["players"]}
+    for row in sq:
+        pid = row["id"]
+        values = [row.get("buy"), row.get("sell"), players.get(pid, {}).get("price")]
+        if any(is_bad(v) or v < 0 or abs(v * 10 - round(v * 10)) > 1e-8 for v in values):
+            errors.append(f"Squad player {pid}: buy/sell/current prices {values} must be finite, non-negative £0.1m amounts")
+            continue
+        buy, sell, current = (round(v * 10) for v in values)
+        expected = current if current <= buy else buy + (current - buy) // 2
+        if sell > current:
+            errors.append(f"Squad player {pid}: selling price {sell / 10:g} exceeds current price {current / 10:g}")
+        if sell != expected:
+            errors.append(f"Squad player {pid}: selling price {sell / 10:g}, FPL profit rule expects {expected / 10:g}")
+
+    src = detail.get("squad_source")
+    pg, ng = meta.get("picks_gw"), meta.get("next_gw")
+    history_fh = any(h.get("gw") == pg and h.get("chip") == "freehit" for h in D.get("history", []))
+    if not src:
+        if meta.get("fh_restored") or (history_fh and ng is not None and pg and ng > pg):
+            errors.append("Free Hit restore has no independent FPL history/picks evidence")
+        else:
+            warnings.append("No squad_source evidence: Free Hit history cannot be independently checked (rebuild data)")
+        return
+    if (detail.get("built") != meta.get("built") or src.get("team_id") != meta.get("team_id")
+            or src.get("picks_gw") != pg or not isinstance(src.get("chips"), list)):
+        errors.append("Free Hit source evidence is stale, incomplete or belongs to another entry/gameweek")
+        return
+    actual_fh = any(c.get("name") == "freehit" and c.get("event") == pg for c in src["chips"])
+    restore = bool(actual_fh and ng is not None and pg and ng > pg)
+    if bool(meta.get("fh_restored")) != restore:
+        errors.append("Free Hit restore flag disagrees with FPL chip history")
+    expected_gw = pg - 1 if restore else pg
+    if meta.get("squad_gw") != expected_gw:
+        errors.append(f"Squad source GW{meta.get('squad_gw')}, FPL history requires GW{expected_gw}")
+    if restore:
+        before = src.get("before_free_hit") or {}
+        previous = before.get("ids", [])
+        if (before.get("gw") != expected_gw or len(previous) != 15 or len(set(previous)) != 15):
+            errors.append("Free Hit restore has no complete pre-Free-Hit picks for the required gameweek")
+        elif set(ids) != set(previous):
+            errors.append(f"Free Hit restore squad differs from FPL GW{expected_gw} picks: "
+                          f"missing {sorted(set(previous) - set(ids))}, unexpected {sorted(set(ids) - set(previous))}")
 
 
 def main(path):
-    D = json.load(open(path))
-    extra = (load(os.path.join(os.path.dirname(os.path.abspath(path)), "data-extra.json")) or {}).get("players", {})
+    with open(path) as f:
+        D = json.load(f)
+    detail = load(os.path.join(os.path.dirname(os.path.abspath(path)), "data-extra.json")) or {}
+    extra = detail.get("players", {})
     us = (load(os.path.join(HERE, "understat", "fpl_players.json")) or {}).get("players", {})
     ov = {int(k): int(v) for k, v in (load(os.path.join(HERE, "understat_overrides.json")) or {}).items() if not k.startswith("_")}
     g = D["meta"].get("next_gw")
@@ -76,8 +143,9 @@ def main(path):
             if v is not None and (is_bad(v) or not 0 <= v <= 1):
                 errors.append(f"{name(p)}: {k} = {v} (not a probability)")
         det = (extra.get(str(p["id"])) or {}).get("xp_detail", p.get("xp_detail"))
-        if det and xp.get(gk) is not None and abs(sum(det.values()) - xp[gk]) > 0.05:
-            errors.append(f"{name(p)}: xp_detail adds up to {sum(det.values()):.2f}, xP GW{g} is {xp[gk]:.2f}")
+        if det is not None and xp.get(gk) is not None and (any(is_bad(v) for v in det.values())
+                or is_bad(xp[gk]) or abs(sum(det.values()) - xp[gk]) > 0.05):
+            errors.append(f"{name(p)}: xp_detail {det} is non-finite or does not add up to xP GW{g} = {xp[gk]}")
         xm = p.get("xmin")
         if xm is not None and (is_bad(xm) or not 0 <= xm <= 180):
             errors.append(f"{name(p)}: xmin = {xm} (expected minutes must be 0-180)")
@@ -92,6 +160,10 @@ def main(path):
     cur = D["meta"].get("cur_gw") or 0
     off_total = []
     for p in D["players"]:
+        # Starts lives in data.json: a missing optional detail row must not disable this check.
+        stt = p.get("starts")
+        if stt is not None and (is_bad(stt) or stt < 0 or stt > (p.get("mins") or 0) or stt > 2 * cur):
+            errors.append(f"{name(p)}: {stt} starts with {p.get('mins')} minutes by GW{cur} (impossible)")
         ex = extra.get(str(p["id"]))
         if ex is None:
             continue
@@ -103,18 +175,10 @@ def main(path):
         d = ex.get("dcs")
         if d and ("pts" in d) and (d["pts"] % 2 or d["pts"] < 2 * d["hits"] or d.get("mins", 0) < 60 * d["apps"]):
             errors.append(f"{name(p)}: DefCon record {d} is impossible (points odd, below 2 per hit, or too few minutes)")
-        stt = p.get("starts")
-        if stt is not None and (stt < 0 or stt > (p.get("mins") or 0) or stt > 2 * cur):
-            errors.append(f"{name(p)}: {stt} starts with {p.get('mins')} minutes by GW{cur} (impossible)")
         ga = ex.get("ga6")
         if ga and (ga["g"] > (p.get("goals") or 0) or ga["a"] > (p.get("assists") or 0) or min(ga.values()) < 0):
             warnings.append(f"{name(p)}: last-6 goals/assists {ga['g']}/{ga['a']} above season {p.get('goals')}/{p.get('assists')}")
-    # squad the plans start from (after a Free Hit: the restored pre-Free-Hit squad, meta.squad_gw)
-    sq = [s["id"] for s in D.get("squad", [])]
-    if sq and (len(sq) != 15 or len(set(sq)) != 15):
-        errors.append(f"squad has {len(sq)} picks ({len(set(sq))} different): plans need 15 different players")
-    if D["meta"].get("fh_restored") and D["meta"].get("squad_gw") != (D["meta"].get("picks_gw") or 0) - 1:
-        errors.append(f"Free Hit restore used GW{D['meta'].get('squad_gw')}'s squad, expected GW{(D['meta'].get('picks_gw') or 0) - 1}")
+    check_squad(D, detail, errors, warnings)
     # pre-deadline snapshot (deadline_snapshot.py): written every build until the deadline, so a missing or stale one now
     # means this gameweek's record would be lost. A warning (Health page), not an error: it must not stop the publish.
     dl = D["meta"].get("deadline")
@@ -130,7 +194,7 @@ def main(path):
                 warnings.append(f"Pre-deadline snapshot for GW{g} is missing {len(gone)} of your players")
             try:
                 lag = (dt.datetime.fromisoformat(D["meta"]["built"]) - dt.datetime.fromisoformat(sp_["built"])).total_seconds()
-            except Exception:
+            except (KeyError, TypeError, ValueError):
                 lag = None
             if lag is None or lag > 15 * 60:
                 warnings.append(f"Pre-deadline snapshot for GW{g} wasn't rewritten this build (saved {sp_.get('built')})")
@@ -204,7 +268,7 @@ def main(path):
         nt_ = (vm.get("next") or {}).get("target")
         if nt_ and nt_.get("captain_multiplier", 2) != 2:
             errors.append("You vs the model: next week's suggested target must use captain ×2")
-        if nt_ and (len(nt_.get("xi", [])) != 11 or abs(nt_["par"] - nt_["exp"]) > 0.5 or len(nt_.get("out", [])) != len(nt_.get("in", []))):
+        if nt_ and (len(nt_.get("xi", [])) != 11 or is_bad(nt_.get("par")) or is_bad(nt_.get("exp")) or abs(nt_["par"] - nt_["exp"]) > 0.5 or len(nt_.get("out", [])) != len(nt_.get("in", []))):
             errors.append(f"You vs the model: next week's target doesn't add up ({nt_.get('exp')}/{nt_.get('par')}, {len(nt_.get('xi', []))} in the XI)")
         for w in vm.get("weeks", []):
             t_ = w.get("target") or {}
@@ -272,7 +336,7 @@ def main(path):
             oc = e.get("outcome")
             if not oc:
                 continue
-            if any(g < e["gw"] or g >= e["gw"] + oc["of"] for g in oc["gws"]) or (fin_ and not set(oc["gws"]) <= fin_):
+            if any(g < e["gw"] or g >= e["gw"] + oc["of"] for g in oc["gws"]) or ("finished_gws" in D["meta"] and not set(oc["gws"]) <= fin_):
                 errors.append(f"Journal GW{e['gw']}: results use gameweeks {oc['gws']} outside its window or not finished")
             for k, m in oc["moves"].items():
                 if m["gain"] != m["in_pts"] - m["out_pts"]:
@@ -287,9 +351,9 @@ def main(path):
             if w.get("proj_src") != "none" or w.get("xi_proj") is not None or w.get("decision") or w.get("model_cap") \
                     or any(t[5] is not None for t in w.get("team", [])):
                 errors.append(f'Review GW{w["gw"]}: no forecast was saved before this deadline but the review shows a projection')
-        if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')) and w.get("xi_proj") is not None:
-            if w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
-                errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but the review re-ran the model')
+        if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')):
+            if is_bad(w.get("xi_proj")) or w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
+                errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but was not used for a finite Review projection')
 
     # xP table live column: the gameweek in progress should have its pre-deadline projections
     xc = D["meta"].get("xp_cur")
@@ -351,6 +415,13 @@ def main(path):
         if "vs_balanced" not in pl or "vs_none" not in pl:
             if rules:
                 errors.append(f"Plan {k}: no vs_balanced / vs_none figures")
+            continue
+        # NaN comparisons are false: reject non-finite inputs before enforcing any numeric budget.
+        amounts = {f: pl.get(f) for f in ("vs_balanced", "vs_none")}
+        if any(wk.get("hits", 0) for wk in pl.get("weeks", [])) and rules.get("hit_gain") is not None:
+            amounts["hit_gain"] = pl.get("hit_gain")
+        if any(is_bad(v) for v in amounts.values()):
+            errors.append(f"Plan {k}: non-finite or missing budget figures {amounts}")
             continue
         mode = k.split("_")[0] if "_" in k else "balanced"
         budget = {"balanced": 0.0, "safe": rules.get("safe_budget", 0.0), "chase": rules.get("chase_budget", 4.0)}[mode]
