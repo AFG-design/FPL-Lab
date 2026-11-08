@@ -2,7 +2,7 @@
 
 Used to put your real team and the Supercomputer's pick from the same 15 on equal terms (F1). Pure functions, no I/O.
 
-    score_team(team, played, chip=None) -> {"total", "xi", "bench", "subs": [(out, in)], "captain", "multipliers"}
+    score_team(team, played, chip=None) -> {"total", "xi", "bench", "subs": [(out, in)], "captain", "multipliers", "captain_multiplier"}
 
 team:   {"xi": [11 ids], "bench": [4 ids: keeper first, then outfield in substitution order],
          "captain": id, "vice": id, "pos": {id: "GKP" | "DEF" | "MID" | "FWD"}}
@@ -23,6 +23,11 @@ be subbed off here, where FPL waits.
 """
 
 MIN = {"GKP": 1, "DEF": 3, "MID": 2, "FWD": 1}
+
+
+def captain_multiplier(chip=None):
+    """No chip (including missing active_chip) means ordinary captaincy; TC means treble."""
+    return 3 if chip == "3xc" else 2
 
 
 def _legal(ids, pos):
@@ -60,12 +65,12 @@ def score_team(team, played, chip=None):
     else:
         xi, bench, subs = auto_subs(xi, bench, pos, mins)
         counted = xi
-    mult = 3 if chip == "3xc" else 2
+    mult = captain_multiplier(chip)
     cap = team["captain"] if mins.get(team["captain"], 0) > 0 else (
         team["vice"] if mins.get(team["vice"], 0) > 0 else None)
     multipliers = {i: (mult if i == cap else 1) for i in counted}
     total = sum(pts[i] * multipliers[i] for i in counted)
-    return {"total": total, "xi": xi, "bench": bench, "subs": subs, "captain": cap, "multipliers": multipliers}
+    return {"total": total, "xi": xi, "bench": bench, "subs": subs, "captain": cap, "multipliers": multipliers, "captain_multiplier": mult}
 
 
 def from_fpl_picks(picks, pos):
@@ -138,7 +143,7 @@ def expected(team, xp, chip=None):
     points (all 15 with Bench Boost) plus the captain's again (twice again with Triple Captain). No auto-subs: this is
     the figure the model stood by at the deadline. A player missing from the saved forecast counts as 0."""
     counted = team["xi"] + (team["bench"] if chip == "bboost" else [])
-    extra = 2 if chip == "3xc" else 1
+    extra = captain_multiplier(chip) - 1
     return sum(xp.get(i, 0.0) for i in counted) + extra * xp.get(team["captain"], 0.0)
 
 
@@ -153,7 +158,8 @@ def best_suggestion(plans, gw):
     worth its xP less 4 per hit; the best of them is the target, so the model is judged on its best-case suggestion.
     Equal totals: the first plan in the saved order wins, so the result never changes between builds.
     Missing: no plans, or no plan with a week for gw -> None (the caller falls back and marks it assumed).
-    Returns {"plan": key, "exp": net xP, "xp": gross xP, "hits", "out", "in", "captain", "xi"} or None.
+    Returns {"plan": key, "exp": net xP, "xp": gross xP, "hits", "out", "in", "captain", "xi",
+    "captain_multiplier": 2} or None. The saved plans do not use your chip.
     """
     best = None
     for key, p in (plans or {}).items():
@@ -163,7 +169,9 @@ def best_suggestion(plans, gw):
         net = wk["xp"] - HIT * wk.get("hits", 0)
         if best is None or net > best["exp"]:
             best = {"plan": key, "exp": net, "xp": wk["xp"], "hits": wk.get("hits", 0), "out": wk.get("out", []),
-                    "in": wk.get("in", []), "captain": wk.get("captain"), "xi": wk.get("xi", [])}
+                    "in": wk.get("in", []), "captain": wk.get("captain"), "xi": wk.get("xi", []),
+                    # FL-035: saved optimiser scores use ordinary captaincy, independent of your chip.
+                    "captain_multiplier": captain_multiplier()}
     return best
 
 

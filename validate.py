@@ -160,6 +160,9 @@ def main(path):
             sq_ = set(int(i) for i in w.get("xp", {}))
             for side in ("you", "model"):
                 t_ = w[side]
+                # Older cached builds predate this field; when supplied it must match the scorer's chip rule.
+                if t_.get("captain_multiplier", 3 if w.get("chip") == "3xc" else 2) != (3 if w.get("chip") == "3xc" else 2):
+                    errors.append(f"You vs the model GW{w['gw']}: {side} captain multiplier disagrees with the chip")
                 if len(t_["xi"]) != 11 or len(set(t_["xi"]) | set(t_["bench"])) != 15 or not set(t_["xi"]) <= sq_:
                     errors.append(f"You vs the model GW{w['gw']}: the {side} side isn't 11 + 4 from the same 15")
             n_ = {k: sum(pos_.get(i) == k for i in w["model"]["xi"]) for k in ("GKP", "DEF", "MID", "FWD")}
@@ -168,6 +171,9 @@ def main(path):
             # the week is your actual points after hits against the model's highest projected score from what it
             # suggested (or, marked assumed, its best pick from your 15), rounded: the target
             tg_ = w.get("target") or {}
+            cap_mult_ = 3 if tg_.get("basis") == "your 15" and w.get("chip") == "3xc" else 2
+            if tg_.get("captain_multiplier", cap_mult_) != cap_mult_:
+                errors.append(f"You vs the model GW{w['gw']}: target captain multiplier disagrees with its basis")
             ok_ = tg_.get("par") is not None and abs(tg_["par"] - tg_.get("exp", -999)) <= 0.5
             if tg_.get("basis") == "your 15":
                 xp_ = {int(k): v for k, v in w.get("xp", {}).items()}
@@ -195,6 +201,8 @@ def main(path):
             if any(pos_.get(o) != pos_.get(i) for o, i in zip(t_.get("out", []), t_.get("in", []))):
                 errors.append(f"You vs the model: the model's moves {t_.get('out')} -> {t_.get('in')} aren't paired by position")
         nt_ = (vm.get("next") or {}).get("target")
+        if nt_ and nt_.get("captain_multiplier", 2) != 2:
+            errors.append("You vs the model: next week's suggested target must use captain ×2")
         if nt_ and (len(nt_.get("xi", [])) != 11 or abs(nt_["par"] - nt_["exp"]) > 0.5 or len(nt_.get("out", [])) != len(nt_.get("in", []))):
             errors.append(f"You vs the model: next week's target doesn't add up ({nt_.get('exp')}/{nt_.get('par')}, {len(nt_.get('xi', []))} in the XI)")
         for w in vm.get("weeks", []):

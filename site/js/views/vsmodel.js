@@ -23,11 +23,15 @@ const vmRes = { W: ["Win", "good"], D: ["Draw", "warn"], L: ["Defeat", "bad"] };
 const vmNm = i => P[i] ? esc(P[i].name) : "Unknown player";
 const vmPts = n => `${n} pt${n === 1 ? "" : "s"}`;
 
+// New builds pass the multiplier used by the scorer. Older cached builds lack the field: reconstruct FL-035's
+// exact rule from the target basis (suggested plans: ×2; the marked assumed pick from your 15: your chip).
+const vmCaptainMultiplier = (side, chip) => side.captain_multiplier ?? (chip === "3xc" ? 3 : 2);
+
 // your side: the XI as submitted, actual points; who was subbed off or on, and whose points counted
 function vmYouItems(w) {
   const y = w.you, subs = y.subs || [], bb = w.chip === "bboost";
   const offs = new Set(subs.map(s => s[0])), ons = new Set(subs.map(s => s[1]));
-  const mult = w.chip === "3xc" ? 3 : 2;
+  const mult = vmCaptainMultiplier(y, w.chip);
   const item = (id, onBench) => {
     const p = P[id]; if (!p) return null;
     const raw = w.pts[id] ?? 0, m = id === y.armband ? mult : 1, counts = bb || (onBench ? ons.has(id) : !offs.has(id));
@@ -43,8 +47,7 @@ function vmYouItems(w) {
 }
 
 // the model's side: projected points before the deadline (the big number) and what each player actually scored
-function vmModelItems(t, xpOf, ptsOf, squad, done, chip) {
-  const mult = chip === "3xc" ? 3 : 2;
+function vmModelItems(t, xpOf, ptsOf, squad, done, mult) {
   const item = (id, onBench) => {
     const p = P[id]; if (!p) return null;
     const xp = xpOf(id), cap = id === t.cap, m = cap && !onBench ? mult : 1, fresh = !squad.has(id);
@@ -79,7 +82,8 @@ function vmWeek(w) {
     : { xi: w.model.xi, bench: w.model.bench, cap: w.model.cap, vice: w.model.vice, out: [], in: [], hits: 0 };
   const xpOf = sug ? i => t.xi_xp?.[i] ?? 0 : i => w.xp[i] ?? 0;
   const ptsOf = sug ? i => t.xi_pts?.[i] : i => w.pts[i];
-  const modP = vmModelItems(mt, xpOf, ptsOf, squad, true, w.chip);
+  const mult = vmCaptainMultiplier(t, sug ? null : w.chip);
+  const modP = vmModelItems(mt, xpOf, ptsOf, squad, true, mult);
   const modelActual = sug ? t.actual : w.model.pts;
   const hitsTxt = w.hits ? `after −${w.hits} in hits` : "no hits";
   return `<div class="panel vm-head"><h2>GW${w.gw}: you v the model</h2>
@@ -94,14 +98,15 @@ function vmWeek(w) {
       <div class="panel"><div class="bar"><h3>The model</h3><span class="tag">${sug ? esc(vmPlan(t.plan)) : "Best pick from your 15"}</span></div>
         ${luPitch(modP.xi, modP.bench, { label: `The model's GW${w.gw} XI`, note: sug ? "Its bench wasn't saved with the plan." : "" })}
         ${sug ? vmMoves(mt) : ""}
-        <p class="note">Big number: projected points before the deadline (captain ×2 included). "Scored": what he actually got. Its XI actually scored <b>${modelActual}</b>${sug ? " (no auto-subs, after hits)" : ""}, shown for interest: the result uses its projection.</p></div>
+        <p class="note">Big number: projected points before the deadline (captain ×${mult} included). "Scored": what he actually got. Its XI actually scored <b>${modelActual}</b>${sug ? " (no auto-subs, after hits)" : ""}, shown for interest: the result uses its projection.</p></div>
     </div>`;
 }
 
 function vmNext(n) {
   const t = n.target;
   if (!t) return `<div class="panel"><h2>GW${n.gw}: the score to beat</h2><p>No target yet: it appears once the model's plans for GW${n.gw} are saved on the next refresh.</p></div>`;
-  const items = vmModelItems({ xi: t.xi, bench: [], cap: t.captain }, i => xpg(i, n.gw), () => null, new Set(D.squad.map(s => s.id)), false, null);
+  const mult = vmCaptainMultiplier(t, null);
+  const items = vmModelItems({ xi: t.xi, bench: [], cap: t.captain }, i => xpg(i, n.gw), () => null, new Set(D.squad.map(s => s.id)), false, mult);
   return `<div class="panel vm-head"><h2>GW${n.gw}: the score to beat</h2>
       ${vmScore(null, "Your actual points, after hits, once GW" + n.gw + " finishes", t.par, `Its best projected score so far: ${f1(t.exp)}, rounded`, null)}
       <p class="note">The target is fixed at the deadline${n.deadline ? ` (${esc(ukTime(n.deadline))})` : ""}. Until then it follows the model's latest plans and can change with each refresh.</p></div>
@@ -109,7 +114,7 @@ function vmNext(n) {
       ${luPitch(items.xi, [], { label: `The model's GW${n.gw} XI`, note: "Its bench isn't saved with the plan." })}
       ${vmMoves(t, n.gw)}
       <p class="note">Not making one of these? Tap Why not? to note your reason; it goes in the decision journal.</p>
-      <p class="note">Big number: projected points for GW${n.gw} (captain ×2 included).</p></div>`;
+      <p class="note">Big number: projected points for GW${n.gw} (captain ×${mult} included).</p></div>`;
 }
 
 // Decision journal (D5a): your moves and captain next to the model's suggestion for the same week, with what the app

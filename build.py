@@ -1089,7 +1089,7 @@ try:
         mod_t = fpl_score.supercomputer_pick(squad_g, pos_all, sx)
         a, b = fpl_score.score_team(you_t, played_g, chip), fpl_score.score_team(mod_t, played_g, chip)
         side = lambda t, r: {"pts": r["total"], "xi": t["xi"], "bench": t["bench"], "cap": t["captain"], "vice": t["vice"],
-                             "armband": r["captain"], "subs": r["subs"], "formation": "-".join(
+                             "armband": r["captain"], "captain_multiplier": r["captain_multiplier"], "subs": r["subs"], "formation": "-".join(
                                  str(sum(pos_all[i] == k for i in r["xi"])) for k in ("DEF", "MID", "FWD"))}
         hits_g = pk["entry_history"].get("event_transfers_cost", 0) or 0
         dl_f = os.path.join(HERE, "history", f"deadline_gw{g}.json")
@@ -1097,15 +1097,16 @@ try:
         sug = fpl_score.best_suggestion(dl_.get("plans"), g)
         if sug:   # out[k] -> in[k] like for like (the optimiser doesn't pair them)
             sug["out"], sug["in"] = fpl_score.pair_moves(sug["out"], sug["in"], pos_all)
-            sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + played_g.get(sug["captain"], (0, 0))[1]
+            sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + (sug["captain_multiplier"] - 1) * played_g.get(sug["captain"], (0, 0))[1]
             tgt = {"basis": "suggested", "assumed": False, "exp": round(sug["exp"], 1), "plan": sug["plan"],
-                   "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"], "in": sug["in"], "captain": sug["captain"],
+                   "captain_multiplier": sug["captain_multiplier"], "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"], "in": sug["in"], "captain": sug["captain"],
                    "xi": sug["xi"], "actual": sug_pts - fpl_score.HIT * sug["hits"],
                    # per player, for the pitch (F1d): xP saved before the deadline (first plan gameweek) and actual
                    "xi_xp": {str(i): (dl_.get("xp", {}).get(str(i)) or [0])[0] for i in sug["xi"]},
                    "xi_pts": {str(i): played_g.get(i, (0, 0))[1] for i in sug["xi"]}}
         else:
-            tgt = {"basis": "your 15", "assumed": True, "exp": round(fpl_score.expected(mod_t, sx, chip), 1)}
+            tgt = {"basis": "your 15", "assumed": True, "captain_multiplier": fpl_score.captain_multiplier(chip),
+                   "exp": round(fpl_score.expected(mod_t, sx, chip), 1)}
         tgt["par"] = fpl_score.target(sug["exp"] if sug else fpl_score.expected(mod_t, sx, chip))
         you_net = a["total"] - hits_g
         vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(you_net, tgt["par"]), "target": tgt,
@@ -1123,7 +1124,7 @@ try:
         if ns_:
             ns_["out"], ns_["in"] = fpl_score.pair_moves(ns_["out"], ns_["in"], pos_all)
             vm_next["target"] = {"exp": round(ns_["exp"], 1), "par": fpl_score.target(ns_["exp"]), "plan": ns_["plan"],
-                                 "hits": ns_["hits"], "out": ns_["out"], "in": ns_["in"], "captain": ns_["captain"],
+                                 "captain_multiplier": ns_["captain_multiplier"], "hits": ns_["hits"], "out": ns_["out"], "in": ns_["in"], "captain": ns_["captain"],
                                  "xi": ns_["xi"], "built": nd_.get("built")}
     if vm_weeks:
         st_ = fpl_score.streak([w["res"] for w in vm_weeks], season_from_gw1=vm_weeks[0]["gw"] == 1)
