@@ -8,12 +8,14 @@ function liveState() {
   const xi = rows.filter(r => r.pos <= 11), bench = rows.filter(r => r.pos > 11).sort((a, b) => a.pos - b.pos);
   const subs = [];
   if (L.chip !== "bboost") {
-    // FPL's rule: a starter who didn't play is replaced by the first bench player who did, if the formation still works
+    // A confirmed non-player reserves the first legal bench option, even if that player's match is still ahead.
+    // Only a finished/blank zero-minute bench player is skipped; missing fixture flags stay unconfirmed.
+    // Keepers can replace only keepers. A pending option blocks later bench players for this starter.
     const valid = list => { const c = { GKP: 0, DEF: 0, MID: 0, FWD: 0 }; list.forEach(r => c[P[r.id]?.pos]++); return c.GKP === 1 && c.DEF >= 3 && c.MID >= 2 && c.FWD >= 1; };
     let team = xi.slice();
     for (const out of xi.filter(r => r.mins === 0 && (r.st === "done" || r.st === "blank"))) {
       const isGK = P[out.id]?.pos === "GKP";
-      const cand = bench.find(b => !subs.some(s => s.in === b) && (isGK ? P[b.id]?.pos === "GKP" : P[b.id]?.pos !== "GKP") && (b.mins > 0 || b.st === "playing") &&
+      const cand = bench.find(b => !subs.some(s => s.in === b) && (isGK ? P[b.id]?.pos === "GKP" : P[b.id]?.pos !== "GKP") && (b.mins > 0 || b.st === "playing" || b.st === "to play") &&
         valid(team.filter(r => r !== out).concat(b)));
       if (cand) { team = team.filter(r => r !== out).concat(cand); subs.push({ out, in: cand, sure: cand.mins > 0 }); }
     }
@@ -23,7 +25,11 @@ function liveState() {
   const cap = rows.find(r => r.cap), vice = rows.find(r => r.vice);
   const capOut = cap && cap.mins === 0 && (cap.st === "done" || cap.st === "blank");
   const mult = r => r.cap ? (capOut ? 1 : (L.chip === "3xc" ? 3 : 2)) : r.vice && capOut && r.mins > 0 ? (L.chip === "3xc" ? 3 : 2) : 1;
-  const total = xi.reduce((a, r) => a + r.live * mult(r), 0) - (L.hits || 0);
+  // Tentative subs belong in the prospective XI, but contribute no points until they have actually played.
+  // All live totals and tables use this same counted set, including provisional bonus and captaincy.
+  const counted = xi.filter(r => !subs.some(s => s.in === r && !s.sure));
+  const contribution = r => counted.includes(r) ? r.live * mult(r) : 0;
+  const total = rows.reduce((a, r) => a + contribution(r), 0) - (L.hits || 0);
   const left = xi.filter(r => r.st === "to play").length, playing = xi.filter(r => r.st === "playing").length;
   // projected before the deadline: the team as picked (captain doubled, bench out), less any hit
   const hasXp = rows.some(r => r.xp != null);
@@ -43,7 +49,7 @@ function liveState() {
       if (T <= p1 && T >= p2) { const f = p1 === p2 ? 0.5 : (p1 - T) / (p1 - p2); rank = { r: Math.round(Math.exp(Math.log(r1) + f * (Math.log(r2) - Math.log(r1)))) }; break; }
     }
   }
-  return { L, rows, xi, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing, rank, hasXp, proj,
+  return { L, rows, xi, counted, contribution, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing, rank, hasXp, proj,
     top10k: F ? fieldAvg(F.top10k) : null, near: F && F.near?.n >= 100 ? fieldAvg(F.near) : null };
 }
 function livePanel() {
