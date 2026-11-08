@@ -45,7 +45,10 @@ function vRivals() {
   const lg = L.find(l => l.id === S.league);
   const me = lg?.rows.find(r => r.me);
   const live = C.in_play;
-  const gwOf = r => live && r.live != null ? r.live : r.gw_pts;
+  // Only our complete live squad has the bench order and match states needed for confirmed auto-subs.
+  // A missing/mismatched live payload keeps the existing sampled scores and the note says subs are excluded.
+  const ls = live && D.live?.gw === C.gw ? liveState() : null;
+  const gwOf = r => live && r.me && ls ? ls.total : live && r.live != null ? r.live : r.gw_pts;
   const bestGw = lg ? Math.max(...lg.rows.map(r => gwOf(r) ?? -1)) : null;
   const lgTable = lg ? `<div class="tablebox league"><table><thead><tr><th class="n">Rank</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">${term("gap", "Gap")}</th><th>${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${lg.rows.map(r => {
       const mv = r.last_rank && r.rank ? r.last_rank - r.rank : 0;
@@ -78,7 +81,7 @@ function vRivals() {
   </div>
   <div class="grid2">
     <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" class="sel" aria-label="League">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
-      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek.${live ? " Live points are summed from the latest match data, without automatic substitutions." : ""}</p></div>
+      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek.${live ? (ls ? " Your live points include confirmed auto-subs; rivals' live points exclude automatic substitutions." : " Live points are summed from the latest match data, without automatic substitutions.") : ""}</p></div>
     <div style="min-width:0">${cmp || `<div class="panel"><h3>Compare with a rival</h3><p class="muted">Pick someone from the league table to see where your teams differ and who the differences favour next gameweek.</p></div>`}</div>
   </div>
   ${watchPanel()}`;

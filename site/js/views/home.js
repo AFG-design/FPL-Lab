@@ -204,11 +204,11 @@ function vCurrent() {
   const hits = L.hits || 0, chip = L.chip ? CHIP_NAME[L.chip] || L.chip : null, capX = L.chip === "3xc" ? 3 : 2;
   // FPL's own points once the gameweek is finished; until then the live total (before hits, as FPL shows it)
   const gross = !provisional && L.points != null ? L.points : s.total + hits;
-  const counted = s.xi, st = new Map(s.rows.map(r => [r, rowMatch(r, L)]));
-  const left = counted.filter(r => st.get(r).left > 0);
+  const counted = s.counted, st = new Map(s.rows.map(r => [r, rowMatch(r, L)]));
+  const left = s.xi.filter(r => st.get(r).left > 0);
   const nPlaying = left.filter(r => st.get(r).key === "playing").length, nToPlay = left.length - nPlaying;
   const leftTxt = [nToPlay ? `${nToPlay} still to play` : "", nPlaying ? `${nPlaying} playing` : ""].filter(Boolean).join(", ");
-  const myFx = L.fixtures.filter(f => counted.some(r => r.team === f.h || r.team === f.a));
+  const myFx = L.fixtures.filter(f => s.xi.some(r => r.team === f.h || r.team === f.a));
   const myFxLeft = myFx.filter(f => !f.done).length;
   const ko1 = L.fixtures.filter(f => !f.started).map(f => f.ko).filter(Boolean).sort()[0];
 
@@ -277,7 +277,7 @@ function vCurrent() {
   };
   const xi = s.rows.filter(r => r.pos <= 11).map(item), bench = s.rows.filter(r => r.pos > 11).sort((a, b) => a.pos - b.pos).map(item);
   const benchNote = L.chip === "bboost" ? "Bench Boost: your bench points count."
-    : s.subs.length ? `Auto-sub${s.subs.length > 1 ? "s" : ""}: ${s.subs.map(x => `${esc(P[x.in.id]?.name)} for ${esc(P[x.out.id]?.name)}`).join(", ")}. Only those bench points count.`
+    : s.subs.length ? `Auto-sub${s.subs.length > 1 ? "s" : ""}: ${s.subs.map(x => `${esc(P[x.in.id]?.name)} for ${esc(P[x.out.id]?.name)}${x.sure ? "" : " (if he plays)"}`).join(", ")}. Only confirmed substitutes' points count.`
     : `Bench points don't count unless an auto-sub applies.${!provisional && L.bench_pts != null ? ` Your bench scored ${L.bench_pts}.` : ""}`;
   const key = `<span>Big number: actual points, ${capX === 3 ? "Triple Captain ×3" : "captain ×2"} already included (never doubled again)</span><span>${provisional ? "Provisional until FPL confirms" : "Final from FPL"}</span><span>Under it: match state; a double gameweek counts both matches</span>`;
   const pitchCol = `<div class="home-pitch">

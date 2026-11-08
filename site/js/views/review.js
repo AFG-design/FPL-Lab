@@ -48,8 +48,9 @@ function decisionPanel(R) {
 }
 function vReview() {
   const h = D.history, L = D.live, R = D.review, mx = Math.max(...h.map(x => x.pts));
-  const live = L && !L.finished ? `<div class="panel"><div class="bar"><h3>GW${L.gw} live</h3><span class="muted">${L.points} pts · average ${L.average ?? "–"}</span></div>
-    <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">Mins</th><th class="n">BPS</th><th class="n">Bonus</th><th class="n">Pts</th><th class="n">Counted</th></tr></thead><tbody>${L.rows.map(r => `<tr><td><span class="pname">${esc(P[r.id]?.name || r.id)}</span>${r.cap ? ' <span class="pill warn">C</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}${r.pos > 11 ? ' <span class="muted">bench</span>' : ""}</td><td class="n">${r.mins}</td><td class="n">${r.bps}</td><td class="n">${r.bonus}</td><td class="n">${r.pts}</td><td class="n"><b>${r.pts * r.mult}</b></td></tr>`).join("")}</tbody></table></div>
+  const ls = L && !L.finished ? liveState() : null;
+  const live = ls ? `<div class="panel"><div class="bar"><h3>GW${L.gw} live</h3><span class="muted">${ls.total} live pts after hits · average ${L.average ?? "–"}</span></div>
+    <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">Mins</th><th class="n">BPS</th><th class="n">Bonus</th><th class="n">Pts</th><th class="n">Counted</th></tr></thead><tbody>${ls.rows.map(r => `<tr><td><span class="pname">${esc(P[r.id]?.name || r.id)}</span>${r.cap ? ' <span class="pill warn">C</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}${r.pos > 11 ? ' <span class="muted">bench</span>' : ""}</td><td class="n">${r.mins}</td><td class="n">${r.bps}</td><td class="n">${r.bonus}</td><td class="n">${r.live}</td><td class="n"><b>${ls.contribution(r)}</b>${ls.subs.some(s => s.in === r && !s.sure) ? " (if he plays)" : ""}</td></tr>`).join("")}</tbody></table></div>
     <p class="note">As of the last update. Bonus is provisional until FPL confirms it.</p></div>` : "";
   if (!R || !R.weeks.length) return live + `<div class="panel"><p class="muted">Your review appears after the first gameweek finishes.</p></div>`;
   const w = R.weeks[R.weeks.length - 1], Tt = R.totals;
