@@ -38,6 +38,7 @@ then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing
 - Run `python3 validate.py site/data.json` after a local build, and `npm test` for site JS/CSS.
 
 ## Model changes (`fplmodel.py`, params, priors, odds)
+Model results are logged in `docs/model-log.md`.
 Run the backtest before and after, both without and with the status log, and compare segments:
 
 ```
