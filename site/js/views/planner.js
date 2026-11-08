@@ -392,7 +392,9 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   // "vs your current team" figure uses) and the profit rule below can't throw the forced moves away.
   const owned = new Set(common.squad);
   const forced = [...common.banned.filter(i => owned.has(i)), ...common.locked.filter(i => !owned.has(i))];
-  const none = await solveP({ ...common, locked: [], banned: [], maxMovesWeek: 0 });
+  // Captain overrides belong to the real plan: a planned signing is absent from this baseline squad.
+  // With no override, the baseline chooses its best projected captain each week (also when no captain was set).
+  const none = await solveP({ ...common, locked: [], banned: [], captains: {}, maxMovesWeek: 0 });
   let bal;
   try { bal = await solveP(common); } catch (e) {
     // no plan meets your locks and bans: say which ones force it rather than quietly handing back an unchanged squad
