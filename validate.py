@@ -32,6 +32,7 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
 import datetime as dt
 import json, math, os, sys
 from collections import Counter
+from odds_players import snapshots
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -309,8 +310,17 @@ def main(path):
     for pg, f in po:
         if pg >= g:   # the coming gameweek is still being collected
             continue
-        snaps = (load(os.path.join(HERE, "history", f)) or {}).get("snapshots")
-        if snaps is not None:
+        data = load(os.path.join(HERE, "history", f)) or {}
+        snaps = snapshots(data)
+        for label, snap in snaps.items():
+            for fixture in snap.get("fixtures", {}).values():
+                for pid, row in fixture.get("players", {}).items():
+                    for field in ("p_score", "p_assist_raw", "p_assist"):
+                        if field in row and (is_bad(row[field]) or not 0 <= row[field] <= 1):
+                            errors.append(f"Player odds GW{pg} {label} player {pid}: invalid {field}")
+                    if "p_assist_raw" in row and "p_assist" in row and row.get("assist_pairs", 0) < 1:
+                        errors.append(f"Player odds GW{pg} {label} player {pid}: fair assist chance without paired prices")
+        if "snapshots" in data:
             missing = [h for h in ("72", "24", "3") if h not in snaps]
             if missing:
                 warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "

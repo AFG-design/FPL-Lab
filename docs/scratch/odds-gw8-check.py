@@ -1,13 +1,18 @@
 # Research only: scratch script for the 26 Oct 2026 GW8 player-odds check (see docs/odds-log.md). Not part of the app.
 import json, math, sys, statistics as st
-sys.path.insert(0, "/home/claude/fpl-lab")
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from odds_players import load_json, snapshots
 import bench
 from fplmodel import project, POS
 ctx = bench.current_ctx()
 res = project(ctx, 8, 1, {"use_flags": False})
 P = res["players"]; up = res["upcoming"]; el = ctx["elements"]; sc = ctx["scoring"]
 live = json.load(open("history/proj_gw8.json"))["players"]          # pre-deadline: [FPL Lab xP, FPL ep]
-odds = json.load(open("history/player_odds_gw8.json"))["fixtures"]
+# Explicit checkpoint: never silently substitute an early snapshot for deadline odds.
+snaps = snapshots(load_json(ROOT / "history/player_odds_gw8.json"))
+odds = snaps["legacy" if "legacy" in snaps else "3"]["fixtures"]
 act = {e["id"]: e["stats"]["total_points"] for e in json.load(open("raw/live8.json"))["elements"]}
 mins8 = {e["id"]: e["stats"]["minutes"] for e in json.load(open("raw/live8.json"))["elements"]}
 SLOPE = 0.86
@@ -23,7 +28,8 @@ for f in odds.values():
         pa = {p: min(1.0, P[p]["p_start"] + P[p]["p_sub"]) * (1.0 if live.get(str(p), [0])[0] > 0 else 0.0) for p, _ in pl}
         lam = {p: -math.log(1 - v["p_score"]) for p, v in pl}
         tot = sum(lam[p] * pa[p] for p, _ in pl)
-        lama = {p: -math.log(1 - v["p_assist"]) for p, v in pl if v.get("p_assist")}
+        # Legacy p_assist was mixed raw/fair; this research rescaling treats it as margin-bearing.
+        lama = {p: -math.log(1 - v.get("p_assist_raw", v.get("p_assist"))) for p, v in pl if v.get("p_assist_raw", v.get("p_assist"))}
         tota = sum(lama[p] * pa[p] for p in lama)
         for p, _ in pl:
             if tot: og[p] = mu * 0.97 / tot * lam[p] * pa[p]

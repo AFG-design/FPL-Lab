@@ -1,12 +1,15 @@
 # Research only: scratch script from the 23 Oct 2026 player-odds preview. Not part of the app.
 import json, math, sys
-sys.path.insert(0, "/home/claude/fpl-lab")
+from pathlib import Path
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from odds_players import load_json
 import bench
 from fplmodel import project, POS, availability
 cur = bench.current_ctx()
 res = project(cur, 8, 1)
 P = res["players"]; up = res["upcoming"]; el = cur["elements"]; sc = cur["scoring"]
-od = json.load(open("/home/claude/fpl-lab/odds/players.json"))
+od = load_json(ROOT / "odds/players.json")
 SLOPE, W = 0.86, 0.5
 rows = []
 for fid, f in od["fixtures"].items():
@@ -19,7 +22,8 @@ for fid, f in od["fixtures"].items():
         lam = {pid: -math.log(1 - v["p_score"]) for pid, v in pl}
         tot = sum(lam[pid] * pa(pid) for pid, _ in pl)
         k = team_mu * 0.97 / tot if tot else 0
-        lama = {pid: -math.log(1 - v["p_assist"]) for pid, v in pl if v.get("p_assist")}
+        # Legacy p_assist was mixed raw/fair; this research rescaling treats it as margin-bearing.
+        lama = {pid: -math.log(1 - v.get("p_assist_raw", v.get("p_assist"))) for pid, v in pl if v.get("p_assist_raw", v.get("p_assist"))}
         tota = sum(lama[pid] * pa(pid) for pid in lama)
         ka = team_mu * 0.75 / tota if tota else 0
         for pid, v in pl:

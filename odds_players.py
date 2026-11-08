@@ -9,7 +9,9 @@ about 10 fixtures x 2 markets = ~20 credits per refresh, 3 refreshes per gamewee
 Writes odds/players.json (latest) and history/player_odds_gw{N}.json for backtests. The history file keeps
 every checkpoint: `snapshots` {"72": ..., "24": ..., "3": ...} (keyed by the checkpoint the fetch was for; "early"
 for a forced fetch before the first one), each with its own fixtures and unmatched names. Its top-level `built`
-and `fixtures` are the latest snapshot, as before. Only derived numbers are saved, never raw bookmaker prices:
+and `fixtures` are the latest snapshot, as before; top-level unmatched lists accumulate names across runs.
+Existing checkpoint keys and legacy files are never rewritten, even with ODDS_FORCE. Known keepers are skipped.
+Only derived numbers are saved, never raw bookmaker prices:
   p_score        : median implied chance of scoring if he plays (bookmaker margin still included;
                    remove it by matching each team's total to its expected goals)
   p_assist_raw   : median implied chance of 1+ assist from the Over price (margin still included, like p_score)
@@ -18,9 +20,10 @@ and `fixtures` are the latest snapshot, as before. Only derived numbers are save
   assist_pairs   : how many bookmakers gave both sides
   books          : how many bookmakers priced his goalscorer market
 Files up to GW9 have only `p_assist`, which mixed fair and Over-only prices (about 2.2-2.7x too high on
-average, test of 31 Oct 2026): treat those as p_assist_raw. They have one snapshot (the last before the deadline).
+average, test of 31 Oct 2026): research rescaling can treat these as margin-bearing, but they are not known raw
+prices. snapshots(data) exposes the old single-snapshot shape as "legacy", without rewriting it.
 """
-import json, os, statistics, sys, time, unicodedata, urllib.request, urllib.error, datetime as dt
+import json, os, statistics, sys, time, tempfile, unicodedata, urllib.request, urllib.error, datetime as dt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "odds", "players.json")
@@ -127,15 +130,47 @@ def due(state, gw, deadline, now):
     return False
 
 
+def load_json(path):
+    """Missing is a first run; malformed existing data fails loudly rather than being overwritten."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+
+def snapshots(data):
+    """Read either history shape without changing it. Legacy checkpoint timing is unknown, not guessed.
+
+    Legacy p_assist mixes raw and fair prices: keep it as recorded. Research readers must not assume it is fair.
+    """
+    if "snapshots" in data:
+        return data["snapshots"]
+    return {"legacy": data} if data else {}
+
+
+def write_json(path, data):
+    """Replace a complete JSON document atomically, never leave half-written history after an interruption."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix=".player-odds-")
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, separators=(",", ":"))
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
 def main():
     key = os.environ.get("ODDS_API_KEY")
     if not key:
         print("ODDS_API_KEY not set; skipping player odds")
         return
-    try:
-        state = json.load(open(OUT))
-    except Exception:
-        state = {}
+    state = load_json(OUT)
+    # Two markets in one region cost two credits per fixture; reject a configuration that multiplies that budget.
+    if len(REGIONS.split(",")) != 1:
+        raise ValueError("Player odds require exactly one region to stay within the free credit budget")
     boot, fixtures = fpl("/bootstrap-static/"), fpl("/fixtures/")
     nxt = next((e for e in boot["events"] if e["is_next"]), None)
     if not nxt:
@@ -143,6 +178,13 @@ def main():
     gw = nxt["id"]
     deadline = dt.datetime.fromisoformat(nxt["deadline_time"].replace("Z", "+00:00"))
     now = dt.datetime.now(dt.timezone.utc)
+    hpath = os.path.join(HIST, f"player_odds_gw{gw}.json")
+    hist = load_json(hpath)
+    label = checkpoint_label(deadline, now)
+    # Even forced runs cannot rewrite a checkpoint, change legacy history, or collect after the deadline.
+    if now >= deadline or (hist and "snapshots" not in hist) or label in snapshots(hist):
+        print(f"player odds: GW{gw} {label} checkpoint already saved, legacy history, or deadline passed; skipping")
+        return
     if not (os.environ.get("ODDS_FORCE") or due(state, gw, deadline, now)):
         print(f"player odds: no checkpoint due for GW{gw} (deadline {deadline:%a %d %b %H:%M} UTC)")
         return
@@ -170,7 +212,9 @@ def main():
                 break
         if not ev:
             continue
-        if left is not None and left < MIN_CREDITS:
+        if left is None:
+            raise ValueError("Odds API omitted remaining credits; refusing a paid request without a budget")
+        if left < MIN_CREDITS + len(MARKETS.split(",")):
             print(f"only {left} credits left this month; stopping"); break
         try:
             data, left, used = get(f"/sports/{SPORT}/events/{ev['id']}/odds", apiKey=key, regions=REGIONS,
@@ -196,6 +240,9 @@ def main():
             if pid is None:
                 unmatched.append(f"{desc} ({teams[f['team_h']]['short_name']}-{teams[f['team_a']]['short_name']})")
                 continue
+            # Match first so a known keeper is skipped, not reported as an unmatched outfield player.
+            if next(e for e in squad if e["id"] == pid)["element_type"] == 1:
+                continue
             row = players.setdefault(str(pid), {})
             ps = [implied(p) for p in score.get(desc, []) if implied(p)]
             if ps:
@@ -215,31 +262,37 @@ def main():
             if fair:   # Over-only prices are never mixed in here: they still carry the margin
                 row["p_assist"] = round(statistics.median(fair), 4)
                 row["assist_pairs"] = len(fair)
+        players = {pid: row for pid, row in players.items() if row}
         out_fx[str(f["id"])] = {"h": f["team_h"], "a": f["team_a"], "kickoff": f["kickoff_time"],
                                 "books": len(data.get("bookmakers", [])), "players": players}
 
+    # Keep unmatched names even when every quoted player failed to match and this fetch cannot be a checkpoint.
+    for field, names in (("unmatched_players", unmatched), ("unmatched_teams", unmatched_teams)):
+        state[field] = sorted(set(state.get(field, [])) | set(names))
+    # No priced fixtures means a failed/too-early fetch, not an immutable successful checkpoint. Report it so
+    # Health shows the gap; a later run can retry. Partial coverage is saved as observed, never backfilled later.
+    if not any(f["players"] for f in out_fx.values()):
+        state.update(credits_left=left, credits_used=spent)
+        write_json(OUT, state)
+        raise ValueError(f"No outfield player odds collected for GW{gw} {label} h checkpoint")
     stamp = now.isoformat(timespec="seconds")
+    snapshot = {"built": stamp, "credits_used": spent, "fixtures": out_fx,
+                "unmatched_players": sorted(set(unmatched)), "unmatched_teams": sorted(unmatched_teams)}
+    hist.setdefault("snapshots", {})[label] = snapshot
+    # Each snapshot keeps that run's names; the history and latest-file summaries accumulate all names seen.
+    for field in ("unmatched_players", "unmatched_teams"):
+        state[field] = sorted(set(state.get(field, [])) | set(hist.get(field, [])) |
+                              {name for snap in hist["snapshots"].values() for name in snap.get(field, [])})
+        hist[field] = sorted(set(hist.get(field, [])) |
+                             {name for snap in hist["snapshots"].values() for name in snap.get(field, [])})
     state.setdefault("fetched", {})[str(gw)] = stamp
     state.pop("last_error", None)
     state.update({"built": stamp, "gw": gw, "deadline": nxt["deadline_time"], "regions": REGIONS,
-                  "credits_left": left, "credits_used": spent, "fixtures": out_fx,
-                  "unmatched_players": sorted(set(unmatched)), "unmatched_teams": sorted(unmatched_teams)})
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    json.dump(state, open(OUT, "w"), separators=(",", ":"))
-    os.makedirs(HIST, exist_ok=True)
-    hpath = os.path.join(HIST, f"player_odds_gw{gw}.json")
-    try:
-        hist = json.load(open(hpath))
-    except Exception:   # first checkpoint of this gameweek (or an unreadable file: start again, never merge into it)
-        hist = {}
-    if hist and "snapshots" not in hist:   # an older single-snapshot file: keep it as the snapshot it was
-        hist["snapshots"] = {"legacy": {k: hist[k] for k in ("built", "fixtures") if k in hist}}
-    label = checkpoint_label(deadline, now)
-    hist.setdefault("snapshots", {})[label] = {"built": stamp, "credits_used": spent, "fixtures": out_fx,
-                                               "unmatched_players": sorted(set(unmatched)),
-                                               "unmatched_teams": sorted(unmatched_teams)}
+                  "credits_left": left, "credits_used": spent, "fixtures": out_fx})
     hist.update({k: state[k] for k in ("built", "gw", "deadline", "regions", "fixtures")})
-    json.dump(hist, open(hpath, "w"), separators=(",", ":"))
+    # History first: if latest-state writing fails, the next run still sees the saved checkpoint and spends nothing.
+    write_json(hpath, hist)
+    write_json(OUT, state)
     n = sum(len(x["players"]) for x in out_fx.values())
     print(f"player odds GW{gw} ({label} h checkpoint): {len(out_fx)}/{len(gw_fx)} fixtures, {n} players, {len(set(unmatched))} unmatched names, "
           f"{spent} credits used, {left} left")
