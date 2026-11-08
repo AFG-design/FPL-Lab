@@ -12,9 +12,11 @@ function fxChips(p, from, n = 3) {
   }).join("");
 }
 const fxText = (p, g) => fxFor(p.team, g).map(x => `${T[x.opp].short} (${x.home ? "H" : "A"})`).join(" + ") || "Blank";
+// Display only: null/missing FPL chance means unknown, never 0%. Keep real zero and other reported percentages.
+const fplChance = (chance, missing = "!") => chance == null ? missing : `${chance}%`;
 function flag(p) {
   if (p.status === "a") return "";
-  return `<span class="flag ${p.status}" title="${esc(p.news)}">${p.chance != null ? p.chance + "%" : "!"}</span>`;
+  return `<span class="flag ${p.status}" title="${esc(p.news)}">${fplChance(p.chance)}</span>`;
 }
 const xpg = (id, g) => (P[id]?.xp[g]) || 0;
 // projections resting on our defaults (unknown return date, no chance given) rather than FPL data

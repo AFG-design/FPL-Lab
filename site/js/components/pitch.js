@@ -101,7 +101,7 @@ function projItem(id, g, o) {
   const owned = D.squad.some(s => s.id === id);
   const price = o.price ? (owned ? { txt: `sells ${money(sellPrice(id))}`, lbl: `selling price ${money(sellPrice(id))}` } : { txt: money(p.price), lbl: `costs ${money(p.price)}` }) : null;
   const ex = run || price ? `${run ? run.html : ""}${price ? `<span class="lu-price">${price.txt}</span>` : ""}` : "";
-  const label = `${p.name}, ${T[p.team].name}, ${f1(x)} projected points in GW${g}${role === "cap" ? `, captain: ${f1(2 * x)} with the armband` : role === "vice" ? ", vice-captain" : ""}${asm ? " (assumed, no official data)" : ""}, ${fx.lbl}${run?.lbl ? `, ${run.lbl}` : ""}${price ? `, ${price.lbl}` : ""}${fresh ? ", new signing in your plan" : ""}${p.status !== "a" ? `, ${p.news || "flagged"}${p.chance != null ? `, ${p.chance}% chance of playing` : ""}` : ""}. Opens player details`;
+  const label = `${p.name}, ${T[p.team].name}, ${f1(x)} projected points in GW${g}${role === "cap" ? `, captain: ${f1(2 * x)} with the armband` : role === "vice" ? ", vice-captain" : ""}${asm ? " (assumed, no official data)" : ""}, ${fx.lbl}${run?.lbl ? `, ${run.lbl}` : ""}${price ? `, ${price.lbl}` : ""}${fresh ? ", new signing in your plan" : ""}${p.status !== "a" ? `, ${p.news || "flagged"}${p.chance != null ? `, ${fplChance(p.chance)} chance of playing` : ", no chance given"}` : ""}. Opens player details`;
   // Cards footer: the run with its words, and the price saying which one it is (your selling price, never market value)
   const foot = [];
   if (run?.html) foot.push(`<span class="lu-fk">Next ${run.n}</span>${run.html}`);

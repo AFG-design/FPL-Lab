@@ -124,7 +124,7 @@ function vmNext(n) {
 // chance unknown -> "–"; Free Hit -> the moves were for one week only, and the page says so.
 const jPct = x => x == null ? "–" : Math.round(x * 100) + "%";
 function jFx(r) { return r.fx?.length ? r.fx.map(([o, h]) => `${esc(T[o]?.short || "?")} (${h ? "H" : "A"})`).join(" + ") : "No match"; }
-function jFlag(r) { return r.status && r.status !== "a" ? ` <span class="tag warn" title="FPL flag before the deadline">${r.chance != null ? r.chance + "%" : esc(r.status)}</span>` : ""; }
+function jFlag(r) { return r.status && r.status !== "a" ? ` <span class="tag warn" title="FPL flag before the deadline">${fplChance(r.chance)}</span>` : ""; }
 // how a move turned out so far (D5c): both players' own points over the finished weeks of its window, next to what
 // was projected for the same weeks, and the deadline week's assumptions check
 const jGws = gs => gs.length > 1 ? `GW${gs[0]}–${gs[gs.length - 1]}` : `GW${gs[0]}`;
