@@ -4,7 +4,9 @@ function scoresStrip() {
   const now = Date.now(), soon = L.fixtures.some(f => !f.done);
   // show while the gameweek is on, and its results until the next deadline
   if (!soon && D.meta.deadline && new Date(D.meta.deadline) < now) return "";
-  const mineRows = L.rows || [], myTeams = new Set(mineRows.filter(r => r.pos <= 11).map(r => r.team));
+  // Reuse Home's confirmed captaincy, including vice takeover and Triple Captain. Missing player rows:
+  // keep the fixture scores, but show no player points and say that the player data is unavailable.
+  const s = liveState(), mineRows = s?.rows || [], myTeams = new Set(mineRows.filter(r => r.pos <= 11).map(r => r.team));
   const fx = L.fixtures.slice().sort((a, b) => (a.ko || "").localeCompare(b.ko || ""));
   const day = iso => new Date(iso).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" });
   const time = iso => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
@@ -23,13 +25,14 @@ function scoresStrip() {
     const gh = goals("h"), ga = goals("a");
     const evHTML = gh.length || ga.length || reds.length ? `<div class="mc-ev">${gh.length || ga.length ? `<div><span>${gh.join(", ") || "&nbsp;"}</span><span>${ga.join(", ") || "&nbsp;"}</span></div>` : ""}${reds.length ? `<p class="mc-red">Red card: ${reds.join(", ")}</p>` : ""}</div>` : "";
     const mine = mineRows.filter(r => (r.team === f.h || r.team === f.a) && r.pos <= 11);
-    const mineHTML = mine.length ? `<div class="mc-mine">${mine.map(r => `<button data-p="${r.id}" class="mc-p">${esc(P[r.id]?.name || r.id)}${r.cap ? " (C)" : ""}<b>${st === "pre" ? "–" : (r.pts + (r.prov || 0)) * (r.cap ? (L.chip === "3xc" ? 3 : 2) : 1)}</b></button>`).join("")}</div>` : "";
+    const mineHTML = mine.length ? `<div class="mc-mine">${mine.map(r => `<button data-p="${r.id}" class="mc-p">${esc(P[r.id]?.name || r.id)}${s.mult(r) > 1 ? " (C)" : ""}<b>${st === "pre" ? "–" : r.live * s.mult(r)}</b></button>`).join("")}</div>` : "";
     return `<article class="mcard ${st} ${myTeams.has(f.h) || myTeams.has(f.a) ? "mine" : ""}" aria-label="${esc(T[f.h].name)} ${st === "pre" ? "v" : `${f.hs ?? 0}–${f.as ?? 0}`} ${esc(T[f.a].name)}">
       <div class="mc-top">${status}${myTeams.has(f.h) || myTeams.has(f.a) ? '<span class="mc-tag">Your players</span>' : ""}</div>
       ${side("h")}${side("a")}${evHTML}${mineHTML}</article>`;
   };
   return `<section class="scores" aria-label="GW${L.gw} scores">
     <div class="bar" style="margin:0 0 8px"><h2>GW${L.gw} scores${live ? ` <span class="pill good">${live} live</span>` : ""}</h2><span class="muted">${soon ? "updates every 10 minutes during matches" : "final scores"}</span></div>
+    ${s ? "" : '<p class="note">Player points unavailable: live squad data is missing.</p>'}
     <div class="score-rail" id="scoreRail">${fx.map(card).join("")}</div></section>`;
 }
 // on phones, scroll the rail so the first live or upcoming match is in view
