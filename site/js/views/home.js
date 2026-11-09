@@ -114,7 +114,7 @@ function vNext() {
   const cBody = `<div class="dc-caps">${capRows.map((i, j) => `<button type="button" class="dcc${j ? "" : " top"}" data-p="${i}">
       <span class="dcc-n">${j ? '<span class="dcc-alt">Alt</span>' : '<span class="badge inline" aria-label="Captain">C</span>'}${esc(P[i].name)}<span class="muted dcc-fx">${fxText(P[i], g)}</span></span>
       <span class="dcc-bar"><i style="width:${(xpg(i, g) / cmax * 100).toFixed(0)}%"></i></span><b>${f1(xpg(i, g) * 2)}</b></button>`).join("")}</div>
-    <p class="dc-sub">Projected captain points for GW${g} (xP × 2).${me.capMine ? ` Your choice; the model's pick is ${esc(P[capPick(me.xi, g).cap].name)}.` : ""} Vice: ${esc(P[me.vice].name)}.${c.capEO != null ? ` ${c.capEO.toFixed(0)}% of managers near your rank captained ${esc(P[me.cap].name)} last week.` : ""}</p>`;
+    <p class="dc-sub">Projected captain points for GW${g} (xP × 2).${me.capMine ? ` Your choice; the model's pick is ${esc(P[capPick(me.xi, g).cap].name)}.` : ""} Vice: ${esc(P[me.vice].name)}.${c.capEO != null ? ` ${c.capEO.toFixed(0)}% of ${c.capSample.label} captained ${esc(P[me.cap].name)} in GW${c.capSample.gw}.` : " Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."}</p>`;
   const cAct = `<button class="btn primary sm" data-plgo="edit:captains">Compare captains →</button>`;
 
   // lineup
@@ -296,7 +296,7 @@ function vCurrent() {
     `<button class="btn sm" data-scrollto="gwScores">All scores →</button>`, `<span class="muted">${provisional ? "Provisional points" : "Final points"}</span>`);
 
   // rival differences: effective ownership around your rank against what you have, this gameweek's file only
-  const C = D.crowd && D.crowd.gw === cg ? D.crowd : null, F = C ? (C.near?.n >= 100 ? C.near : C.top10k) : null;
+  const sample = fieldSample(D.crowd?.gw === cg ? D.crowd : null), F = sample?.data;
   let rv;
   if (F) {
     const all = L.pts_all || {}, mine = {};
@@ -306,14 +306,14 @@ function vCurrent() {
     const started = phase !== "pre";
     const hurt = rows.filter(r => r.d < -0.3).sort((a, b) => started ? a.imp - b.imp : a.d - b.d).slice(0, 2);
     const help = rows.filter(r => r.d > 0.3).sort((a, b) => started ? b.imp - a.imp : b.d - a.d).slice(0, 2);
-    const who = F === C.near ? "managers near your rank" : "the top 10k";
+    const who = sample.label, avg = sample.key === "near" ? s.near : s.top10k;
     const line = (r, cls) => `<li class="${cls}"><span><button class="linkish pname" data-p="${r.i}">${esc(P[r.i].name)}</button>: ${Math.round(r.eo * 100)}% owned by them, ${r.m ? `yours${r.m > 1 ? ` ×${r.m}` : ""}` : "not yours"}${started ? ` · ${r.pts} pts, ${sgn(r.imp)} for you` : ""}</span></li>`;
     const fCap = Object.entries(F.cap || {}).sort((a, b) => b[1] - a[1])[0];
     rv = sidePanel("Your rival differences", `<ul class="alerts side-alerts">${hurt.map(r => line(r, "warn")).join("")}${help.map(r => line(r, "good")).join("")}</ul>
-      <p class="dc-sub">Effective ownership among ${who}${started ? "; points are live" : ""}.${fCap && P[fCap[0]] ? ` Their most-captained: ${esc(P[fCap[0]].name)} (${Math.round(fCap[1])}%).` : ""}${s.near != null ? ` They average about ${f1(s.near)} so far.` : ""}</p>`,
+      <p class="dc-sub">Effective ownership among ${who}${started ? "; points are live" : ""}.${fCap && P[fCap[0]] ? ` Their most-captained: ${esc(P[fCap[0]].name)} (${Math.round(fCap[1])}%).` : ""}${avg != null ? ` They average about ${f1(avg)} so far.` : ""}</p>`,
       `<button class="btn sm" data-v-go="rivals">Open rivals →</button>`);
   } else {
-    rv = sidePanel("Your rival differences", `<p class="muted side-empty">Ownership around your rank for GW${cg} isn't available yet. It's sampled after each deadline.</p>`, `<button class="btn sm" data-v-go="rivals">Open rivals →</button>`);
+    rv = sidePanel("Your rival differences", `<p class="muted side-empty">Ownership sample unavailable for GW${cg}: neither managers near your rank nor the top 10k has a usable sample. It's sampled after each deadline.</p>`, `<button class="btn sm" data-v-go="rivals">Open rivals →</button>`);
   }
 
   // next deadline: the saved plan

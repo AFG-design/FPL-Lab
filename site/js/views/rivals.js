@@ -13,7 +13,10 @@ function chipBadges(chips) {
   return `<span class="chipset">${st.map(c => `<span class="cbadge ${c.used ? "used" : ""}" title="${CHIP_NAME[c.k]}: ${c.used ? "used GW" + c.used : "still available"}">${CHIP_SHORT[c.k]}</span>`).join("")}</span>`;
 }
 const recTeam = () => myTeam();
-const field = () => D.crowd ? D.crowd[S.field === "near" ? "near" : "top10k"] : null;
+const field = () => {
+  const f = D.crowd?.[S.field === "near" ? "near" : "top10k"];
+  return f?.n > 0 && f.eo && f.cap && f.own ? f : null;
+};
 function fieldRows(F, mult, g) {
   const ids = new Set([...Object.keys(F.eo).map(Number), ...Object.keys(mult).map(Number)]);
   return [...ids].filter(i => P[i]).map(i => {
@@ -22,20 +25,20 @@ function fieldRows(F, mult, g) {
   });
 }
 function threats(n = 3) {
-  const F = D.crowd?.top10k, t = recTeam(); if (!F || !t) return [];
+  const F = D.crowd?.top10k, t = recTeam(); if (!F?.n || !t) return [];
   return fieldRows(F, t.mult, D.meta.next_gw).filter(r => r.impact < -1 && r.mine === 0).sort((a, b) => a.impact - b.impact).slice(0, n);
 }
 function vRivals() {
   const C = D.crowd;
   if (!C) return `<div class="panel"><h2>Rivals</h2><p class="muted">Ownership data appears after the next gameweek deadline, once managers' teams become public.</p></div>`;
   const g = D.meta.next_gw, t = recTeam(), F = field();
-  const rows = fieldRows(F, t.mult, g);
+  const rows = F ? fieldRows(F, t.mult, g) : [];
   const thr = rows.filter(r => r.impact < -0.3).sort((a, b) => a.impact - b.impact).slice(0, 8);
   const edge = rows.filter(r => r.impact > 0.3).sort((a, b) => b.impact - a.impact).slice(0, 8);
-  const xiOwn = t.xi.reduce((a, i) => a + (F.own[i] || 0), 0) / t.xi.length;
-  const capTop = Object.entries(F.cap).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const chipTxt = Object.entries(F.chips || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[k] || k} ${v.toFixed(0)}%`).join(" · ") || "none";
-  const label = S.field === "near" ? `managers around your rank (${rankFmt(F.rank_from)}–${rankFmt(F.rank_to)})` : "the top 10,000";
+  const xiOwn = F ? t.xi.reduce((a, i) => a + (F.own[i] || 0), 0) / t.xi.length : null;
+  const capTop = Object.entries(F?.cap || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const chipTxt = Object.entries(F?.chips || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[k] || k} ${v.toFixed(0)}%`).join(" · ") || "none";
+  const label = S.field === "near" ? `managers near your rank (${rankFmt(F?.rank_from)}–${rankFmt(F?.rank_to)})` : "the top 10k";
   const multTxt = m => m === 2 ? `<span class="pill warn">C</span>` : m === 1 ? "XI" : `<span class="muted">—</span>`;
   const tbl = (list, head) => `<div class="tablebox"><table><thead><tr><th>${head}</th><th class="n">${term("xp", "xP")}</th><th class="n">${term("eo", "EO")}</th><th class="n">You</th><th class="n">${term("swing", "Swing")}</th></tr></thead><tbody>${list.map(r => `<tr class="${MINE.has(r.id) ? "mine" : ""}"><td><button data-p="${r.id}" style="all:unset;cursor:pointer" class="pname">${esc(P[r.id].name)}</button> <span class="muted">${T[P[r.id].team].short}</span></td><td class="n">${f1(r.x)}</td><td class="n">${Math.round(r.eo * 100)}%</td><td class="n">${multTxt(r.mine)}</td><td class="n ${r.impact > 0 ? "up" : "down"}">${sgn(r.impact)}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">None</td></tr>`}</tbody></table></div>`;
 
@@ -70,7 +73,7 @@ function vRivals() {
   return `
   <div class="panel"><div class="bar"><h2>The field</h2>
       <div class="seg" role="group" aria-label="Compare with"><button data-field="top10k" aria-pressed="${S.field !== "near"}">Top 10k</button><button data-field="near" aria-pressed="${S.field === "near"}">Around your rank</button></div></div>
-    <p class="note" style="margin-top:0">What ${label} owned and captained in GW${C.gw} (${F.n.toLocaleString("en-GB")} teams sampled), against your planned GW${g} team. ${term("eo", "EO")} (effective ownership) counts captains twice. ${term("swing", "Swing")} = how much a player's projected points move your rank: negative means the field gains on you if he delivers.</p>
+    ${F ? `<p class="note" style="margin-top:0">What ${label} owned and captained in GW${C.gw} (${F.n.toLocaleString("en-GB")} teams sampled), against your planned GW${g} team. ${term("eo", "EO")} (effective ownership) counts captains twice. ${term("swing", "Swing")} = how much a player's projected points move your rank: negative means the field gains on you if he delivers.</p>
     <div class="kpis" style="margin-bottom:14px">
       <div class="kpi"><span class="lbl">Your XI's average ownership</span><b>${xiOwn.toFixed(0)}%</b><span class="delta muted">${xiOwn > 60 ? "very template" : xiOwn > 40 ? "fairly template" : "plenty of differentials"}</span></div>
       <div class="kpi"><span class="lbl">Their captain</span><b>${esc(P[capTop[0]?.[0]]?.name || "–")}</b><span class="delta muted">${capTop[0] ? capTop[0][1].toFixed(0) + "% of teams" : ""}</span></div>
@@ -78,6 +81,7 @@ function vRivals() {
     </div>
     <div class="statgrid"><div><h3 style="margin-bottom:8px">Threats</h3>${tbl(thr, "Owned by the field")}</div><div><h3 style="margin-bottom:8px">Your edges</h3>${tbl(edge, "Your differentials")}</div></div>
     <div style="margin-top:14px"><span class="lbl">Captaincy split</span><div class="capbars" style="margin-top:6px">${capTop.map(([id, v], k) => `<div class="cb ${k === 0 ? "top" : ""}"><span class="pname">${esc(P[id]?.name || id)}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><span class="val">${v.toFixed(0)}%</span></div>`).join("")}</div></div>
+    ` : `<p class="note">Ownership and captaincy sample unavailable for ${label}. Choose another sample or wait for the next update.</p>`}
   </div>
   <div class="grid2">
     <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" class="sel" aria-label="League">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
