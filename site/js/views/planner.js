@@ -145,7 +145,7 @@ function whyIn(i, g) {
   if (p.us && ["MID", "FWD"].includes(p.pos) && p.us.bc_4) bits.push(`${p.us.bc_4} ${term("bigchance", "big chances")} L4`);
   if (p.pos === "DEF" && p.dc_rate >= 0.3) bits.push(`${Math.round(p.dc_rate * 100)}% ${term("dc", "DC")} chance`);
   bits.push(`${term("nailed", "nailed")} ${p.nailed}`);
-  const eo = fieldEO(); if (eo) { const e = eo[i] || 0; bits.push(e < 10 ? `differential (${e.toFixed(0)}% ${term("eo", "EO")})` : `${e.toFixed(0)}% ${term("eo", "EO")}`); }
+  const sample = fieldSample(), eo = sample?.data.eo; if (eo) { const e = eo[i] || 0; bits.push(e < 10 ? `differential (${e.toFixed(0)}% ${term("eo", "EO")} among ${sample.label})` : `${e.toFixed(0)}% ${term("eo", "EO")} among ${sample.label}`); }
   if ((p.price_proj?.[0] ?? 0) >= 80) bits.push(priceMove(p.price_proj[0]));
   return bits.join(" · ");
 }
@@ -171,7 +171,7 @@ function suggestionsHTML(g) {
 /* ---------- captain planner ---------- */
 function captainsHTML() {
   const sc = scoreMoves(SB.moves);
-  const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
+  const sample = fieldSample(), F = sample?.data;
   const tc = D.chips.find(c => c.key === "3xc" && c.available && c.from <= PG[0] && c.to >= PG[0]);
   let bestTc = null;
   const rows = sc.weeks.map(w => {
@@ -190,7 +190,7 @@ function captainsHTML() {
         ${t.capMine ? `<button class="btn" data-setcap="${g}:0">Back to auto</button>` : ""}</td></tr>`;
   }).join("");
   return `<div class="bar"><h3>Captain planner</h3><span class="tag">${MODES[S.mode]}</span></div>
-    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. "Field C" = share of managers around your rank who captained him last week. Tap Make C to override any week; This week and Re-plan follow your choice.</p>
+    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. ${sample ? `"Field C" = share of ${sample.label} who captained him in GW${sample.gw}.` : "Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."} Tap Make C to override any week; This week and Re-plan follow your choice.</p>
     <div class="tablebox"><table><thead><tr><th>GW</th><th>Captain</th><th>Alternatives</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${tc ? `<p class="verdict" style="margin-top:12px">${bestTc ? `Best Triple Captain week in view: <b>GW${bestTc.g}</b>, ${esc(P[bestTc.id].name)} (${f1(bestTc.x)} xP, so about +${f1(bestTc.x)} from the chip).` : ""} Your first-half Triple Captain expires after GW${tc.to}. It's worth most in a double gameweek, when the captain plays twice.</p>` : ""}`;
 }
@@ -252,7 +252,7 @@ function plannerEditor() {
   return `${tpEditBar()}
   <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Editing as")}</span>
     <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
-    <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs the managers around your rank")}.` : ""}</p></div>
+    <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs " + fieldSample().label)}.` : ""}</p></div>
   <div class="plansum">
     <div class="kpi"><span class="lbl">${esc(planName())} · ${PG.length} GWs</span><b>${f1(sum.tot)}</b><span class="delta muted">best XI + captain, minus hits</span></div>
     <div class="kpi"><span class="lbl">vs no transfers</span><b class="${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}">${sgn(delta)}</b><span class="delta muted">${f1(sum.baseTot)} if you do nothing</span></div>
@@ -337,7 +337,8 @@ function leanText() {
   const a = balK ? planTraits(scoreMoves(planMoves(D.plans[balK]))) : planTraits(baseScore()), b = planTraits(scoreMoves(SB.moves));
   const vs = balK ? "the Balanced plan" : "your current team", pct = (x, y) => y ? Math.round(100 * (x - y) / y) : 0;
   const hits = b.hits ? ` ${b.hits} hit${b.hits > 1 ? "s" : ""} taken.` : " No hits.";
-  const hp = pct(b.haul, a.haul), own = `field ownership of your XI ${Math.round(b.eo * 100)}% vs ${Math.round(a.eo * 100)}%`;
+  const sample = fieldSample();
+  const hp = pct(b.haul, a.haul), own = sample ? `effective ownership of your XI among ${sample.label} ${Math.round(b.eo * 100)}% vs ${Math.round(a.eo * 100)}%` : "ownership sample unavailable";
   if (S.mode === "chase") return `Chase rank vs ${vs}: chance of 10+ point hauls ${hp >= 0 ? "+" : "−"}${Math.abs(hp)}%, ${own}.${hits}`;
   if (S.mode === "safe") return `Play safe vs ${vs}: ${own}, starters averaging ${Math.round(b.nailed)} nailed (vs ${Math.round(a.nailed)}).${hits}`;
   return `Balanced: purely the most projected points.${hits}`;

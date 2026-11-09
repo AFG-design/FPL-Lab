@@ -32,7 +32,15 @@ const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a,
 // (see adjXI) so it never gives up projected points.
 const LAM = { balanced: 0, safe: 0.02, chase: -0.03 };
 const STRAT = { balanced: {}, safe: { hitMargin: 2, nailW: 0.5 }, chase: { haulW: 5 } };   // haulW: optimise.STRATEGY
-function fieldEO() { const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null; return F ? F.eo : null; }
+// data.json keeps near/top10k as named samples with counts, captaincy, EO and a gameweek.
+// Return the source with its numbers: never infer the label from a separately evaluated fallback.
+// Keep the existing near-rank minimum of 100. Missing/empty samples are unavailable, not 0% ownership.
+function fieldSample(C = D.crowd) {
+  const usable = s => s?.n > 0 && s.eo && s.cap;
+  const key = C?.near?.n >= 100 && usable(C.near) ? "near" : usable(C?.top10k) ? "top10k" : null;
+  return key ? { data: C[key], key, label: key === "near" ? "managers near your rank" : "the top 10k", gw: C.gw } : null;
+}
+function fieldEO() { return fieldSample()?.data.eo || null; }
 // Strategy extras as the optimiser has them, in every week: Chase rewards the chance of 10+ points (double for the
 // captain), Play safe marks down starters who may not play (starters only). pts stays plain projected points.
 const haulP = (i, g) => P[i]?.dist?.[g]?.[0] || 0;

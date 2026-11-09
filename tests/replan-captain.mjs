@@ -22,7 +22,7 @@ function planner() {
   vm.runInContext(`
     D = { players, squad: players.slice(0, 15).map(p => ({ id: p.id, sell: 5 })),
       manager: { bank: 0, free_transfers: 1 },
-      crowd: { top10k: { eo: Object.fromEntries(players.map(p => [p.id, 50])) } } };
+      crowd: { top10k: { n: 100, cap: {}, eo: Object.fromEntries(players.map(p => [p.id, 50])) } } };
     P = Object.fromEntries(players.map(p => [p.id, p]));
     GWS = PG = [10, 11];
     SB = { rules: { locked: [], banned: [] }, ov: {}, moves: [{ gw: 10, out: 9, in: 16 }] };

@@ -26,7 +26,7 @@ const rankShort = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.r
 // (the same scorer, verdicts and risk checks the old single-page homepage used). Returns null when there's no
 // gameweek to plan.
 // Missing data: no roll plan from the optimiser (build.py failed to solve) -> rolling is scored as "no moves" with
-// the same scorer, which is what the roll plan is; no field ownership -> no captain ownership note and no template
+// the same scorer, which is what the roll plan is; no field ownership -> an unavailable captain ownership note and no template
 // threats; no haul distribution -> no haul line.
 function weekCalls() {
   const g = D.meta.next_gw, pl = D.plans || {};
@@ -50,7 +50,7 @@ function weekCalls() {
   const capOpts = me.xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g)).slice(0, 5);
   const alt = capOpts.find(i => i !== me.cap);
   const capGap = xpg(me.cap, g) - xpg(me.vice, g);
-  const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
+  const capSample = fieldSample(), F = capSample?.data;
   const capEO = F ? (F.cap[me.cap] || 0) : null;
   // captain: confidence from the projection only; following the field is shown beside it, not instead of it.
   // No field ownership (capEO null): no tag, never a guess.
@@ -77,7 +77,7 @@ function weekCalls() {
   threats(2).forEach(r => risks.push(["warn", `<b>${esc(P[r.id].name)}</b> is in ${r.own.toFixed(0)}% of top-10k teams and not in yours. If he hauls, you lose ground (${sgn(r.impact)} projected).`]));
   moves0.forEach(m => { const pr = P[m.in].price_proj?.[0]; if (pr != null && pr >= 80) risks.push(["good", priceTonight(pr) ? `<b>${esc(P[m.in].name)}</b> may rise tonight. Buy before the next price update.` : `<b>${esc(P[m.in].name)}</b> is ${priceMove(pr)}.`]); });
   return { g, me, w0, ft, moves0, later, roll, ptsVsRoll, ftValue, vsRoll, tV, starts, benches, benchFirst, weakest, benchGap, lV,
-    capOpts, alt, capGap, capEO, cV, tc, bestTc, chipNow, risks };
+    capOpts, alt, capGap, capEO, capSample, cV, tc, bestTc, chipNow, risks };
 }
 // the homepage route: two views (views/home.js)
 function vWeek() { return vHome(); }

@@ -36,7 +36,7 @@ function liveState() {
   const proj = hasXp ? rows.reduce((a, r) => a + (r.xp || 0) * r.mult, 0) - (L.hits || 0) : null;
   // field: effective ownership x live points (with provisional bonus)
   const F = D.crowd && D.crowd.gw === L.gw ? D.crowd : null, all = L.pts_all || {};
-  const fieldAvg = src => src ? Object.entries(src.eo).reduce((a, [i, e]) => a + e / 100 * (all[i] || 0), 0) : null;
+  const fieldAvg = src => src?.n > 0 && src.eo ? Object.entries(src.eo).reduce((a, [i, e]) => a + e / 100 * (all[i] || 0), 0) : null;
   // live rank: place your live season total on the sampled points-to-rank curve (log-rank interpolation)
   let rank = null;
   const C = L.rank_curve;

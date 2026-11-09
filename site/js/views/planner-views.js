@@ -83,7 +83,7 @@ function pvRule(mode) {
   const hitCap = R.max_hits?.[mode];
   const hits = hitCap === 0 ? " It never takes a hit."
     : R.hit_gain != null ? ` It takes at most ${hitCap ?? 1} hit a week, and only when the plan beats its best hit-free version by the 4 points plus ${n(R.hit_gain)} more over the plan.` : "";
-  if (mode === "safe") return `Never gives up projected points against Balanced. Where two plans are worth the same, it picks the players more managers around your rank own, starters sure to play.${profit}${hits}`;
+  if (mode === "safe") return `Never gives up projected points against Balanced. Where two plans are worth the same, it picks players owned by ${fieldSample()?.label || "the field"}, starters sure to play.${fieldSample() ? "" : " Ownership sample unavailable."}${profit}${hits}`;
   if (mode === "chase") return `Gives up at most ${n(R.chase_budget ?? 4)} projected points against Balanced over the plan, to back differentials and players with a high chance of a big haul.${profit}${hits}`;
   return `Goes for the most projected points.${profit}${hits}`;
 }
@@ -191,7 +191,7 @@ function pvStratSwitch() {
     <p class="note" style="margin:8px 0 0">${pvRule(cur)}${sameTxt ? ` <b>${sameTxt}</b>` : ""}</p></div>`;
 }
 function pvMissing(mode) {
-  const why = mode === "balanced" ? "The optimiser didn't produce any plans in this build." : `No ${MODES[mode]} plans in this build: they need the field-ownership data (managers around your rank), which wasn't available.`;
+  const why = mode === "balanced" ? "The optimiser didn't produce any plans in this build." : `No ${MODES[mode]} plans in this build: they need the field-ownership data (managers near your rank or the top 10k), which wasn't available.`;
   return `<div class="panel"><h3>${MODES[mode]}</h3><p class="verdict">${why} Nothing is shown in its place. Try again after the next refresh, or plan it yourself.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-pview="edit">Open Your plan</button><button class="btn" data-pview="mine">Back to My team</button></div></div>`;
 }
@@ -249,7 +249,7 @@ function pvStrategy(mode) {
 
 /* ---------- Compare ---------- */
 function pvCompare() {
-  const base = pvBase(), eo = fieldEO();
+  const base = pvBase(), sample = fieldSample(), eo = sample?.data.eo;
   const baseTraits = withMode("balanced", () => planTraits(base));
   const cols = [{ name: "My team", view: "mine", sc: base, gain: 0, moves: [], traits: baseTraits, hits: 0 },
     ...PV_MODES.map(m => { const r = pvStrat(m); return r.key ? { name: MODES[m], view: m, ...r } : { name: MODES[m], view: m, missing: true }; })];
@@ -279,7 +279,7 @@ function pvCompare() {
     return `<td class="pvcell"><span class="muted mono">${w.n}/${w.ft} FT · ${money(w.bank)}</span>${mv.length ? mv.map(m => `<span><span class="out">${esc(P[m.out].name)}</span> → <span class="in">${esc(P[m.in].name)}</span></span>`).join("") : `<span class="muted">${c.view === "mine" ? "–" : w.next > w.ft ? "Roll" : "No transfer"}</span>`}</td>`;
   }).join("")}</tr>`).join("");
   return `<div class="panel"><div class="bar"><h3>Side by side · ${PG.length} GWs</h3></div>
-    <p class="note" style="margin-top:0">Every column is scored the same way: best XI and captain each week, minus 4 per hit. Green marks the best in each row. "Chance of 10+ hauls" adds up each starter's chance of 10+ points (captain twice) over the plan.</p>
+    <p class="note" style="margin-top:0">Every column is scored the same way: best XI and captain each week, minus 4 per hit. Green marks the best in each row. ${sample ? `Effective ownership uses ${sample.label} in GW${sample.gw}.` : "Ownership sample unavailable: neither managers near your rank nor the top 10k has a usable sample."} "Chance of 10+ hauls" adds up each starter's chance of 10+ points (captain twice) over the plan.</p>
     <div class="tablebox pvcmpbox"><table class="pvcmp"><thead><tr><th></th>${cols.map(c => `<th class="n"><button class="btn" data-pview="${c.view}">${esc(c.name)}</button></th>`).join("")}</tr></thead>
       <tbody>${body}<tr class="pvsep"><td colspan="${cols.length + 1}">Week by week</td></tr>${tl}</tbody></table></div></div>`;
 }

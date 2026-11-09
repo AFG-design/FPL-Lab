@@ -15,8 +15,8 @@ function planMoves(pl) {
 const MODES = { balanced: "Balanced", safe: "Play safe", chase: "Chase rank" };
 const MODE_HELP = {
   balanced: "Goes for the most projected points.",
-  safe: "Never gives up projected points against Balanced; where plans are worth the same it sticks close to what managers around your rank own.",
-  chase: "Gives up a few projected points at most to back differentials the managers around you don't own. Good when you need to climb.",
+  get safe() { const f = fieldSample(); return `Never gives up projected points against Balanced; where plans are worth the same it sticks close to what ${f ? f.label : "the field"} own.${f ? "" : " Ownership sample unavailable."}`; },
+  get chase() { const f = fieldSample(); return `Gives up a few projected points at most to back differentials ${f ? f.label : "the field"} don't own. Good when you need to climb.${f ? "" : " Ownership sample unavailable."}`; },
 };
 const mk = (k, mode = S.mode) => mode === "balanced" || !D.plans[`${mode}_${k}`] ? k : `${mode}_${k}`;
 const planLabel = key => { const [m, k] = key.includes("_") ? key.split("_") : ["balanced", key]; return (m === "balanced" ? "" : MODES[m] + ": ") + PLAN_LABEL[k]; };
@@ -24,11 +24,11 @@ function verdict(g, strong = 3, marg = 1) {
   return g >= strong ? { t: "Strong", c: "good" } : g >= marg ? { t: "Marginal", c: "warn" } : { t: "Coin flip", c: "mut" };
 }
 // One confidence scale everywhere (U1): Strong / Marginal / Coin flip from verdict(). v.tag adds a separate, neutral
-// pill for context that isn't confidence (e.g. "Field's pick": most managers around your rank captain him).
+// pill for context that isn't confidence (e.g. "Field's pick": most managers in the selected sample captain him).
 const vPill = v => `<span class="pill ${v.c}">${v.t}</span>${v.tag ? ` <span class="pill mut">${v.tag}</span>` : ""}`;
 function variance(pos, x) { return pos === "MID" ? 1.9 * x + 0.23 * x * x : ({ GKP: 2.8, DEF: 3.3, FWD: 3.8 }[pos] || 3) * x; }
 function spreadVsField(mult, g) {
-  const F = D.crowd ? (D.crowd.near?.n >= 100 ? D.crowd.near : D.crowd.top10k) : null;
+  const F = fieldSample()?.data;
   if (!F) return null;
   let v = 0;
   D.players.forEach(p => { const x = xpg(p.id, g); if (x <= 0) return; const d = (mult[p.id] || 0) - (F.eo[p.id] || 0) / 100; if (d) v += variance(p.pos, x) * d * d; });
