@@ -21,6 +21,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -34,6 +37,13 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add odds/archive/
           git diff --cached --quiet || git commit -m "Backfill archive odds ($SEASONS)"
-          git push
+          python3 scripts/push_data.py
         env:
           SEASONS: ${{ github.event.inputs.seasons }}
+      - name: Keep generated data if publishing fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-odds-archive-${{ github.run_attempt }}
+          path: |
+            odds/archive/
