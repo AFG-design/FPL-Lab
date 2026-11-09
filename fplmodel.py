@@ -5,6 +5,7 @@ gameweeks starting at `as_of`, using only information from gameweeks before it.
 That makes the same code usable for live projections and for backtests.
 """
 import math, re, datetime as dt
+import warnings
 import numpy as np
 from collections import defaultdict
 
@@ -775,11 +776,19 @@ def return_date(e):
     m = re.search(r"(?:expected back|suspended until)\s+(\d{1,2})\s+([a-z]{3})", news)
     if not m or m.group(2) not in MONTHS or not e.get("news_added"):
         return None
-    added = dt.date.fromisoformat(e["news_added"][:10])
-    d = dt.date(added.year, MONTHS[m.group(2)], int(m.group(1)))
-    if d < added - dt.timedelta(days=60):  # 'back 3 Jan' written in December
-        d = dt.date(added.year + 1, d.month, d.day)
-    return d
+    try:
+        added = dt.date.fromisoformat(e["news_added"][:10])
+        month, day = MONTHS[m.group(2)], int(m.group(1))
+        cutoff = added - dt.timedelta(days=60)
+        # Infer the year before constructing the date: December can refer to next February 29.
+        year = added.year + ((added.year, month, day) < (cutoff.year, cutoff.month, cutoff.day))
+        return dt.date(year, month, day)
+    except (ValueError, TypeError):
+        # Invalid source dates are not guessed or clamped. Warn and use the existing unknown-return
+        # treatment; availability_info marks its recovery estimate as assumed in the UI.
+        warnings.warn(f"Invalid return date for player {e.get('id', '?')}: {e.get('news')!r} "
+                      f"(news_added={e.get('news_added')!r}); treating return as unknown", RuntimeWarning)
+        return "unknown"
 
 
 RETURN_WEEK_AV = 0.5   # injured player in his first week after an 'Expected back' date: possible, not certain

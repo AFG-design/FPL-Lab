@@ -4,6 +4,31 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 9 Nov 2026 — FL-081: invalid return dates no longer crash projections
+
+- Baseline: main `2377fcc`; identical frozen GW3–9 API responses, priors, status log and archive odds
+  used for both implementations. Invalid calendar dates in FPL return-date news now emit a warning and use
+  the existing unknown-return treatment, with recovery estimates marked assumed. No replacement day is
+  invented. Year inference happens before date construction, allowing December 2023 news to refer to
+  29 February 2024. Normal valid dates and the 60-day rollover rule are unchanged.
+- Backtest without status log: MAE 1.810144 → 1.810144, corr .429364 → .429364, bias -.039818 → -.039818.
+  With status log: MAE 1.764375 → 1.764375, corr .442675 → .442675, bias -.086012 → -.086012 (n=2,673).
+  All JSON metrics, segments, minutes metrics and raw scoring parts compare exactly equal; no threshold flags.
+- `bench.py` functions run separately against baseline and candidate code, including 1-GW and 5-GW totals:
+
+| Season | 1-GW MAE before → after | 1-GW corr before → after | 1-GW picks before → after | 5-GW corr before → after | 5-GW picks before → after |
+|---|---|---|---|---|---|
+| 2026/27, GW3–9 | 1.764 → 1.764 | .443 → .443 | 4.21 → 4.21 | .598 → .598 | 18.13 → 18.13 |
+| 2025/26 | 1.858 → 1.858 | .411 → .411 | 4.45 → 4.45 | .523 → .523 | 19.13 → 19.13 |
+| 2024/25 | 1.763 → 1.763 | .428 → .428 | 4.22 → 4.22 | .557 → .557 | 19.01 → 19.01 |
+
+Every metric and per-GW/per-origin value is identical. Paired bootstrap 95% CIs for captain, top-five and
+1-GW picks are [0, 0] in all three seasons; 5-GW picks differences are also exactly zero, CI [0, 0].
+Captains changed in 0/7, 0/35 and 0/35 weeks. These historical runs do not exercise malformed news dates
+(the backtest uses flags from the status log, not current news); dedicated invalid-date and full-projection
+regression tests establish the crash fix and assumed labels. Fresh live build: 470 players, GW11, validation
+0 errors and three existing warnings (assumed GW8/GW9 targets and missing GW11 fixture odds).
+
 ## 8 Nov 2026 — FL-062: team ratings skip unfinished matches
 
 - Baseline: main `6664c58`; frozen public API responses through finished GW9, shared unchanged by both runs.
