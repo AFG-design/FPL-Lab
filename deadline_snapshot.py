@@ -67,3 +67,28 @@ def write(hist_dir, snap):
     with open(path, "w") as f:
         json.dump(snap, f, separators=(",", ":"))
     return path
+
+
+def absence_snapshot_due(path, gw, next_ev, now=None):
+    """Whether build.py should write history/absence_gw{gw}.json (the cleared-news absence rule's "before" snapshot).
+
+    The file is write-once and has to be made before gw's deadline, or its "before" projection uses flags and news
+    that came later. So it is written only when gw is the next gameweek and its deadline hasn't passed.
+    Returns (due, reason); reason says why not, for the build log.
+      - the file already exists: never rewritten, whatever else holds
+      - no next gameweek (season over) or gw isn't it (the current gameweek, whose deadline has gone, or a later
+        one, which is written once it becomes next): skipped. A gameweek whose deadline passed with no file stays
+        without one; nothing is made late
+      - next_ev without a deadline_time, or one that doesn't parse: raises (fails the build loudly), never guessed
+    """
+    if os.path.exists(path):
+        return False, "already written"
+    if not next_ev or next_ev.get("id") != gw:
+        return False, f"GW{gw} is not the next gameweek"
+    if "deadline_time" not in next_ev:
+        raise ValueError(f"GW{gw} has no deadline_time; can't tell if the absence snapshot is before the deadline")
+    deadline = dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00"))
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if now >= deadline:
+        return False, f"GW{gw} deadline has passed"
+    return True, ""

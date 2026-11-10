@@ -559,7 +559,12 @@ if h2h_rows:
 ABS_F = lambda g: os.path.join(HIST, f"absence_gw{g}.json")
 if ctx.get("out_news"):
     g_chk = max(max(v) for v in ctx["out_news"].values()) + 1
-    if not os.path.exists(ABS_F(g_chk)) and g_chk in proj_gws + [cur_gw]:
+    # only for the next gameweek and only before its deadline (deadline_snapshot.absence_snapshot_due says what
+    # happens when the file exists, the gameweek isn't next, or the deadline is missing); a late one is never made
+    abs_due, abs_why = deadline_snapshot.absence_snapshot_due(ABS_F(g_chk), g_chk, next_ev)
+    if not abs_due and abs_why != "already written":
+        print(f"absence_gw{g_chk}.json not written: {abs_why}")
+    if abs_due:
         new_ = project(ctx, g_chk, 1)["players"]
         old_ = project(ctx, g_chk, 1, {"news_abs": False})["players"]
         snap = {str(pid): {"fix": [round(new_[pid]["xp"].get(g_chk, 0), 2), round(new_[pid]["xmin"])],
