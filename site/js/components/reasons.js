@@ -52,7 +52,7 @@ function openReason(gw, out, inn, kind) {
   const sel = new Set(r.tags || []);
   const ask = kind === "whynot" ? "Why not make this move?" : "Why this move?";
   const where = !REASON_STORE_OK ? "This browser can't save, so the reason is kept until you close the page."
-    : typeof syncToken === "function" && syncToken() ? "Saved on this device and synced with your plan."
+    : typeof syncReady === "function" && syncReady() ? "Saved on this device and synced with your plan."
     : "Saved on this device only. Turn on Sync plan to keep it on your other devices too.";
   $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
     <h2>${ask}</h2>

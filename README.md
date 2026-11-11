@@ -19,7 +19,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 - **xP table:** a tab next to Players and Stats: every player's projected points per gameweek with the fixture, shaded by value, plus Σ or average over 3, 5 or 6 GWs, xP per £m and, during a live gameweek, what was projected before its deadline next to live points.
 - **Fixtures, Players, Stats, Chips, Season:** a fixture ticker, a player explorer with price-change progress, underlying form (xGI/90), over- and under-performers, team xG trends, player charts, chip planning and rank history.
 - **Review:** each gameweek's captain, bench, transfers and model check, plus season totals and your best and worst transfers.
-- **Install and sync:** add it to your home screen; plans sync between devices through a `sync` branch (needs a fine-grained token with Contents read/write on this repo).
+- **Install and sync:** add it to your home screen; your plan, watchlist and journal notes sync between devices through a private repository of your own (set up in **Sync plan**; needs a fine-grained token with Contents read/write on that repository). They are never written to this public repository.
 - **Model:** how accurate the projections have been this season, plus how they work.
 
 ## How it works

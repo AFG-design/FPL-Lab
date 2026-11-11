@@ -276,7 +276,7 @@ function plannerEditor() {
       <div class="panel"><div class="bar"><h3>Your moves</h3>${SB.prev ? `<button class="btn" data-undoplan="1">Undo last change</button>` : ""}</div>
         <div class="moves">${movesList}</div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-howto="${g}">Make GW${g} moves on FPL</button>${SB.moves.length ? `<button class="btn" data-reset="1">Clear all moves</button>` : ""}</div>
-        <p class="note">Saved on this device${syncToken() ? " and synced" : ""}. This week and Rivals use this plan.</p></div>
+        <p class="note">Saved on this device${syncReady() ? " and synced" : ""}. This week and Rivals use this plan.</p></div>
     </div>
   </div>`;
 }
