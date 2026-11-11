@@ -19,7 +19,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 - **xP table:** a tab next to Players and Stats: every player's projected points per gameweek with the fixture, shaded by value, plus Σ or average over 3, 5 or 6 GWs, xP per £m and, during a live gameweek, what was projected before its deadline next to live points.
 - **Fixtures, Players, Stats, Chips, Season:** a fixture ticker, a player explorer with price-change progress, underlying form (xGI/90), over- and under-performers, team xG trends, player charts, chip planning and rank history.
 - **Review:** each gameweek's captain, bench, transfers and model check, plus season totals and your best and worst transfers.
-- **Install and sync:** add it to your home screen; plans sync between devices through a `sync` branch (needs a fine-grained token with Contents read/write on this repo).
+- **Install and sync:** add it to your home screen; your plan, watchlist and journal notes sync between devices through a private repository of your own (set up in **Sync plan**; needs a fine-grained token with Contents read/write on that repository). They are never written to this public repository.
 - **Model:** how accurate the projections have been this season, plus how they work.
 
 ## How it works
@@ -52,8 +52,8 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 - **Player odds:** repository secret `ODDS_API_KEY` (a free key from the-odds-api.com, 500 credits a month). About 20 credits per refresh, 3 refreshes per gameweek. Without the secret the step is skipped.
 - **Refresh now:** Actions → "Refresh FPL data" → Run workflow, or the button on the dashboard.
 - **Compare any team:** `watch.json` lists extra team IDs to fetch each refresh (`{"teams": [{"id": 123456, "label": "Friend"}]}`, up to 20). The overall leader is always included. The Rivals page adds and removes teams in one tap if Sync is set up; editing the file triggers a rebuild.
-- **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's Current GW view stays current. GitHub can start scheduled runs a few minutes late.
-- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
+- **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's Current GW view stays current. GitHub can start scheduled runs late or skip them (see **Reliable automatic updates** below); on a matchday without the backup scheduler, updates have been about 90 minutes apart.
+- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). Inside 6 hours of a deadline, `validate.py` also warns on the Health page when the previous refresh was more than 45 minutes earlier, or when it can't tell. GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
 
 ## Run locally
 
