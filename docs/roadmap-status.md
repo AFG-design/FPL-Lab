@@ -18,7 +18,7 @@ Cycle 1 items:
 4. **FL-055:** Done (#72). **FL-059:** Done (#73).
 5. **FL-062:** Done (#75). **FL-064:** Done (#76).
 6. **FL-084:** Done (#77).
-7. **FL-088 (private sync):** Done (#90). Still to do by hand: set up the private sync repository on each device, then delete the old public `sync` branch.
+7. **FL-088 (private sync):** Done (#90). The private sync repository is set up and the old public `sync` branch has been deleted.
 
 Also merged since 5 Nov, outside the Cycle 1 list: FL-096 (#71, #82), FL-091 (#74), FL-077 (#78), FL-087 (#79), FL-086 (#80), FL-085 (#81), FL-081 (#83), FL-071 (#84), FL-076 (#85); and from the 10 Nov audit, #86–#91 (refresh-gap warning, Understat staleness, odds carry-over, source checks, private sync, Rivals tile).
 
