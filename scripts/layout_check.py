@@ -12,6 +12,7 @@ VIEWS (site/js/core/state.js, so new screens are covered without editing this fi
 It saves a full-page screenshot of every view and width, so a reviewer can look without running anything.
 Views with more than one state behind a remembered switch are also opened in each state (VARIANTS: the Planner's Transfer paths, the Kits lineup style and the homepage's
 Current GW view), as "<view>-<state>".
+The Players screen is also checked with its Columns picker open ("players-columns"), since a popover can push the page sideways.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json, or VIEWS not found in state.js, exits 2 before any check runs.
 Files from other sites (e.g. kit images) are not this check's business; their failures are listed, not failed.
@@ -96,6 +97,16 @@ def main():
                         .slice(0, 3).map(e => e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\\s+/).join('.') : ''))""", cw)
                     errs.append(f"page scrolls sideways: {sw}px content in a {cw}px window (widest: {', '.join(wide) or 'outside #app'})")
                 page.screenshot(path=str(out / f"{name}-{size}.png"), full_page=True)
+                if v == "players" and not var:
+                    # The Columns picker is a popover, closed by default: open it and check again, as "players-columns".
+                    # If the picker is missing, that is a failure too (not skipped quietly).
+                    if page.locator(".colpick").count():
+                        sw2 = page.evaluate("document.querySelector('.colpick').open = true, document.documentElement.scrollWidth")
+                        if sw2 > cw + 1:
+                            errs.append(f"page scrolls sideways with the Columns picker open: {sw2}px content in a {cw}px window")
+                        page.screenshot(path=str(out / f"players-columns-{size}.png"), full_page=True)
+                    else:
+                        errs.append("Columns picker (.colpick) not found, so its open state wasn't checked")
                 status = "ok" if not errs else "FAIL"
                 print(f"{status:4} {size:7} {name}")
                 failures += [f"{name} @ {w}px: {e}" for e in errs]

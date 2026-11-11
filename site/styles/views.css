@@ -110,8 +110,13 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 
 @media (max-width: 640px) {
   .explorer .filters select { flex: 1 1 140px; }
-  .colpick { margin-left: 0; }
-  .colpick-body { left: 0; right: auto; }
+
+  /* Phones: the Columns button can sit anywhere along a wrapped filter row, so a 220px popover hung off the button ran
+     off the right edge and made the whole page scroll sideways. Hang it off the filter row instead, full width. */
+  .explorer .filters { position: relative; }
+  .colpick { position: static; margin-left: 0; }
+  .colpick-body { left: 0; right: 0; top: calc(100% + 6px); width: auto; grid-template-columns: 1fr 1fr; }
+  .colpick-body .btn { grid-column: 1 / -1; }
   .explorer { padding: 14px; }
 }
 
