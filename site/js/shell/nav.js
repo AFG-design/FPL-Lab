@@ -42,7 +42,7 @@ function header() {
     <span class="st-note">Your GW${meta.picks_gw} squad. Transfers made on the FPL site appear after the deadline.</span>
     <span class="st-acts">
       <button class="btn ghost sm" data-refresh="1" ${REFRESH.busy ? "aria-busy=\"true\"" : ""}>${icon("refresh")}${REFRESH.busy ? "Refreshing" : "Refresh data"}</button>
-      <button class="btn ghost sm" data-sync="1">${icon("sync")}${syncToken() ? "Sync on" : "Sync plan"}</button>
+      <button class="btn ghost sm" data-sync="1">${icon("sync")}${syncReady() ? "Sync on" : "Sync plan"}</button>
     </span>
     <span class="st-msg" id="refreshMsg">${esc(REFRESH.msg)}</span><span class="st-msg" id="syncMsg">${esc(SYNC.msg || "")}</span>`;
   const hl = $("#meta [data-gohealth]"); if (hl) { hl.onclick = () => setView("health"); hl.onkeydown = e => { if (e.key === "Enter") setView("health"); }; }
