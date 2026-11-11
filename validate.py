@@ -24,6 +24,8 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
   - inside 6 hours of a deadline: more than 45 minutes since the previous refresh (meta.prev_built), or no record
     of the previous refresh at all. Late data here means stale injury flags, prices and pre-deadline snapshots
   - a player with 300+ minutes and no Understat row (and no manual override)
+  - Understat shots data missing, or covering fewer matches than have finished while its last successful update
+    is over 36 hours old (understat.py keeps the previous file when Understat is down, so it goes stale silently)
   - no betting odds for any of next gameweek's fixtures
   - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
   - no season starts for any player (Points leaders Starts column)
@@ -53,6 +55,40 @@ def load(path):
 
 def is_bad(x):
     return x is None or type(x) not in (int, float) or math.isnan(x) or math.isinf(x)
+
+
+US_STALE_H = 36
+
+
+def check_understat(meta, warnings):
+    """Warn when the Understat file (shots, big chances, shot maps, set-piece xG on Stats) is missing or behind.
+
+    understat.py exits cleanly and keeps the previous file when Understat can't be reached, so the only sign is an
+    old "built" stamp. Behind = fewer matches than have finished AND the last successful update over 36 hours ago;
+    a few hours behind on a matchday is normal and stays quiet. A warning only: the model doesn't use this data
+    (sp_match is off), so stale shots must not stop the publish.
+    Missing / late / ambiguous: data from an older build.py (no finished_fixtures key) is not checked; no Understat
+    meta at all warns as missing; a "built" stamp that can't be read counts as stale, never as fresh.
+    """
+    fin = meta.get("finished_fixtures")
+    if fin is None:
+        return
+    us = meta.get("understat") or {}
+    n = us.get("matches")
+    if not us or type(n) is not int:
+        warnings.append("No Understat data: Stats shots, set-piece threat and shot maps have nothing to show")
+        return
+    if n >= fin:
+        return
+    try:
+        age = (dt.datetime.fromisoformat(meta["built"].replace("Z", "+00:00"))
+               - dt.datetime.fromisoformat(us["built"].replace("Z", "+00:00"))).total_seconds() / 3600
+    except (AttributeError, KeyError, TypeError, ValueError):
+        age = None
+    if age is None or age > US_STALE_H:
+        when = f"last updated {age / 24:.0f} days ago" if age is not None else "last update time unknown"
+        warnings.append(f"Understat is behind: {n} of {fin} finished matches, {when} ({us.get('built')}). "
+                        f"Stats shots, set-piece threat and shot maps are missing the recent games")
 
 
 def check_squad(D, detail, errors, warnings):
@@ -351,6 +387,7 @@ def main(path):
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
 
+    check_understat(D["meta"], warnings)
     # decision journal (D5a): every move is accounted for once, every player mentioned has a row, and the model's plan is
     # the same one the You vs the model target used for that week
     jr = D.get("journal")
