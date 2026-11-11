@@ -1448,6 +1448,9 @@ out = {
              "minutes_model": {"xmins_on": bool(DEFAULTS["xmins"]), "xmins": _msrc.get("xmins", 0),
                                "counts": _msrc.get("counts", 0)},
              "understat": US.get("meta"),
+             # finished Premier League matches so far, so the site and validate.py can say how many of them the
+             # Understat file covers (it keeps its last good copy when Understat is down)
+             "finished_fixtures": sum(1 for f in fixtures if f.get("event") and f.get("finished")),
              "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
                       "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,
              "player_odds": {"built": player_odds.get("built"), "gw": player_odds.get("gw"),

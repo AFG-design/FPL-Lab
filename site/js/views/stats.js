@@ -81,12 +81,26 @@ function vStats() {
 function posSeg(key, opts) {
   return `<div class="seg" role="group" aria-label="Position">${opts.map(([v, l]) => `<button data-posseg="${key}:${v}" aria-pressed="${(S[key] || opts[0][0]) === v}">${l}</button>`).join("")}</div>`;
 }
+// Where the Understat numbers stand, for the notes on the tabs that use them. understat.py keeps its last good file
+// when Understat is down, so the note always says how many finished matches are covered and when it last updated,
+// and turns into a warning when it's behind by more than 36 hours (the same test as validate.py).
+// Missing: no Understat meta -> "unavailable"; data.json from before finished_fixtures existed -> match count only.
+function understatNote() {
+  const U = D.meta.understat, fin = D.meta.finished_fixtures;
+  if (!U || U.matches == null) return "Understat data is unavailable.";
+  const when = U.built ? new Date(U.built).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }) : null;
+  const ageH = U.built ? (new Date(D.meta.built) - new Date(U.built)) / 36e5 : Infinity;
+  const cover = fin == null ? `${U.matches} matches` : `${U.matches} of ${fin} finished matches`;
+  if (fin != null && U.matches < fin && !(ageH <= 36))
+    return `<b class="warn-t">Understat hasn't updated since ${when || "an unknown date"}: ${cover}, so the most recent games are missing.</b>`;
+  return `Data from Understat (${cover}${when ? `, last updated ${when}` : ""}).`;
+}
 const posMatch = (p, f) => f === "ALL" || (f === "ATT" ? (p.pos === "MID" || p.pos === "FWD") : p.pos === f);
 function spThreatHTML() {
   const f = S.spPos || "DEF";
   const rows = D.players.filter(p => p.us && p.mins >= 270 && posMatch(p, f)).sort((a, b) => b.us.sp_xg90 - a.us.sp_xg90).slice(0, 20);
   return `<div class="panel"><div class="bar"><h3>Set-piece threat</h3>${posSeg("spPos", [["DEF", "DEF"], ["ATT", "MID+FWD"], ["ALL", "All"]])}</div>
-    <p class="note" style="margin-top:0">xG from corners, free kicks and other set pieces, separate from open play and penalties. Defenders who are dangerous from set pieces score far more than their attacking stats suggest, and they're often cheap. Data from Understat.</p>
+    <p class="note" style="margin-top:0">xG from corners, free kicks and other set pieces, separate from open play and penalties. Defenders who are dangerous from set pieces score far more than their attacking stats suggest, and they're often cheap. ${understatNote()}</p>
     <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th class="n">Set-piece xG/90</th><th class="n">Set-piece shots</th><th class="n">Set-piece headers</th><th class="n">Open-play xG/90</th><th class="n">Pen xG</th><th>Takes</th></tr></thead>
     <tbody>${rows.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td><td class="n">${p.price.toFixed(1)}</td><td class="n"><b>${p.us.sp_xg90.toFixed(2)}</b></td><td class="n">${p.us.sp_shots}</td><td class="n">${p.us.sp_headers}</td><td class="n">${p.us.op_xg90.toFixed(2)}</td><td class="n">${p.us.pen_xg.toFixed(1)}</td><td>${[p.sp?.pen === 1 ? "Pens" : "", p.sp?.cor === 1 ? "Corners" : "", p.sp?.fk === 1 ? "FKs" : ""].filter(Boolean).join(", ") || '<span class="muted">–</span>'}</td></tr>`).join("")}</tbody></table></div></div>`;
 }
@@ -119,7 +133,7 @@ function shotsHTML() {
   const U = D.meta.understat || {};
   return `<div class="panel"><div class="bar"><h3>Shots and big chances</h3>
       <div class="seg" role="group" aria-label="Position">${[["ATT", "MID+FWD"], ["DEF", "DEF"], ["ALL", "All"]].map(([v, l]) => `<button data-stpos="${v}" aria-pressed="${posF === v}">${l}</button>`).join("")}</div></div>
-    <p class="note" style="margin-top:0">Who gets into scoring positions, often before the goals and xG add up. L4 = last 4 gameweeks (from GW${U.last4_from_gw ?? "–"}). Data from Understat (${U.matches ?? 0} matches), updated every 3 hours.</p>
+    <p class="note" style="margin-top:0">Who gets into scoring positions, often before the goals and xG add up. L4 = last 4 gameweeks (from GW${U.last4_from_gw ?? "–"}). ${understatNote()}</p>
     <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th>${th("shots90", "Shots/90")}${th("sib90", "In box/90", "inbox")}${th("sib90_4", "In box/90 L4", "inbox")}${th("bc90", "Big ch/90", "bigchance")}${th("bc_4", "Big ch L4", "bigchance")}<th class="n">Big ch scored</th>${th("cc90", "Created/90", "created")}${th("bcc90", "Big ch created/90", "bigchance")}</tr></thead>
     <tbody>${rows.map(p => { const u = p.us; return `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" style="all:unset;cursor:pointer" class="pname">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td><td class="n">${p.price.toFixed(1)}</td><td class="n">${u.shots90.toFixed(1)}</td><td class="n">${u.sib90.toFixed(1)}</td><td class="n"><b>${u.sib90_4.toFixed(1)}</b></td><td class="n">${u.bc90.toFixed(2)}</td><td class="n">${u.bc_4}</td><td class="n">${u.bc_scored}/${u.bc}</td><td class="n">${u.cc90.toFixed(1)}</td><td class="n">${u.bcc90.toFixed(2)}</td></tr>`; }).join("")}</tbody></table></div></div>`;
 }
