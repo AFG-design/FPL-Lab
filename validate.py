@@ -38,6 +38,8 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
     (72, 24 or 3 h before the deadline), when that gameweek's file uses per-checkpoint snapshots. The model doesn't
     use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
     snapshots, e.g. with no ODDS_API_KEY.
+  - an input that didn't load or is past its schedule: last-season priors (missing, or over 15 days old), match odds
+    (missing, or over 48 hours old) and the ownership sample (missing, or for an earlier gameweek); see check_sources
 """
 import datetime as dt
 import json, math, os, sys
@@ -53,6 +55,69 @@ def load(path):
             return json.load(f)
     except FileNotFoundError:
         return None
+
+
+PRIORS_STALE_DAYS, ODDS_STALE_H = 15, 48
+
+
+def _age_hours(newer, older):
+    """Hours between two ISO timestamps, or None when either can't be read."""
+    try:
+        return (dt.datetime.fromisoformat(newer.replace("Z", "+00:00"))
+                - dt.datetime.fromisoformat(older.replace("Z", "+00:00"))).total_seconds() / 3600
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def check_sources(D, warnings):
+    """Warn when an input the model or the plans lean on didn't load, or is older than its own schedule allows.
+
+    build.py carries on when priors.json, odds/odds.json or crowd/latest.json can't be read, so without these the only
+    sign is a quieter page. All warnings (Health page), not errors: each fallback still gives usable projections,
+    and stopping the publish would freeze prices and injury flags too.
+      - last-season priors: not loaded (player rates fall back to this season plus the positional average), or
+        priors.json older than 15 days (the workflow runs every Monday);
+      - match odds: not loaded (team ratings come from xG and results only, no market blend), or older than
+        48 hours (odds.py leaves the file untouched when football-data.co.uk can't be reached);
+      - ownership sample: not loaded (Play safe and Chase rank can't be planned), or for an earlier gameweek than
+        the current one (those strategies, EO and the live rank then rest on last week's teams).
+    Missing / late / ambiguous: a section whose key isn't in data.json at all (an older build) is not checked; a
+    timestamp that can't be read is reported as unknown age, never treated as fresh.
+    """
+    meta = D["meta"]
+    if "priors_season" in meta:
+        if not meta["priors_season"]:
+            warnings.append("Last-season priors didn't load (priors.json): player rates use this season and the "
+                            "positional average only")
+        else:
+            pr = load(os.path.join(HERE, "priors.json")) or {}
+            age = _age_hours(meta.get("built"), pr.get("built"))
+            if age is None:
+                warnings.append("Last-season priors: age unknown (no readable 'built' time in priors.json)")
+            elif age > PRIORS_STALE_DAYS * 24:
+                warnings.append(f"Last-season priors are {age / 24:.0f} days old (the weekly Update last-season priors "
+                                f"job may be failing): new signings and returning players may have none")
+    if "odds" in meta:
+        od = meta["odds"]
+        if not od:
+            warnings.append("Match odds didn't load (odds/odds.json): team ratings come from xG and results only, "
+                            "with no betting-market blend")
+        else:
+            age = _age_hours(meta.get("built"), od.get("built"))
+            if age is None:
+                warnings.append("Match odds: age unknown (no readable 'built' time in odds/odds.json)")
+            elif age > ODDS_STALE_H:
+                warnings.append(f"Match odds are {age / 24:.1f} days old (football-data.co.uk not reached since "
+                                f"{od.get('built')}): recent results are missing from the betting-market ratings")
+    if "crowd" in D:
+        cr, cur = D["crowd"], meta.get("cur_gw")
+        if not cr:
+            if cur:   # before GW1 there is nothing to sample yet
+                warnings.append("Ownership sample didn't load (crowd/latest.json): no Play safe or Chase rank plans, "
+                                "EO or live rank")
+        elif cur and cr.get("gw") != cur:
+            warnings.append(f"Ownership sample is for GW{cr.get('gw')}, not the current GW{cur}: Play safe, Chase rank, "
+                            f"EO and live rank use last week's teams until crowd.py samples this week's")
 
 
 def is_bad(x):
@@ -478,6 +543,7 @@ def main(path):
                 warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
+    check_sources(D, warnings)
     # Planner strategy tabs (views/planner.js): each tab shows one optimiser plan per strategy. Every plan must name
     # players we list and field a legal XI; a strategy with no plans (build.py drops Play safe and Chase rank when the
     # field ownership file is missing) is a warning, and the tab says so instead of showing the Balanced plan.
@@ -512,7 +578,7 @@ def main(path):
             errors.append(f"Plan {k}: non-finite or missing budget figures {amounts}")
             continue
         mode = k.split("_")[0] if "_" in k else "balanced"
-        budget = {"balanced": 0.0, "safe": rules.get("safe_budget", 0.0), "chase": rules.get("chase_budget", 4.0)}[mode]
+        budget = {"balanced": 0.0, "safe": rules.get("safe_budget", 0.0), "chase": rules.get("chase_budget", 2.0)}[mode]
         if pl["vs_balanced"] < -(budget + rules.get("tie", 0.1) + 0.01):
             errors.append(f"Plan {k}: {pl['vs_balanced']:+.2f} vs Balanced, over its {budget:g}-point budget")
         nh = sum(wk.get("hits", 0) for wk in pl.get("weeks", []))
