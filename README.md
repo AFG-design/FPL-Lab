@@ -44,7 +44,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
 | `site/` | The web app (see **Front end** below) |
 
-`.github/workflows/refresh.yml` is scheduled to rebuild and publish every 30 minutes. GitHub treats that schedule as best effort: in November 2026 scheduled runs were often hours apart (the Health page shows the longest recent gap), so set up the backup scheduler below if you rely on fresh data near a deadline. `priors.yml` refreshes `priors.json` every Monday. `crowd.yml` checks every 20 minutes and samples other managers' teams once per gameweek, just after the deadline.
+`.github/workflows/refresh.yml` rebuilds and publishes every 30 minutes. `priors.yml` refreshes `priors.json` every Monday. `crowd.yml` checks every 20 minutes and samples other managers' teams once per gameweek, just after the deadline.
 
 ## Settings
 
