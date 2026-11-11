@@ -18,9 +18,9 @@ Cycle 1 items:
 4. **FL-055:** Done (#72). **FL-059:** Done (#73).
 5. **FL-062:** Done (#75). **FL-064:** Done (#76).
 6. **FL-084:** Done (#77).
-7. **FL-088 (private sync):** Open. Nothing on `main` for it yet.
+7. **FL-088 (private sync):** Done (#90). Still to do by hand: set up the private sync repository on each device, then delete the old public `sync` branch.
 
-Also merged since 5 Nov, outside the Cycle 1 list: FL-096 (#71, #82), FL-091 (#74), FL-077 (#78), FL-087 (#79), FL-086 (#80), FL-085 (#81), FL-081 (#83), FL-071 (#84), FL-076 (#85).
+Also merged since 5 Nov, outside the Cycle 1 list: FL-096 (#71, #82), FL-091 (#74), FL-077 (#78), FL-087 (#79), FL-086 (#80), FL-085 (#81), FL-081 (#83), FL-071 (#84), FL-076 (#85); and from the 10 Nov audit, #86–#91 (refresh-gap warning, Understat staleness, odds carry-over, source checks, private sync, Rivals tile).
 
 **IDs (from 5 Nov):** every item is FL-nnn, numbered in the order it was added and never reused. Branches and PRs use the same ID (`fix/fl-063-refresh-push`, PR title "FL-063: …"). Old IDs (C1, B10, M2 …) are in the sheet's Old ID column; the model log and older docs still use them.
 
