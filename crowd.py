@@ -140,8 +140,8 @@ def aggregate(ids):
             chips[t["chip"]] += 1
     pct = lambda d: {str(k): round(100 * v / n, 1) for k, v in d.items()} if n else {}
     return {"n": n, "own": pct(own), "cap": pct(cap), "eo": pct(eo), "chips": pct(chips),
-            "hits": round(sum(t["hits"] for t in got) / n, 2) if n else 0,
-            "avg_pts": round(sum(t["pts"] for t in got) / n, 1) if n else 0}
+            # no average points: the sample is taken before any match, so every team is on 0
+            "hits": round(sum(t["hits"] for t in got) / n, 2) if n else 0}
 
 
 near_ranks = [r["rank"] for r in near_rows]

@@ -24,6 +24,14 @@ function fieldRows(F, mult, g) {
     return { id: i, eo, own: F.own[i] || 0, cap: F.cap[i] || 0, mine, x, impact: (mine - eo) * x };
   });
 }
+/* Sub-line of the "Chips played" tile. `hits` is the sample's average event_transfers_cost per team, in points.
+   The sample is taken soon after the deadline, before any match, so the teams' points are all 0: no points
+   average is shown. Missing or non-numeric hits (old or partial sample): print nothing, never "undefined". */
+function fieldHitsTxt(F) {
+  const h = F?.hits;
+  if (typeof h !== "number" || !Number.isFinite(h)) return "";
+  return `avg hit cost ${h > 0 ? "−" : ""}${Math.abs(h)} pts a team`;
+}
 function threats(n = 3) {
   const F = D.crowd?.top10k, t = recTeam(); if (!F?.n || !t) return [];
   return fieldRows(F, t.mult, D.meta.next_gw).filter(r => r.impact < -1 && r.mine === 0).sort((a, b) => a.impact - b.impact).slice(0, n);
@@ -77,7 +85,7 @@ function vRivals() {
     <div class="kpis" style="margin-bottom:14px">
       <div class="kpi"><span class="lbl">Your XI's average ownership</span><b>${xiOwn.toFixed(0)}%</b><span class="delta muted">${xiOwn > 60 ? "very template" : xiOwn > 40 ? "fairly template" : "plenty of differentials"}</span></div>
       <div class="kpi"><span class="lbl">Their captain</span><b>${esc(P[capTop[0]?.[0]]?.name || "–")}</b><span class="delta muted">${capTop[0] ? capTop[0][1].toFixed(0) + "% of teams" : ""}</span></div>
-      <div class="kpi"><span class="lbl">Chips played GW${C.gw}</span><b style="font-size:18px">${chipTxt}</b><span class="delta muted">avg ${F.avg_pts} pts · hits ${F.hits}</span></div>
+      <div class="kpi"><span class="lbl">Chips played GW${C.gw}</span><b style="font-size:18px">${chipTxt}</b><span class="delta muted">${fieldHitsTxt(F)}</span></div>
     </div>
     <div class="statgrid"><div><h3 style="margin-bottom:8px">Threats</h3>${tbl(thr, "Owned by the field")}</div><div><h3 style="margin-bottom:8px">Your edges</h3>${tbl(edge, "Your differentials")}</div></div>
     <div style="margin-top:14px"><span class="lbl">Captaincy split</span><div class="capbars" style="margin-top:6px">${capTop.map(([id, v], k) => `<div class="cb ${k === 0 ? "top" : ""}"><span class="pname">${esc(P[id]?.name || id)}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><span class="val">${v.toFixed(0)}%</span></div>`).join("")}</div></div>
