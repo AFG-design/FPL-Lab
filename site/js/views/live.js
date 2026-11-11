@@ -79,7 +79,7 @@ function weekTimeline() {
   const W = D.week; if (!W) return "";
   const now = Date.now(), mine = new Set(D.squad.map(s => P[s.id]?.team));
   const items = [[W.deadline, "deadline", `<b>GW${W.gw} deadline</b> · ${countdown(W.deadline)} left`]];
-  W.price_updates.forEach(d => items.push([d, "price", `Price changes <span class="muted">(from about ${new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })})</span>`]));
+  W.price_updates.forEach(d => items.push([d, "price", `Price changes <span class="muted">(${priceUpdateTxt(d, false)})</span>`]));
   W.fixtures.forEach(([ko, h, a]) => items.push([ko, "ko", `<button data-team="${h}" class="linkish">${T[h].name}</button> v <button data-team="${a}" class="linkish">${T[a].name}</button>${mine.has(h) || mine.has(a) ? ' <span class="tag">your players</span>' : ""}`]));
   W.europe.forEach(([c, d, ts]) => items.push([d + "T18:00:00Z", "eu", `${c}: ${ts.map(t => T[t]?.short).join(", ")}${ts.some(t => mine.has(t)) ? ' <span class="tag">your players</span>' : ""}`]));
   items.sort((x, y) => x[0].localeCompare(y[0]));
@@ -104,7 +104,7 @@ function vDeadlines() {
         <p class="note">The calendar file adds every remaining deadline, each with reminders 24 hours and 2 hours before. Open it on your phone to import it.</p></div>
     </div>
     <div class="panel"><h3>This week</h3>${weekTimeline()}
-      <p class="note">UK times. Price changes happen once a night, shortly after the time shown. European games are flagged for rotation risk. Tap a team for its profile.</p></div>
+      <p class="note">UK times. Price changes happen once a night, at about the time shown. European games are flagged for rotation risk. Tap a team for its profile.</p></div>
   </div>`;
 }
 // an .ics file with every remaining deadline, each with reminders 24 hours and 2 hours before

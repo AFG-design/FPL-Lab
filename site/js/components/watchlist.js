@@ -43,7 +43,7 @@ function starsPanel() {
     const pr = p.price_proj?.[0], last = p.newsh?.[p.newsh.length - 1], fresh = last && Date.now() - new Date(last[0]) < 3 * 864e5;
     return `<tr><td><button data-p="${i}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span>${p.status !== "a" ? ` <span class="pill ${p.status === "d" ? "warn" : "bad"}">${fplChance(p.chance)}</span>` : ""}${fresh ? ` <span class="pill mut" title="${esc(newsLine(last.slice(1)))}">news ${agoTxt(last[0])}</span>` : ""}</td>
       <td class="n">${p.price.toFixed(1)}${dp ? ` <span class="${dp > 0 ? "up" : "down"}">${dp > 0 ? "▲" : "▼"}${Math.abs(dp).toFixed(1)}</span>` : ""}</td>
-      <td class="n ${pr >= 75 ? "up" : pr <= -75 ? "down" : "muted"}">${pr != null ? `${pr.toFixed(0)}%` : "–"}</td>
+      <td class="n ${priceRising(pr) ? "up" : priceFalling(pr) ? "down" : "muted"}">${pr != null ? `${pr.toFixed(0)}%` : "–"}</td>
       <td><span class="fx">${fxChips(p, g, 3)}</span></td><td class="n"><b>${xpCell(i, g)}</b></td><td class="n">${f1(xpFrom(i, g, 5))}</td></tr>`;
   }).join("");
   return `<div class="panel"><div class="bar"><h3>Watchlist</h3><span class="muted">${ids.length} player${ids.length === 1 ? "" : "s"}</span></div>

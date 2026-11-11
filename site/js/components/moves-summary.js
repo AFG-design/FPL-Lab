@@ -8,8 +8,8 @@ function formation(xi) { const c = { DEF: 0, MID: 0, FWD: 0 }; xi.forEach(i => {
 function priceNoteFor(prIn, prOut, out) {
   if (prIn >= 100) return "may rise tonight: do this first";
   if (prOut <= -100 && fallCostsYou(out)) return "may fall tonight: sell first";
-  if (prIn >= 75) return "rising, not likely tonight";
-  if (prOut <= -75 && fallCostsYou(out)) return "falling, not likely tonight";
+  if (priceRising(prIn)) return "rising, not likely tonight";
+  if (priceFalling(prOut) && fallCostsYou(out)) return "falling, not likely tonight";
   return "";
 }
 function movesSummaryData(g) {

@@ -1344,7 +1344,7 @@ if nxt:
                           "cost": {str(e["id"]): e["now_cost"] for e in elements.values()}}
 for key in sorted(PH["pending"]):
     if now_utc < dt.datetime.fromisoformat(key) + dt.timedelta(hours=4):
-        continue                                     # changes land around 01:30 UK; wait until they have
+        continue                                     # changes land at about the listed time (midnight UK); 4h is a safe margin
     snap = PH["pending"].pop(key)
     rows = []
     for pid, c0 in snap["cost"].items():
