@@ -18,6 +18,8 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - free transfers outside 0-5, a negative/non-finite bank, or squad prices that break FPL's half-profit rule
   - a Free Hit restore that disagrees with independent FPL chip history and the pre-Free-Hit picks
   - an empty squad after the first deadline
+  - model settings exported for the site (meta.model) that aren't finite numbers in a sane range: home 1.0-1.5,
+    cs_k 0.5-1.5 (data built before the field existed has no meta.model and is not checked)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - before a deadline: history/deadline_gw{g}.json missing, stale, for other weeks or without your players
   - legacy data without squad_source evidence outside a required Free Hit restore
@@ -122,6 +124,23 @@ def check_sources(D, warnings):
 
 def is_bad(x):
     return x is None or type(x) not in (int, float) or math.isnan(x) or math.isinf(x)
+
+
+def check_model_meta(D, errors):
+    """meta.model: the model settings the site reads instead of hard-coding (home advantage, clean-sheet constant).
+    Missing meta.model (a data.json built before the field existed): not checked, the site falls back to the values
+    the model used then (core/model.js modelSet). Present but wrong type, missing key or out of range: error."""
+    m = D.get("meta", {}).get("model")
+    if m is None:
+        return
+    if not isinstance(m, dict):
+        errors.append(f"meta.model is not an object: {m!r}")
+        return
+    for key, lo, hi in (("home", 1.0, 1.5), ("cs_k", 0.5, 1.5)):
+        v = m.get(key)
+        if is_bad(v) or not lo <= v <= hi:
+            errors.append(f"meta.model.{key} = {v!r}: expected a finite number in {lo}-{hi} (the site's clean-sheet % "
+                          f"and far-fixture estimates use it)")
 
 
 US_STALE_H = 36
@@ -497,6 +516,8 @@ def main(path):
         if os.path.exists(os.path.join(HERE, "history", f'proj_gw{w["gw"]}.json')):
             if is_bad(w.get("xi_proj")) or w.get("proj_src") != "snapshot" or (w.get("decision") and w["decision"].get("src") != "snapshot"):
                 errors.append(f'Review GW{w["gw"]}: a pre-deadline snapshot exists but was not used for a finite Review projection')
+
+    check_model_meta(D, errors)
 
     # xP table live column: the gameweek in progress should have its pre-deadline projections
     xc = D["meta"].get("xp_cur")

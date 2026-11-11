@@ -68,7 +68,7 @@ function whyXP(p, g) {
   if (p.pos !== "GKP") out.push(["Attack", `He gets <b>${p.xgi90.toFixed(2)} expected goals + assists per 90</b> (${p.xg90.toFixed(2)} xG, ${p.xa90.toFixed(2)} xA, this season blended with last). ${T[p.team].short} are expected to score <b>${xgf.toFixed(1)}</b> against ${opp}.${p.sp?.pen === 1 ? " He's on penalties, which is included." : ""}`, atk]);
   // defence
   if (p.pos !== "FWD") {
-    const cs = fx.reduce((a, x) => a + Math.exp(-x.xga), 0) / fx.length;
+    const cs = fx.reduce((a, x) => a + csChance(x.xga), 0) / fx.length;
     const def = v("cs") + v("gc") + v("saves");
     out.push(["Defence", `${T[p.team].short} are expected to concede <b>${xga.toFixed(1)}</b>, about a <b>${Math.round(cs * 100)}%</b> clean-sheet chance${fx.length > 1 ? " per game" : ""}.${p.pos === "GKP" && v("saves") ? ` Saves add ${v("saves").toFixed(2)}.` : ""}`, def]);
   }

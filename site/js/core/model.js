@@ -3,6 +3,17 @@
 function attClass(x) { return x >= 1.9 ? "d1" : x >= 1.5 ? "d2" : x >= 1.15 ? "d3" : x >= 0.85 ? "d4" : "d5"; }
 function defClass(x) { return x <= 0.85 ? "d1" : x <= 1.1 ? "d2" : x <= 1.4 ? "d3" : x <= 1.75 ? "d4" : "d5"; }
 const fxFor = (tid, g) => T[tid].fx[g] || [];
+// The model settings the site restates, read from data.json (meta.model, written by build.py from
+// fplmodel.DEFAULTS): home = home goal multiplier (away = 1 / home), cs_k = clean-sheet constant.
+// Missing input: a data.json built before this field existed (only an offline copy cached before this change;
+// data.json and these scripts deploy together) has no meta.model. This is the ONE place that falls back, to the
+// values the model had always used up to then (1.05 and 0.9), so such a copy shows what its own build used.
+// A meta.model that is present but broken never gets here: validate.py stops the publish.
+const MODEL_BEFORE_META = { home: 1.05, cs_k: 0.9 };
+function modelSet() { return D?.meta?.model || MODEL_BEFORE_META; }
+// Clean-sheet chance for one match from expected goals against, as the model does it: exp(-cs_k x xGA).
+// Every clean-sheet % on the site goes through here (Fixtures grid and swings, player sheet, team sheet).
+function csChance(xga) { return Math.exp(-modelSet().cs_k * xga); }
 const oppTxt = x => x.home ? T[x.opp].short : T[x.opp].short.toLowerCase();
 function fxChips(p, from, n = 3) {
   // official FPL difficulty, with the number printed on each chip (see fdrChip)

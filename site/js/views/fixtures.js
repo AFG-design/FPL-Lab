@@ -8,7 +8,6 @@ function wdl(mf, ma) {
   const t = w + d + l; return { w: w / t, d: d / t, l: l / t };
 }
 const fact = n => n < 2 ? 1 : n * fact(n - 1);
-const csChance = xga => Math.exp(-0.9 * xga);
 // team strength as percentages, from the model's attack and defence ratings
 function teamStrength(t) {
   const L = D.meta.league_goals || 1.4, r = wdl(L * t.att, L * t.def);
@@ -18,11 +17,12 @@ function winClass(p) { return p >= 0.6 ? "d1" : p >= 0.45 ? "d2" : p >= 0.3 ? "d
 function csClass(p) { return p >= 0.45 ? "d1" : p >= 0.35 ? "d2" : p >= 0.25 ? "d3" : p >= 0.15 ? "d4" : "d5"; }
 // Fixtures beyond the model's projection weeks (C5): FPL's own difficulty from the full fixture list (t.far), and for the
 // other modes an estimate from the team ratings (league average x attack x opponent's defence, with home advantage,
-// as fixture swings use). Those cells are marked as estimates. A gameweek with no fixture is a blank, as before.
+// as fixture swings use; the home factor and the clean-sheet formula are the model's own, see modelSet and csChance
+// in core/model.js). Those cells are marked as estimates. A gameweek with no fixture is a blank, as before.
 // Missing: no FPL difficulty for a fixture -> 3, the default used everywhere else.
 function fxCells(t, g) {
   if (GWS.includes(g)) return t.fx[g] || [];
-  const L = D.meta.league_goals || 1.4, H = 1.05;
+  const L = D.meta.league_goals || 1.4, H = modelSet().home;
   return (t.far || []).filter(f => f[0] === g && T[f[1]]).map(([, opp, home, fdr]) => {
     const o = T[opp];
     return { opp, home, fdr: fdr ?? 3, est: true,
@@ -89,12 +89,12 @@ function vFixtures() {
 // expected goals for and against per gameweek over the next 12: the model's own numbers where it has them,
 // beyond that from the team ratings (league average x attack x opponent's defence, with home advantage)
 function teamRun(t) {
-  const L = D.meta.league_goals || 1.4, H = 1.05, out = {};
+  const L = D.meta.league_goals || 1.4, H = modelSet().home, out = {};
   for (const [g, opp, home] of t.far || []) {
     const f = (t.fx[g] || []).find(x => x.opp === opp && x.home === home);
     const o = T[opp]; if (!o) continue;
     const xgf = f ? f.xgf : L * t.att * o.def * (home ? H : 1 / H), xga = f ? f.xga : L * o.att * t.def * (home ? 1 / H : H);
-    (out[g] = out[g] || []).push({ xgf, xga, cs: Math.exp(-xga), opp, home });
+    (out[g] = out[g] || []).push({ xgf, xga, cs: csChance(xga), opp, home });
   }
   return out;
 }
