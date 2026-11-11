@@ -38,8 +38,10 @@ then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing
 - Run `python3 validate.py site/data.json` after a local build, and `npm test` for site JS/CSS.
 
 ## Model changes (`fplmodel.py`, params, priors, odds)
-Model results are logged in `docs/model-log.md`.
-Run the backtest before and after, both without and with the status log, and compare segments:
+This is the only version of the model-change rule (AGENTS.md points here). Model results are logged in
+`docs/model-log.md`. Every model change needs both kinds of evidence below in its PR.
+
+**1. Backtest.** Run the backtest before and after, both without and with the status log, and compare segments:
 
 ```
 python3 backtest.py RAW --json base.json                 # on main (no status log: original behaviour)
@@ -58,6 +60,31 @@ Keep a change only if it also holds up on past seasons, not just the current one
 `--compare` flags any segment (position, price band, flagged/unflagged, top 30, GW) with n ≥ 30 where MAE
 worsens by more than 0.05 or bias moves by more than 0.2. A change that improves the headline but trips a
 segment must be called out in the PR, with the numbers. Put the before/after table in the PR.
+
+**2. Bench.** Run `bench.py` on all three seasons (this season, 2025/26 and 2024/25) and put in the PR description the
+paired bootstrap 95% confidence intervals for the difference against main, plus the 5-GW and 1-GW totals for each
+season.
+
+**Decision.** "CI" is the paired bootstrap 95% interval from `bench.py` against main, on the deciding metric below;
+"segment worse" means `--compare` flagged a segment. Every model PR must say which row it falls into.
+
+- **Deciding metric: 5-GW picks** (what the planner optimises). "CI above zero" means above zero in at least one past
+  season (2025/26 or 2024/25), with a positive point estimate in the other. This season is reported but doesn't
+  decide: it has too few 5-week forecast points until about GW20.
+- **No harm:** if any other bench metric (1-GW picks, top-5, captain, correlation) has its CI entirely below zero in
+  any season, treat it as a segment that tripped `--compare`.
+- **Fixes a known error vs only a tweak:** a change fixes a known error when what was wrong can be stated without the
+  backtest score (a rule or fact it broke: a hindsight leak, a double count, a formula that disagrees with FPL's
+  scoring rules, a crash, wrong data) and it was recorded in `docs/model-log.md`, an audit or a reproduced bug before
+  the fix was written. Otherwise it is a tweak: the only evidence against the old version is that something else
+  scores better. Retuning a weight, decay or threshold is a tweak unless the old value broke a rule.
+
+| Result | Decision |
+|---|---|
+| CI above zero and no segment worse | Adopt. |
+| CI includes zero, the change fixes a known error, and no segment worse | Adopt as Marginal: log it in `docs/model-log.md` and re-check later. |
+| CI includes zero and the change is only a tweak | Don't adopt. Log the result in `docs/model-log.md`. |
+| Any segment trips `--compare` | Don't adopt until it is fixed or explained. |
 
 ## UI wording
 - Text that asserts a fact ("out", "tonight", "starts", "injured") must test the same condition the data uses

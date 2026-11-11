@@ -1,6 +1,6 @@
 # Player odds log
 
-Results of testing The Odds API player odds (collected by `odds_players.py` since GW8) in the FPL Lab model. See also `claude/model-log.md`.
+Results of testing The Odds API player odds (collected by `odds_players.py` since GW8) in the FPL Lab model. See also `docs/model-log.md`.
 
 ## 26 Oct 2026 — GW8 check: player odds blend (one gameweek, a hint only)
 - Odds: The Odds API deadline snapshot (history/player_odds_gw8.json, 426 players, 10 fixtures, US books).

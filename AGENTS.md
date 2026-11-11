@@ -18,5 +18,6 @@ to CLAUDE.md.
 - Treat as P1: Balanced or Play safe producing a hit; plans that break FPL rules
   (budget, 3-per-club, formation, free-transfer cap of 5); validate.py checks that can't fail;
   UI text stating a figure the data doesn't contain.
-- Model changes need bench.py results on all three seasons with paired bootstrap CIs in
-  the PR description; flag any PR that changes projections without them.
+- Model changes: the evidence and the adopt/don't-adopt decision rule are in CLAUDE.md
+  ("Model changes"), the only version of that rule. Flag any PR that changes projections
+  without that evidence or without saying which row of the decision table it falls into.
