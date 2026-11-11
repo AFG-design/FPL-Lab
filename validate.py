@@ -23,6 +23,8 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
   - legacy data without squad_source evidence outside a required Free Hit restore
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
+  - this season's played-match odds failed to download or came back short (played rows carried over from the last
+    good odds file, or none to carry)
   - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
   - no season starts for any player (Points leaders Starts column)
   - last-6 goals or assists above the season figure
@@ -365,6 +367,16 @@ def main(path):
 
     # odds for next gameweek
     odds = load(os.path.join(HERE, "odds", "odds.json")) or {}
+    # played-match odds (odds.carry_played): the results file failed or came back short, so played rows were carried
+    # over from the last good file. The ratings still work; the warning is so a lasting failure gets noticed. An odds
+    # file written before this status existed has none and is not checked.
+    ost = odds.get("status") or {}
+    if ost and (not ost.get("past_ok") or ost.get("kept_played")):
+        n_played = sum(1 for m in odds.get("matches", []) if m.get("played"))
+        warnings.append(f"Match odds: this season's results file {'did not load' if not ost.get('past_ok') else 'came back short'} "
+                        f"(since {ost.get('past_failed_since')}); {ost.get('kept_played', 0)} of {n_played} played matches "
+                        f"carried over from the last good file" + ("" if n_played >= 20 else
+                        ": fewer than 20, so the betting-market team ratings are off"))
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 
