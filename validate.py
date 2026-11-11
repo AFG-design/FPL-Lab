@@ -21,6 +21,8 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - before a deadline: history/deadline_gw{g}.json missing, stale, for other weeks or without your players
   - legacy data without squad_source evidence outside a required Free Hit restore
+  - inside 6 hours of a deadline: more than 45 minutes since the previous refresh (meta.prev_built), or no record
+    of the previous refresh at all. Late data here means stale injury flags, prices and pre-deadline snapshots
   - a player with 300+ minutes and no Understat row (and no manual override)
   - no betting odds for any of next gameweek's fixtures
   - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
@@ -113,6 +115,42 @@ def check_squad(D, detail, errors, warnings):
                           f"missing {sorted(set(previous) - set(ids))}, unexpected {sorted(set(ids) - set(previous))}")
 
 
+GAP_WINDOW_H, GAP_MAX_MIN = 6, 45
+
+
+def check_refresh_gap(meta, warnings):
+    """Warn when refreshes are far apart close to a deadline.
+
+    The Refresh workflow is scheduled every 30 minutes, but GitHub starts scheduled runs late or not at all (gaps of
+    8 hours seen in November 2026), so the last data before a deadline can be hours old. A warning, never an error: a
+    late refresh is still the freshest data there is, and stopping the publish would make it worse.
+    Missing / late / ambiguous: data built by an older build.py has no prev_built key and is not checked; a key that
+    is None or unreadable inside the window gets its own warning (the gap is unknown, not assumed fine); no deadline,
+    or a deadline that has passed or is more than 6 hours away, is not checked.
+    """
+    if "prev_built" not in meta or not meta.get("deadline") or not meta.get("built"):
+        return
+    try:
+        built = dt.datetime.fromisoformat(meta["built"].replace("Z", "+00:00"))
+        deadline = dt.datetime.fromisoformat(meta["deadline"].replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError):
+        return
+    left = deadline - built
+    if not dt.timedelta(0) < left <= dt.timedelta(hours=GAP_WINDOW_H):
+        return
+    hours = left.total_seconds() / 3600
+    try:
+        gap = (built - dt.datetime.fromisoformat(meta["prev_built"].replace("Z", "+00:00"))).total_seconds() / 60
+    except (AttributeError, TypeError, ValueError):
+        warnings.append(f"Refresh gap unknown {hours:.1f} h before the GW{meta.get('next_gw')} deadline: no record of "
+                        f"the previous refresh (history/status.json)")
+        return
+    if gap > GAP_MAX_MIN:
+        warnings.append(f"Refresh gap: {gap / 60:.1f} h since the previous refresh, {hours:.1f} h before the "
+                        f"GW{meta.get('next_gw')} deadline (scheduled every 30 minutes). GitHub's schedule is "
+                        f"unreliable: set up the backup scheduler in the README")
+
+
 def main(path):
     with open(path) as f:
         D = json.load(f)
@@ -179,6 +217,7 @@ def main(path):
         if ga and (ga["g"] > (p.get("goals") or 0) or ga["a"] > (p.get("assists") or 0) or min(ga.values()) < 0):
             warnings.append(f"{name(p)}: last-6 goals/assists {ga['g']}/{ga['a']} above season {p.get('goals')}/{p.get('assists')}")
     check_squad(D, detail, errors, warnings)
+    check_refresh_gap(D["meta"], warnings)
     # pre-deadline snapshot (deadline_snapshot.py): written every build until the deadline, so a missing or stale one now
     # means this gameweek's record would be lost. A warning (Health page), not an error: it must not stop the publish.
     dl = D["meta"].get("deadline")
