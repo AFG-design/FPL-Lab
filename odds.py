@@ -145,6 +145,27 @@ def match_fixtures(rows, short_to_id, fixtures, names=NAMES):
     return out, unmatched, no_fixture
 
 
+def carry_played(matches, previous, season, past_ok):
+    """Never lose played matches: add back any from the previous odds file that the new rows don't have.
+
+    The market team ratings (70% of the blend) are built from every played match so far and need at least 20, so
+    when this season's results file fails to download but the fixtures file loads, writing the new rows alone would
+    switch the blend off without a word. Played odds never change once a match is over, so the previous file's
+    played rows are carried over by fixture id. A results file that loads but comes back shorter is treated the same.
+    Returns (matches, status): status goes into odds.json for validate.py and the Health page.
+    Missing / late / ambiguous: no previous file, an unreadable one or one from another season -> nothing is carried
+    and status says how many played rows there are, so validate.py can still warn that the results file failed.
+    """
+    have = {m["fixture"] for m in matches if m["played"]}
+    prev = previous if isinstance(previous, dict) and previous.get("season") == season else {}
+    kept = [m for m in prev.get("matches", []) if isinstance(m, dict) and m.get("played") and m.get("fixture") not in have]
+    status = {"past_ok": bool(past_ok), "kept_played": len(kept)}
+    if not past_ok or kept:
+        # when the trouble started: carried forward from the previous file while it lasts
+        status["past_failed_since"] = (prev.get("status") or {}).get("past_failed_since") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    return kept + matches, status
+
+
 def main():
     boot = fpl("/bootstrap-static/")
     fixtures = fpl("/fixtures/")
@@ -158,10 +179,19 @@ def main():
 
     short_to_id = {t["short_name"]: t["id"] for t in boot["teams"]}
     out, unmatched, _ = match_fixtures(rows, short_to_id, fixtures)
+    try:
+        with open(OUT) as f:
+            previous = json.load(f)
+    except (OSError, ValueError):
+        previous = None   # first run, or an unreadable file: nothing to carry over (carry_played reports it)
+    out, status = carry_played(out, previous, code, bool(past))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     json.dump({"built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "season": code, "matches": out,
-               "unmatched_names": sorted(unmatched)}, open(OUT, "w"), separators=(",", ":"))
+               "unmatched_names": sorted(unmatched), "status": status}, open(OUT, "w"), separators=(",", ":"))
     print(f"odds for {len(out)} matches ({sum(1 for m in out if not m['played'])} upcoming); unmatched names: {sorted(unmatched)}")
+    if not status["past_ok"] or status["kept_played"]:
+        print(f"::warning::odds: this season's results file {'did not load' if not status['past_ok'] else 'came back short'}; "
+              f"{status['kept_played']} played matches carried over from the previous file")
 
 
 if __name__ == "__main__":

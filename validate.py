@@ -23,8 +23,14 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
   - before a deadline: history/deadline_gw{g}.json missing, stale, for other weeks or without your players
   - legacy data without squad_source evidence outside a required Free Hit restore
+  - inside 6 hours of a deadline: more than 45 minutes since the previous refresh (meta.prev_built), or no record
+    of the previous refresh at all. Late data here means stale injury flags, prices and pre-deadline snapshots
   - a player with 300+ minutes and no Understat row (and no manual override)
+  - Understat shots data missing, or covering fewer matches than have finished while its last successful update
+    is over 36 hours old (understat.py keeps the previous file when Understat is down, so it goes stale silently)
   - no betting odds for any of next gameweek's fixtures
+  - this season's played-match odds failed to download or came back short (played rows carried over from the last
+    good odds file, or none to carry)
   - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
   - no season starts for any player (Points leaders Starts column)
   - last-6 goals or assists above the season figure
@@ -34,6 +40,8 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
     (72, 24 or 3 h before the deadline), when that gameweek's file uses per-checkpoint snapshots. The model doesn't
     use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
     snapshots, e.g. with no ODDS_API_KEY.
+  - an input that didn't load or is past its schedule: last-season priors (missing, or over 15 days old), match odds
+    (missing, or over 48 hours old) and the ownership sample (missing, or for an earlier gameweek); see check_sources
 """
 import datetime as dt
 import json, math, os, sys
@@ -49,6 +57,69 @@ def load(path):
             return json.load(f)
     except FileNotFoundError:
         return None
+
+
+PRIORS_STALE_DAYS, ODDS_STALE_H = 15, 48
+
+
+def _age_hours(newer, older):
+    """Hours between two ISO timestamps, or None when either can't be read."""
+    try:
+        return (dt.datetime.fromisoformat(newer.replace("Z", "+00:00"))
+                - dt.datetime.fromisoformat(older.replace("Z", "+00:00"))).total_seconds() / 3600
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def check_sources(D, warnings):
+    """Warn when an input the model or the plans lean on didn't load, or is older than its own schedule allows.
+
+    build.py carries on when priors.json, odds/odds.json or crowd/latest.json can't be read, so without these the only
+    sign is a quieter page. All warnings (Health page), not errors: each fallback still gives usable projections,
+    and stopping the publish would freeze prices and injury flags too.
+      - last-season priors: not loaded (player rates fall back to this season plus the positional average), or
+        priors.json older than 15 days (the workflow runs every Monday);
+      - match odds: not loaded (team ratings come from xG and results only, no market blend), or older than
+        48 hours (odds.py leaves the file untouched when football-data.co.uk can't be reached);
+      - ownership sample: not loaded (Play safe and Chase rank can't be planned), or for an earlier gameweek than
+        the current one (those strategies, EO and the live rank then rest on last week's teams).
+    Missing / late / ambiguous: a section whose key isn't in data.json at all (an older build) is not checked; a
+    timestamp that can't be read is reported as unknown age, never treated as fresh.
+    """
+    meta = D["meta"]
+    if "priors_season" in meta:
+        if not meta["priors_season"]:
+            warnings.append("Last-season priors didn't load (priors.json): player rates use this season and the "
+                            "positional average only")
+        else:
+            pr = load(os.path.join(HERE, "priors.json")) or {}
+            age = _age_hours(meta.get("built"), pr.get("built"))
+            if age is None:
+                warnings.append("Last-season priors: age unknown (no readable 'built' time in priors.json)")
+            elif age > PRIORS_STALE_DAYS * 24:
+                warnings.append(f"Last-season priors are {age / 24:.0f} days old (the weekly Update last-season priors "
+                                f"job may be failing): new signings and returning players may have none")
+    if "odds" in meta:
+        od = meta["odds"]
+        if not od:
+            warnings.append("Match odds didn't load (odds/odds.json): team ratings come from xG and results only, "
+                            "with no betting-market blend")
+        else:
+            age = _age_hours(meta.get("built"), od.get("built"))
+            if age is None:
+                warnings.append("Match odds: age unknown (no readable 'built' time in odds/odds.json)")
+            elif age > ODDS_STALE_H:
+                warnings.append(f"Match odds are {age / 24:.1f} days old (football-data.co.uk not reached since "
+                                f"{od.get('built')}): recent results are missing from the betting-market ratings")
+    if "crowd" in D:
+        cr, cur = D["crowd"], meta.get("cur_gw")
+        if not cr:
+            if cur:   # before GW1 there is nothing to sample yet
+                warnings.append("Ownership sample didn't load (crowd/latest.json): no Play safe or Chase rank plans, "
+                                "EO or live rank")
+        elif cur and cr.get("gw") != cur:
+            warnings.append(f"Ownership sample is for GW{cr.get('gw')}, not the current GW{cur}: Play safe, Chase rank, "
+                            f"EO and live rank use last week's teams until crowd.py samples this week's")
 
 
 def is_bad(x):
@@ -70,6 +141,40 @@ def check_model_meta(D, errors):
         if is_bad(v) or not lo <= v <= hi:
             errors.append(f"meta.model.{key} = {v!r}: expected a finite number in {lo}-{hi} (the site's clean-sheet % "
                           f"and far-fixture estimates use it)")
+
+
+US_STALE_H = 36
+
+
+def check_understat(meta, warnings):
+    """Warn when the Understat file (shots, big chances, shot maps, set-piece xG on Stats) is missing or behind.
+
+    understat.py exits cleanly and keeps the previous file when Understat can't be reached, so the only sign is an
+    old "built" stamp. Behind = fewer matches than have finished AND the last successful update over 36 hours ago;
+    a few hours behind on a matchday is normal and stays quiet. A warning only: the model doesn't use this data
+    (sp_match is off), so stale shots must not stop the publish.
+    Missing / late / ambiguous: data from an older build.py (no finished_fixtures key) is not checked; no Understat
+    meta at all warns as missing; a "built" stamp that can't be read counts as stale, never as fresh.
+    """
+    fin = meta.get("finished_fixtures")
+    if fin is None:
+        return
+    us = meta.get("understat") or {}
+    n = us.get("matches")
+    if not us or type(n) is not int:
+        warnings.append("No Understat data: Stats shots, set-piece threat and shot maps have nothing to show")
+        return
+    if n >= fin:
+        return
+    try:
+        age = (dt.datetime.fromisoformat(meta["built"].replace("Z", "+00:00"))
+               - dt.datetime.fromisoformat(us["built"].replace("Z", "+00:00"))).total_seconds() / 3600
+    except (AttributeError, KeyError, TypeError, ValueError):
+        age = None
+    if age is None or age > US_STALE_H:
+        when = f"last updated {age / 24:.0f} days ago" if age is not None else "last update time unknown"
+        warnings.append(f"Understat is behind: {n} of {fin} finished matches, {when} ({us.get('built')}). "
+                        f"Stats shots, set-piece threat and shot maps are missing the recent games")
 
 
 def check_squad(D, detail, errors, warnings):
@@ -130,6 +235,42 @@ def check_squad(D, detail, errors, warnings):
         elif set(ids) != set(previous):
             errors.append(f"Free Hit restore squad differs from FPL GW{expected_gw} picks: "
                           f"missing {sorted(set(previous) - set(ids))}, unexpected {sorted(set(ids) - set(previous))}")
+
+
+GAP_WINDOW_H, GAP_MAX_MIN = 6, 45
+
+
+def check_refresh_gap(meta, warnings):
+    """Warn when refreshes are far apart close to a deadline.
+
+    The Refresh workflow is scheduled every 30 minutes, but GitHub starts scheduled runs late or not at all (gaps of
+    8 hours seen in November 2026), so the last data before a deadline can be hours old. A warning, never an error: a
+    late refresh is still the freshest data there is, and stopping the publish would make it worse.
+    Missing / late / ambiguous: data built by an older build.py has no prev_built key and is not checked; a key that
+    is None or unreadable inside the window gets its own warning (the gap is unknown, not assumed fine); no deadline,
+    or a deadline that has passed or is more than 6 hours away, is not checked.
+    """
+    if "prev_built" not in meta or not meta.get("deadline") or not meta.get("built"):
+        return
+    try:
+        built = dt.datetime.fromisoformat(meta["built"].replace("Z", "+00:00"))
+        deadline = dt.datetime.fromisoformat(meta["deadline"].replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError):
+        return
+    left = deadline - built
+    if not dt.timedelta(0) < left <= dt.timedelta(hours=GAP_WINDOW_H):
+        return
+    hours = left.total_seconds() / 3600
+    try:
+        gap = (built - dt.datetime.fromisoformat(meta["prev_built"].replace("Z", "+00:00"))).total_seconds() / 60
+    except (AttributeError, TypeError, ValueError):
+        warnings.append(f"Refresh gap unknown {hours:.1f} h before the GW{meta.get('next_gw')} deadline: no record of "
+                        f"the previous refresh (history/status.json)")
+        return
+    if gap > GAP_MAX_MIN:
+        warnings.append(f"Refresh gap: {gap / 60:.1f} h since the previous refresh, {hours:.1f} h before the "
+                        f"GW{meta.get('next_gw')} deadline (scheduled every 30 minutes). GitHub's schedule is "
+                        f"unreliable: set up the backup scheduler in the README")
 
 
 def main(path):
@@ -198,6 +339,7 @@ def main(path):
         if ga and (ga["g"] > (p.get("goals") or 0) or ga["a"] > (p.get("assists") or 0) or min(ga.values()) < 0):
             warnings.append(f"{name(p)}: last-6 goals/assists {ga['g']}/{ga['a']} above season {p.get('goals')}/{p.get('assists')}")
     check_squad(D, detail, errors, warnings)
+    check_refresh_gap(D["meta"], warnings)
     # pre-deadline snapshot (deadline_snapshot.py): written every build until the deadline, so a missing or stale one now
     # means this gameweek's record would be lost. A warning (Health page), not an error: it must not stop the publish.
     dl = D["meta"].get("deadline")
@@ -331,6 +473,7 @@ def main(path):
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
 
+    check_understat(D["meta"], warnings)
     # decision journal (D5a): every move is accounted for once, every player mentioned has a row, and the model's plan is
     # the same one the You vs the model target used for that week
     jr = D.get("journal")
@@ -386,6 +529,16 @@ def main(path):
 
     # odds for next gameweek
     odds = load(os.path.join(HERE, "odds", "odds.json")) or {}
+    # played-match odds (odds.carry_played): the results file failed or came back short, so played rows were carried
+    # over from the last good file. The ratings still work; the warning is so a lasting failure gets noticed. An odds
+    # file written before this status existed has none and is not checked.
+    ost = odds.get("status") or {}
+    if ost and (not ost.get("past_ok") or ost.get("kept_played")):
+        n_played = sum(1 for m in odds.get("matches", []) if m.get("played"))
+        warnings.append(f"Match odds: this season's results file {'did not load' if not ost.get('past_ok') else 'came back short'} "
+                        f"(since {ost.get('past_failed_since')}); {ost.get('kept_played', 0)} of {n_played} played matches "
+                        f"carried over from the last good file" + ("" if n_played >= 20 else
+                        ": fewer than 20, so the betting-market team ratings are off"))
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 
@@ -411,6 +564,7 @@ def main(path):
                 warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
+    check_sources(D, warnings)
     # Planner strategy tabs (views/planner.js): each tab shows one optimiser plan per strategy. Every plan must name
     # players we list and field a legal XI; a strategy with no plans (build.py drops Play safe and Chase rank when the
     # field ownership file is missing) is a warning, and the tab says so instead of showing the Balanced plan.
@@ -445,7 +599,7 @@ def main(path):
             errors.append(f"Plan {k}: non-finite or missing budget figures {amounts}")
             continue
         mode = k.split("_")[0] if "_" in k else "balanced"
-        budget = {"balanced": 0.0, "safe": rules.get("safe_budget", 0.0), "chase": rules.get("chase_budget", 4.0)}[mode]
+        budget = {"balanced": 0.0, "safe": rules.get("safe_budget", 0.0), "chase": rules.get("chase_budget", 2.0)}[mode]
         if pl["vs_balanced"] < -(budget + rules.get("tie", 0.1) + 0.01):
             errors.append(f"Plan {k}: {pl['vs_balanced']:+.2f} vs Balanced, over its {budget:g}-point budget")
         nh = sum(wk.get("hits", 0) for wk in pl.get("weeks", []))
