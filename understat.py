@@ -4,7 +4,9 @@
 Understat's per-shot data has pitch location and xG. We count:
   shots in the box  - X >= 0.843 and 0.204 <= Y <= 0.796 (the penalty area, as pitch fractions)
   big chances       - shots worth 0.3 xG or more (close to Opta's definition, which averages ~0.38 xG)
-  chances created   - shots a player assisted; big chances created likewise
+  chances created   - shots a player assisted; big chances created likewise. Shot rows name the assister only
+                      (no id), so these are tallied per club + name and looked up through the player's own
+                      club(s), whether or not he has taken a shot himself (see created_counts)
 Finished matches are cached in understat/shots.json, so each run only downloads new games.
 Writes understat/fpl_players.json keyed by FPL element id.
 Usage: python3 understat.py [SEASON_START_YEAR]
@@ -82,6 +84,48 @@ def match_players(us_players, by_team, title_to_fpl, overrides=None, cutoff=0.72
     return mapping, rejected
 
 
+# ---- chances created: shots a player assisted, tallied from the shot rows
+CREATED = ("cc", "bcc", "cc_4", "bcc_4")
+
+
+def created_counts(per, codes, name):
+    """A player's chances created (cc, bcc and the last-4-gameweek pair), summed over every club he has played
+    for this season. `per` holds the shot-row tallies under ("a", Understat club code, assister name): a shot row
+    names the assister but carries no id for him, so club + name is the only key there is. `codes` are the
+    Understat short codes of his club(s), from his own player record, NOT from his shots: looking the club up
+    through his shots is what left every player who never shot with 0 created (audit B9).
+    Missing input: a club/name pair with no tally adds nothing, so a player who created nothing gets real zeros.
+    A club listed twice is counted once."""
+    tot = dict.fromkeys(CREATED, 0)
+    for code in dict.fromkeys(codes):
+        a = per.get(("a", code, name)) or {}
+        for k in CREATED:
+            tot[k] += int(a.get(k, 0))
+    return tot
+
+
+def player_codes(p, title_to_code):
+    """(Understat short codes of a player's club(s), team titles with no code). `team_title` is "A,B" after a
+    mid-season move. A title with no short code should not happen (codes come from the same league feed); it
+    contributes nothing and is returned so the caller can print it rather than drop it quietly."""
+    titles = [x.strip() for x in p["team_title"].split(",") if x.strip()]
+    return [title_to_code[t] for t in titles if t in title_to_code], [t for t in titles if t not in title_to_code]
+
+
+def shared_creator_keys(us_players, title_to_code):
+    """{(club code, player_name): [Understat ids]} for every club/name pair held by more than one Understat
+    player (all of them, matched to FPL or not). Shot rows cannot tell such players apart, so their created
+    tally is shared. Ambiguous input, and how it is handled: NEITHER player is given the tally (see main):
+    crediting both would double-count and put a believable but wrong number on two players, while splitting it
+    would be a guess. Zeros with key passes on the board are at least visibly wrong: the pair is printed, counted
+    in meta["cc_ambiguous"] and in meta["kp_no_cc"], and validate.py warns on the Health page."""
+    holders = defaultdict(list)
+    for upid, p in us_players.items():
+        for code in dict.fromkeys(player_codes(p, title_to_code)[0]):
+            holders[(code, p["player_name"])].append(upid)
+    return {k: sorted(v) for k, v in holders.items() if len(v) > 1}
+
+
 def fetch(url, referer):
     for i in range(4):
         try:
@@ -155,7 +199,6 @@ def main():
 
 
     per = defaultdict(lambda: defaultdict(float))
-    name_team = {}
     SET = {"FromCorner", "SetPiece", "DirectFreekick"}
     team_sp = defaultdict(lambda: defaultdict(float))   # FPL team id -> sp_for/sp_against/op_for/op_against/games
     for mid, m in cache["matches"].items():
@@ -182,7 +225,6 @@ def main():
                 per[pid][key] += add
                 if recent:
                     per[pid][key + "_4"] += add
-            name_team[pid] = (pname, team)
             if assister:
                 per[("a", team, assister)]["cc"] += 1
                 per[("a", team, assister)]["bcc"] += xg >= 0.3
@@ -197,8 +239,10 @@ def main():
     us_players = {int(p["id"]): p for p in league["players"]}
     # Understat team title -> FPL team id, via Understat's own short codes
     title_to_fpl = {}
+    title_to_code = {}   # Understat team title -> Understat short code, as used in the shot cache (m["h"], m["a"])
     for m in league["dates"]:
         for side in ("h", "a"):
+            title_to_code[m[side]["title"]] = m[side]["short_title"]
             code = US_TO_FPL.get(m[side]["short_title"], m[side]["short_title"])
             if code in fpl_teams:
                 title_to_fpl[m[side]["title"]] = fpl_teams[code]
@@ -211,28 +255,43 @@ def main():
     for upid, why in rejected.items():
         print("Understat not matched:", us_players[upid]["player_name"], why)
 
+    # Chances created are looked up by the player's own club(s) and name, so a player with no shots still gets
+    # his (B9). Two Understat players sharing a club and a name get none of the shared tally: see
+    # shared_creator_keys for why. A team title with no short code contributes nothing and is printed.
+    shared = shared_creator_keys(us_players, title_to_code)
+    for (code, nm), ids in shared.items():
+        print(f"Understat chances created ambiguous: {nm} ({code}) is Understat ids {ids}; none of them is credited")
+    shared_ids = {i for ids in shared.values() for i in ids}
+    no_code = sorted({t for p in us_players.values() for t in player_codes(p, title_to_code)[1]})
+    for t in no_code:
+        print(f"Understat team title with no short code: {t!r}; its players' chances created are not counted")
+
     out = {}
     for upid, (eid, sc) in mapping.items():
         p = us_players[upid]
         c = per.get(upid, {})
-        pname, team = name_team.get(upid, (p["player_name"], None))
-        a = per.get(("a", team, p["player_name"]), {}) if team else {}
+        a = created_counts(per, [] if upid in shared_ids else player_codes(p, title_to_code)[0], p["player_name"])
         mins = int(p["time"])
         out[str(eid)] = {
             "us_id": upid, "match": sc, "mins": mins, "games": int(p["games"]), "upos": p.get("position", ""),
             "shots": int(p["shots"]), "kp": int(p["key_passes"]), "npxg": round(float(p["npxG"]), 2),
             "xgchain": round(float(p["xGChain"]), 2), "xgbuildup": round(float(p["xGBuildup"]), 2),
             "sib": int(c.get("sib", 0)), "bc": int(c.get("bc", 0)), "bc_scored": int(c.get("bc_scored", 0)),
-            "cc": int(a.get("cc", 0)), "bcc": int(a.get("bcc", 0)),
+            "cc": a["cc"], "bcc": a["bcc"],
             "shots_4": int(c.get("shots_4", 0)), "sib_4": int(c.get("sib_4", 0)), "bc_4": int(c.get("bc_4", 0)),
-            "cc_4": int(a.get("cc_4", 0)), "bcc_4": int(a.get("bcc_4", 0)),
+            "cc_4": a["cc_4"], "bcc_4": a["bcc_4"],
             "op_xg": round(c.get("op_xg", 0), 2), "sp_xg": round(c.get("sp_xg", 0), 2), "pen_xg": round(c.get("pen_xg", 0), 2),
             "sp_shots": int(c.get("sp_shots", 0)), "pen_shots": int(c.get("pen_shots", 0)),
             "headers": int(c.get("headers", 0)), "head_xg": round(c.get("head_xg", 0), 2), "sp_headers": int(c.get("sp_headers", 0)),
         }
     meta = {"season": SEASON, "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "matches": len(cache["matches"]),
             "new_matches": len(new), "players": len(out), "unmatched": len(us_players) - len(mapping), "last4_from_gw": cur_gw - 3,
-            "overrides": len(overrides), "rejected": len(rejected)}
+            "overrides": len(overrides), "rejected": len(rejected),
+            # health figures for chances created (validate.py warns on both): matched players left without the
+            # tally because they share a club and name, team titles with no short code, and matched players with
+            # 3+ Understat key passes but no chance created in the shot rows (the two should broadly agree)
+            "cc_ambiguous": sum(1 for upid in mapping if upid in shared_ids), "cc_no_code": len(no_code),
+            "kp_no_cc": sum(1 for r in out.values() if r["kp"] >= 3 and r["cc"] == 0)}
     teams_out = {str(t): {k: round(v, 2) for k, v in d.items()} for t, d in team_sp.items() if t}
     json.dump({"meta": meta, "players": out, "teams": teams_out}, open(os.path.join(OUTDIR, "fpl_players.json"), "w"), separators=(",", ":"))
     print(meta)

@@ -32,6 +32,10 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
     (72, 24 or 3 h before the deadline), when that gameweek's file uses per-checkpoint snapshots. The model doesn't
     use player odds yet; this keeps the history complete for testing them. Skipped (not warned) when no file has
     snapshots, e.g. with no ODDS_API_KEY.
+  - Understat chances created looking wrong in understat/fpl_players.json meta: more than 10 matched players with
+    3+ key passes but none created (kp_no_cc), any player left uncredited because he shares a club and name with
+    another (cc_ambiguous), or a team title with no short code (cc_no_code). A file without these fields (built
+    before they existed) is not checked.
 """
 import datetime as dt
 import json, math, os, sys
@@ -51,6 +55,27 @@ def load(path):
 
 def is_bad(x):
     return x is None or type(x) not in (int, float) or math.isnan(x) or math.isinf(x)
+
+
+KP_NO_CC_MAX = 10
+
+
+def check_created(us_meta, warnings):
+    """Understat chances created (cc) come from shot rows keyed by club and assister name; key passes (kp) come
+    from Understat's own player totals. They should broadly agree, so many players with key passes and no chance
+    created means the name/club lookup has broken again (audit B9). Warnings only: the Understat columns are
+    display stats. Missing input: a meta without a field (file built before the field existed, or no file at
+    all) is not checked for it, and nothing is assumed."""
+    n = us_meta.get("kp_no_cc")
+    if n is not None and n > KP_NO_CC_MAX:
+        warnings.append(f"Understat: {n} matched players have 3+ key passes but no chances created "
+                        f"(more than {KP_NO_CC_MAX}; check the club/name lookup in understat.py)")
+    if us_meta.get("cc_ambiguous"):
+        warnings.append(f"Understat: {us_meta['cc_ambiguous']} matched players share a club and name with another "
+                        "Understat player, so their chances created are left at 0 (see the understat.py output)")
+    if us_meta.get("cc_no_code"):
+        warnings.append(f"Understat: {us_meta['cc_no_code']} team titles have no short code, so their players' "
+                        "chances created are not counted")
 
 
 def check_squad(D, detail, errors, warnings):
@@ -311,6 +336,7 @@ def main(path):
     dup_fpl += [int(k) for k, v in us.items() if int(k) in ov.values() and ov.get(v["us_id"]) != int(k)]
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
+    check_created((load(os.path.join(HERE, "understat", "fpl_players.json")) or {}).get("meta") or {}, warnings)
 
     # decision journal (D5a): every move is accounted for once, every player mentioned has a row, and the model's plan is
     # the same one the You vs the model target used for that week
