@@ -65,8 +65,19 @@ segment must be called out in the PR, with the numbers. Put the before/after tab
 paired bootstrap 95% confidence intervals for the difference against main, plus the 5-GW and 1-GW totals for each
 season.
 
-**Decision.** "CI" is the paired bootstrap 95% interval from `bench.py`; "segment worse" means `--compare` flagged a
-segment. Every model PR must say which row it falls into.
+**Decision.** "CI" is the paired bootstrap 95% interval from `bench.py` against main, on the deciding metric below;
+"segment worse" means `--compare` flagged a segment. Every model PR must say which row it falls into.
+
+- **Deciding metric: 5-GW picks** (what the planner optimises). "CI above zero" means above zero in at least one past
+  season (2025/26 or 2024/25), with a positive point estimate in the other. This season is reported but doesn't
+  decide: it has too few 5-week forecast points until about GW20.
+- **No harm:** if any other bench metric (1-GW picks, top-5, captain, correlation) has its CI entirely below zero in
+  any season, treat it as a segment that tripped `--compare`.
+- **Fixes a known error vs only a tweak:** a change fixes a known error when what was wrong can be stated without the
+  backtest score (a rule or fact it broke: a hindsight leak, a double count, a formula that disagrees with FPL's
+  scoring rules, a crash, wrong data) and it was recorded in `docs/model-log.md`, an audit or a reproduced bug before
+  the fix was written. Otherwise it is a tweak: the only evidence against the old version is that something else
+  scores better. Retuning a weight, decay or threshold is a tweak unless the old value broke a rule.
 
 | Result | Decision |
 |---|---|
