@@ -1,4 +1,5 @@
-"""Experimental: an external pre-trained expected-minutes model (XGBoost, trained on 2022-23 and 2023-24).
+"""An external pre-trained expected-minutes model (XGBoost, trained on 2022-23 and 2023-24). On by default since
+30 Oct 2026 (fplmodel.DEFAULTS["xmins"]); evaluation in docs/xmins-eval.md.
 
 Source: a user-supplied joblib file (original_xmins_model.joblib). It was opened with a whitelist unpickler (no code
 from the file ran) and its four boosters exported to plain XGBoost JSON in xmins/, so nothing here loads a pickle.
@@ -19,7 +20,8 @@ The 21 inputs are rebuilt from FPL live data before `as_of` only. The package th
 Missing data: no history rows -> every history input is NaN (XGBoost's missing value, as in training); no kick-off
 date -> days NaN. Nothing is silently filled with a number.
 
-Requires `xgboost` (not in requirements.txt): only imported when params["xmins"] is on.
+Requires `xgboost` (requirements.txt installs it as `xgboost-cpu`), imported only when this module is used, i.e. when
+params["xmins"] is on. Model files missing or xgboost not installed: project() raises (no silent fallback).
 """
 import json, os
 import numpy as np
