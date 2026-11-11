@@ -1458,6 +1458,9 @@ out = {
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
+             # The two model settings the site restates (clean-sheet %, far-fixture estimates), straight from DEFAULTS so
+             # the browser never hard-codes them. Missing in an older data.json: the site falls back, see modelSet().
+             "model": {"home": DEFAULTS["home"], "cs_k": DEFAULTS["cs_k"]},
              "xp_cur": xp_cur_meta,   # xP table live column: snapshot used, or why it's missing (None outside a live GW)
              "deadline": next_ev["deadline_time"] if next_ev else None, "proj_gws": proj_gws, "plan_gws": proj_gws[:PLAN_GWS],
              "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw, "finished_gws": finished_gws,
