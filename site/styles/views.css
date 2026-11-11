@@ -797,6 +797,11 @@ tr.is-rival td { background: var(--accent-soft); }
 .vm-res { font-size: var(--fs-sm); padding: 4px 12px; }
 .vm-assumed { border-left: 3px solid var(--warn); background: var(--sunk); padding: 10px 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: var(--fs-sm); margin: 12px 0 0; }
 .grid2.vm-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+/* players whose points did not count (bench, subbed off): the shared lineup dims the whole card, which takes its small text below AA.
+   On this page the card keeps full opacity; the dashed border, the muted number and the "Not counted" / "Subbed off" line carry it instead. */
+.vm-cols .lu .pc.lvc-nocount, .vm-cols .lu-cards .luc.lvc-nocount { opacity: 1; }
+.vm-cols .lu-cards .luc.lvc-nocount { border-style: dashed; border-color: var(--line-strong); }
 .vm-moves { list-style: none; padding: 0; margin: 10px 0 4px; display: grid; gap: 4px; }
 .vm-moves .out { color: var(--bad); }
 .vm-moves .in { color: var(--good); }
@@ -840,7 +845,10 @@ tr.is-rival td { background: var(--accent-soft); }
 .vm-ms b { font-size: var(--fs-sm); color: var(--fg); }
 .vm-ms.got { border-color: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
 .vm-ms.best { border-style: dashed; border-color: var(--good); }
-.vm-ms.locked { opacity: .6; }
+
+/* locked (counts from next season): dashed border, sunk background and a muted title. No opacity: it took the text below AA (3.18:1 dark, 2.57:1 light) */
+.vm-ms.locked { border-style: dashed; border-color: var(--line-strong); background: var(--sunk); }
+.vm-ms.locked b { color: var(--muted); }
 .vm-msn { font-weight: 600; }
 
 @media (max-width: 700px) {
@@ -888,7 +896,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .j-sum h4 { margin: 14px 0 6px; font-size: var(--fs-sm); }
 .j-tbl { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .j-tbl th, .j-tbl td { padding: 6px 8px; border-top: 1px solid var(--line); text-align: left; }
-.j-tbl thead th { border-top: 0; color: var(--faint); font-weight: 600; font-size: var(--fs-xs); }
+.j-tbl thead th { border-top: 0; color: var(--muted); font-weight: 600; font-size: var(--fs-xs); }
 .j-tbl .n { text-align: right; white-space: nowrap; }
 .j-miss { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .j-tbl th small { display: block; font-weight: 400; font-size: var(--fs-xs); }
