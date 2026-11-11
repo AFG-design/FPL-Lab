@@ -8,17 +8,31 @@
 
 This file keeps the context and the decisions. It doesn't keep a second to-do list.
 
+## Status at 11 Nov 2026
+Written from the git log on `main`, not from the sheet. The sheet is still the source of truth; if they disagree, the sheet wins. The text below this section is as it was on 5 Nov.
+
+Cycle 1 items:
+1. **FL-063:** Done (#68).
+2. **FL-061:** Done (#69).
+3. **FL-054 / FL-056 / FL-057:** Done, in one PR (#70).
+4. **FL-055:** Done (#72). **FL-059:** Done (#73).
+5. **FL-062:** Done (#75). **FL-064:** Done (#76).
+6. **FL-084:** Done (#77).
+7. **FL-088 (private sync):** Open. Nothing on `main` for it yet.
+
+Also merged since 5 Nov, outside the Cycle 1 list: FL-096 (#71, #82), FL-091 (#74), FL-077 (#78), FL-087 (#79), FL-086 (#80), FL-085 (#81), FL-081 (#83), FL-071 (#84), FL-076 (#85).
+
 **IDs (from 5 Nov):** every item is FL-nnn, numbered in the order it was added and never reused. Branches and PRs use the same ID (`fix/fl-063-refresh-push`, PR title "FL-063: …"). Old IDs (C1, B10, M2 …) are in the sheet's Old ID column; the model log and older docs still use them.
 
 ## Scheduled checks
-- **History check:** Sundays 08:37. Checks that last GW's write-once history files were saved before the deadline. Messages only when something is missing. Logs to claude/history-check-log.md.
+- **History check:** Sundays 08:37. Checks that last GW's write-once history files were saved before the deadline. Messages only when something is missing. Logs to history-check-log.md (kept outside the repo).
 - **Cycle review:** Thursdays 17:39, acting only on the last day of a cycle (first one 19 Nov). Marks merged items Done, fills in the Cycles row, and proposes the next cycle for approval.
 - **Weekly hallucination audit:** Tuesdays. The 3 Nov run failed because the usage limit had been reached.
 
 ## Done 5 Nov
 - **#66 (FL-058, was B5):** the journal saves the start chance the forecast actually used.
 - **#67:** CLAUDE.md in the repo is the single source of build rules.
-- **Deep code review:** claude/code-review-2026-11-05.md. Its findings are FL-060 to FL-089 (were B7–B36).
+- **Deep code review:** docs/code-review-2026-11-05.md. Its findings are FL-060 to FL-089 (were B7–B36).
 - **Backlog sheet restructured:** types, status flow, Critical priority, milestones v1.1–v1.6 plus Housekeeping, the Board / Cycles / Milestones / How it works tabs, saved filter views, and FL-nnn IDs. The old layout is kept as the "Archive (before 5 Nov)" tab.
 - **Decided: FL-088 (B35), synced plan privacy.** Move sync to a private repo (a secret gist is only unlisted, so not chosen), then delete the old public `sync` branch so its history goes too, and reword the sync dialog. Added to Cycle 1.
 

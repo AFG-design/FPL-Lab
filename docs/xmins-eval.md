@@ -4,7 +4,7 @@
 - **Safety:** checked with pickletools. The only imports are xgboost plus one custom class (`fpl_xmins.model.XMinutesModel`) that wasn't supplied. It was loaded with a whitelist unpickler and the four boosters were exported to plain XGBoost JSON (`xmins/*.json`, about 2.3 MB), so no pickle is ever loaded.
 - **Reconstructed inputs:** the code that built the inputs wasn't supplied, so `xmins.py` rebuilds them from FPL live data before each gameweek. History rows are the gameweeks his club played and he had a row; double gameweeks are split by fixture count. Missing history is left as NaN, as in training.
 
-**How it's wired in:** `params["xmins"]`, off by default.
+**How it's wired in:** `params["xmins"]`, off by default. (Since adopted: on by default from PR #23, 30 Oct 2026; see `docs/model-log.md`. Note added 11 Nov 2026.)
 - It replaces `p_start`, `p_sub`, `m_start` and `m_sub` in `project()`.
 - Availability, European congestion, the return ramp and `p60_given_start` still come from FPL Lab.
 - `xmins_combine` sets how the bench chance is combined:

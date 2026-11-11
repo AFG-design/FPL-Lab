@@ -148,6 +148,25 @@ Bench baseline on main 34b3910 with archive odds: current corr .434 / rank .549 
   -13.1 pts/season [-53.6,+22.1], 0.75 -39.6 [-95.8,+19.9], fewer hits but no more points. Keep 0.9. (D) recency 0.9
   for GW2+ of the horizon: 5-GW picks +0.00 / +0.06, CIs cross 0. Reject.
 
+## 30 Oct 2026 — adopted: xMins minutes model on by default (PR #23, commit `0468850`)
+(Entry added 11 Nov 2026 from `docs/xmins-eval.md` and the comment on `DEFAULTS["xmins"]` in fplmodel.py; no new runs.)
+- What: start chance and minutes come from the external XGBoost model in `xmins.py` (four models, trained on 2022-23
+  and 2023-24, stored as plain JSON in `xmins/`) instead of the weighted counts. Availability, Europe and the return
+  ramp still apply on top. `xmins_combine` "B" (bench chance unconditional, capped at 1 − start chance): A had lower
+  MAE but −0.1 to −0.2 points bias.
+- Minutes, players who played in the last 3 GWs, counts → xMins (2026/27 GW3-8 with status log / 2025-26 / 2024-25):
+  start Brier 0.148 → 0.121 / 0.182 → 0.145 / 0.184 → 0.149; 60+ Brier 0.156 → 0.137 / 0.182 → 0.157 /
+  0.187 → 0.163; xMin RMSE 27.7 → 26.5 / 31.0 → 29.3 / 31.4 → 29.6. xMin MAE got worse (16.9 → 19.2 / 20.5 → 22.3 /
+  21.0 → 22.6): MAE rewards all-or-nothing guesses.
+- Points (bench.py): corr 0.429 → 0.434 / 0.387 → 0.403 / 0.412 → 0.426; MAE 1.806 → 1.796 / 1.887 → 1.867 /
+  1.780 → 1.770. Top-N picks unchanged; captain within noise except 2024-25 +0.60 (CI +0.09 to +1.37).
+- `--compare` flag, with the status log: top 30 projected, bias −0.27 and MAE +0.04 (base top-30 bias was +0.25, so
+  mostly a correction; top-30 corr fell 0.02).
+- Not covered: new signings still get about 0.05 start chance; players who played this week after missing the
+  previous 3 got worse (start Brier 0.21 → 0.26, n=128); domestic cup rotation.
+- Missing input: model files missing or xgboost not installed → `project()` raises; validate.py fails the build if
+  xMins is on but a player with a next-GW fixture fell back to the counts. Full write-up: [xmins-eval.md](xmins-eval.md).
+
 ## 29 Oct 2026 — bonus fixture-response params: rejected (branch `model-bonus-fixture`)
 - New params (defaults = current): bonus_att_pow (0.5), bonus_own_pow (0), bonus_def_pow (0.3); also bonus_scale.
 - Three-season bench: no variant changes corr/rank at 3 dp. att 0.8/1.0: picks ~0, top-5 mixed (1.0: 2026/27 -0.40,
@@ -364,6 +383,7 @@ Bench now covers 2026/27 (GW3-8, with odds), 2025/26 and 2024/25 (GW4-38, no odd
   cost; Play safe cost ~2.7 xP over 5 GWs for a more template XI (top-10k EO 0.58 vs 0.50). With 1 FT no
   strategy took a hit: none of the available upside is worth a -4. Settings: STRATEGY in build.py and
   STRAT in site/js/core/model.js (keep them equal).
+  (Since moved: STRATEGY is in optimise.py. Note added 11 Nov 2026.)
 
 ## 22 Oct 2026 — merged (PR #2)
 - Two-season test bench (`bench.py`, `archive.py`).
