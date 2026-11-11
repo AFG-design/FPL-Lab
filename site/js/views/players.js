@@ -67,7 +67,7 @@ function vPlayers() {
     ${compareHTML()}
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
       : stateView({ title: "No players match", body: "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-fclear="1">Clear filters</button>` })}
-    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${(D.meta.price_deadlines || []).find(d => new Date(d) > new Date()) ? ` (around ${ukTime(D.meta.price_deadlines.find(d => new Date(d) > new Date()))})` : ""}.</p></div>`;
+    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${nextPriceUpdate() ? ` (${priceUpdateTxt(nextPriceUpdate())})` : ""}.</p></div>`;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";

@@ -170,23 +170,24 @@ function priceRecord(pr) {
 }
 function pricesHTML() {
   const PR = D.prices, g0 = PG[0];
-  const when = PR?.pending_night ? new Date(new Date(PR.pending_night).getTime() + 90 * 6e4).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }) : "tonight";
+  // time of the next update, the same text as Players and Deadlines (plan.js priceUpdateTxt); left out if FPL lists none
+  const whenTxt = priceUpdateTxt(nextPriceUpdate()), when = whenTxt ? ` (${whenTxt})` : "";
   const pr = p => p.price_proj?.[0];
   const recNote = v => { const r = priceRecord(v); return r ? `: ${r.pct}% of players this close changed price that night (${r.n} cases)` : ""; };
   const chance = p => { const r = priceRecord(pr(p)); return r ? `<b>${r.pct}%</b> <span class="muted">(${r.n})</span>` : '<span class="muted">–</span>'; };
   const row = p => `<tr class="${MINE.has(p.id) ? "mine" : ""}"><td><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button> <span class="muted">${T[p.team].short} ${p.pos}</span></td><td class="n">${p.price.toFixed(1)}</td><td>${priceCell(p)}</td><td class="n">${chance(p)}</td><td class="n">${(p.tin - p.tout).toLocaleString("en-GB")}</td></tr>`;
   const tbl = list => `<div class="tablebox"><table><thead><tr><th>Player</th><th class="n">£m</th><th>FPL projection</th><th class="n">Our record</th><th class="n">Net transfers</th></tr></thead><tbody>${list.map(row).join("") || '<tr><td colspan="5" class="muted">None close</td></tr>'}</tbody></table></div>`;
-  const risers = D.players.filter(p => pr(p) >= 75).sort((a, b) => pr(b) - pr(a)).slice(0, 12);
-  const fallers = D.players.filter(p => pr(p) <= -75).sort((a, b) => pr(a) - pr(b)).slice(0, 12);
+  const risers = D.players.filter(p => priceRising(pr(p))).sort((a, b) => pr(b) - pr(a)).slice(0, 12);
+  const fallers = D.players.filter(p => priceFalling(pr(p))).sort((a, b) => pr(a) - pr(b)).slice(0, 12);
   // what matters to you: players you own that may fall, players you plan to buy that may rise
   const buys = (SB?.moves || []).filter(m => m.gw === g0).map(m => P[m.in]).filter(Boolean);
   const alerts = [
-    ...buys.filter(p => pr(p) >= 75).map(p => priceTonight(pr(p))
-      ? ["warn", `<b>${esc(p.name)}</b> is in your plan and is projected to rise at the next update (${when}). Making the transfer before then saves £0.1m.`]
+    ...buys.filter(p => priceRising(pr(p))).map(p => priceTonight(pr(p))
+      ? ["warn", `<b>${esc(p.name)}</b> is in your plan and is projected to rise at the next update${when}. Making the transfer before then saves £0.1m.`]
       : ["info", `<b>${esc(p.name)}</b> is in your plan and is ${priceMove(pr(p))}${recNote(pr(p))}.`]),
     // only when the fall would cut your selling price (FPL's half-profit rule often absorbs a £0.1m drop)
-    ...D.squad.map(s => P[s.id]).filter(p => p && pr(p) <= -75 && fallCostsYou(p.id)).map(p => priceTonight(pr(p))
-      ? ["bad", `<b>${esc(p.name)}</b> is projected to fall at the next update (${when}), which would cut your selling price to ${money(sellPrice(p.id) - 0.1)}. If you're selling him anyway, sell before then.`]
+    ...D.squad.map(s => P[s.id]).filter(p => p && priceFalling(pr(p)) && fallCostsYou(p.id)).map(p => priceTonight(pr(p))
+      ? ["bad", `<b>${esc(p.name)}</b> is projected to fall at the next update${when}, which would cut your selling price to ${money(sellPrice(p.id) - 0.1)}. If you're selling him anyway, sell before then.`]
       : ["info", `<b>${esc(p.name)}</b> is ${priceMove(pr(p))}${recNote(pr(p))}.`]),
   ];
   const last = PR?.last;
@@ -198,7 +199,7 @@ function pricesHTML() {
     return `<tr><td>${lab}</td><td class="n">${c(r)}</td><td class="n">${c(f)}</td></tr>`; }).join("");
   return `${alerts.length ? `<div class="panel"><h3>Before the next price update</h3><ul class="alerts">${alerts.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul></div>` : ""}
   <div class="statgrid">
-    <div class="panel"><h3>Closest to a rise</h3><p class="note" style="margin-top:0">FPL's projection for the next update (${when}). 100% means the threshold is reached; below that a change tonight is unlikely (see the track record).</p>${tbl(risers)}</div>
+    <div class="panel"><h3>Closest to a rise</h3><p class="note" style="margin-top:0">FPL's projection for the next update${when}. 100% means the threshold is reached; below that a change tonight is unlikely (see the track record).</p>${tbl(risers)}</div>
     <div class="panel"><h3>Closest to a fall</h3><p class="note" style="margin-top:0">Same projection, for falls. Your players are highlighted.</p>${tbl(fallers)}</div>
   </div>
   <div class="grid2">
@@ -288,7 +289,7 @@ const STAT_LABELS = {
     ["In box/90", "Shots from inside the penalty area per 90."],
   ]],
   prices: ["Prices", [
-    ["FPL projection", "FPL's own estimate of how close a player is to a price change at the next update (around 01:30 UK). 100% means the threshold is reached; negative means a fall."],
+    ["FPL projection", "FPL's own estimate of how close a player is to a price change at the next update (around midnight UK). 100% means the threshold is reached; negative means a fall."],
     ["Our record", "How often players at that projection actually changed price, from our nightly log. Appears once there are 15+ cases."],
     ["Net transfers", "Transfers in minus out this gameweek, which is what moves prices."],
     ["Rose / Fell", "In the track record: the share of players at each projection level that actually rose or fell that night."],

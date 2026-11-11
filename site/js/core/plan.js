@@ -119,6 +119,32 @@ function fallCostsYou(id) { const s = D.squad.find(x => x.id === id); return !s 
 // price-move wording, the same on every page. FPL's projection reaches the change threshold at 100%; our track record
 // has almost every 100%+ player moving that night and none from 75–99%, so only 100%+ is called "tonight".
 function priceTonight(pr) { return pr != null && Math.abs(pr) >= 100; }
+// "Close to a price change": one cut-off for every page (Home, Planner, Stats → Prices, the moves summary, the
+// watchlist). 75 is a band edge of the track record we show (build.py BANDS: 50–75, 75–90, 90–100, 100+), and it is
+// the wider of the two cut-offs that used to be in use (75 and 80), so no alert that showed before has gone.
+// Missing projection (null/undefined): never close, so nothing is asserted about that player.
+const PRICE_NEAR = 75;
+function priceRising(pr) { return pr != null && pr >= PRICE_NEAR; }
+function priceFalling(pr) { return pr != null && pr <= -PRICE_NEAR; }
+// When the nightly price update happens: the time FPL lists (price_change_deadlines, midnight UK), with no offset.
+// Evidence, from the commit history of history/prices.json: on the three nights a build ran soon after the listed
+// time (8, 9 and 11 Nov 2026) every change of that night was already in at 00:47, 00:35 and 00:10 UK. The old
+// "+90 minutes" (01:30 UK) on Stats had no support. We don't know the exact minute, so the text always says "around".
+// Missing or unreadable time: null / "" (callers then leave the time out rather than guess one).
+function priceUpdateAt(iso) { const d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d : null; }
+// The update that FPL's price projections in this data are for: the first listed update after the data was built
+// (prices.pending_night, else the first price_change_deadline after meta.built). Not "after now": on data that has
+// gone stale overnight, the figures still describe the night after the build, so that is the night to name.
+// Missing: no listed update after the build -> null, and callers leave the time out.
+function nextPriceUpdate() {
+  const built = new Date(D.meta.built);
+  return D.prices?.pending_night || (D.meta.price_deadlines || []).find(d => new Date(d) > built) || null;
+}
+// "around Thu 12 Nov, 00:00" (UK time); day = false gives "around 00:00" for lists already grouped by day
+function priceUpdateTxt(iso, day = true) {
+  const d = priceUpdateAt(iso); if (!d) return "";
+  return "around " + (day ? ukTime(d) : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }));
+}
 function priceMove(pr) {
   const dir = pr >= 0 ? "rise" : "fall";
   return priceTonight(pr) ? `may ${dir} in price tonight` : `${dir === "rise" ? "rising" : "falling"} in price (${Math.abs(pr).toFixed(0)}% of the way), not likely tonight`;
