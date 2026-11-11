@@ -38,8 +38,10 @@ then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing
 - Run `python3 validate.py site/data.json` after a local build, and `npm test` for site JS/CSS.
 
 ## Model changes (`fplmodel.py`, params, priors, odds)
-Model results are logged in `docs/model-log.md`.
-Run the backtest before and after, both without and with the status log, and compare segments:
+This is the only version of the model-change rule (AGENTS.md points here). Model results are logged in
+`docs/model-log.md`. Every model change needs both kinds of evidence below in its PR.
+
+**1. Backtest.** Run the backtest before and after, both without and with the status log, and compare segments:
 
 ```
 python3 backtest.py RAW --json base.json                 # on main (no status log: original behaviour)
@@ -58,6 +60,20 @@ Keep a change only if it also holds up on past seasons, not just the current one
 `--compare` flags any segment (position, price band, flagged/unflagged, top 30, GW) with n ≥ 30 where MAE
 worsens by more than 0.05 or bias moves by more than 0.2. A change that improves the headline but trips a
 segment must be called out in the PR, with the numbers. Put the before/after table in the PR.
+
+**2. Bench.** Run `bench.py` on all three seasons (this season, 2025/26 and 2024/25) and put in the PR description the
+paired bootstrap 95% confidence intervals for the difference against main, plus the 5-GW and 1-GW totals for each
+season.
+
+**Decision.** "CI" is the paired bootstrap 95% interval from `bench.py`; "segment worse" means `--compare` flagged a
+segment. Every model PR must say which row it falls into.
+
+| Result | Decision |
+|---|---|
+| CI above zero and no segment worse | Adopt. |
+| CI includes zero, the change fixes a known error, and no segment worse | Adopt as Marginal: log it in `docs/model-log.md` and re-check later. |
+| CI includes zero and the change is only a tweak | Don't adopt. Log the result in `docs/model-log.md`. |
+| Any segment trips `--compare` | Don't adopt until it is fixed or explained. |
 
 ## UI wording
 - Text that asserts a fact ("out", "tonight", "starts", "injured") must test the same condition the data uses

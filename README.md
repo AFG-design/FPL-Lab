@@ -87,7 +87,7 @@ npm run dev                               # serves site/ at http://localhost:800
 
 `build.py` also updates files in `history/`; discard those changes (`git checkout -- history/`) unless you mean to commit them. The site needs no build step: GitHub Pages publishes `site/` exactly as it is.
 
-Before changing the model, run `python3 bench.py` (needs `raw/` from a local build: `bootstrap.json`, `fixtures.json`, `live1.json`…) and keep a change only if it helps on both seasons.
+Before changing the model, run `python3 bench.py` (needs `raw/` from a local build: `bootstrap.json`, `fixtures.json`, `live1.json`…). Model changes also need the backtest; what to run and when to adopt a change are in `CLAUDE.md` ("Model changes").
 
 Before committing front-end changes:
 
