@@ -52,8 +52,8 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 - **Player odds:** repository secret `ODDS_API_KEY` (a free key from the-odds-api.com, 500 credits a month). About 20 credits per refresh, 3 refreshes per gameweek. Without the secret the step is skipped.
 - **Refresh now:** Actions → "Refresh FPL data" → Run workflow, or the button on the dashboard.
 - **Compare any team:** `watch.json` lists extra team IDs to fetch each refresh (`{"teams": [{"id": 123456, "label": "Friend"}]}`, up to 20). The overall leader is always included. The Rivals page adds and removes teams in one tap if Sync is set up; editing the file triggers a rebuild.
-- **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's Current GW view stays current. GitHub can start scheduled runs a few minutes late.
-- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
+- **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's Current GW view stays current. GitHub can start scheduled runs late or skip them (see **Reliable automatic updates** below); on a matchday without the backup scheduler, updates have been about 90 minutes apart.
+- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). Inside 6 hours of a deadline, `validate.py` also warns on the Health page when the previous refresh was more than 45 minutes earlier, or when it can't tell. GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
 
 ## Run locally
 

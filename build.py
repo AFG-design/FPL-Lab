@@ -103,6 +103,11 @@ except Exception as ex:
     # never overwrite a log that failed to load: it can't be rebuilt
     print("history/status.json unreadable, not updating it:", ex)
     status_log, status_ok = {"gws": {}}, False
+# When the previous refresh ran: the status log's own "updated" stamp, read before this build rewrites it. It goes
+# to meta.prev_built so validate.py can warn when refreshes are far apart close to a deadline (GitHub's schedule is
+# best effort and has left gaps of 8 hours). Missing or unreadable log, or a stamp that isn't a timestamp: None, and
+# validate.py says the gap can't be checked rather than assuming it was fine.
+prev_built = status_log.get("updated") if status_ok and isinstance(status_log.get("updated"), str) else None
 if status_ok and next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next_ev["deadline_time"].replace("Z", "+00:00")):
     # latest status before this deadline; only players not fully available, to keep it small
     status_log["gws"][str(next_gw)] = {str(e["id"]): [e["status"], e["chance_of_playing_next_round"]]
@@ -1464,6 +1469,7 @@ out = {
              "squad_gw": squad_gw, "fh_restored": fh_active,   # squad and bank come from GW squad_gw (the week before a Free Hit)
              "price_deadlines": boot["game_config"]["settings"].get("price_change_deadlines", []),
              "priors_season": next(iter((priors or {}).get("players", {}).values()), {}).get("season"),
+             "prev_built": prev_built,   # the refresh before this one (None: unknown), for validate.py's gap warning
              "build_secs": None},
     "manager": {"name": f'{entry["player_first_name"]} {entry["player_last_name"]}', "team": entry["name"],
                 "points": history["current"][-1]["total_points"] if history["current"] else entry["summary_overall_points"], "rank": entry["summary_overall_rank"],
