@@ -907,10 +907,21 @@ review = {"weeks": [], "transfers": [], "totals": {}}
 fh_set = {c["event"] for c in history["chips"] if c["name"] == "freehit"}
 wc_set = {c["event"] for c in history["chips"] if c["name"] == "wildcard"}
 hist_by = {h["event"]: h for h in history["current"]}
-try:
-    past = {g: (picks if g == picks_gw else get(f"/entry/{TEAM_ID}/event/{g}/picks/")) for g in finished_gws if g in hist_by}
-except Exception:
-    past = {}
+# Each finished gameweek's picks are fetched on their own (FL-070): before, one failed request emptied the whole dict,
+# and Review, You vs the model, the template tracker and the journal all came out empty with no message.
+# Missing / late: a week whose picks can't be fetched (after get()'s retries) is kept as None, so every section skips
+# just that week and lists it in its own "skipped" (review["skipped"] here); validate.py warns on Data health.
+past, review_skipped = {}, []
+for g in finished_gws:
+    if g not in hist_by:
+        continue
+    try:
+        past[g] = picks if g == picks_gw else get(f"/entry/{TEAM_ID}/event/{g}/picks/")
+    except Exception as ex:
+        print(f"GW{g} picks not fetched:", type(ex).__name__)
+        past[g] = None
+        review_skipped.append(g)
+review["skipped"] = review_skipped
 for g, pk in sorted(past.items()):
     if not pk:
         continue

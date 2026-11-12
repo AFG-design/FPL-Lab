@@ -52,7 +52,9 @@ function vReview() {
   const live = ls ? `<div class="panel"><div class="bar"><h3>GW${L.gw} live</h3><span class="muted">${ls.total} live pts after hits · average ${L.average ?? "–"}</span></div>
     <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">Mins</th><th class="n">BPS</th><th class="n">Bonus</th><th class="n">Pts</th><th class="n">Counted</th></tr></thead><tbody>${ls.rows.map(r => `<tr><td><span class="pname">${esc(P[r.id]?.name || r.id)}</span>${r.cap ? ' <span class="pill warn">C</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}${r.pos > 11 ? ' <span class="muted">bench</span>' : ""}</td><td class="n">${r.mins}</td><td class="n">${r.bps}</td><td class="n">${r.bonus}</td><td class="n">${r.live}</td><td class="n"><b>${ls.contribution(r)}</b>${ls.subs.some(s => s.in === r && !s.sure) ? " (if he plays)" : ""}</td></tr>`).join("")}</tbody></table></div>
     <p class="note">As of the last update. Bonus is provisional until FPL confirms it.</p></div>` : "";
-  if (!R || !R.weeks.length) return live + `<div class="panel"><p class="muted">Your review appears after the first gameweek finishes.</p></div>`;
+  // FL-070: weeks whose picks couldn't be fetched this update are left out and listed in R.skipped (older data: none)
+  const skipTxt = R?.skipped?.length ? `Your picks for ${R.skipped.map(g => "GW" + g).join(", ")} couldn't be fetched this update, so ${R.skipped.length > 1 ? "those weeks are" : "that week is"} left out of the review until the next one.` : "";
+  if (!R || !R.weeks.length) return live + `<div class="panel"><p class="muted">${skipTxt || "Your review appears after the first gameweek finishes."}</p></div>`;
   const w = R.weeks[R.weeks.length - 1], Tt = R.totals;
   const nm = id => esc(P[id]?.name || "?");
   const lines = [];
@@ -61,6 +63,7 @@ function vReview() {
   if (w.moves.length) { const net = w.moves.reduce((a, m) => a + m.in_pts - m.out_pts, 0) - w.hits; lines.push([net >= 0 ? "good" : "warn", `Transfers: ${w.moves.map(m => `${nm(m.out)} → ${nm(m.in)} (${m.out_pts} → ${m.in_pts})`).join(", ")}${w.hits ? `, −${w.hits} hit` : ""}. Net ${net >= 0 ? "+" : ""}${net} this week.`]); }
   else if (w.wildcard || w.freehit) lines.push(["info", `${w.wildcard ? "Wildcard" : "Free Hit"} week: ${w.n_tx} changes.`]);
   else lines.push(["info", "Transfers: none made."]);
+  if (skipTxt) lines.push(["warn", skipTxt]);
   lines.push(w.xi_proj != null ? ["info", `Model: your starting XI was projected before the deadline ${f1(w.xi_proj)} (before captain) and scored ${w.xi_actual}.`]
     : ["info", `Model: no saved forecast for GW${w.gw}. Forecasts are saved before each deadline from GW8, and the app doesn't re-run today's model on old weeks.`]);
   const best = R.transfers.slice().sort((a, b) => b.gain - a.gain).slice(0, 5), worst = R.transfers.slice().sort((a, b) => a.gain - b.gain).slice(0, 5);
