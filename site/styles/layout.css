@@ -74,7 +74,7 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
   .score { order: 3; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .team h1 { font-size: 26px; }
   .score .stat dd:first-of-type { font-size: 23px; }
-  .score .stat dt { white-space: normal; font-size: 9.5px; letter-spacing: .05em; line-height: 1.25; }
+  .score .stat dt { white-space: normal; font-size: 11px; letter-spacing: .05em; line-height: 1.25; }
   .score .stat-sub { font-size: 11px; }
 }
 

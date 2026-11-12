@@ -49,12 +49,14 @@
   --heat-3: color-mix(in srgb, var(--accent) 31%, var(--surface));
   --heat-4: color-mix(in srgb, var(--accent) 43%, var(--surface));
   --heat-5: color-mix(in srgb, var(--accent) 55%, var(--surface));
+  --hatch: rgb(255 255 255 / 7%);   /* xP table columns outside the counted horizon */
 
   /* the pitch */
   --turf: #123d29;
   --turf-2: #164831;
   --chalk: rgb(255 255 255 / 20%);
   --floodlight: rgb(190 255 220 / 9%);
+  --hero-glow: rgb(255 255 255 / 10%);
 
   /* text and marks on the turf (the turf is dark green in both themes, so these do not change) */
   --on-turf: #fff;
@@ -71,7 +73,7 @@
   /* type */
   --font: "Inter", system-ui, -apple-system, "Segoe UI", roboto, sans-serif;
   --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
-  --fs-label: 10.5px;
+  --fs-label: 11px;
   --ls-label: .09em;
   --ls-eyebrow: .12em;
   --fs-xs: 11.5px;
@@ -126,8 +128,12 @@
   --heat-3: color-mix(in srgb, var(--accent) 25%, var(--surface));
   --heat-4: color-mix(in srgb, var(--accent) 35%, var(--surface));
   --heat-5: color-mix(in srgb, var(--accent) 45%, var(--surface));
-  --turf: #1b6440;
-  --turf-2: #1f7049;
+  --hatch: rgb(15 26 22 / 9%);
+
+  /* FL-123: was #1b6440 / #1f7049 with a 10% glow; the hero's muted text and yellow countdown fell to 3.7-3.9:1 */
+  --turf: #155536;
+  --turf-2: #175c3d;
+  --hero-glow: rgb(255 255 255 / 6%);
   --chalk: rgb(255 255 255 / 35%);
   --floodlight: rgb(255 255 255 / 10%);
   --shadow: 0 10px 30px rgb(15 26 22 / 14%);

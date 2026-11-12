@@ -27,6 +27,10 @@ button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 [hidden] { display: none !important; }
 
+/* FL-123: no text under 11px. The browser's relative defaults (smaller, .75em) went to 10.8px in 13px text. */
+small { font-size: max(11px, .83em); }
+sup, sub { font-size: max(11px, .75em); }
+
 /* every number in the app lines up */
 .num, td, th, .stat dd, b { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
