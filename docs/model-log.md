@@ -4,6 +4,20 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-074: plans with four from one club (planner; Adopt as Marginal)
+
+- Known error (code review, reproduced 5 Nov): optimise.py and plan-solver.js capped every club at 3 in every plan
+  week. A real move between Premier League clubs can leave a squad holding four from one club; then even keeping the
+  squad broke the cap, so there were no plans in the build and Re-plan failed.
+- Rule confirmed: FPL's limit is 3 (bootstrap-static `game_settings.squad_team_limit`); a manager left with four can
+  keep them but "won't be able to make another transfer" until back to 3 (FPL, quoted by FourFourTwo on Solanke's move
+  to Spurs). Fix: the extra player may stay in a week with no transfer; any week with a transfer ends with at most 3
+  from every club. validate.py checks plans against that and warns while the squad holds more than 3.
+- Projections unchanged: backtest and bench identical to main (every paired CI [0, 0]); `--compare` flags nothing.
+- strategy_replay.py `--pick app`: identical to main except Chase rank 2025/26 (1855 → 1818). That run diverged at
+  GW8 on a solve that hit its 20 s time limit while five replays shared four cores; with no club above 3 the change adds
+  no constraint, so the maths is the same there. Read it as solver-timing noise, not an effect.
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
 ## 12 Nov 2026 — FL-073: Roll plans follow the profit rule (planner; Adopt as Marginal)
 
 - Known error (code review, reproduced 5 Nov): optimise.strategy_plans exempted the Roll option from "no moves for the
