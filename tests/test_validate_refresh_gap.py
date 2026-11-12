@@ -17,13 +17,13 @@ def run(m):
 class RefreshGap(unittest.TestCase):
     def test_regular_refresh_is_quiet(self):
         self.assertEqual(run(meta(prev_built="2026-11-21T07:30:00+00:00")), [])
-        self.assertEqual(run(meta(prev_built="2026-11-21T07:00:00+00:00")), [])   # FL-111: hourly is on schedule
-        self.assertEqual(run(meta(prev_built="2026-11-21T06:45:00+00:00")), [])   # exactly 75 minutes
+        self.assertEqual(run(meta(prev_built="2026-11-21T07:15:00+00:00")), [])   # exactly 45 minutes
 
-    def test_just_over_the_hourly_allowance_warns(self):
-        w = run(meta(prev_built="2026-11-21T06:44:00+00:00"))   # 76 minutes
+    def test_an_hour_inside_the_window_warns(self):
+        # FL-111: hourly outside the window, but every 30 minutes in the 6 h before a deadline, so an hour here is late
+        w = run(meta(prev_built="2026-11-21T07:00:00+00:00"))
         self.assertEqual(len(w), 1)
-        self.assertIn("(scheduled hourly)", w[0])
+        self.assertIn("(scheduled every 30 minutes this close to a deadline)", w[0])
 
     def test_long_gap_inside_the_window_warns(self):
         w = run(meta(prev_built="2026-11-21T00:06:00+00:00"))
