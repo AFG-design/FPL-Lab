@@ -204,7 +204,7 @@ function vCurrent() {
   const provisional = phase !== "final";
   const hits = L.hits || 0, chip = L.chip ? CHIP_NAME[L.chip] || L.chip : null, capX = L.chip === "3xc" ? 3 : 2;
   // FPL's own points once the gameweek is finished; until then the live total (before hits, as FPL shows it)
-  const gross = !provisional && L.points != null ? L.points : s.total + hits;
+  const gross = !provisional && L.points != null ? L.points : s.gross;
   const counted = s.counted, st = new Map(s.rows.map(r => [r, rowMatch(r, L)]));
   const left = s.xi.filter(r => st.get(r).left > 0);
   const nPlaying = left.filter(r => st.get(r).key === "playing").length, nToPlay = left.length - nPlaying;

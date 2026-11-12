@@ -49,8 +49,16 @@ function liveState() {
       if (T <= p1 && T >= p2) { const f = p1 === p2 ? 0.5 : (p1 - T) / (p1 - p2); rank = { r: Math.round(Math.exp(Math.log(r1) + f * (Math.log(r2) - Math.log(r1)))) }; break; }
     }
   }
-  return { L, rows, xi, counted, contribution, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, left, playing, rank, hasXp, proj,
+  // FL-078: the live points every screen shows, on FPL's basis: before hits (the hit goes in a tooltip). `total` and
+  // `proj` stay after hits for the live rank and Home's net line, which say so.
+  const hits = L.hits || 0, gross = total + hits, projGross = proj == null ? null : proj + hits;
+  return { L, rows, xi, counted, contribution, bench: rows.filter(r => !xi.includes(r)), subs, cap, vice, capOut, mult, total, gross, projGross, hits, left, playing, rank, hasXp, proj,
     top10k: F ? fieldAvg(F.top10k) : null, near: F && F.near?.n >= 100 ? fieldAvg(F.near) : null };
+}
+/* FL-078: live points are shown before hits everywhere; a hit is named in a tooltip with the total after it.
+   No hit (0, missing or not a number): no tooltip. */
+function hitTip(hits, gross) {
+  return typeof hits === "number" && hits > 0 && typeof gross === "number" ? ` title="Before the −${hits} hit: ${gross - hits} after it"` : "";
 }
 function livePanel() {
   const L = D.live; if (!L || L.finished || !L.in_play) return "";
@@ -58,11 +66,11 @@ function livePanel() {
   const stTxt = { done: "Finished", playing: "Playing", "to play": "Yet to play", blank: "No game" };
   const row = r => `<tr class="${s.xi.includes(r) ? "" : "lv-bench"}"><td><button data-p="${r.id}" class="pname linkish">${esc(P[r.id]?.name || r.id)}</button>${r.cap && !s.capOut ? ' <span class="pill warn">C</span>' : ""}${r.vice && s.capOut && r.mins > 0 ? ' <span class="pill warn">C (vice)</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}</td>
     <td><span class="lv-st lv-${r.st.replace(" ", "")}">${stTxt[r.st]}</span></td><td class="n">${r.mins}'</td><td class="n">${r.bps}</td><td class="n">${r.prov ? `<b class="up">+${r.prov}</b>` : r.bonus ? r.bonus : "–"}</td>${s.hasXp ? `<td class="n muted">${f1((r.xp || 0) * (s.xi.includes(r) ? s.mult(r) : 1))}</td>` : ""}<td class="n"><b>${s.xi.includes(r) ? r.live * s.mult(r) : r.live}</b></td></tr>`;
-  const vs = (lbl, v) => v == null ? "" : `<div class="kpi"><span class="lbl">${lbl}</span><b>${f1(v)}</b><span class="delta ${s.total >= v ? "up" : "down"}">you're ${f1(Math.abs(s.total - v))} ${s.total >= v ? "ahead" : "behind"}</span></div>`;
+  const vs = (lbl, v) => v == null ? "" : `<div class="kpi"><span class="lbl">${lbl}</span><b>${f1(v)}</b><span class="delta ${s.gross >= v ? "up" : "down"}">you're ${f1(Math.abs(s.gross - v))} ${s.gross >= v ? "ahead" : "behind"}</span></div>`;
   const fx = L.fixtures.slice().sort((a, b) => (a.ko || "").localeCompare(b.ko || ""));
   return `<div class="panel live-panel"><div class="bar"><h2><span class="live-dot" aria-hidden="true"></span>GW${L.gw} live</h2><span class="muted">updated ${new Date(D.meta.built).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span></div>
     <div class="kpis" style="margin-bottom:12px">
-      <div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px">${s.total}</b><span class="delta muted">${s.proj != null ? `of ${f1(s.proj)} projected · ` : ""}${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>
+      <div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px"${hitTip(s.hits, s.gross)}>${s.gross}</b><span class="delta muted">${s.projGross != null ? `of ${f1(s.projGross)} projected · ` : ""}${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>
       ${s.rank ? (() => { const rr = s.rank.r, b = L.rank_before, mv = b ? b - rr : 0;
         const big = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
         return `<div class="kpi"><span class="lbl">${term("liverank", "Live rank")} (estimate)</span><b>${s.rank.edge === "above" ? "Top " : s.rank.edge === "below" ? "Below " : "~"}${big(rr)}</b><span class="delta ${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}">${b ? `${mv > 0 ? "▲" : mv < 0 ? "▼" : ""} ${big(Math.abs(mv))} from ${big(b)}` : ""}</span></div>`; })() : ""}

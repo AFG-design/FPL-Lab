@@ -49,7 +49,7 @@ function decisionPanel(R) {
 function vReview() {
   const h = D.history, L = D.live, R = D.review, mx = Math.max(...h.map(x => x.pts));
   const ls = L && !L.finished ? liveState() : null;
-  const live = ls ? `<div class="panel"><div class="bar"><h3>GW${L.gw} live</h3><span class="muted">${ls.total} live pts after hits · average ${L.average ?? "–"}</span></div>
+  const live = ls ? `<div class="panel"><div class="bar"><h3>GW${L.gw} live</h3><span class="muted"${hitTip(ls.hits, ls.gross)}>${ls.gross} live pts${ls.hits ? ` (−${ls.hits} hit)` : ""} · average ${L.average ?? "–"}</span></div>
     <div class="tablebox"><table><thead><tr><th>Player</th><th class="n">Mins</th><th class="n">BPS</th><th class="n">Bonus</th><th class="n">Pts</th><th class="n">Counted</th></tr></thead><tbody>${ls.rows.map(r => `<tr><td><span class="pname">${esc(P[r.id]?.name || r.id)}</span>${r.cap ? ' <span class="pill warn">C</span>' : r.vice ? ' <span class="pill mut">V</span>' : ""}${r.pos > 11 ? ' <span class="muted">bench</span>' : ""}</td><td class="n">${r.mins}</td><td class="n">${r.bps}</td><td class="n">${r.bonus}</td><td class="n">${r.live}</td><td class="n"><b>${ls.contribution(r)}</b>${ls.subs.some(s => s.in === r && !s.sure) ? " (if he plays)" : ""}</td></tr>`).join("")}</tbody></table></div>
     <p class="note">As of the last update. Bonus is provisional until FPL confirms it.</p></div>` : "";
   // FL-070: weeks whose picks couldn't be fetched this update are left out and listed in R.skipped (older data: none)
