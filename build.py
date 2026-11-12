@@ -448,7 +448,7 @@ if squad_ids and proj_gws:
     for k, pl in plans.items():
         rk = "roll" if "_" not in k else k.split("_")[0] + "_roll"
         if rk in plans:
-            pl["vs_roll"] = round(pl["xp_total"] + 1.5 * pl["ft_left"] - plans[rk]["xp_total"] - 1.5 * plans[rk]["ft_left"], 2)
+            pl["vs_roll"] = round(pl["xp_total"] + optimise.FT_VALUE * (pl["ft_left"] - plans[rk]["ft_left"]) - plans[rk]["xp_total"], 2)
 
 # lineup for the current squad (no transfers)
 lineup = {}
@@ -1566,7 +1566,7 @@ out = {
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (own_picks["picks"] if own_picks else [])],
     "lineup": lineup, "plans": plans, "plan_notes": plan_notes,
-    "plan_rules": {"safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
+    "plan_rules": {"ft_value": optimise.FT_VALUE, "safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
                    "tie": optimise.TIE, "strategy": optimise.STRATEGY},
     "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "journal": journal, "setpieces": setpieces,

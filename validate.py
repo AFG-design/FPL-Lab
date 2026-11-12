@@ -777,6 +777,25 @@ def main(path):
         moved = any(wk.get("in") for wk in pl.get("weeks", []))
         if moved and not k.endswith("roll") and pl["vs_none"] < rules.get("min_profit", 1.0) - 0.01:
             errors.append(f"Plan {k}: {pl['vs_none']:+.2f} vs no transfers, short of the profit rule")
+    # FL-125: the Planner's "vs no transfers" is vs_none, rebuilt in the browser from xp_total and ft_left with
+    # plan_rules.ft_value. Without ft_value it falls back to 1.5 and could disagree with data.json, so its absence
+    # with plans published is an error. Every plan's value must be xp_total + ft_value * ft_left, and value - vs_none
+    # the same keep-the-squad baseline for every plan (one figure, one baseline). Plans without these fields were
+    # already reported above.
+    ftv = rules.get("ft_value")
+    if plans and rules and (is_bad(ftv) or ftv < 0):
+        errors.append(f"plan_rules.ft_value is {ftv!r}: the Planner's 'vs no transfers' can't match the plans")
+    elif plans and rules:
+        bases = {}
+        for k, pl in plans.items():
+            if any(is_bad(pl.get(f)) for f in ("value", "xp_total", "ft_left", "vs_none")):
+                continue
+            if abs(pl["value"] - (pl["xp_total"] + ftv * pl["ft_left"])) > 0.02:
+                errors.append(f"Plan {k}: value {pl['value']} isn't xP {pl['xp_total']} + {ftv:g} x {pl['ft_left']} FTs banked")
+            bases[k] = pl["value"] - pl["vs_none"]
+        if bases and max(bases.values()) - min(bases.values()) > 0.03:
+            errors.append(f"Plans disagree on the no-transfers baseline (value - vs_none from {min(bases.values()):.2f} "
+                          f"to {max(bases.values()):.2f}): the Planner's 'vs no transfers' would not match")
     for n in D.get("plan_notes") or []:
         if not n.endswith("dropped"):   # a move-count option dropped by the profit rule is normal, not a fault
             warnings.append(f"Plans: {n}")
