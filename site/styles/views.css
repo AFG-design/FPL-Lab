@@ -836,7 +836,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .vm-dot .vm-g { font-size: var(--fs-xs); }
 .vm-dot.rW .vm-l { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--good); }
 .vm-dot.rD .vm-l { background: color-mix(in srgb, var(--warn) 20%, transparent); color: var(--warn); }
-.vm-dot.rL .vm-l { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+.vm-dot.rL .vm-l { background: color-mix(in srgb, var(--bad) 16%, transparent); color: var(--bad); }   /* 16%: keeps the red L at AA on the dark tint (20% gave 4.44:1) */
 .vm-dot.rN .vm-l { background: var(--sunk); color: var(--muted); border: 2px dashed var(--line-strong); }
 .vm-dot.asm .vm-l { border: 2px dotted currentcolor; }
 .vm-dot.saved .vm-l { box-shadow: 0 0 0 3px var(--accent-text); }
