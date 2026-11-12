@@ -95,10 +95,11 @@ Before committing front-end changes:
 ```
 npm test        # ESLint + Stylelint, then the whole-app check below
 npm run layout  # every screen at 390px and 1280px: JS errors, error cards, sideways scroll, missing files (needs Python Playwright and a local data.json)
+npm run contrast  # every screen in light and dark at 390px and 1280px: no text under 11px, WCAG AA contrast as drawn
 npm run sw      # after adding or removing a script or stylesheet: refreshes the offline file list in sw.js
 ```
 
-The **Check site** workflow runs `npm test`, a fresh build, `validate.py` and `npm run layout` on every pull request, and keeps the screenshots as a downloadable artifact (Actions → the run → Artifacts).
+The **Check site** workflow runs `npm test`, a fresh build, `validate.py`, `npm run layout` and `npm run contrast` on every pull request, and keeps the screenshots as a downloadable artifact (Actions → the run → Artifacts).
 
 `npm run check` reads every script in page order to catch names that are used but never defined (or defined twice), confirms every file the page, manifest and service worker refer to exists, and that each one is cached for offline use.
 
@@ -165,7 +166,7 @@ Data fetching (`data/`) is kept apart from presentation (`components/`, `views/`
 | Player detail | `openPlayer(id)` | Points history, upcoming fixtures, price change, key stats. |
 | States | `skeleton()`, `stateView({ kind, title, body, action })` | Loading, empty and error. |
 
-**Design tokens.** Change colours in `styles/tokens.css` only. `--accent` (pitch green) is for actions; `--hi` (armband yellow) is kept for captaincy, the deadline and the current selection. `--f1`…`--f5` are the difficulty colours. All text pairs meet WCAG AA in both themes.
+**Design tokens.** Change colours in `styles/tokens.css` only. `--accent` (pitch green) is for actions; `--hi` (armband yellow) is kept for captaincy, the deadline and the current selection. `--f1`…`--f5` are the difficulty colours. No text is under 11px, and all text meets WCAG AA contrast in both themes, as drawn (faded, transparent and gradient backgrounds included): `npm run contrast` (`scripts/contrast_check.py`) measures every screen at 390px and 1280px in light and dark, and the Check site workflow runs it on every PR. Mark "less important" text with a colour or a border, not `opacity`, which takes it below AA.
 
 ### Screenshots
 

@@ -24,7 +24,7 @@
 .dc-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
 .is-cap .dc-bar i { background: var(--hi); }
 .dash-cap > b { text-align: right; font-family: var(--display); font-size: 22px; font-weight: 700; }
-.badge.inline { position: static; width: 18px; height: 18px; font-size: 10px; box-shadow: none; flex: none; }
+.badge.inline { position: static; width: 18px; height: 18px; font-size: 11px; box-shadow: none; flex: none; }
 
 @media (max-width: 1100px) {
   .dash { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -57,9 +57,9 @@
 .ptsbars i { display: block; width: min(100%, 40px); background: var(--accent); border-radius: 3px 3px 0 0; }
 .ptsbars i.haul { background: var(--hi); }
 .ptsbars i.blank { background: var(--line-strong); }
-.ptsbars > div > span { font-size: 10.5px; color: var(--muted); height: 14px; }
+.ptsbars > div > span { font-size: 11px; color: var(--muted); height: 14px; }
 .pb-avg { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--faint); pointer-events: none; }
-.pb-avg span { position: absolute; left: 0; top: -8px; font-size: 10.5px; line-height: 16px; color: var(--muted); background: var(--surface); padding-right: 6px; }
+.pb-avg span { position: absolute; left: 0; top: -8px; font-size: 11px; line-height: 16px; color: var(--muted); background: var(--surface); padding-right: 6px; }
 .upnext { list-style: none; margin: 0; padding: 0; display: grid; }
 .upnext li { display: grid; grid-template-columns: 46px auto minmax(0, 1fr) minmax(40px, 90px) 34px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
 .upnext li:last-child { border-bottom: 0; }
@@ -175,7 +175,7 @@ tr.is-rival td { background: var(--accent-soft); }
   position: relative; display: grid; gap: 12px; justify-items: start; overflow: hidden; isolation: isolate;
   padding: 26px 20px 20px; border-radius: 16px; color: var(--on-turf);
   background:
-    radial-gradient(120% 90% at 85% -10%, rgb(255 255 255 / 10%), transparent 55%),
+    radial-gradient(120% 90% at 85% -10%, var(--hero-glow), transparent 55%),
     repeating-linear-gradient(90deg, var(--turf) 0 56px, var(--turf-2) 56px 112px);
 }
 .hero::before, .hero::after { content: ""; position: absolute; pointer-events: none; z-index: -1; }
@@ -228,22 +228,22 @@ tr.is-rival td { background: var(--accent-soft); }
 }
 
 /* ---------- xP table (views/xptable.js) ---------- */
-.xptable th small { display: block; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.xptable th small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .xptable th.xnext { color: var(--accent-text); }
-.xptable th .btn.xs { margin-left: 6px; padding: 1px 6px; font-size: 10px; min-height: 0; }
+.xptable th .btn.xs { margin-left: 6px; padding: 1px 6px; font-size: 11px; min-height: 0; }
 .xptable .xplayer { display: flex; align-items: center; gap: 8px; }
 .xptable .xplayer .shirt { width: 26px; height: auto; flex: none; }
 .xptable .xwho { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .xptable .xname { display: flex; align-items: center; gap: 6px; }
 .xptable .xmeta { font-size: var(--fs-xs); }
-.xptable .xpos { border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; font-size: 10px; font-weight: 600; }
+.xptable .xpos { border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; font-size: 11px; font-weight: 600; }
 .xptable .xstar { background: none; border: 0; padding: 0 2px; color: var(--muted); font-size: 15px; line-height: 1; cursor: pointer; }
 .xptable .xstar[aria-pressed="true"] { color: var(--hi-text); }
 .xptable td.xc { padding: 5px 8px; text-align: center; min-width: 66px; }
 .xptable td.xc .xfx { display: flex; gap: 2px; justify-content: center; align-items: center; }
 .xptable td.xc .xv { display: block; font-size: var(--fs-md, 15px); font-variant-numeric: tabular-nums; margin-top: 3px; color: var(--fg); }
 .xptable td.xc .xv.asm { color: var(--fg); font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; } /* muted grey fails AA on the darker heat steps */
-.xptable .xdgw { font-size: 9px; font-weight: 700; color: var(--hi-text); }
+.xptable .xdgw { font-size: 11px; font-weight: 700; color: var(--hi-text); }
 .xptable td.h0 { background: var(--heat-0); }
 .xptable td.h1 { background: var(--heat-1); }
 .xptable td.h2 { background: var(--heat-2); }
@@ -251,7 +251,11 @@ tr.is-rival td { background: var(--accent-soft); }
 .xptable td.h4 { background: var(--heat-4); }
 .xptable td.h5 { background: var(--heat-5); }
 .xptable td.xnext { box-shadow: inset 0 0 0 1px var(--accent); }
-.xptable .xout { opacity: .7; } /* outside the counted horizon; text still passes AA */
+
+/* outside the counted horizon: a faint hatch over the cell and an italic header. Was opacity .7, which took the
+   fixture chips and the header to 2.3-3.7:1 (FL-123). */
+.xptable th.xout { font-style: italic; }
+.xptable td.xout { background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--hatch) 6px 7px); }
 .xptable td.xlive { color: var(--muted); background: var(--sunk); text-align: center; }
 .xptable td.xlive .xlive-pts { display: block; color: var(--fg); font-weight: 600; }
 .xptable th.xlive-off, .xptable td.xlive-off { padding: 0 4px; background: var(--sunk); }
@@ -324,7 +328,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .ld-edge { align-self: stretch; min-height: 34px; background: var(--club); border-radius: 0; }
 .ld-nm { display: grid; gap: 2px; line-height: 1.25; min-width: 0; }
 .ld-nm > * { overflow: hidden; text-overflow: ellipsis; }
-.ld-nm .pill { padding: 0 6px; font-size: 10.5px; margin-left: 2px; }
+.ld-nm .pill { padding: 0 6px; font-size: 11px; margin-left: 2px; }
 .leaders td.ld-pts { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1; color: var(--fg); }
 .ld-val { display: inline-grid; justify-items: end; gap: 4px; min-width: 40px; font-variant-numeric: tabular-nums; }
 .ld-val i { display: block; height: 3px; border-radius: 2px; background: var(--accent); justify-self: end; }
@@ -382,7 +386,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .dc-moves .arr { color: var(--muted); }
 .dc-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; }
 .dc-nums div { min-width: 0; }
-.dc-nums dt { font-size: 10.5px; color: var(--faint); }
+.dc-nums dt { font-size: 11px; color: var(--faint); }
 .dc-nums dd { margin: 0; font-family: var(--display); font-size: 20px; font-weight: 700; }
 .dc-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .dc-caps { display: grid; gap: 4px; }
@@ -390,7 +394,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .dcc:hover { background: var(--raised); }
 .dcc-n { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 650; white-space: nowrap; overflow: hidden; }
 .dcc-fx { font-size: var(--fs-xs); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
-.dcc-alt { font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 5px; }
+.dcc-alt { font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 5px; }
 .dcc-bar { height: 7px; border-radius: 4px; background: var(--sunk); overflow: hidden; }
 .dcc-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
 .dcc.top .dcc-bar i { background: var(--hi); }
@@ -448,10 +452,11 @@ tr.is-rival td { background: var(--accent-soft); }
 .gwscores:focus { outline: none; }
 #watchlist:focus { outline: none; }
 
-/* actual-points cards: match state under the number; the bench and subbed-off players are dimmed */
+/* actual-points cards: match state under the number. Bench and subbed-off players: a dashed border, the muted number
+   and the "Not counted" / "Subbed off" line mark them. No opacity: dimming the card took its text below AA (FL-123). */
 .lu .lvc-playing .lu-sub { color: var(--good); }
 .lu .lvc-dnp .lu-sub { color: var(--bad); }
-.lu .pc.lvc-nocount { opacity: .72; }
+.lu .pc.lvc-nocount { border-style: dashed; border-color: var(--line-strong); }
 .lu .lvc-nocount .xp { color: var(--muted); }
 .bench-note { margin: 0; padding: 8px 12px; font-size: var(--fs-xs); color: var(--muted); border-top: 1px solid var(--line); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -473,7 +478,7 @@ tr.is-rival td { background: var(--accent-soft); }
   .gwtiles { grid-template-columns: minmax(0, 1fr); }
   .mr { padding: 9px 10px; }
   .mr-v { font-size: 22px; }
-  .mr-s { font-size: 10.5px; }
+  .mr-s { font-size: 11px; }
   .dc-nums dd { font-size: 18px; }
   .home-side { grid-template-columns: minmax(0, 1fr); }
   .prevgw-go { margin-left: 0; }
@@ -508,7 +513,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .tp-c { min-width: 82px; text-align: center; }
 .tp-c button { all: unset; box-sizing: border-box; display: grid; width: 100%; padding: 6px; cursor: pointer; text-align: center; }
 .tp-c b { font-family: var(--display); font-size: 20px; font-weight: 700; line-height: 1.1; }
-.tp-c small { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.tp-c small { font-size: 11px; color: var(--fg); white-space: nowrap; }   /* muted grey fails AA on the darker heat steps (3.2:1, FL-123) */
 .tp-c.h1 { background: var(--heat-0); }
 .tp-c.h2 { background: var(--heat-1); }
 .tp-c.h3 { background: var(--heat-2); }
@@ -593,7 +598,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-kits .lu-kit { position: relative; width: 28px; height: 28px; }
 .lu-kits .shirt { display: block; width: 100%; height: 100%; margin: 0; object-fit: contain; }
 .lu-kits .flag { top: -7px; left: -9px; }
-.lu-role { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 800; line-height: 1; background: var(--hi); color: var(--hi-fg); box-shadow: 0 0 0 2px var(--surface); }
+.lu-role { position: absolute; top: -5px; right: -5px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 11px; font-weight: 800; line-height: 1; background: var(--hi); color: var(--hi-fg); box-shadow: 0 0 0 2px var(--surface); }
 .lu-role.v { background: var(--fg); color: var(--bg); }
 .lu-kits .lu-txt { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "nm nm" "sub xp" "ex ex"; align-items: center; column-gap: 6px; min-width: 0; }
 .lu-kits .lu-line { display: contents; }
@@ -603,16 +608,16 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-kits .xp { grid-area: xp; font-size: 21px; line-height: 1; }
 .lu-kits .lu-sub { grid-area: sub; overflow: hidden; font-size: 11px; color: var(--muted); white-space: nowrap; text-overflow: ellipsis; }
 .lu-kits .lu-sub:has(.fdr) { display: flex; flex-wrap: wrap; gap: 2px; text-overflow: clip; }
-.lu-kits .lu-sub .fdr { font-size: 10px; padding: 1px 3px; }
+.lu-kits .lu-sub .fdr { font-size: 11px; padding: 1px 3px; }
 .lu-kits .lu-sub .fdr .eudot { display: none; }
 .lu-x { margin-left: 2px; font-family: var(--sans, inherit); font-size: 11px; font-weight: 700; color: var(--muted); }
-.lu-kits .lu-ex { grid-area: ex; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1px 4px; min-width: 0; margin-top: 3px; font-size: 10.5px; color: var(--muted); }
+.lu-kits .lu-ex { grid-area: ex; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1px 4px; min-width: 0; margin-top: 3px; font-size: 11px; color: var(--muted); }
 .lu-price { white-space: nowrap; font-weight: 600; }
 .lu-run { display: inline-flex; gap: 3px; }
 .lu-dot { display: inline-flex; overflow: hidden; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 25%); }
 .lu-dot b { flex: 1 1 0; }
 .lu-dot.blank { background: none; box-shadow: inset 0 0 0 1.5px var(--faint); }
-.lu-in { flex: none; padding: 0 3px; border-radius: 3px; font-size: 8.5px; font-weight: 800; letter-spacing: .04em; line-height: 13px; background: var(--good); color: var(--accent-fg); }
+.lu-in { flex: none; padding: 0 3px; border-radius: 3px; font-size: 11px; font-weight: 800; letter-spacing: .04em; line-height: 13px; background: var(--good); color: var(--accent-fg); }
 
 /* the bench strip: each chip on its own width (all four are the same) */
 @container (max-width: 134px) {
@@ -652,7 +657,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-kits .lu-bn .lu-box { grid-template-columns: auto 24px minmax(0, 1fr); min-height: 48px; padding: 6px 8px; gap: 6px; }
 .lu-kits .lu-bn .lu-kit { width: 24px; height: 24px; }
 .lu-kits .lu-bn .xp { font-size: 18px; }
-.lu-slot { display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 4px; box-sizing: border-box; font-size: 10.5px; font-weight: 750; background: var(--accent-soft); color: var(--accent-text); }
+.lu-slot { display: grid; place-items: center; min-width: 20px; height: 18px; padding: 0 4px; border-radius: 4px; box-sizing: border-box; font-size: 11px; font-weight: 750; background: var(--accent-soft); color: var(--accent-text); }
 
 
 /* Cards: centred cards in three parts (components/pitch.js luCardC).
@@ -680,9 +685,9 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-cards .lu-bdg.l { grid-area: l; justify-self: start; align-items: flex-start; }
 .lu-cards .lu-bdg.r { grid-area: r; justify-self: end; align-items: flex-end; }
 .lu-cards .lu-role, .lu-cards .flag { position: static; box-shadow: none; }
-.lu-cards .lu-role { width: 17px; height: 17px; font-size: 10.5px; }
-.lu-cards .flag { min-width: 0; height: 16px; padding: 0 4px; border-radius: 8px; font-size: 10px; line-height: 16px; }
-.lu-cards .lu-in { line-height: 15px; padding: 0 4px; font-size: 9px; }
+.lu-cards .lu-role { width: 17px; height: 17px; font-size: 11px; }
+.lu-cards .flag { min-width: 0; height: 16px; padding: 0 4px; border-radius: 8px; font-size: 11px; line-height: 16px; }
+.lu-cards .lu-in { line-height: 15px; padding: 0 4px; font-size: 11px; }
 .lu-cards .lu-slot { height: 17px; }
 
 /* 1 identity: the shirt leaves room for the corner badges either side */
@@ -701,13 +706,13 @@ tr.is-rival td { background: var(--accent-soft); }
 .lu-cards .xp.asm { color: var(--fg); text-decoration: underline dotted var(--muted) 1.5px; text-underline-offset: 3px; }
 .lu-cards .lu-unit { font-size: 11px; font-weight: 600; color: var(--muted); }
 .lu-cards .lu-mult { font-size: 11px; font-weight: 800; color: var(--hi-text); }
-.lu-cards .lu-asm { font-size: 10px; font-style: italic; color: var(--muted); line-height: 1.2; }
+.lu-cards .lu-asm { font-size: 11px; font-style: italic; color: var(--muted); line-height: 1.2; }
 .lu-cards .lu-sub { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; margin: 2px 0; font-size: 11px; line-height: 1.25; color: var(--muted); }
-.lu-cards .lu-sub .fdr { font-size: 10px; padding: 1px 4px; }
+.lu-cards .lu-sub .fdr { font-size: 11px; padding: 1px 4px; }
 .lu-cards .lu-sub .fdr .eudot { display: none; }
 
 /* 3 footer: pushed to the bottom so footers line up across a row */
-.lu-cards .lu-foot { display: grid; gap: 2px; justify-items: center; width: 100%; margin-top: auto; padding-top: 4px; border-top: 1px solid var(--line); font-size: 10.5px; line-height: 1.25; color: var(--muted); }
+.lu-cards .lu-foot { display: grid; gap: 2px; justify-items: center; width: 100%; margin-top: auto; padding-top: 4px; border-top: 1px solid var(--line); font-size: 11px; line-height: 1.25; color: var(--muted); }
 .lu-cards .lu-fl { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px 5px; max-width: 100%; }
 .lu-cards .lu-fk { white-space: nowrap; }
 .lu-cards .lu-price { font-weight: 650; color: var(--fg); }
@@ -717,7 +722,7 @@ tr.is-rival td { background: var(--accent-soft); }
 /* Current GW */
 .lu-cards .lvc-playing .lu-sub { color: var(--good); }
 .lu-cards .lvc-dnp .lu-sub { color: var(--bad); }
-.lu-cards .luc.lvc-nocount { opacity: .78; }
+.lu-cards .luc.lvc-nocount { border-style: dashed; border-color: var(--line-strong); }
 .lu-cards .lvc-nocount .xp { color: var(--muted); }
 
 /* every card in a lineup takes the width its busiest row allows (up to 120px), so a three-card row matches the rest */
@@ -743,15 +748,15 @@ tr.is-rival td { background: var(--accent-soft); }
   .lu-cards .lu-long .nm { font-size: 13px; }
   .lu-cards .lu-xlong .nm { font-size: 12px; }
   .lu-cards .xp { font-size: 21px; }
-  .lu-cards .lu-unit, .lu-cards .lu-mult { font-size: 10px; }
+  .lu-cards .lu-unit, .lu-cards .lu-mult { font-size: 11px; }
   .lu-cards .lu-fk { display: none; }
-  .lu-cards .lu-foot { font-size: 10px; padding-top: 4px; }
+  .lu-cards .lu-foot { font-size: 11px; padding-top: 4px; }
 }
 
 @container (max-width: 74px) {
-  .lu-cards .lu-role { width: 15px; height: 15px; font-size: 9.5px; }
-  .lu-cards .flag { height: 14px; padding: 0 3px; font-size: 9px; line-height: 14px; }
-  .lu-cards .lu-in, .lu-cards .lu-slot { font-size: 8.5px; }
+  .lu-cards .lu-role { width: 15px; height: 15px; font-size: 11px; }
+  .lu-cards .flag { height: 14px; padding: 0 3px; font-size: 11px; line-height: 14px; }
+  .lu-cards .lu-in, .lu-cards .lu-slot { font-size: 11px; }
   .lu-cards .lu-box { padding: 5px 2px 4px; }
   .lu-cards .lu-kit { width: 22px; height: 22px; }
   .lu-cards .nm { font-size: 13px; letter-spacing: 0; }
@@ -759,8 +764,8 @@ tr.is-rival td { background: var(--accent-soft); }
   .lu-cards .lu-xlong .nm { font-size: 11px; }
   .lu-cards .xp { font-size: 19px; }
   .lu-cards .lu-unit { display: none; }
-  .lu-cards .lu-sub .fdr { padding: 1px 2px; font-size: 9.5px; }
-  .lu-cards .lu-sub, .lu-cards .lu-foot { font-size: 9.5px; }
+  .lu-cards .lu-sub .fdr { padding: 1px 2px; font-size: 11px; }
+  .lu-cards .lu-sub, .lu-cards .lu-foot { font-size: 11px; }
 }
 
 @media (max-width: 640px) {
@@ -798,10 +803,6 @@ tr.is-rival td { background: var(--accent-soft); }
 .vm-assumed { border-left: 3px solid var(--warn); background: var(--sunk); padding: 10px 12px; border-radius: 0 var(--r-sm) var(--r-sm) 0; font-size: var(--fs-sm); margin: 12px 0 0; }
 .grid2.vm-cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 
-/* players whose points did not count (bench, subbed off): the shared lineup dims the whole card, which takes its small text below AA.
-   On this page the card keeps full opacity; the dashed border, the muted number and the "Not counted" / "Subbed off" line carry it instead. */
-.vm-cols .lu .pc.lvc-nocount, .vm-cols .lu-cards .luc.lvc-nocount { opacity: 1; }
-.vm-cols .lu-cards .luc.lvc-nocount { border-style: dashed; border-color: var(--line-strong); }
 .vm-moves { list-style: none; padding: 0; margin: 10px 0 4px; display: grid; gap: 4px; }
 .vm-moves .out { color: var(--bad); }
 .vm-moves .in { color: var(--good); }
