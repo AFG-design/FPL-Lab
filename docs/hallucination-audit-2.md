@@ -191,3 +191,21 @@ Date: 29 Oct 2026. This audit was read-only: no code was changed, nothing was pu
 - **N9 tuning:** I didn't run `bench.py` or `backtest.py`. They need the 2025/26 archive and a model change, which is out of scope for a read-only audit.
 
 Scratch files: `/tmp/claude-0/-home-claude/fc363e4d-54d2-50a5-86e1-b07d0ede8d0b/scratchpad/a2/` (scripts), `/tmp/claude-0/-home-claude/fc363e4d-54d2-50a5-86e1-b07d0ede8d0b/scratchpad/api2/` (API snapshots), `/tmp/claude-0/-home-claude/fc363e4d-54d2-50a5-86e1-b07d0ede8d0b/scratchpad/run2/` (build).
+
+---
+
+## Status check, 12 Nov 2026 (FL-138)
+
+Read-only check of N1, N2, N3, N8 and N11 against `main` at `230d9be`. Nothing was changed. N4, N6 and N7 are covered by other backlog items, and the rest weren't in scope.
+
+| Finding | Status | Where it is handled now |
+|---|---|---|
+| **N1.** Post-deadline injury read as "lost his place" | **Fixed** | `fplmodel.py`: `late_news_absences()` (news posted from a day before deadline *k* to two days after GW *k*'s last kick-off, for a regular who didn't start) and `doubtful_absences()` (a `d` flag of 75% or less saved at the deadline). `prepare()` adds both to `out`, behind `DEFAULTS["late_abs"] = True`. This is the fix this audit proposed. |
+| **N2.** "No injury news" under an injury flag | **Fixed** | `player-sheet.js:58-59`: the "may have lost his place" sentence only shows when `status === "a"` and there is no news; otherwise it says "He missed his club's last game (FPL news since: …)". |
+| **N3.** "Started about 39% of recent games" | **Fixed** | `player-sheet.js`: the tile is now "Chance to start next game", next to a real "Starts, last N" tile (`st5`, from `build.py`). The sentence prints the real count ("He started N of his club's last M games") and calls the model figure "a …% chance to start next game, weighting the latest games most". |
+| **N8.** Sell-before-fall false alarm | **Fixed** | `plan.js:118` `fallCostsYou()` applies FPL's half-profit rule. Every fall alert checks it: Stats prices (`stats.js:192`), the moves summary (`moves-summary.js:10`), Home risks (`week.js:69`) and the Planner (`planner.js:138`). The watchlist only colours the %. |
+| **N11.** Hard-coded claims never recomputed | **Not fixed** | Still verbatim: `model.js:23` "lifted the correlation … from 0.40 to 0.42" (GW3–7), `model.js:12` "a correlation around 0.4 is about as good as public models get", and `explain.js:28` live rank "Usually within 10-20% of the real figure". Logged as **FL-154**. |
+
+Notes:
+- N1 was checked by reading the code and following it into `prepare()`. I found no unit test that pins it (no test mentions `late_news_absences` or `doubtful_absences`). I also found no `docs/model-log.md` entry under those names. Git history in this clone is shallow (108 commits), so the PR that added it couldn't be traced from here.
+- N3's "suspected double penalty" for players flagged after a sub appearance is part of the N1 mechanism above.
