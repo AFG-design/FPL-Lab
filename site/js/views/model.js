@@ -1,4 +1,15 @@
 // Model accuracy.
+/* FL-154: what a single-GW correlation is worth, measured rather than asserted. The yardstick is FPL's own projected
+   points, scored on the same players in the same weeks (accuracy.weeks[].live, saved before each deadline from GW8).
+   Weeks with no live snapshot, or where either correlation is missing, are left out. With no such week (early season,
+   or the snapshot never saved) the note says only that single-GW points are noisy, and makes no comparison. */
+function noiseNote(A) {
+  const wk = (A?.weeks || []).filter(w => w.live && w.live.fpl_corr != null && w.live.corr != null);
+  if (!wk.length) return "Single-gameweek FPL points are very noisy, so even good projections only loosely match real scores.";
+  const avg = k => wk.reduce((a, w) => a + w.live[k], 0) / wk.length;
+  const span = wk.length === 1 ? `GW${wk[0].gw}` : `GW${wk[0].gw}–${wk[wk.length - 1].gw}`;
+  return `Single-gameweek FPL points are very noisy. For scale, FPL's own projected points had a correlation of ${avg("fpl_corr").toFixed(2)} with real points (live, ${span}, average of ${wk.length} weekly figure${wk.length === 1 ? "" : "s"}), against ${avg("corr").toFixed(2)} for this model's live projections on the same players.`;
+}
 /* ---------- Model ---------- */
 function vModel() {
   const A = D.accuracy;
@@ -9,7 +20,7 @@ function vModel() {
       <div class="kpi"><span class="lbl">Average miss</span><b>${A.mae.toFixed(2)}</b><span class="delta muted">points per player per GW</span></div></div>
     <h3 style="margin:16px 0 6px">Calibration</h3><p class="note" style="margin-top:0">When the model says a player will score about X, how many did players actually score on average?</p>
     <div class="tablebox"><table><thead><tr><th>Projected</th><th class="n">Players</th><th class="n">Avg projected</th><th class="n">Avg actual</th></tr></thead><tbody>${A.buckets.map(([b, c, px, pa]) => `<tr><td>${b}–${b + 1} pts</td><td class="n">${c}</td><td class="n">${px.toFixed(2)}</td><td class="n">${pa.toFixed(2)}</td></tr>`).join("")}</tbody></table></div>
-    <p class="note">Single-gameweek FPL points are very noisy: a correlation around 0.4 is about as good as public models get. The value is in ranking players sensibly and avoiding bad bets, not in calling exact scores.</p></div>
+    <p class="note">${noiseNote(A)} The value is in ranking players sensibly and avoiding bad bets, not in calling exact scores.</p></div>
     ${A.weeks && A.weeks.length ? `<div class="panel"><h3>Week by week</h3>
       <p class="note" style="margin-top:0"><b>Re-run</b> = the current model projecting each past week from data before it. <b>Live</b> = the projections actually shown before the deadline, saved each week from GW8, next to FPL's own projected points for the same players.</p>
       ${lineChart([{ cls: "s1", vals: A.weeks.map(w => w.corr) }, { cls: "s2", vals: A.weeks.map(w => w.live?.corr ?? null) }, { cls: "s4", vals: A.weeks.map(w => w.live?.fpl_corr ?? null), dash: true }], A.weeks.map(w => "GW" + w.gw), { h: 170, yfmt: v => v.toFixed(1) })}
@@ -20,7 +31,7 @@ function vModel() {
   return `${h2hPanel()}${missesPanel()}${acc}${comparePanel()}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
     <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
-    <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In testing on GW3–7 this lifted the correlation with real points from 0.40 to 0.42.</li>
+    <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In a one-off backtest on 22 Oct 2026 (this season's GW3–7), adding the odds lifted the correlation with real points from 0.40 to 0.42; that test has not been re-run since.</li>
     <li><b>Fixtures.</b> Projected goals = league average (${D.meta.league_goals}) × attack × opponent defence × home/away. Clean-sheet and goals-conceded chances come from that, calibrated to real clean-sheet rates.</li>
     <li><b>Minutes.</b> How often a player starts or comes off the bench, and how long they play, over the last 5 gameweeks (recent games count more), times FPL's chance-of-playing flag.</li>
     <li><b>Player output.</b> xG and xA per 90 this season (recent games count more), ${D.meta.priors_season ? "blended with each player's last two Premier League seasons before this one (the more recent counts double; just the one if that is all he has, and for a player back after time away they can be some years old)" : "with no past seasons blended in for this build (the past-season file was missing)"}, plus a positional average. First-choice penalty takers get a small boost. Assists are scaled up because FPL awards more assists than xA counts.</li>
