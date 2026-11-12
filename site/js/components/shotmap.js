@@ -25,11 +25,14 @@ async function fillShotMap(pid) {
   const el = document.getElementById("shotmap"); if (!el) return;
   const d = await loadShots(), list = d?.players?.[pid] || [];
   if (!document.getElementById("shotmap") || +el.dataset.pid !== pid) return;
-  if (!list.length) { el.innerHTML = `<h3>Shot map</h3><p class="note">No shots this season.</p>`; return; }
+  // FL-155: the same Understat freshness note as the Stats tabs (understatNote, views/stats.js; #87), so a stale
+  // Understat file shows a warning here too. shots.json comes from the same understat.py run as D.meta.understat.
+  // Missing meta -> "Understat data is unavailable."; behind by over 36 hours -> warning with date and match count.
+  if (!list.length) { el.innerHTML = `<h3>Shot map</h3><p class="note">No shots this season. ${understatNote()}</p>`; return; }
   const goals = list.filter(s => s[3] === "G").length, xg = list.reduce((a, s) => a + s[2], 0);
   const inBox = list.filter(s => s[0] >= 84.3 && s[1] >= 21.1 && s[1] <= 78.9).length, big = list.filter(s => s[2] >= 0.3).length;
   el.innerHTML = `<h3>Shot map</h3>
     <div class="sm-wrap">${shotMapSVG(list)}
       <div class="brk">${[["Shots", list.length], ["Goals", goals], ["xG", xg.toFixed(1)], ["xG per shot", (xg / list.length).toFixed(2)], ["In the box", Math.round(100 * inBox / list.length) + "%"], ["Big chances", big], ["Headers", list.filter(s => s[5]).length]].map(([l, v]) => `<div><span>${l}</span><b>${v}</b></div>`).join("")}</div></div>
-    <p class="note"><span class="sm-key sm-g"></span>Goal <span class="sm-key sm-s"></span>Saved or post <span class="sm-key sm-m"></span>Missed or blocked. Bigger circles are better chances (higher xG). This season, from Understat; tap a shot for details.</p>`;
+    <p class="note"><span class="sm-key sm-g"></span>Goal <span class="sm-key sm-s"></span>Saved or post <span class="sm-key sm-m"></span>Missed or blocked. Bigger circles are better chances (higher xG); tap a shot for details. ${understatNote()}</p>`;
 }
