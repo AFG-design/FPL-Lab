@@ -9,7 +9,7 @@ Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 import json, os, sys, time, urllib.request, datetime as dt
 from collections import Counter, defaultdict
 
-from fplmodel import prepare, project, POS, DEFAULTS, unfinished_team_weeks
+from fplmodel import prepare, project, POS, DEFAULTS, unfinished_team_weeks, returning
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
@@ -1403,6 +1403,36 @@ save_log(NEWS_F, NH, news_ok)
 for k, v in NH.items():
     if int(k) in players:
         players[int(k)]["newsh"] = v
+
+# ---------------------------------------------------------------- players close to a return (FL-093)
+# The list keeps players with minutes this season or 3+ xP over 5 GWs, so a regular who has been out all season (Saliba,
+# Mitoma) fell out of data.json: the Planner could never pick him and the site couldn't show him. Keep a player who isn't
+# listed yet when FPL's own data says he is close to a return:
+#   "back"   - FPL has him available again after flagging him this season (news history), with no minutes since
+#   "chance" - flagged, but FPL gives a chance of playing above 0
+#   "date"   - FPL's return date ('Expected back' / 'Suspended until') falls before the last kick-off of the 5-GW window
+# His start chance stays the model's (low: no minutes this season) and is marked start_assumed for the site.
+# Missing / late / ambiguous: 'Unknown return date' with 0% is not close (no date, no chance); a return date that has
+# passed while FPL still has him at 0% is not close either (the date told us nothing); a player FPL lists as
+# unavailable ('u', usually left the club) never is. No news history (news.json unreadable) -> "back" can't be told
+# and only "chance"/"date" apply; the news log failure is already reported (sources.news.ok).
+_win = [g for g in range(next_gw, next_gw + 5)] if next_gw else []
+_ko = [f["kickoff_time"] for f in fixtures if f.get("event") in _win and f.get("kickoff_time")]
+_win_end = dt.date.fromisoformat(max(_ko)[:10]) if _ko else None
+_today = dt.datetime.now(dt.timezone.utc).date()
+returners = {}
+for pid, p in players.items():
+    if pid in keep:
+        continue
+    why = returning(elements[pid], NH.get(str(pid), []), _today, _win_end)
+    if why:
+        returners[pid] = why
+        keep.add(pid)
+        p["returning"] = why
+        p["start_assumed"] = True
+_names = ", ".join(f"{players[i]['name']} [{w}]" for i, w in sorted(returners.items())[:12])
+print(f"players close to a return kept in the list: {len(returners)} ({_names})")
+
 relevant = lambda i: i in players and (players[i]["mins"] > 0 or players[i]["xp5"] > 1 or i in squad_ids)
 news_feed = sorted(([v[-1][0], int(k), v[-2][1:] if len(v) > 1 else None, v[-1][1:]] for k, v in NH.items()
                     if relevant(int(k))), reverse=True)[:60]

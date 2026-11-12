@@ -4,6 +4,22 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-093: returning players stay in the projected list (Adopt as Marginal)
+
+- Known error (FPL Review comparison, 6 Nov): Saliba, Minteh and Mitoma were missing from data.json. Cause:
+  build.py lists a player only with minutes this season, 3+ xP over 5 GWs, or in the squad (`keep`), so a regular out
+  all season drops out. Of FPL's 672 players on 12 Nov, 206 were left out: 97 unavailable ('u', mostly left the
+  club), 83 available with no minutes (youth and back-up players), 24 injured, 2 doubtful.
+- Fix: `fplmodel.returning` keeps a not-yet-listed player when FPL cleared him after flagging him this season ("back",
+  from the news history), gives a chance above 0 ("chance"), or gives a return date inside the 5-GW window ("date").
+  His start chance stays the model's and is marked `start_assumed`; the player sheet says so. 12 Nov: +6 players
+  (Saliba, Butland, Anselmino back; Dasilva, Gyabi chance; Mitoma date), 466 → 472.
+- Backtest and bench identical to main on every metric (projections unchanged; only list membership). MAE 1.8111 /
+  1.7625; 5-GW picks 18.18 / 19.13 / 19.01; every paired CI [0, 0].
+- Finding for the minutes model (not changed here): a regular back from a season-long absence gets almost no start
+  chance (Saliba 2,614 minutes last season, start chance 1%, 0.34 xP over 5 GWs) because this season has no starts to
+  go on. Belongs with FL-030 / FL-094.
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
 ## 12 Nov 2026 — FL-092: upcoming fixture odds from The Odds API (Adopt as Marginal)
 
 - Known error (audit C7, still true for GW10): the fixture-odds blend (direct_w 0.85) never ran live, because
