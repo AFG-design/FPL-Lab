@@ -298,6 +298,35 @@ def check_refresh_gap(meta, warnings):
                         f"unreliable: set up the backup scheduler in the README")
 
 
+def check_setpieces(D, errors, warnings):
+    """Set-piece change log (setpiece_log.py, history/setpieces.json, FL-069).
+
+    A warning (Data health) when the log couldn't be used this build: no file and no deployed list to seed it from
+    (the next build tries again), or a file that is unreadable (left untouched for someone to fix). Not an error: the
+    takers table is still right, only the change list is missing. An error for a change row the Stats page would print
+    wrongly (unknown type, a team we don't list, or a date that isn't YYYY-MM-DD); a warning if they're out of order.
+    Missing / late / ambiguous: data from a build.py older than FL-069 has no status and is not checked for it.
+    """
+    sp = D.get("setpieces")
+    if not sp:
+        return
+    st = sp.get("status")
+    if st == "seed_failed":
+        warnings.append("Set-piece history: history/setpieces.json is missing and the deployed site couldn't be read "
+                        "to seed it, so no change list this build (the next build tries again)")
+    elif st == "unreadable":
+        warnings.append("Set-piece history: history/setpieces.json is unreadable and was left untouched; the Stats page "
+                        "shows the last deployed list, if any. Fix or restore the file from Git history")
+    teams = {str(k) for k in (D.get("teams") or {})} if isinstance(D.get("teams"), dict) else None
+    ch = sp.get("changes") or []
+    for c in ch:
+        bad_date = not (isinstance(c.get("date"), str) and len(c["date"]) == 10 and c["date"][4] == "-" == c["date"][7])
+        if c.get("type") not in ("pen", "cor", "fk") or bad_date or (teams is not None and str(c.get("team")) not in teams):
+            errors.append(f"Set-piece change {c}: unknown type, team or date")
+    if any(a.get("date", "") < b.get("date", "") for a, b in zip(ch, ch[1:])):
+        warnings.append("Set-piece history is out of order (newest change should come first)")
+
+
 def check_season_end(meta, errors, warnings):
     """FL-060: after GW38's deadline FPL lists no next gameweek, and build.py publishes a season-end build (no forecasts
     or plans, season stats and live scores only) with meta.season_over set.
@@ -622,6 +651,7 @@ def main(path):
         break
     check_sources(D, warnings)
     check_season_end(D["meta"], errors, warnings)
+    check_setpieces(D, errors, warnings)
     # Planner strategy tabs (views/planner.js): each tab shows one optimiser plan per strategy. Every plan must name
     # players we list and field a legal XI; a strategy with no plans (build.py drops Play safe and Chase rank when the
     # field ownership file is missing) is a warning, and the tab says so instead of showing the Balanced plan.

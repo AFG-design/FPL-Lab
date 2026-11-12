@@ -155,7 +155,10 @@ function setPiecesHTML() {
   const rows = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => { const r = SP.now[t.id] || {}; return `<tr><td>${t.name}</td>${["pen", "cor", "fk"].map(k => `<td>${nm((r[k] || [])[0])}<br>${second((r[k] || [])[1])}</td>`).join("")}</tr>`; }).join("");
   const label = { pen: "penalties", cor: "corners", fk: "direct free kicks" };
   const ch = (SP.changes || []).slice(0, 8);
-  return `<div class="panel"><h3>Set pieces and penalties</h3><p class="note" style="margin-top:0">First choice on top, back-up underneath, from FPL's own data. Penalty takers already get a small boost in the projections.</p>
+  // FL-069: the change log (history/setpieces.json) couldn't be used this build; say so rather than imply no changes
+  const logNote = SP.status === "seed_failed" ? "Change history unavailable this update: it will be restored on a later one."
+    : SP.status === "unreadable" ? "Change history couldn't be read this update: the list below may be out of date." : "";
+  return `<div class="panel"><h3>Set pieces and penalties</h3><p class="note" style="margin-top:0">First choice on top, back-up underneath, from FPL's own data. Penalty takers already get a small boost in the projections.</p>${logNote ? `<ul class="alerts" style="margin-bottom:12px"><li class="warn"><span>${logNote}</span></li></ul>` : ""}
     ${ch.length ? `<ul class="alerts" style="margin-bottom:12px">${ch.map(c => `<li class="warn"><span>${c.date}: ${T[c.team]?.name} ${label[c.type]} now ${c.new && P[c.new] ? esc(P[c.new].name) : "unknown"}${c.old && P[c.old] ? ` (was ${esc(P[c.old].name)})` : ""}.</span></li>`).join("")}</ul>` : `<p class="note">Changes to first-choice takers will be listed here as FPL updates them.</p>`}
     <div class="tablebox" style="max-height:480px"><table><thead><tr><th>Team</th><th>Penalties</th><th>Corners</th><th>Free kicks</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
