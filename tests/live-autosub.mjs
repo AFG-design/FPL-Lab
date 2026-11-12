@@ -14,7 +14,7 @@ function setup() {
   rows[13].pts = 7;
   const D = { history: [], meta: { next_gw: 12 }, live: { gw: 11, rows, fixtures, hits: 4, points: 999, total_before: 100,
     rank_curve: [[10, 150], [100, 140], [1000, 130], [10000, 120], [100000, 110], [1000000, 100]] } };
-  const ctx = vm.createContext({ P, D, S: {}, MINE: new Set(), esc: String, term: (_, label) => label, myTeam: () => ({ xi: [1], mult: {} }), watchPanel: () => '' });
+  const ctx = vm.createContext({ P, D, S: {}, MINE: new Set(), esc: String, term: (_, label) => label, myTeam: () => ({ xi: [1], mult: {} }), seasonOver: () => false, watchPanel: () => '' });
   for (const name of ['live', 'review', 'rivals']) vm.runInContext(readFileSync(new URL(`../site/js/views/${name}.js`, import.meta.url), 'utf8'), ctx);
   return { D, rows, fixtures, run: expr => vm.runInContext(expr, ctx), state: () => vm.runInContext('liveState()', ctx) };
 }

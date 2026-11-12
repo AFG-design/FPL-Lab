@@ -286,6 +286,7 @@ function pvCompare() {
 
 /* ---------- page ---------- */
 function vPlanner() {
+  if (seasonOver()) return `<header class="page-title"><h1>Planner</h1></header>${seasonOverView("plan")}`;
   const pv = S.pview;
   const body = pv === "edit" ? plannerEditor() : pv === "compare" ? vTpaths() : pv === "suggest" ? pvStrategy(S.pstrat) : pvMine();
   return `

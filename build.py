@@ -153,7 +153,14 @@ except Exception as ex:
     print("europe.json not used:", ex)
 ctx["congestion"] = congestion
 elements, teams = ctx["elements"], ctx["teams"]
-res = project(ctx, next_gw, HORIZON, {"sim": 4000}) if next_gw else None
+# Season end (FL-060): after GW38's deadline FPL lists no next gameweek. There is nothing left to forecast, but the
+# site still needs every player's row (live scores, Review, season stats) and the team ratings, so project as of the
+# week after the last one with no gameweeks ahead (horizon 0): every xP is empty, proj_gws is [], no plans are built,
+# and meta.season_over tells the site and validate.py why. In season this branch never runs: projections unchanged.
+season_over = not next_gw
+if season_over:
+    print(f"season over: FPL lists no next gameweek after GW{cur_gw}; no forecasts or plans, season stats only")
+res = project(ctx, next_gw or cur_gw + 1, 0 if season_over else HORIZON, {"sim": 4000})
 proj = res["players"] if res else {}
 proj_gws = res["gws"] if res else []
 upcoming = res["upcoming"] if res else {}
@@ -1466,6 +1473,8 @@ out = {
              "special_shirts": bool(boot["game_config"]["rules"].get("ui_use_special_shirts")),
              "special_excl": boot["game_config"]["rules"].get("ui_special_shirt_exclusions", []),
              "cur_gw": cur_gw, "next_gw": next_gw, "cur_finished": bool(cur_ev and cur_ev["finished"]),
+             # FL-060: True after GW38's deadline (no next gameweek); last_gw lets validate.py tell that from an API fault
+             "season_over": season_over, "last_gw": max((e["id"] for e in events), default=None),
              # The two model settings the site restates (clean-sheet %, far-fixture estimates), straight from DEFAULTS so
              # the browser never hard-codes them. Missing in an older data.json: the site falls back, see modelSet().
              "model": {"home": DEFAULTS["home"], "cs_k": DEFAULTS["cs_k"]},
