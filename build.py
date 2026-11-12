@@ -1304,13 +1304,38 @@ keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
 
+# ---------------------------------------------------------------- history logs that can't be rebuilt
+def load_log(path, empty, valid):
+    """A history/ log this build updates (news.json, prices.json), protected the way status.json is (FL-120).
+    Returns (data, ok). Missing file (first run): a fresh copy of `empty`, ok. Unreadable, or not the expected shape
+    (valid(data) is False): an empty copy for this build only and ok False, so save_log leaves the file alone (its
+    history can't be rebuilt) and data.json's sources say so for validate.py (Data health warning)."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        if not valid(data):
+            raise ValueError("unexpected shape")
+        return data, True
+    except FileNotFoundError:
+        return json.loads(json.dumps(empty)), True
+    except Exception as ex:
+        print(f"{os.path.relpath(path, HERE)} unreadable, not updating it:", ex)
+        return json.loads(json.dumps(empty)), False
+
+
+def save_log(path, data, ok):
+    if not ok:
+        return                       # never overwrite a log that failed to load
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, separators=(",", ":"))
+    os.replace(tmp, path)            # atomic: a crash mid-write can't leave a half-written log
+
+
 # ---------------------------------------------------------------- injury news history
 # Every change to a player's FPL status, chance of playing or news text, timed by FPL's own news_added
 NEWS_F = os.path.join(HIST, "news.json")
-try:
-    NH = json.load(open(NEWS_F))
-except Exception:
-    NH = {}
+NH, news_ok = load_log(NEWS_F, {}, lambda d: isinstance(d, dict) and all(isinstance(v, list) for v in d.values()))
 now_iso = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 for e in elements.values():
     k = str(e["id"])
@@ -1326,7 +1351,7 @@ for e in elements.values():
     NH[k] = (hist + [[when[:19] + "Z" if not when.endswith("Z") and "+" not in when else when] + cur])[-10:]
 cut = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=90)).isoformat()
 NH = {k: v for k, v in NH.items() if v[-1][0] > cut or v[-1][1] != "a"}
-json.dump(NH, open(NEWS_F, "w"), separators=(",", ":"))
+save_log(NEWS_F, NH, news_ok)
 for k, v in NH.items():
     if int(k) in players:
         players[int(k)]["newsh"] = v
@@ -1340,10 +1365,8 @@ for _, pid, _, _ in news_feed:
 # Before each nightly price update we keep FPL's projection for tonight and everyone's price; a few hours after it,
 # we compare: who actually moved, and how often FPL's projection bands turned out right.
 PRICE_F = os.path.join(HIST, "prices.json")
-try:
-    PH = json.load(open(PRICE_F))
-except Exception:
-    PH = {"pending": {}, "nights": []}
+PH, prices_ok = load_log(PRICE_F, {"pending": {}, "nights": []},
+                         lambda d: isinstance(d, dict) and isinstance(d.get("pending"), dict) and isinstance(d.get("nights"), list))
 now_utc = dt.datetime.now(dt.timezone.utc)
 pdl = [dt.datetime.fromisoformat(x.replace("Z", "+00:00")) for x in boot["game_config"]["settings"].get("price_change_deadlines", [])]
 nxt = min((d for d in pdl if d > now_utc), default=None)
@@ -1368,7 +1391,7 @@ for key in sorted(PH["pending"]):
     PH["nights"].append({"night": key, "rows": rows})
 PH["nights"] = PH["nights"][-40:]
 PH["pending"] = {k: v for k, v in PH["pending"].items() if dt.datetime.fromisoformat(k) > now_utc - dt.timedelta(days=3)}
-json.dump(PH, open(PRICE_F, "w"), separators=(",", ":"))
+save_log(PRICE_F, PH, prices_ok)
 
 BANDS = [("100%+", 100, 1e9), ("90–100%", 90, 100), ("75–90%", 75, 90), ("50–75%", 50, 75)]
 price_out = {"nights": len(PH["nights"]), "bands": [], "last": None, "pending_night": nxt.isoformat() if nxt else None}
@@ -1583,8 +1606,9 @@ out["sources"] = {
                     "error": (po_.get("last_error") or {}) or None} if po_ else None,
     "crowd": {"gw": cr_.get("gw"), "built": cr_.get("built"), "top10k": (cr_.get("top10k") or {}).get("n"),
               "near": (cr_.get("near") or {}).get("n"), "teams": len(cr_.get("teams") or []), "rivals": len(cr_.get("rivals") or {})} if cr_ else None,
-    "prices": {"nights": len(PH.get("nights", [])), "pending": len(PH.get("pending", {}))},
-    "news": {"players": len(NH)},
+    # ok False: the file was unreadable, not updated, and this build's figures start from nothing (FL-120)
+    "prices": {"nights": len(PH.get("nights", [])), "pending": len(PH.get("pending", {})), "ok": prices_ok},
+    "news": {"players": len(NH), "ok": news_ok},
     "status": {"gws": sorted(int(g) for g in (st_.get("gws") or {})), "updated": st_.get("updated")},
     "template": {"gws": sorted(int(g) for g in TPL.get("gws", {}))},
     # pre-deadline snapshots kept (deadline_snapshot.py); data only, not shown yet
