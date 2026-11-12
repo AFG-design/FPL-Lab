@@ -440,6 +440,8 @@ if squad_ids and proj_gws:
                                                 eo=eo_field or None)
     for n in plan_notes:
         print("plans:", n)
+    if optimise.SKIPPED:   # FL-118: runs that would only have repeated a plan already found
+        print(f"plans: skipped {len(optimise.SKIPPED)} solver run(s) that repeated the free-week-1 plan")
     for r in plans.values():
         for wk in r["weeks"]:
             mult = {i: 1 for i in wk["xi"]}
