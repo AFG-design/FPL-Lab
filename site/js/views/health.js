@@ -9,10 +9,12 @@ function vHealth() {
   const ageH = iso => iso ? (Date.now() - new Date(iso)) / 36e5 : 1e9;
   const pill = (ok, warn) => ok ? '<span class="pill good">OK</span>' : warn ? '<span class="pill warn">Check</span>' : '<span class="pill bad">Problem</span>';
   const po = S_.player_odds, poErr = po?.error && po.error.at && (!po.built || po.error.at > po.built) ? po.error.message : null;
+  const fo = S_.fixture_odds, foErr = fo?.error && fo.error.at && (!fo.built || fo.error.at > fo.built) ? fo.error.message : null;
   const rows = [
     ["FPL data", S_.fpl?.built, `GW${S_.fpl?.gw} · ${S_.fpl?.players} players`, ageH(S_.fpl?.built) < (inPlay ? 0.5 : 1.5), ageH(S_.fpl?.built) < 3, inPlay ? "Every 10 minutes during matches, otherwise hourly" : "Hourly; every 30 minutes in the 6 hours before a deadline and every 10 during matches"],
     ["Understat shots", S_.understat?.built, S_.understat ? `${S_.understat.matches} matches · ${S_.understat.players} players matched (${S_.understat.unmatched} not)` : "", ageH(S_.understat?.built) < 6, ageH(S_.understat?.built) < 48, "New matches each refresh"],
-    ["Match odds", S_.odds?.built, S_.odds ? `${S_.odds.matches} matches, ${S_.odds.upcoming} upcoming` : "", ageH(S_.odds?.built) < 6, ageH(S_.odds?.built) < 48, "football-data.co.uk, each refresh"],
+    ["Match odds", S_.odds?.built, S_.odds ? `${S_.odds.matches} matches, ${S_.odds.upcoming} upcoming${S_.odds.upcoming_api != null ? ` (${S_.odds.upcoming_api} from The Odds API)` : ""}` : "", ageH(S_.odds?.built) < 6, ageH(S_.odds?.built) < 48, "football-data.co.uk, each refresh"],
+    ["Upcoming match odds", fo?.built, fo?.built ? `GW${fo.gw} ${fo.label} h snapshot · ${fo.fixtures} fixtures · ${fo.credits_left ?? "–"} credits left` : (fo?.skipped ? `Not collected: ${esc(fo.skipped)}` : "Not collected"), !!fo?.built && !foErr && fo.gw >= (D.meta.next_gw || 0), !!fo?.built, "72, 24 and 3 h before each deadline (The Odds API)"],
     ["Player odds", po?.built, po ? `GW${po.gw} · ${po.fixtures} fixtures · ${po.credits_left ?? "–"} credits left${po.unmatched ? ` · ${po.unmatched} names unmatched` : ""}` : "Not collected", !!po && !poErr && po.gw >= (D.meta.cur_gw || 0), !!po, "Before each deadline (The Odds API)"],
     ["Ownership samples", S_.crowd?.built, S_.crowd ? `GW${S_.crowd.gw} · top 10k ${S_.crowd.top10k} · near you ${S_.crowd.near} · ladder ${S_.crowd.teams} · rivals ${S_.crowd.rivals}` : "", S_.crowd?.gw === D.meta.cur_gw, S_.crowd?.gw === D.meta.cur_gw - 1, "Once per gameweek, after the deadline"],
   ];
@@ -37,7 +39,8 @@ function vHealth() {
     </div>
     <div class="panel"><h3>Sources</h3><div class="tablebox"><table><thead><tr><th>Source</th><th>Updated</th><th>Details</th><th>How often</th><th>Status</th></tr></thead><tbody>
       ${rows.map(([n, at, det, ok, warn, how]) => `<tr><td><b>${n}</b></td><td>${ageTxt(at)}</td><td class="muted">${esc(det)}</td><td class="muted">${how}</td><td>${pill(ok, warn)}</td></tr>`).join("")}</tbody></table></div>
-      ${poErr ? `<p class="verdict" style="border-color:var(--bad);margin-top:10px">Player odds failed at ${ukTime(po.error.at)}: ${esc(poErr.slice(0, 160))}</p>` : ""}</div>
+      ${poErr ? `<p class="verdict" style="border-color:var(--bad);margin-top:10px">Player odds failed at ${ukTime(po.error.at)}: ${esc(poErr.slice(0, 160))}</p>` : ""}
+      ${foErr ? `<p class="verdict" style="border-color:var(--bad);margin-top:10px">Upcoming match odds failed at ${ukTime(fo.error.at)}: ${esc(foErr.slice(0, 160))}</p>` : ""}</div>
     ${D.health ? `<div class="panel"><div class="bar"><h3>Data checks</h3>${pill(D.health.ok && !D.health.warnings.length, D.health.ok)}</div>
       ${D.health.warnings.length ? `<ul class="alerts">${D.health.warnings.map(w => `<li><span>${esc(w)}</span></li>`).join("")}</ul>` : `<p class="muted" style="margin:0">All checks passed.</p>`}
       <p class="note">Run on every build (validate.py). A failed hard check stops the refresh, so the last good data stays live; warnings are listed here.</p></div>` : ""}

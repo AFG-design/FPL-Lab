@@ -1535,7 +1535,11 @@ out = {
              "odds": {"built": market.get("built"), "matches": len(ctx["market"]),
                       "upcoming": sum(1 for m in ctx["market"] if not m["played"]),
                       # rows the model left out of the file (FL-112): stale upcoming rows and duplicate fixture ids
-                      "file_extra_rows": sum(ctx["market_dropped"])} if market else None,
+                      "file_extra_rows": sum(ctx["market_dropped"]),
+                      # upcoming rows from The Odds API snapshot (FL-092) and when it was taken; the rest of the
+                      # upcoming rows come from football-data's fixtures file
+                      "upcoming_api": sum(1 for m in ctx["market"] if not m["played"] and m.get("src") == "odds_api"),
+                      "upcoming_api_built": (market.get("status") or {}).get("upcoming_api_built")} if market else None,
              "player_odds": {"built": player_odds.get("built"), "gw": player_odds.get("gw"),
                              "fixtures": len(player_odds.get("fixtures", {})),
                              "players": sum(len(f["players"]) for f in player_odds.get("fixtures", {}).values()),
@@ -1648,6 +1652,7 @@ def _load(path):
     except Exception:
         return None
 po_ = _load("odds/players.json") or {}
+fo_ = _load("odds/upcoming.json") or {}
 cr_ = _load("crowd/latest.json") or {}
 st_ = _load("history/status.json") or {}
 out["sources"] = {
@@ -1657,6 +1662,10 @@ out["sources"] = {
     "player_odds": {"built": po_.get("built"), "gw": po_.get("gw"), "fixtures": len(po_.get("fixtures") or {}),
                     "credits_left": po_.get("credits_left"), "unmatched": len(po_.get("unmatched_players") or []),
                     "error": (po_.get("last_error") or {}) or None} if po_ else None,
+    # upcoming match odds from The Odds API (FL-092): the latest snapshot, what the last run skipped and why
+    "fixture_odds": {"built": (fo_.get("latest") or {}).get("built"), "gw": fo_.get("gw"), "label": fo_.get("label"),
+                     "fixtures": len((fo_.get("latest") or {}).get("rows") or []), "credits_left": fo_.get("credits_left"),
+                     "skipped": fo_.get("skipped"), "error": (fo_.get("last_error") or {}) or None} if fo_ else None,
     "crowd": {"gw": cr_.get("gw"), "built": cr_.get("built"), "top10k": (cr_.get("top10k") or {}).get("n"),
               "near": (cr_.get("near") or {}).get("n"), "teams": len(cr_.get("teams") or []), "rivals": len(cr_.get("rivals") or {})} if cr_ else None,
     # ok False: the file was unreadable, not updated, and this build's figures start from nothing (FL-120)

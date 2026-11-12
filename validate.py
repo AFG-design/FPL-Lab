@@ -18,6 +18,8 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - free transfers outside 0-5, a negative/non-finite bank, or squad prices that break FPL's half-profit rule
   - a Free Hit restore that disagrees with independent FPL chip history and the pre-Free-Hit picks
   - an empty squad after the first deadline
+  - an Odds API upcoming-odds row (FL-092) with result probabilities outside 0-1 or not summing to 1, an over-2.5
+    chance outside 0-1, or expected goals outside 0.05-6
   - meta.odds rows used + rows dropped not adding up to odds/odds.json's rows (data.json built from another odds file)
   - model settings exported for the site (meta.model) that aren't finite numbers in a sane range: home 1.0-1.5,
     cs_k 0.5-1.5 (data built before the field existed has no meta.model and is not checked)
@@ -30,6 +32,9 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
   - Understat shots data missing, or covering fewer matches than have finished while its last successful update
     is over 36 hours old (understat.py keeps the previous file when Understat is down, so it goes stale silently)
   - no betting odds for any of next gameweek's fixtures
+  - next GW's rows in odds/upcoming.json's latest snapshot that odds/odds.json doesn't use (postponed since?)
+  - the latest Odds API upcoming-odds fetch failing (odds/upcoming.json last_error), or the last finished-deadline
+    gameweek's history/fixture_odds_gw*.json missing a 72, 24 or 3 h snapshot
   - odds/odds.json holding extra rows (a stale upcoming row or a fixture id twice); the model uses one per fixture
   - this season's played-match odds failed to download or came back short (played rows carried over from the last
     good odds file, or none to carry)
@@ -718,6 +723,41 @@ def main(path):
     if odds.get("matches") and used is not None and used + extra != len(odds["matches"]):
         errors.append(f"Match odds: the build used {used} rows and dropped {extra}, but odds/odds.json has "
                       f"{len(odds['matches'])}: data.json was built from a different odds file")
+    # upcoming match odds from The Odds API (FL-092, odds.fetch_upcoming)
+    for m in odds.get("matches", []):
+        if m.get("src") != "odds_api":
+            continue
+        ps = [m.get("p_h"), m.get("p_d"), m.get("p_a")]
+        if any(is_bad(x) or not 0 < x < 1 for x in ps) or abs(sum(ps) - 1) > 0.01:
+            errors.append(f"Match odds fixture {m.get('fixture')}: Odds API result probabilities {ps} don't make a 0-1 set summing to 1")
+        if m.get("p_over") is not None and (is_bad(m["p_over"]) or not 0 < m["p_over"] < 1):
+            errors.append(f"Match odds fixture {m.get('fixture')}: Odds API over-2.5 chance {m['p_over']} outside 0-1")
+        if any(is_bad(m.get(k)) or not 0.05 <= m[k] <= 6 for k in ("lam_h", "lam_a")):
+            errors.append(f"Match odds fixture {m.get('fixture')}: Odds API expected goals {m.get('lam_h')}-{m.get('lam_a')} outside 0.05-6")
+    up = load(os.path.join(HERE, "odds", "upcoming.json")) or {}
+    latest = up.get("latest") or {}
+    # snapshot used: the latest snapshot's next-GW rows must be in odds.json (odds.py merged them)
+    if g and latest.get("rows"):
+        have = {m.get("fixture") for m in odds.get("matches", []) if m.get("src") == "odds_api"}
+        lost = [r["fixture"] for r in latest["rows"] if r.get("gw") == g and r["fixture"] not in have
+                and not any(m.get("fixture") == r["fixture"] and m.get("played") for m in odds.get("matches", []))]
+        if lost:   # a warning, not an error: a fixture postponed since the snapshot is rightly left out
+            warnings.append(f"Match odds: the Odds API snapshot of {latest.get('built')} has GW{g} odds for fixture(s) "
+                          f"{', '.join(map(str, lost[:5]))} that odds/odds.json doesn't use")
+    err = up.get("last_error") or {}
+    if err.get("at") and (not latest.get("built") or err["at"] > latest["built"]):
+        warnings.append(f"Upcoming match odds (The Odds API) failed at {err['at']}: {str(err.get('message'))[:160]}; "
+                        f"using the snapshot of {latest.get('built') or 'none'}")
+    fo = sorted(((int(f[len("fixture_odds_gw"):-5]), f) for f in os.listdir(os.path.join(HERE, "history"))
+                 if f.startswith("fixture_odds_gw") and f.endswith(".json")), reverse=True)
+    for fg, f in fo:
+        if g and fg >= g:
+            continue   # still being collected
+        missing = [h for h in ("72", "24", "3") if h not in (load(os.path.join(HERE, "history", f)) or {}).get("snapshots", {})]
+        if missing:
+            warnings.append(f"Upcoming match odds GW{fg}: no {', '.join(m + ' h' for m in missing)} snapshot "
+                            f"(check the ODDS_API_KEY secret and credits)")
+        break
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 

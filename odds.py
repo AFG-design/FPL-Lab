@@ -1,15 +1,32 @@
 #!/usr/bin/env python3
-"""Betting-market expected goals per match, from football-data.co.uk (free, no key).
+"""Betting-market expected goals per match.
 
-For every Premier League match with odds (played this season, plus upcoming fixtures once the
-weekly file lists them) we convert the market's match-result and over/under 2.5 goals odds into
-expected goals for each side, by finding the Poisson rates that reproduce those probabilities.
-Writes odds/odds.json: [{date, h, a (FPL team ids), lam_h, lam_a, p_h, p_d, p_a, p_over, played}].
+Played matches come from football-data.co.uk (free, no key). Upcoming matches come from The Odds API (FL-092): one bulk
+call for match result (h2h) and over/under (totals) odds at each pre-deadline checkpoint (72, 24 and 3 h, as
+odds_players.py), for every EPL fixture the API lists, which usually covers the next two or three gameweeks.
+football-data's fixtures.csv only fills an upcoming fixture the Odds API snapshot doesn't have (no key, credits low,
+or a fixture it doesn't list yet), and each row says which source it came from.
+Either way the market's match-result and over/under 2.5 goals odds are converted into expected goals for each side,
+by finding the Poisson rates that reproduce those probabilities.
+Writes odds/odds.json: [{date, h, a (FPL team ids), lam_h, lam_a, p_h, p_d, p_a, p_over, played, src}],
+odds/upcoming.json (latest Odds API snapshot and fetch state) and history/fixture_odds_gw{N}.json (every checkpoint).
+
+Credits (free key, 500 a month shared with odds_players.py): the bulk odds endpoint costs markets x regions per call
+whatever the number of fixtures, so 2 markets x 1 region = 2 credits a snapshot, 3 snapshots = 6 per gameweek.
+odds_players.py spends about 20 per checkpoint (10 fixtures x 2 markets), 60 per gameweek. Together 66 a gameweek;
+the busiest month (6 gameweeks, e.g. December) is about 396, and both scripts stop at MIN_CREDITS (40) left.
 """
-import csv, io, json, math, os, sys, time, urllib.request, datetime as dt
+import csv, io, json, math, os, statistics, sys, time, urllib.error, urllib.request, datetime as dt
+
+import odds_players
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "odds", "odds.json")
+UPCOMING = os.path.join(HERE, "odds", "upcoming.json")
+HIST = os.path.join(HERE, "history")
+API_MARKETS = "h2h,totals"
+API_REGION = os.environ.get("ODDS_FIXTURE_REGION", "uk")   # one region only: each extra region doubles the cost
+API_COST = 2                                                # credits per snapshot: 2 markets x 1 region
 BASE = "https://football-data.co.uk"
 # football-data team names -> FPL short names
 NAMES = {"Arsenal": "ARS", "Aston Villa": "AVL", "Bournemouth": "BOU", "Brentford": "BRE", "Brighton": "BHA",
@@ -141,7 +158,8 @@ def match_fixtures(rows, short_to_id, fixtures, names=NAMES):
             continue
         lh, la = fit_lambdas(r["p_h"], r["p_a"], r["p_over"])
         out.append({"fixture": f["id"], "gw": f["event"], "date": r["date"], "h": h, "a": a, "lam_h": lh, "lam_a": la,
-                    "p_h": r["p_h"], "p_d": r["p_d"], "p_a": r["p_a"], "p_over": r["p_over"], "played": r["played"]})
+                    "p_h": r["p_h"], "p_d": r["p_d"], "p_a": r["p_a"], "p_over": r["p_over"], "played": r["played"],
+                    "src": "football-data"})
     return out, unmatched, no_fixture
 
 
@@ -197,6 +215,154 @@ def one_row_per_fixture(matches, fixtures):
     return out, dropped_finished, len(kept) - len(out)
 
 
+def api_probs(event):
+    """One Odds API event -> (p_h, p_d, p_a, p_over, books): the median over bookmakers of each one's probabilities
+    with its own margin removed. Over/under uses only the 2.5 line, and only bookmakers that priced both sides.
+    Missing / ambiguous: a bookmaker without all three result prices is left out; no bookmaker with all three ->
+    None (the fixture gets no API row); no 2.5 line anywhere -> p_over None, and fit_lambdas fits the result odds alone.
+    """
+    home, away = event["home_team"], event["away_team"]
+    res, over = [], []
+    for bk in event.get("bookmakers", []):
+        for m in bk.get("markets", []):
+            if m.get("key") == "h2h":
+                pr = {o.get("name"): o.get("price") for o in m.get("outcomes", [])}
+                trio = [pr.get(home), pr.get("Draw"), pr.get(away)]
+                if all(isinstance(x, (int, float)) and x > 1 for x in trio):
+                    res.append(implied(trio))
+            elif m.get("key") == "totals":
+                pr = {o.get("name"): o.get("price") for o in m.get("outcomes", [])
+                      if abs(float(o.get("point") or 0) - 2.5) < 1e-6}
+                pair = [pr.get("Over"), pr.get("Under")]
+                if all(isinstance(x, (int, float)) and x > 1 for x in pair):
+                    over.append(implied(pair)[0])
+    if not res:
+        return None
+    med = [statistics.median(r[i] for r in res) for i in range(3)]
+    tot = sum(med)
+    return (round(med[0] / tot, 4), round(med[1] / tot, 4), round(med[2] / tot, 4),
+            round(statistics.median(over), 4) if over else None, len(res))
+
+
+def api_rows(events, boot, fixtures):
+    """Odds API events -> odds.json rows for unfinished FPL fixtures (same home/away clubs, kick-off within 36 h).
+    Returns (rows, unmatched team names, events with no fixture). Never guesses a club or a fixture."""
+    tkey = {odds_players.team_key(t["name"]): t["id"] for t in boot["teams"]}
+    by = {}
+    for f in fixtures:
+        if f.get("kickoff_time") and not f.get("finished"):
+            by.setdefault((f["team_h"], f["team_a"]), []).append(f)
+    rows, unmatched, no_fixture = [], set(), []
+    for e in events:
+        h, a = tkey.get(odds_players.team_key(e.get("home_team"))), tkey.get(odds_players.team_key(e.get("away_team")))
+        if not h or not a:
+            unmatched.update(n for n, t in ((e.get("home_team"), h), (e.get("away_team"), a)) if not t)
+            continue
+        et = dt.datetime.fromisoformat(e["commence_time"].replace("Z", "+00:00"))
+        near = [f for f in by.get((h, a), [])
+                if abs((dt.datetime.fromisoformat(f["kickoff_time"].replace("Z", "+00:00")) - et).total_seconds()) < 36 * 3600]
+        if len(near) != 1:
+            no_fixture.append(f'{e["commence_time"][:10]} {e.get("home_team")} v {e.get("away_team")}')
+            continue
+        pr = api_probs(e)
+        if not pr:
+            continue
+        f = near[0]
+        lh, la = fit_lambdas(pr[0], pr[2], pr[3])
+        rows.append({"fixture": f["id"], "gw": f["event"], "date": f["kickoff_time"][:10], "h": h, "a": a,
+                     "lam_h": lh, "lam_a": la, "p_h": pr[0], "p_d": pr[1], "p_a": pr[2], "p_over": pr[3],
+                     "played": False, "src": "odds_api", "books": pr[4]})
+    return rows, sorted(unmatched), no_fixture
+
+
+def known_credits_left():
+    """Lowest credits-left figure either Odds API script last saw this month (None if neither has one)."""
+    month = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m")
+    seen = []
+    for path in (UPCOMING, odds_players.OUT):
+        try:
+            with open(path) as f:
+                st = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if isinstance(st.get("credits_left"), (int, float)) and str(st.get("built", ""))[:7] == month:
+            seen.append(st["credits_left"])
+    return min(seen) if seen else None
+
+
+def fetch_upcoming(boot, fixtures, now=None, key=None, get=None):
+    """Save an Odds API snapshot when a pre-deadline checkpoint is due; return the latest snapshot's rows.
+
+    Missing / late / ambiguous:
+      - no ODDS_API_KEY: nothing fetched; the last saved snapshot (if any) is still used and the state says why
+      - no checkpoint due, the deadline passed, or this checkpoint already saved: no call, last snapshot used
+      - credits at or below MIN_CREDITS + the cost (from the last figure either script saw): no call, state says so
+      - HTTP error: the error is saved in odds/upcoming.json (last_error, for validate.py / Health); last snapshot used
+      - a fixture in the snapshot that has since finished or kicked off is dropped from the live rows (odds.json
+        keeps its football-data played row once that loads); the history file keeps it as fetched
+    Returns (rows, state)."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    key = os.environ.get("ODDS_API_KEY") if key is None else key
+    get = get or odds_players.get
+    state = odds_players.load_json(UPCOMING)
+    nxt = next((e for e in boot["events"] if e.get("is_next")), None)
+    if nxt:
+        gw = nxt["id"]
+        deadline = dt.datetime.fromisoformat(nxt["deadline_time"].replace("Z", "+00:00"))
+        label = odds_players.checkpoint_label(deadline, now)
+        hpath = os.path.join(HIST, f"fixture_odds_gw{gw}.json")
+        hist = odds_players.load_json(hpath)
+        left = known_credits_left()
+        skip = None
+        if not key:
+            skip = "no ODDS_API_KEY"
+        elif now >= deadline or label in hist.get("snapshots", {}):
+            skip = "checkpoint already saved or deadline passed"
+        elif not (os.environ.get("ODDS_FORCE") or odds_players.due(state, gw, deadline, now)):
+            skip = "no checkpoint due"
+        elif left is not None and left < odds_players.MIN_CREDITS + API_COST:
+            skip = f"only {left} credits left this month"
+        state["skipped"] = skip
+        if not skip:
+            try:
+                events, left, used = get(f"/sports/{odds_players.SPORT}/odds", apiKey=key, regions=API_REGION,
+                                         markets=API_MARKETS, oddsFormat="decimal")
+            except (urllib.error.URLError, OSError, ValueError) as ex:
+                state["last_error"] = {"at": now.isoformat(timespec="seconds"), "message": f"{type(ex).__name__}: {ex}"[:300]}
+                print(f"::warning::fixture odds request failed: {ex}")
+            else:
+                rows, unmatched, no_fixture = api_rows(events, boot, fixtures)
+                stamp = now.isoformat(timespec="seconds")
+                snap = {"built": stamp, "credits_used": int(float(used or 0)), "region": API_REGION,
+                        "rows": rows, "unmatched_teams": unmatched, "no_fixture": no_fixture}
+                if rows:   # an empty reply is a failed fetch, not a checkpoint: a later run may retry
+                    hist.setdefault("snapshots", {})[label] = snap
+                    hist.update(gw=gw, deadline=nxt["deadline_time"])
+                    odds_players.write_json(hpath, hist)
+                    state.setdefault("fetched", {})[str(gw)] = stamp
+                    state.update(latest=snap, gw=gw, label=label)
+                    state.pop("last_error", None)
+                else:
+                    state["last_error"] = {"at": stamp, "message": f"no fixture odds matched ({len(events)} events)"}
+                state.update(built=stamp, credits_left=left, credits_used=snap["credits_used"])
+                print(f"fixture odds GW{gw} ({label} h checkpoint): {len(rows)} fixtures, {snap['credits_used']} credits used, "
+                      f"{left} left; unmatched teams {unmatched}, no fixture {len(no_fixture)}")
+        else:
+            print(f"fixture odds: {skip}; using the last snapshot")
+    odds_players.write_json(UPCOMING, state)
+    live = {f["id"] for f in fixtures if not f.get("finished")
+            and f.get("kickoff_time") and dt.datetime.fromisoformat(f["kickoff_time"].replace("Z", "+00:00")) > now}
+    at = (state.get("latest") or {}).get("built")
+    rows = [dict(r, at=at) for r in (state.get("latest") or {}).get("rows", []) if r["fixture"] in live]
+    return rows, state
+
+
+def merge_upcoming(matches, api):
+    """Odds API rows replace football-data upcoming rows for the same fixture; played rows are never touched."""
+    have = {r["fixture"] for r in api}
+    return [m for m in matches if m.get("played") or m.get("fixture") not in have] + api
+
+
 def main():
     boot = fpl("/bootstrap-static/")
     fixtures = fpl("/fixtures/")
@@ -205,16 +371,17 @@ def main():
     past = fetch(f"{BASE}/mmz4281/{code}/E0.csv")
     upcoming = fetch(f"{BASE}/fixtures.csv")
     if not past and not upcoming:
-        # keep the previous odds, but still with one row per fixture: a file written before FL-112 can hold a played
-        # and an upcoming row for the same match, and validate.py now stops the publish on that
+        # keep the previous football-data rows (its "built" time stays, so validate.py still sees how old they are),
+        # but still refresh the Odds API upcoming rows and keep one row per fixture (FL-112)
         try:
             with open(OUT) as f:
                 previous = json.load(f)
-            ms, df, dd = one_row_per_fixture(previous.get("matches", []), fixtures)
-            if df or dd:
-                previous["matches"] = ms
-                previous.setdefault("status", {}).update(dropped_finished=df, dropped_duplicate=dd)
-                json.dump(previous, open(OUT, "w"), separators=(",", ":"))
+            api, ust = fetch_upcoming(boot, fixtures)
+            ms, df, dd = one_row_per_fixture(merge_upcoming(previous.get("matches", []), api), fixtures)
+            previous["matches"] = ms
+            previous.setdefault("status", {}).update(dropped_finished=df, dropped_duplicate=dd, upcoming_api=len(api),
+                                                     upcoming_api_built=(ust.get("latest") or {}).get("built"))
+            json.dump(previous, open(OUT, "w"), separators=(",", ":"))
         except (OSError, ValueError, AttributeError):
             pass   # no readable previous file: validate.py already warns that match odds didn't load
         print("football-data.co.uk unavailable; keeping previous odds"); sys.exit(0)
@@ -228,6 +395,10 @@ def main():
     except (OSError, ValueError):
         previous = None   # first run, or an unreadable file: nothing to carry over (carry_played reports it)
     out, status = carry_played(out, previous, code, bool(past))
+    api, ust = fetch_upcoming(boot, fixtures)
+    out = merge_upcoming(out, api)
+    status["upcoming_api"] = len(api)
+    status["upcoming_api_built"] = (ust.get("latest") or {}).get("built")
     out, status["dropped_finished"], status["dropped_duplicate"] = one_row_per_fixture(out, fixtures)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     json.dump({"built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "season": code, "matches": out,

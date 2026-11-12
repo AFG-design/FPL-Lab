@@ -25,7 +25,8 @@ def build(odds_key):
     for script, args in [("crowd.py", [team]), ("understat.py", []),
                          ("odds.py", []), ("odds_players.py", [])]:
         # These sources are optional. The build can use the last committed sample.
-        env = dict(os.environ, ODDS_API_KEY=odds_key) if script == "odds_players.py" else None
+        # odds.py (upcoming fixture odds, FL-092) and odds_players.py share the free Odds API key and its credits
+        env = dict(os.environ, ODDS_API_KEY=odds_key) if script in ("odds.py", "odds_players.py") else None
         if subprocess.call([sys.executable, script, *args], env=env):
             print(f"::warning::{script} failed during refresh", flush=True)
     subprocess.run([sys.executable, "build.py", team, "site/data.json"], check=True)
