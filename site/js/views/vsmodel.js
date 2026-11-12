@@ -1,17 +1,19 @@
 // You vs the model (F1d): each finished gameweek, your actual points against the model's target, with both teams on
 // pitches side by side. The data comes from build.py's vs_model block (fpl_score.py has the rules).
-//   Result: your actual points after hits v the model's target = the projected score for that week of the plan it
-//   recommended before the deadline (FL-108: the Balanced recommendation Home showed; xP less 4 per hit), rounded to
-//   the nearest point. Above: win.
-//   Your pitch: the XI you submitted with each player's actual points (armband included), auto-subs marked.
-//   The model's pitch: the XI of its recommended plan with each player's projected points from before the deadline
-//   and, under it, what he actually scored. Players it signed show IN; the moves and hits are listed below the pitch.
+//   Result (FL-109, actual v actual): your actual points after hits v what the model's team actually scored after its
+//   hits. Its team is the plan it recommended before the deadline (FL-108: the Balanced recommendation Home showed),
+//   scored by FPL's rules with its bench, so auto-subs and the vice apply. Above: win.
+//   Both pitches: the XI as picked with each player's actual points (armband included), auto-subs marked. The model's
+//   also shows each player's projected points from before the deadline. Players it signed show IN; the moves and hits
+//   are listed below the pitch.
 // Missing / late / ambiguous:
 //   - no vs_model in the data (no saved forecast yet, or the build step failed): an empty state, nothing made up;
 //   - a week with no saved suggestion (GW8 and GW9: saving began at GW10): target.assumed; the model's side is then its
 //     best pick from your own 15 (no transfers) and the page says so above the pitches;
-//   - the suggested plan's bench wasn't saved, so its pitch has no bench and says so;
-//   - the gameweek to come: its target is the recommended plan so far, which can change with each refresh until the
+//   - the suggested plan's bench wasn't saved (snapshots before FL-109): the build rebuilt it (bench_src "derived") or
+//     couldn't ("missing", no auto-subs), and the pitch says which; a build from before FL-109 (no target.pts) shows
+//     its projected target, labelled as such;
+//   - the gameweek to come: its team is the recommended plan so far (no score yet), which can change with each refresh until the
 //     deadline (the page says so); no saved plans yet -> "no target yet";
 //   - a player no longer in the data isn't drawn (luCard skips him).
 const VM_MODE = { safe: "Safe", chase: "Chase" };
@@ -27,38 +29,45 @@ const vmNm = i => P[i] ? esc(P[i].name) : "Unknown player";
 // exact rule from the target basis (suggested plans: ×2; the marked assumed pick from your 15: your chip).
 const vmCaptainMultiplier = (side, chip) => side.captain_multiplier ?? (chip === "3xc" ? 3 : 2);
 
-// your side: the XI as submitted, actual points; who was subbed off or on, and whose points counted
-function vmYouItems(w) {
-  const y = w.you, subs = y.subs || [], bb = w.chip === "bboost";
+// a scored side (yours, or the model's suggested team from FL-109 on): the XI as picked with actual points; who was
+// subbed off or on, and whose points counted. side: {xi, bench, cap, vice, armband, subs, captain_multiplier};
+// opt.xpOf: projected points before the deadline, shown under each model player; opt.squad: your 15 (players outside
+// it were signed by the model, marked IN)
+function vmSideItems(side, chip, ptsOf, opt = {}) {
+  const subs = side.subs || [], bb = chip === "bboost";
   const offs = new Set(subs.map(s => s[0])), ons = new Set(subs.map(s => s[1]));
-  const mult = vmCaptainMultiplier(y, w.chip);
+  const mult = vmCaptainMultiplier(side, chip);
   const item = (id, onBench) => {
     const p = P[id]; if (!p) return null;
-    const raw = w.pts[id] ?? 0, m = id === y.armband ? mult : 1, counts = bb || (onBench ? ons.has(id) : !offs.has(id));
-    const role = id === y.cap ? "cap" : id === y.vice ? (y.armband === id ? "capvice" : "vice") : "";
+    const raw = ptsOf(id) ?? 0, m = id === side.armband ? mult : 1, counts = bb || (onBench ? ons.has(id) : !offs.has(id));
+    const role = id === side.cap ? "cap" : id === side.vice ? (side.armband === id ? "capvice" : "vice") : "";
     const note = offs.has(id) ? "Subbed off (0 mins)" : ons.has(id) ? "Came on" : onBench && !counts ? "Not counted" : "";
+    const fresh = opt.squad ? !opt.squad.has(id) : false;
+    const xp = opt.xpOf ? opt.xpOf(id) : null;
     const big = String(counts ? raw * m : raw);
-    const label = `${p.name}, ${raw} actual point${raw === 1 ? "" : "s"}${m > 1 && counts ? `, ×${m} with the armband` : ""}${note ? ", " + note : ""}. Opens player details`;
-    const foot = [note && esc(note), m > 1 && counts ? `Armband ×${m} included` : ""].filter(Boolean);
-    return { id, big, sub: note || "Actual", role, label, cls: counts ? "" : "lvc-nocount",
-      c: { unit: big === "1" ? "pt" : "pts", x2: m > 1 && counts ? `C ×${m}` : "", sub: "Actual", foot } };
+    const sub = note || (xp != null ? `xP ${f1(xp)}` : "Actual");
+    const label = `${p.name}, ${raw} actual point${raw === 1 ? "" : "s"}${m > 1 && counts ? `, ×${m} with the armband` : ""}${note ? ", " + note : ""}${xp != null ? `, ${f1(xp)} projected before the deadline` : ""}${fresh ? ", signed by the model" : ""}. Opens player details`;
+    const foot = [note && esc(note), m > 1 && counts ? `Armband ×${m} included` : "", note && xp != null ? `xP ${f1(xp)}` : ""].filter(Boolean);
+    return { id, big, sub, role, label, fresh, cls: counts ? "" : "lvc-nocount",
+      c: { unit: big === "1" ? "pt" : "pts", x2: m > 1 && counts ? `C ×${m}` : "", sub, foot } };
   };
-  return { xi: y.xi.map(i => item(i, false)).filter(Boolean), bench: y.bench.map(i => item(i, true)).filter(Boolean) };
+  return { xi: side.xi.map(i => item(i, false)).filter(Boolean), bench: (side.bench || []).map(i => item(i, true)).filter(Boolean) };
 }
 
-// the model's side: projected points before the deadline (the big number) and what each player actually scored
-function vmModelItems(t, xpOf, ptsOf, squad, done, mult) {
+// the week to come: projected points (the big number), nothing played yet
+function vmModelItems(t, xpOf, squad, mult) {
   const item = (id, onBench) => {
     const p = P[id]; if (!p) return null;
     const xp = xpOf(id), cap = id === t.cap, m = cap && !onBench ? mult : 1, fresh = !squad.has(id);
-    const act = ptsOf(id);
-    const sub = done && act != null ? `Scored ${act}` : "Projected";
-    const label = `${p.name}, ${f1(xp)} projected point${xp === 1 ? "" : "s"} before the deadline${m > 1 ? `, ×${m} as captain` : ""}${done && act != null ? `, scored ${act}` : ""}${fresh ? ", signed by the model" : ""}${cap ? ", captain" : id === t.vice ? ", vice-captain" : ""}. Opens player details`;
-    return { id, big: f1(xp * m), sub, role: cap ? "cap" : id === t.vice ? "vice" : "", fresh, label,
-      c: { unit: "xP", x2: m > 1 ? `C ×${m}` : "", sub, foot: [] } };
+    const label = `${p.name}, ${f1(xp)} projected point${xp === 1 ? "" : "s"}${m > 1 ? `, ×${m} as captain` : ""}${fresh ? ", signed by the model" : ""}${cap ? ", captain" : id === t.vice ? ", vice-captain" : ""}. Opens player details`;
+    return { id, big: f1(xp * m), sub: "Projected", role: cap ? "cap" : id === t.vice ? "vice" : "", fresh, label,
+      c: { unit: "xP", x2: m > 1 ? `C ×${m}` : "", sub: "Projected", foot: [] } };
   };
   return { xi: t.xi.map(i => item(i, false)).filter(Boolean), bench: (t.bench || []).map(i => item(i, true)).filter(Boolean) };
 }
+
+const VM_BENCH = { derived: "Bench rebuilt in the optimiser's order (it wasn't saved with this plan).",
+  missing: "Its bench couldn't be rebuilt, so no auto-subs were made for it." };
 
 // gw: given only for the week to come, where each suggestion gets a "Why not?" (D5b)
 const vmMoves = (t, gw) => t.out?.length
@@ -71,24 +80,26 @@ function vmScore(you, youSub, par, parSub, res) {
   return `<div class="vm-score" role="group" aria-label="Score">
     <div class="vm-side"><span class="lbl">You</span><b>${you ?? "–"}</b><span class="note">${youSub}</span></div>
     <span class="pill ${tone} vm-res">${word}</span>
-    <div class="vm-side"><span class="lbl">Model's target</span><b>${par ?? "–"}</b><span class="note">${parSub}</span></div></div>`;
+    <div class="vm-side"><span class="lbl">Model's team</span><b>${par ?? "–"}</b><span class="note">${parSub}</span></div></div>`;
 }
 
 function vmWeek(w) {
   const t = w.target, squad = new Set(Object.keys(w.xp).map(Number));
-  const youP = vmYouItems(w);
+  const youP = vmSideItems(w.you, w.chip, i => w.pts[i]);
   const sug = t.basis === "suggested";
-  const mt = sug ? { xi: t.xi, bench: [], cap: t.captain, vice: null, out: t.out, in: t.in, hits: t.hits }
-    : { xi: w.model.xi, bench: w.model.bench, cap: w.model.cap, vice: w.model.vice, out: [], in: [], hits: 0 };
-  const xpOf = sug ? i => t.xi_xp?.[i] ?? 0 : i => w.xp[i] ?? 0;
-  const ptsOf = sug ? i => t.xi_pts?.[i] : i => w.pts[i];
-  const mult = vmCaptainMultiplier(t, sug ? null : w.chip);
-  const modP = vmModelItems(mt, xpOf, ptsOf, squad, true, mult);
-  const modelActual = sug ? t.actual : w.model.pts;
+  // FL-109: the model's team scored on what happened, bench and auto-subs included. Builds from before FL-109 have no
+  // t.pts: the result was then against its projection, and the page says so rather than redrawing it.
+  const old = t.pts == null;
+  const mt = sug ? { xi: t.xi, bench: t.bench || [], cap: t.captain, vice: t.vice, armband: t.armband ?? t.captain, subs: t.subs || [], captain_multiplier: t.captain_multiplier }
+    : w.model;
+  const modP = vmSideItems(mt, sug ? null : w.chip, sug ? i => t.xi_pts?.[i] : i => w.pts[i],
+    { xpOf: sug ? i => t.xi_xp?.[i] ?? 0 : i => w.xp[i] ?? 0, squad: sug ? squad : null });
   const hitsTxt = w.hits ? `after −${w.hits} in hits` : "no hits";
+  const mHits = sug && t.hits ? `after −${t.hits * 4} in hits` : "no hits";
+  const subsTxt = mt.subs?.length ? `Auto-subs: ${mt.subs.map(([o, i]) => `${vmNm(o)} → ${vmNm(i)}`).join(", ")}` : "No auto-subs";
   return `<div class="panel vm-head"><h2>GW${w.gw}: you v the model</h2>
-      ${vmScore(w.you_net, `Actual points, ${hitsTxt}`, t.par, `Its recommended plan’s projected score before the deadline: ${f1(t.exp)}, rounded`, w.res)}
-      ${t.assumed ? `<p class="vm-assumed"><b>Assumed target.</b> No suggestion was saved before the GW${w.gw} deadline (saving began at GW10), so the target is what the model projected for its best pick from your own 15, with no transfers.</p>` : ""}
+      ${vmScore(w.you_net, `Actual points, ${hitsTxt}`, t.par, old ? `Its projected score before the deadline: ${f1(t.exp)}, rounded` : `What its team actually scored, ${mHits}. Projected before the deadline: ${f1(t.exp)}`, w.res)}
+      ${t.assumed ? `<p class="vm-assumed"><b>Assumed target.</b> No suggestion was saved before the GW${w.gw} deadline (saving began at GW10), so the model's team is its best pick from your own 15, with no transfers.</p>` : ""}
       ${w.you.pts !== w.fpl_pts ? `<p class="vm-assumed"><b>Check:</b> our rules give your team ${w.you.pts}, FPL gave ${w.fpl_pts}.</p>` : ""}
     </div>
     <div class="grid2 vm-cols">
@@ -96,22 +107,22 @@ function vmWeek(w) {
         ${luPitch(youP.xi, youP.bench, { label: `Your GW${w.gw} XI as submitted`, note: w.you.subs?.length ? `Auto-subs: ${w.you.subs.map(([o, i]) => `${vmNm(o)} → ${vmNm(i)}`).join(", ")}` : "No auto-subs" })}
         <p class="note">${w.you.formation} · ${w.you.pts} points before hits${w.chip ? ` · chip: ${esc(w.chip)}` : ""}</p></div>
       <div class="panel"><div class="bar"><h3>The model</h3><span class="tag">${sug ? esc(vmPlan(t.plan)) : "Best pick from your 15"}</span></div>
-        ${luPitch(modP.xi, modP.bench, { label: `The model's GW${w.gw} XI`, note: sug ? "Its bench wasn't saved with the plan." : "" })}
-        ${sug ? vmMoves(mt) : ""}
-        <p class="note">Big number: projected points before the deadline (captain ×${mult} included). "Scored": what he actually got. Its XI actually scored <b>${modelActual}</b>${sug ? " (no auto-subs, after hits)" : ""}, shown for interest: the result uses its projection.</p></div>
+        ${luPitch(modP.xi, modP.bench, { label: `The model's GW${w.gw} XI`, note: [subsTxt, sug && VM_BENCH[t.bench_src]].filter(Boolean).join(" · ") })}
+        ${sug ? vmMoves(t) : ""}
+        <p class="note">Big number: actual points, armband included. Under it: projected points before the deadline (xP). ${old ? "" : `Its team scored <b>${t.pts}</b> before hits${sug ? ", with no chip" : ""}.`}</p></div>
     </div>`;
 }
 
 function vmNext(n) {
   const t = n.target;
-  if (!t) return `<div class="panel"><h2>GW${n.gw}: the score to beat</h2><p>No target yet: it appears once the model's plans for GW${n.gw} are saved on the next refresh.</p></div>`;
+  if (!t) return `<div class="panel"><h2>GW${n.gw}: the team to beat</h2><p>No model team yet: it appears once the model's plans for GW${n.gw} are saved on the next refresh.</p></div>`;
   const mult = vmCaptainMultiplier(t, null);
-  const items = vmModelItems({ xi: t.xi, bench: [], cap: t.captain }, i => xpg(i, n.gw), () => null, new Set(D.squad.map(s => s.id)), false, mult);
-  return `<div class="panel vm-head"><h2>GW${n.gw}: the score to beat</h2>
-      ${vmScore(null, "Your actual points, after hits, once GW" + n.gw + " finishes", t.par, `Its recommended plan’s projected score so far: ${f1(t.exp)}, rounded`, null)}
-      <p class="note">The target is fixed at the deadline${n.deadline ? ` (${esc(ukTime(n.deadline))})` : ""}. Until then it follows the model's latest plans and can change with each refresh.</p></div>
+  const items = vmModelItems({ xi: t.xi, bench: t.bench || [], cap: t.captain, vice: t.vice }, i => xpg(i, n.gw), new Set(D.squad.map(s => s.id)), mult);
+  return `<div class="panel vm-head"><h2>GW${n.gw}: the team to beat</h2>
+      ${vmScore(null, "Your actual points, after hits, once GW" + n.gw + " finishes", null, `What this team actually scores, after hits. Projected now: ${f1(t.exp)}`, null)}
+      <p class="note">The model's team is fixed at the deadline${n.deadline ? ` (${esc(ukTime(n.deadline))})` : ""}. Until then it follows the model's latest plans and can change with each refresh.</p></div>
     <div class="panel" style="max-width:720px"><div class="bar"><h3>What the model suggests</h3><span class="tag">${esc(vmPlan(t.plan))}</span></div>
-      ${luPitch(items.xi, [], { label: `The model's GW${n.gw} XI`, note: "Its bench isn't saved with the plan." })}
+      ${luPitch(items.xi, items.bench, { label: `The model's GW${n.gw} XI`, note: t.bench?.length ? "" : "Its bench isn't saved with the plan." })}
       ${vmMoves(t, n.gw)}
       <p class="note">Not making one of these? Tap Why not? to note your reason; it goes in the decision journal.</p>
       <p class="note">Big number: projected points for GW${n.gw} (captain ×${mult} included).</p></div>`;
@@ -239,7 +250,7 @@ function vmStreak(V) {
     const extra = [t.saved ? "a Streak Wildcard saved the run" : "", t.earned ? `${t.earned} reached: Streak Wildcard earned` : "", t.ended ? "run ended" : "", w.target?.assumed ? "assumed target" : ""].filter(Boolean);
     return `<button type="button" class="vm-dot r${w.res}${w.target?.assumed ? " asm" : ""}${t.saved ? " saved" : ""}" data-vmgw="${w.gw}" aria-label="GW${w.gw}: ${word}, ${w.you_net} v ${w.target.par}${extra.length ? ", " + extra.join(", ") : ""}">
       <span class="vm-l" aria-hidden="true">${VM_LET[w.res]}</span><span class="vm-g">GW${w.gw}</span>${t.earned ? '<span class="vm-star" aria-hidden="true">★</span>' : ""}</button>`;
-  }).join("") + (n?.gw ? `<button type="button" class="vm-dot rN" data-vmgw="n${n.gw}" aria-label="GW${n.gw}: to play${n.target ? `, target ${n.target.par}` : ""}"><span class="vm-l" aria-hidden="true">?</span><span class="vm-g">GW${n.gw}</span></button>` : "");
+  }).join("") + (n?.gw ? `<button type="button" class="vm-dot rN" data-vmgw="n${n.gw}" aria-label="GW${n.gw}: to play${n.target ? `, the model's team projected ${f1(n.target.exp)}` : ""}"><span class="vm-l" aria-hidden="true">?</span><span class="vm-g">GW${n.gw}</span></button>` : "");
   const rec = V.record || { W: 0, D: 0, L: 0 };
   const nextM = (V.milestones || []).find(m => !m.locked && m.n > run);
   const ms = (V.milestones || []).map(m => {
@@ -270,7 +281,7 @@ function vVsModel() {
   if (!opts.some(([k]) => k === S.vmgw)) S.vmgw = String(weeks[0].gw);
   const w = weeks.find(x => String(x.gw) === S.vmgw);
   return `${vmStreak(V)}<div class="panel vm-intro"><h2>You vs the model</h2>
-      <p>Each gameweek your actual points, after hits, against the model's target: the projected score for that week of the plan it recommended before the deadline (Balanced), rounded. Beat it to win the week.</p>${skipTxt ? `<ul class="alerts"><li class="warn"><span>${skipTxt}</span></li></ul>` : ""}
+      <p>Each gameweek your actual points, after hits, against what the model's team actually scored: the plan it recommended before the deadline (Balanced), after its hits, with its bench and FPL's auto-subs. Beat it to win the week.</p>${skipTxt ? `<ul class="alerts"><li class="warn"><span>${skipTxt}</span></li></ul>` : ""}
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
     ${w ? vmWeek(w) : vmNext(n)}

@@ -7,7 +7,10 @@ deadline passed, so they're kept here, rewritten each build until the deadline (
     FPL's flag, rotation and the return ramp. Start and sub chances are per match, so a double can't show over 100%
   - dist: next GW's simulated outcomes [chance of 10+, chance of 6+, chance of 2 or fewer]
   - odds: the market's expected goals for each plan-gameweek fixture as they stood (odds/odds.json only keeps the latest)
-  - plans: each strategy plan's moves, captains, hits and totals, and the squad, bank and free transfers it started from
+  - plans: each strategy plan's moves, captains, hits and totals, and the squad, bank and free transfers it started from.
+    Each week also keeps the optimiser's bench (in substitution order) and vice-captain (FL-109), so You vs the model
+    can score the suggested team with FPL's auto-subs. Snapshots from before FL-109 have no bench: see
+    fpl_score.suggested_team, which rebuilds it in the optimiser's order and marks it "derived"
   - recommended: {strategy: plan key} the build recommended (optimise.recommended, FL-108), so the journal and You vs
     the model judge the plan Home showed. Snapshots saved before FL-108 have no such field and are never rewritten;
     fpl_score.recommended_suggestion applies the same rule to their saved plans instead
@@ -51,7 +54,8 @@ def build(gw, plan_gws, players, squad_ids, bank, ft, plans, market, fixtures, b
     for k, r in (plans or {}).items():
         pl[k] = {"xp_total": r.get("xp_total"), "ft_left": r.get("ft_left"), "vs_roll": r.get("vs_roll"),
                  "weeks": [{"gw": w["gw"], "out": w["out"], "in": w["in"], "hits": w["hits"], "captain": w["captain"],
-                            "xi": w["xi"], "xp": w["xp"]} for w in r.get("weeks", [])]}
+                            "xi": w["xi"], "bench": w.get("bench"), "vice": w.get("vice"), "xp": w["xp"]}
+                           for w in r.get("weeks", [])]}
     missing = {}
     if market is None:
         missing["odds"] = "no odds file this build"

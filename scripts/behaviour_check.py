@@ -809,7 +809,9 @@ def check_vs_model(page):
       if (V.next && V.next.target) {
         S.vmgw = "n" + V.next.gw; render();
         const par = document.querySelectorAll(".vm-score .vm-side b")[1]?.textContent.trim();
-        if (par !== String(V.next.target.par)) out.push(`next GW: target shows ${par}, data ${V.next.target.par}`);
+        // FL-109: the week to come has no score to beat until it is played (par null, shown as a dash)
+        const wantPar = V.next.target.par == null ? "–" : String(V.next.target.par);
+        if (par !== wantPar) out.push(`next GW: target shows ${par}, data ${V.next.target.par}`);
       }
       S.vmgw = null; setView("planner");
       return out;

@@ -185,21 +185,20 @@ class Supercomputer(unittest.TestCase):
             self.assertEqual(got, want[g], f"GW{g}")
 
 
-from fpl_score import streak, result, expected, target
+from fpl_score import streak, result, expected
 
 
 class Streak(unittest.TestCase):
     def test_result(self):
         self.assertEqual([result(5, 3), result(3, 3), result(2, 3)], ["W", "D", "L"])
 
-    def test_expected_and_target(self):
+    def test_expected(self):
         xp = {i: 1.0 for i in POS}; xp[10] = 6.0
         self.assertAlmostEqual(expected(team(), xp), 10 * 1 + 6 * 2)
         self.assertAlmostEqual(expected(team(), xp, "3xc"), 10 * 1 + 6 * 3)
         self.assertAlmostEqual(expected(team(), xp, "bboost"), 14 * 1 + 6 * 2)
         del xp[3]
         self.assertAlmostEqual(expected(team(), xp), 9 * 1 + 6 * 2)      # missing from the forecast counts as 0
-        self.assertEqual([target(48.8), target(48.5), target(48.49), target(-1.5)], [49, 49, 48, -2])
 
     def test_plan_suggestion_nets_hits(self):
         from fpl_score import plan_suggestion
@@ -227,21 +226,23 @@ class Streak(unittest.TestCase):
         from fpl_score import recommended_suggestion
         with open(os.path.join(HERE, "..", "history", "deadline_gw10.json")) as f:
             b = recommended_suggestion(json.load(f), 10)
-        self.assertEqual((b["exp"], target(b["exp"]), b["hits"]), (50.48, 50, 0))
+        self.assertEqual((b["exp"], b["hits"]), (50.48, 0))
         self.assertEqual((b["out"], b["in"]), ([40, 115], [4, 183]))
 
     def test_real_gw8_and_gw9_against_expected(self):
-        """Your actual points against what the model expected its pick from your 15 to score: two wins."""
+        """FL-109, actual v actual: your actual points against what the model's pick from your 15 actually scored.
+        Both weeks it picked the XI and captain you did, so both are draws (before FL-109, against its expected
+        points 49 and 47, they were wins)."""
         with open(os.path.join(HERE, "fpl_score_real.json")) as f:
             data = json.load(f)
-        want = {"8": (52, 49, "W"), "9": (70, 47, "W")}
+        want = {"8": (52, 52, "D"), "9": (70, 70, "D")}
         for g, d in data.items():
             pos = {int(k): v for k, v in d["pos"].items()}
             pl = {int(k): tuple(v) for k, v in d["played"].items()}
             xp = {int(k): v for k, v in d["xp_saved"].items()}
             you = as_submitted(d["picks"], pos)
             m = supercomputer_pick(you["xi"] + you["bench"], pos, xp)
-            a, par = score_team(you, pl)["total"], target(expected(m, xp))
+            a, par = score_team(you, pl)["total"], score_team(m, pl)["total"]
             self.assertEqual((a, par, result(a, par)), want[g], f"GW{g}")
 
     def test_wins_build_the_run_draw_ends_it(self):
