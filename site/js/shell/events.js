@@ -145,4 +145,7 @@ function bind() {
   bindTpEdit();   // "Editing saved path" bar in Your plan
   bindPlannerViews();   // Planner view tabs (views/planner-views.js)
   bindStatsMore();   // Goals & assists, Defence and Points leaders controls (views/stats-more.js)
+  // FL-122: strips that scroll sideways show it with a faded edge (components/ui.js), on Fixtures and Stats only
+  if (S.view === "fixtures" || S.view === "stats") scrollStrips("#app .seg");
+  if (S.view === "fixtures") bindFixtures();
 }
