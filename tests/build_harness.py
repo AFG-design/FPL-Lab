@@ -36,8 +36,9 @@ def season_end(api):
     return api, cur
 
 
-def offline_build(test_case, prepare=None):
-    """Build and validate on the season-end replay. prepare(repo) may change the repo copy first. Returns
+def offline_build(test_case, prepare=None, api_change=None):
+    """Build and validate on the season-end replay. prepare(repo) may change the repo copy first, and api_change(api)
+    the recorded responses (delete a path to make that request fail). Returns
     (repo, data.json as a dict, validate's exit code, current gameweek). The copy is removed at class cleanup."""
     tmp = tempfile.TemporaryDirectory()
     test_case.addClassCleanup(tmp.cleanup)
@@ -49,6 +50,8 @@ def offline_build(test_case, prepare=None):
         prepare(repo)
     with gzip.open(FIXTURE, "rt") as f:
         api, cur = season_end(json.load(f))
+    if api_change:
+        api_change(api)
 
     def urlopen(req, *a, **k):
         url = req.full_url if hasattr(req, "full_url") else req

@@ -791,9 +791,15 @@ if crowd:
     lv = {x["id"]: x["stats"]["total_points"] for x in live[G]["elements"]} if G in live else {}
     g_ev = next(e for e in events if e["id"] == G)
     in_play = not g_ev["finished"]
+    # FL-078: rivals' live points on the same basis as yours (live.js liveState) and FPL's own standings: points
+    # BEFORE hits (FPL's event_total, which the table shows once matches end, is before hits: checked against picks
+    # for rivals with a hit), with provisional bonus while it's unconfirmed (live_gw["pts_all"], the same top-3-BPS
+    # rule as your rows). The hit stays on the row ("hits") for the tooltip. Missing / late: when the sample is for
+    # another gameweek than your live one, there is no provisional bonus for it, so confirmed points only.
+    pts_live = {int(k): v for k, v in live_gw["pts_all"].items()} if live_gw and live_gw["gw"] == G else lv
 
-    def team_live(p, hits=0):
-        return sum(lv.get(el, 0) * m for el, m in p) - hits
+    def team_live(p):
+        return sum(pts_live.get(el, 0) * m for el, m in p)
 
     leagues_out = []
     for lg in crowd["leagues"]:
@@ -819,7 +825,7 @@ if crowd:
                          "rank": f.get("rank"), "last_rank": f.get("last_rank"), "total": f.get("total"),
                          "gw_pts": f.get("event_total"), "picks": pk["p"] if pk else None,
                          "chip": pk["chip"] if pk else None, "hits": pk["hits"] if pk else 0,
-                         "live": team_live(pk["p"], pk["hits"]) if pk and lv else None})
+                         "live": team_live(pk["p"]) if pk and lv else None})
         rows.sort(key=lambda r: (r["rank"] or 1e9))
         leagues_out.append({"id": lg["id"], "name": lg["name"], "size": lg["size"],
                             "my_rank": (me_rank or {}).get("rank", lg["my_rank"]), "rows": rows})

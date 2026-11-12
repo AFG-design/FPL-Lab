@@ -28,7 +28,8 @@ test('pending first bench player reserves the sub; later points and rank gain do
   assert.equal(s.contribution(s.rows[12]), 0);
   assert.equal(s.contribution(s.rows[13]), 0);
   assert.equal(s.rank.r, 6310);
-  assert.match(f.run('vReview()'), /18 live pts after hits/);
+  // FL-078: shown before the hit, as FPL does; the after-hit total (18) is in the tooltip
+  assert.match(f.run('vReview()'), /title="Before the −4 hit: 18 after it">22 live pts \(−4 hit\)/);
   assert.match(f.run('vReview()'), /<b>0<\/b> \(if he plays\)/);
 });
 
@@ -73,6 +74,6 @@ test('Rivals uses shared own live total and labels opponents without auto-subs',
   const f = setup();
   f.D.crowd = { gw: 11, in_play: true, top10k: { eo: {}, own: {}, cap: {}, n: 1 }, leagues: [{ id: 1, size: 1, rows: [{ me: true, player: 'Me', team: 'Team', live: 999 }] }] };
   const html = f.run('vRivals()');
-  assert.match(html, /lg-best">18<\/td>/); assert.doesNotMatch(html, />999</);
+  assert.match(html, /lg-best" title="Before the −4 hit: 18 after it">22 <small class="muted">−4<\/small><\/td>/);   // FL-078: before hits assert.doesNotMatch(html, />999</);
   assert.match(html, /Your live points include confirmed auto-subs/);
 });
