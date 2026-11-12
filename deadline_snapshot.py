@@ -8,6 +8,9 @@ deadline passed, so they're kept here, rewritten each build until the deadline (
   - dist: next GW's simulated outcomes [chance of 10+, chance of 6+, chance of 2 or fewer]
   - odds: the market's expected goals for each plan-gameweek fixture as they stood (odds/odds.json only keeps the latest)
   - plans: each strategy plan's moves, captains, hits and totals, and the squad, bank and free transfers it started from
+  - recommended: {strategy: plan key} the build recommended (optimise.recommended, FL-108), so the journal and You vs
+    the model judge the plan Home showed. Snapshots saved before FL-108 have no such field and are never rewritten;
+    fpl_score.recommended_suggestion applies the same rule to their saved plans instead
 
 Missing / late / ambiguous input (nothing is made up; each gap is recorded in "missing"):
   - no odds file, or no odds yet for a plan-gameweek fixture (football-data lists the next round late in the week):
@@ -23,7 +26,7 @@ import json
 import os
 
 
-def build(gw, plan_gws, players, squad_ids, bank, ft, plans, market, fixtures, built=None):
+def build(gw, plan_gws, players, squad_ids, bank, ft, plans, market, fixtures, built=None, recommended=None):
     """The snapshot as a dict. players: build.py's player rows; fixtures: FPL fixtures; market: odds/odds.json or None."""
     sq = set(squad_ids)
     keep = {i: p for i, p in players.items() if i in sq or any(p["xp"].get(g, 0) > 0 for g in plan_gws)}
@@ -59,7 +62,8 @@ def build(gw, plan_gws, players, squad_ids, bank, ft, plans, market, fixtures, b
     return {"gw": gw, "built": built or dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "plan_gws": list(plan_gws), "odds_built": (market or {}).get("built"),
             "squad": list(squad_ids), "bank": bank, "ft": ft,
-            "xp": xp, "mins": mins, "dist": dist, "odds": odds, "plans": pl, "missing": missing}
+            "xp": xp, "mins": mins, "dist": dist, "odds": odds, "plans": pl, "recommended": recommended,
+            "missing": missing}
 
 
 def write(hist_dir, snap):

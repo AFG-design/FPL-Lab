@@ -201,16 +201,16 @@ class Streak(unittest.TestCase):
         self.assertAlmostEqual(expected(team(), xp), 9 * 1 + 6 * 2)      # missing from the forecast counts as 0
         self.assertEqual([target(48.8), target(48.5), target(48.49), target(-1.5)], [49, 49, 48, -2])
 
-    def test_best_suggestion_is_highest_after_hits(self):
-        from fpl_score import best_suggestion
+    def test_plan_suggestion_nets_hits(self):
+        from fpl_score import plan_suggestion
         wk = lambda xp, hits=0: {"weeks": [{"gw": 10, "out": [], "in": [], "hits": hits, "captain": 1, "xi": [1], "xp": xp},
                                            {"gw": 11, "xp": 99, "hits": 0}]}
-        plans = {"roll": wk(47.3), "two": wk(49.5), "chase_hit": wk(52.0, hits=1), "tie": wk(49.5)}
-        b = best_suggestion(plans, 10)
-        self.assertEqual((b["plan"], b["exp"]), ("two", 49.5))      # 52 - 4 = 48 after the hit; ties keep the first
-        self.assertIsNone(best_suggestion({}, 10))
-        self.assertIsNone(best_suggestion(plans, 12))                 # no plan has a week for GW12
-        self.assertIsNone(best_suggestion(None, 10))
+        plans = {"roll": wk(47.3), "chase_hit": wk(52.0, hits=1)}
+        b = plan_suggestion(plans, "chase_hit", 10)
+        self.assertEqual((b["plan"], b["exp"], b["xp"], b["hits"]), ("chase_hit", 48.0, 52.0, 1))
+        self.assertIsNone(plan_suggestion(plans, "roll", 12))        # no week for GW12
+        self.assertIsNone(plan_suggestion(plans, "two", 10))         # no such plan
+        self.assertIsNone(plan_suggestion(None, "roll", 10))
 
     def test_pair_moves_like_for_like(self):
         from fpl_score import pair_moves
@@ -222,10 +222,11 @@ class Streak(unittest.TestCase):
             pair_moves([1, 2], [3], pos)
 
     def test_real_gw10_suggestions(self):
-        """The plans saved before the GW10 deadline: the best is two transfers (Rogers and De Cuyper out, Gabriel and Rudoni in), 50.48 -> 50."""
-        from fpl_score import best_suggestion
+        """The plans saved before the GW10 deadline: the recommended one is two transfers (Rogers and De Cuyper out,
+        Gabriel and Rudoni in), 50.48 -> 50."""
+        from fpl_score import recommended_suggestion
         with open(os.path.join(HERE, "..", "history", "deadline_gw10.json")) as f:
-            b = best_suggestion(json.load(f)["plans"], 10)
+            b = recommended_suggestion(json.load(f), 10)
         self.assertEqual((b["exp"], target(b["exp"]), b["hits"]), (50.48, 50, 0))
         self.assertEqual((b["out"], b["in"]), ([40, 115], [4, 183]))
 

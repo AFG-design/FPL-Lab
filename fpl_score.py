@@ -150,29 +150,43 @@ def expected(team, xp, chip=None):
 HIT = 4
 
 
-def best_suggestion(plans, gw):
-    """The model's highest projected score for gameweek gw from what it suggested before the deadline.
+def plan_suggestion(plans, key, gw):
+    """Plan `key`'s week for gameweek gw as a suggestion: {"plan": key, "exp": net xP (xP less 4 per hit), "xp": gross
+    xP, "hits", "out", "in", "captain", "xi", "captain_multiplier": 2}. The saved plans don't use your chip (FL-035:
+    ordinary captaincy). Missing plan, or no week for gw -> None.
 
-    plans: history/deadline_gw{N}.json "plans" ({key: {"weeks": [{"gw", "out", "in", "hits", "captain", "xi", "xp"}]}}),
-    every strategy the Planner offered (best / safe / chase, roll / one / two transfers). Each plan's week for gw is
-    worth its xP less 4 per hit; the best of them is the target, so the model is judged on its best-case suggestion.
-    Equal totals: the first plan in the saved order wins, so the result never changes between builds.
-    Missing: no plans, or no plan with a week for gw -> None (the caller falls back and marks it assumed).
-    Returns {"plan": key, "exp": net xP, "xp": gross xP, "hits", "out", "in", "captain", "xi",
-    "captain_multiplier": 2} or None. The saved plans do not use your chip.
-    """
-    best = None
-    for key, p in (plans or {}).items():
-        wk = next((w for w in p.get("weeks", []) if w.get("gw") == gw), None)
-        if wk is None:
-            continue
-        net = wk["xp"] - HIT * wk.get("hits", 0)
-        if best is None or net > best["exp"]:
-            best = {"plan": key, "exp": net, "xp": wk["xp"], "hits": wk.get("hits", 0), "out": wk.get("out", []),
-                    "in": wk.get("in", []), "captain": wk.get("captain"), "xi": wk.get("xi", []),
-                    # FL-035: saved optimiser scores use ordinary captaincy, independent of your chip.
-                    "captain_multiplier": captain_multiplier()}
-    return best
+    FL-108 replaced best_suggestion (the highest single-week xP across every saved plan, which favoured the plan with
+    the most transfers) with the one recommended plan: see recommended_suggestion."""
+    wk = next((w for w in ((plans or {}).get(key) or {}).get("weeks", []) if w.get("gw") == gw), None)
+    if wk is None:
+        return None
+    return {"plan": key, "exp": wk["xp"] - HIT * wk.get("hits", 0), "xp": wk["xp"], "hits": wk.get("hits", 0),
+            "out": wk.get("out", []), "in": wk.get("in", []), "captain": wk.get("captain"), "xi": wk.get("xi", []),
+            "captain_multiplier": captain_multiplier()}
+
+
+def recommended_suggestion(snap, gw, mode="balanced"):
+    """The recommended plan's week for gw from a deadline snapshot (history/deadline_gwN.json), FL-108: the same plan
+    Home and the Planner open on (optimise.recommended), for the journal and You vs the model.
+
+    The snapshot's own "recommended" (saved from FL-108 on) is used when present. Older snapshots (GW10, GW11 before
+    FL-108) are never rewritten; for them the same rule is applied to the plans they saved (each has vs_roll), and the
+    result says so with "derived": True. Balanced is used: the strategy a deadline was saved under isn't known (it is
+    a per-device setting), and Balanced is the default.
+    Missing: no snapshot, no plans, no recommendation for the strategy, or its plan has no week for gw -> None (the
+    callers then fall back and mark the target assumed / leave the journal's model side empty, as before)."""
+    if not snap or not snap.get("plans"):
+        return None
+    rec = snap.get("recommended")
+    derived = not isinstance(rec, dict)
+    if derived:
+        import optimise   # the rule lives with the planner; imported here so fpl_score stays light for the browser tests
+        rec = optimise.recommended(snap["plans"])
+    key = rec.get(mode)
+    s = plan_suggestion(snap["plans"], key, gw) if key else None
+    if s:
+        s["derived"] = derived
+    return s
 
 
 def pair_moves(outs, ins, pos):

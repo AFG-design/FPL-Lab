@@ -451,6 +451,10 @@ if squad_ids and proj_gws:
         rk = "roll" if "_" not in k else k.split("_")[0] + "_roll"
         if rk in plans:
             pl["vs_roll"] = round(pl["xp_total"] + optimise.FT_VALUE * (pl["ft_left"] - plans[rk]["ft_left"]) - plans[rk]["xp_total"], 2)
+# the recommended plan per strategy (FL-108): worked out once here, from vs_roll above, and used by every screen
+# (data.json "recommended") and saved in the deadline snapshot for the journal and You vs the model. No plans -> every
+# strategy None (validate.py checks each named plan exists and that the rule gives the same answer).
+recommended = optimise.recommended(plans)
 
 # lineup for the current squad (no transfers)
 lineup = {}
@@ -505,7 +509,7 @@ if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next
     # the rest of what we knew before the deadline: plan-horizon xP, minutes, outcome chances, odds and the strategy
     # plans (deadline_snapshot.py says what each part holds and what it does when an input is missing)
     deadline_snapshot.write(HIST, deadline_snapshot.build(next_gw, proj_gws[:PLAN_GWS], players, squad_ids, bank, ft,
-                                                          plans, market, fixtures))
+                                                          plans, market, fixtures, recommended=recommended))
 
 
 def corr_mae(pairs):
@@ -1148,10 +1152,10 @@ for x in [t["element_in"] for t in transfers] + [t["element_out"] for t in trans
     pass  # players referenced in the review are kept below
 
 # ---------------------------------------------------------------- you vs the model on your own 15 (F1)
-# Each finished gameweek, YOUR ACTUAL points (after hits) against the model's HIGHEST PROJECTED score for that week from
-# what it suggested before the deadline (agreed 4 Nov): every strategy plan saved in history/deadline_gwN.json (best,
-# safe, chase; roll, one or two transfers), each worth its week's xP less 4 per hit, and the best of them is the target
-# (fpl_score.best_suggestion), rounded to the nearest point (fpl_score.target). Beat it: win; equal: draw; below: defeat.
+# Each finished gameweek, YOUR ACTUAL points (after hits) against the PROJECTED score of the plan the model recommended
+# before the deadline (FL-108: the Balanced recommendation, the plan Home and the Planner opened on, from
+# history/deadline_gwN.json via fpl_score.recommended_suggestion), its week's xP less 4 per hit, rounded to the nearest
+# point (fpl_score.target). Beat it: win; equal: draw; below: defeat.
 # Then the record and winning run (fpl_score.streak).
 # Missing / late / ambiguous:
 #   - no saved suggestion for the week (history/deadline_gwN.json starts at GW10): the target is assumed instead, from
@@ -1187,7 +1191,7 @@ try:
         hits_g = pk["entry_history"].get("event_transfers_cost", 0) or 0
         dl_f = os.path.join(HERE, "history", f"deadline_gw{g}.json")
         dl_ = json.load(open(dl_f)) if os.path.exists(dl_f) else {}
-        sug = fpl_score.best_suggestion(dl_.get("plans"), g)
+        sug = fpl_score.recommended_suggestion(dl_, g)
         if sug:   # out[k] -> in[k] like for like (the optimiser doesn't pair them)
             sug["out"], sug["in"] = fpl_score.pair_moves(sug["out"], sug["in"], pos_all)
             sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + (sug["captain_multiplier"] - 1) * played_g.get(sug["captain"], (0, 0))[1]
@@ -1213,7 +1217,7 @@ try:
     nf_ = os.path.join(HERE, "history", f"deadline_gw{next_gw}.json") if next_gw else None
     if nf_ and os.path.exists(nf_):
         nd_ = json.load(open(nf_))
-        ns_ = fpl_score.best_suggestion(nd_.get("plans"), next_gw)
+        ns_ = fpl_score.recommended_suggestion(nd_, next_gw)
         if ns_:
             ns_["out"], ns_["in"] = fpl_score.pair_moves(ns_["out"], ns_["in"], pos_all)
             vm_next["target"] = {"exp": round(ns_["exp"], 1), "par": fpl_score.target(ns_["exp"]), "plan": ns_["plan"],
@@ -1229,7 +1233,8 @@ except Exception as ex:   # never let this stop the build; the tab says it's una
 
 # ---------------------------------------------------------------- decision journal (D5a)
 # Each gameweek whose deadline has passed and that has a deadline snapshot (history/deadline_gwN.json, GW10 on): your
-# transfers and captain next to the model's suggestion for that week (the same plan the You vs the model target uses),
+# transfers and captain next to the model's recommended plan for that week (FL-108: the same plan as Home, the Planner
+# and the You vs the model target),
 # with what the app knew about every player involved before the deadline (decision_journal.py has the rules).
 # Missing / late / ambiguous: no snapshot -> no entry, the week is listed in "no_snapshot" (GW8 and GW9: saving began at
 # GW10); picks for the week not fetched -> skipped and listed in "skipped"; the gameweek in progress counts once its
@@ -1254,7 +1259,7 @@ try:
         dl_ = json.load(open(dl_f))
         pj_f = os.path.join(HIST, f"proj_gw{g}.json")
         mine = [[t["element_out"], t["element_in"]] for t in sorted(transfers, key=lambda t: t["time"]) if t["event"] == g]
-        best_ = fpl_score.best_suggestion(dl_.get("plans"), g)
+        best_ = fpl_score.recommended_suggestion(dl_, g)
         if best_:
             best_["out"], best_["in"] = fpl_score.pair_moves(best_["out"], best_["in"], pos_all)
         jw.append(decision_journal.entry(g, dl_, json.load(open(pj_f)) if os.path.exists(pj_f) else None, mine, pk,
@@ -1605,8 +1610,9 @@ out = {
     "squad": [{"id": p["element"], "slot": p["position"], "cap": p["is_captain"], "vice": p["is_vice_captain"],
                "buy": purchase_price(p["element"]) / 10, "sell": selling_price(p["element"]) / 10}
               for p in (own_picks["picks"] if own_picks else [])],
-    "lineup": lineup, "plans": plans, "plan_notes": plan_notes,
+    "lineup": lineup, "plans": plans, "plan_notes": plan_notes, "recommended": recommended,
     "plan_rules": {"ft_value": optimise.FT_VALUE, "safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
+                   "recommend_margin": optimise.RECOMMEND_MARGIN,
                    "tie": optimise.TIE, "strategy": optimise.STRATEGY},
     "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "journal": journal, "setpieces": setpieces,

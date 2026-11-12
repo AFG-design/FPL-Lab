@@ -25,7 +25,7 @@ function app(rules) {
     syncPush = () => {}; render = () => {};
     const wk = (gw, i, o) => ({ gw, in: i, out: o, xi: [], bench: [], captain: 0 });
     D = { players, meta: { team_id: 1, next_gw: 10, built: "t" }, squad: players.slice(0, 15).map(p => ({ id: p.id, sell: 5, buy: 5 })),
-      manager: { bank: 0, free_transfers: 1 }, crowd: null, plan_rules: rules,
+      manager: { bank: 0, free_transfers: 1 }, crowd: null, plan_rules: rules, recommended: { balanced: "one" },
       plans: { roll: { vs_roll: 0, weeks: [wk(10, [], []), wk(11, [], [])] },
                one: { vs_roll: 3, weeks: [wk(10, [16], [12]), wk(11, [], [])] } } };
     P = Object.fromEntries(players.map(p => [p.id, p]));
