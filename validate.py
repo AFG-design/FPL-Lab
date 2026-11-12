@@ -21,6 +21,7 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - an Odds API upcoming-odds row (FL-092) with result probabilities outside 0-1 or not summing to 1, an over-2.5
     chance outside 0-1, or expected goals outside 0.05-6
   - meta.odds rows used + rows dropped not adding up to odds/odds.json's rows (data.json built from another odds file)
+  - a player kept as close to a return (FL-093) whose status, chance, minutes or news don't match the reason given
   - model settings exported for the site (meta.model) that aren't finite numbers in a sane range: home 1.0-1.5,
     cs_k 0.5-1.5 (data built before the field existed has no meta.model and is not checked)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
@@ -783,6 +784,20 @@ def main(path):
                 warnings.append(f"Player odds GW{pg}: no {', '.join(m + ' h' for m in missing)} snapshot "
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
+    # FL-093: a player kept because he is close to a return must still meet the reason given for him, using the same
+    # fields the rule tests (status, chance, news), and his start chance must be marked assumed for the site
+    for pl in D["players"]:
+        why = pl.get("returning")
+        if not why:
+            continue
+        ok = pl.get("status") != "u" and pl.get("start_assumed") is True and {
+            "back": pl.get("status") == "a" and not pl.get("mins"),
+            "chance": pl.get("status") != "a" and (pl.get("chance") or 0) > 0,
+            "date": pl.get("status") != "a" and any(w in (pl.get("news") or "").lower() for w in ("expected back", "suspended until")),
+        }.get(why, False)
+        if not ok:
+            errors.append(f"{pl.get('name')} ({pl.get('id')}): kept as returning '{why}' but status {pl.get('status')}, "
+                          f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
     check_sources(D, warnings)
     check_logs(D, warnings)
     check_model_inputs(D["meta"], errors, warnings)

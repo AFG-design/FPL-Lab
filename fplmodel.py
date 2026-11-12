@@ -796,6 +796,31 @@ def return_date(e):
         return "unknown"
 
 
+def returning(e, hist, today, window_end):
+    """Why a player who has played no part this season is close to a return (FL-093), or None.
+
+    "back"   - FPL has him available ('a') again after flagging him earlier this season (hist: his news-history rows
+               [time, status, chance, news], oldest first), and he has no minutes this season
+    "chance" - flagged, but FPL gives a chance of playing above 0
+    "date"   - FPL's return date ('Expected back' / 'Suspended until') is after today and on or before window_end
+               (the last kick-off of the 5-GW window)
+    Missing / late / ambiguous: 'Unknown return date' at 0% is not close (no date, no chance); a return date that has
+    passed while FPL still has him at 0% is not close (the date told us nothing); status 'u' (usually left the club) or
+    removed never is; no news history -> "back" can't be told; no window_end -> "date" can't be told.
+    """
+    if e["status"] == "u" or e.get("removed"):
+        return None
+    if e["status"] == "a":
+        flagged = any(h[1] != "a" for h in hist[:-1])
+        return "back" if hist and hist[-1][1] == "a" and flagged and not e.get("minutes") else None
+    if e.get("chance_of_playing_next_round"):
+        return "chance"
+    ret = return_date(e)
+    if isinstance(ret, dt.date) and window_end and today < ret <= window_end:
+        return "date"
+    return None
+
+
 RETURN_WEEK_AV = 0.5   # injured player in his first week after an 'Expected back' date: possible, not certain
 
 
