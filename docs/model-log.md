@@ -16,6 +16,23 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   2025/26 Balanced 1790 → 1790, Play safe 1842 → 1839 (one week, GW5), Chase 1855 → 1855; 2024/25 all identical
   (2057 / 2082 / 1983). The rule bound once in 204 strategy-weeks.
 - Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
+## 12 Nov 2026 — FL-110: "no moves for the sake of it" measured against rolling (planner; Adopt as Marginal)
+
+- Known error (audit 10 Nov, A5): the MIN_PROFIT rule compared a plan with never transferring for 5 GWs, which a
+  Roll plan with later moves beats easily, so it hardly bound (live: Balanced 3 moves for +0.32 against rolling); the
+  real guard was an undocumented 0.5 in the browser. CLAUDE.md's rule weighs the plan against rolling the free
+  transfer. Fix: moves this week must beat the same strategy's Roll plan by MIN_PROFIT (else the option is dropped);
+  the recommended margin (optimise.RECOMMEND_MARGIN, FL-108) is MIN_PROFIT; Re-plan applies the same check.
+- Projections unchanged: backtest and bench identical to main, every paired CI [0, 0]; `--compare` flags nothing.
+- strategy_replay.py `--pick app` (the plan the app recommends), GW5–38, FL-073 → FL-110, real points:
+  2025/26 Balanced 1790 → 1849, Safe 1839 → 1889, Chase 1855 → 1824; 2024/25 2057 → 2068, 2082 → 2123,
+  1983 → 2118 (sum +265 over six runs). Projected points move the other way in 2024/25 (−6.9, −5.2, −12.4) and sum
+  −4.8, so read the real-points gain as mostly path noise. Default replay (`--pick best`), main → FL-110: +103, −151,
+  +56, +2, +83, −57 real (+36). Several runs diverge on solves that hit the 20 s limit under load.
+- Live GW11: every move-now option is within +0.2 of rolling, so only the Roll plans are published.
+- Decision: CI includes zero, fixes a known error (rule measured against the wrong yardstick; undocumented
+  threshold), no segment worse → Adopt as Marginal. Arguable: if the yardstick is read as a threshold choice (a
+  tweak), the row is "Don't adopt". Re-check the replay without CPU contention.
 ## 12 Nov 2026 — FL-116: dead code removed (neutral, as required)
 
 - Removed the rejected minutes switches `p60_prior` / `mstart_prior` (22 Oct: worse on both seasons at every weight)
