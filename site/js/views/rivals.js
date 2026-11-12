@@ -59,7 +59,10 @@ function vRivals() {
   // Only our complete live squad has the bench order and match states needed for confirmed auto-subs.
   // A missing/mismatched live payload keeps the existing sampled scores and the note says subs are excluded.
   const ls = live && D.live?.gw === C.gw ? liveState() : null;
-  const gwOf = r => live && r.me && ls ? ls.total : live && r.live != null ? r.live : r.gw_pts;
+  // FL-078: one basis for every row, live or not: points before hits (FPL's event_total is before hits too), with
+  // provisional bonus while it's unconfirmed; the hit is in the cell's tooltip.
+  const gwOf = r => live && r.me && ls ? ls.gross : live && r.live != null ? r.live : r.gw_pts;
+  const hitOf = r => r.me && ls ? ls.hits : r.hits;
   const bestGw = lg ? Math.max(...lg.rows.map(r => gwOf(r) ?? -1)) : null;
   const lgTable = lg ? `<div class="tablebox league"><table><thead><tr><th class="n">Rank</th><th>Manager</th><th class="n">GW${C.gw}${live ? " live" : ""}</th><th class="n">Total</th><th class="n">${term("gap", "Gap")}</th><th>${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${lg.rows.map(r => {
       const mv = r.last_rank && r.rank ? r.last_rank - r.rank : 0;
@@ -68,7 +71,7 @@ function vRivals() {
       const gw = gwOf(r);
       return `<tr class="${r.me ? "mine" : ""} ${r.entry === S.rival ? "is-rival" : ""}"><td class="n"><span class="lg-rank"><b>${r.rank ?? "–"}</b>${arrow}</span></td>
         <td>${r.me ? `<span class="pname">${esc(r.player)}</span> <span class="pill good">You</span>` : `<button class="pname linkish" data-rival="${r.entry}" aria-pressed="${r.entry === S.rival}">${esc(r.player)}</button>`}${r.chip ? ` <span class="tag">${esc(r.chip)}</span>` : ""}<br><span class="muted lg-team">${esc(r.team)}</span></td>
-        <td class="n ${gw === bestGw && gw != null ? "lg-best" : ""}">${gw ?? "–"}</td><td class="n"><b>${r.total ?? "–"}</b></td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td><td>${chipBadges(r.chips)}</td></tr>`;
+        <td class="n ${gw === bestGw && gw != null ? "lg-best" : ""}"${hitTip(hitOf(r), gw)}>${gw ?? "–"}${hitOf(r) > 0 && gw != null ? ` <small class="muted">−${hitOf(r)}</small>` : ""}</td><td class="n"><b>${r.total ?? "–"}</b></td><td class="n ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null || r.me ? "" : (gap > 0 ? "+" : "") + gap}</td><td>${chipBadges(r.chips)}</td></tr>`;
     }).join("")}</tbody></table></div>
     ${lg.size > lg.rows.length ? `<p class="note">Big league: showing the top 10 and the managers around you.</p>` : ""}
     ${(() => { const st = lg.rows.filter(r => !r.me && r.chips).map(r => chipState(r.chips)); if (!st.length) return ""; const [a, b] = chipHalf();
@@ -93,7 +96,7 @@ function vRivals() {
   </div>
   <div class="grid2">
     <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" class="sel" aria-label="League">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
-      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek.${live ? (ls ? " Your live points include confirmed auto-subs; rivals' live points exclude automatic substitutions." : " Live points are summed from the latest match data, without automatic substitutions.") : ""}</p></div>
+      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek. Gameweek points are before hits, as FPL shows them${live ? ", with provisional bonus" : ""}${lg && lg.rows.some(r => hitOf(r) > 0) ? "; a small −4 or −8 beside a score is that manager's hit, not taken off" : ""}.${live ? (ls ? " Your live points include confirmed auto-subs; rivals' live points exclude automatic substitutions." : " Live points are summed from the latest match data, without automatic substitutions.") : ""}</p></div>
     <div style="min-width:0">${cmp || `<div class="panel"><h3>Compare with a rival</h3><p class="muted">Pick someone from the league table to see where your teams differ and who the differences favour next gameweek.</p></div>`}</div>
   </div>
   ${watchPanel()}`;

@@ -75,6 +75,20 @@ def _age_hours(newer, older):
         return None
 
 
+def check_logs(D, warnings):
+    """history/news.json and history/prices.json (FL-120): build.py never overwrites one it couldn't read, so its history
+    survives, but until someone fixes the file the injury news history and the price-change track record stop growing
+    and this build shows them from nothing. A warning (Data health), not an error: everything else is right.
+    Missing / late / ambiguous: a build.py older than FL-120 has no "ok" key; it is not checked (it would already have
+    overwritten the file). A file that doesn't exist yet (first run) is not an error: build.py starts it, ok True.
+    """
+    src = D.get("sources") or {}
+    for key, what in (("news", "injury news history"), ("prices", "price-change track record")):
+        if (src.get(key) or {}).get("ok") is False:
+            warnings.append(f"history/{key}.json is unreadable and was left untouched: the {what} isn't being updated "
+                            f"until the file is fixed or restored from Git history")
+
+
 def check_model_inputs(meta, errors, warnings):
     """The status log and europe.json (FL-072): build.py runs on without either, so these are the only sign.
 
@@ -332,6 +346,32 @@ def check_refresh_gap(meta, warnings):
         warnings.append(f"Refresh gap: {gap / 60:.1f} h since the previous refresh, {hours:.1f} h before the "
                         f"GW{meta.get('next_gw')} deadline (scheduled every 30 minutes). GitHub's schedule is "
                         f"unreliable: set up the backup scheduler in the README")
+
+
+def check_picks_sections(D, warnings):
+    """Review and You vs the model rest on your picks for each finished gameweek, fetched one week at a time (FL-070).
+
+    Warnings (Data health), not errors: the rest of the site is right, and stopping the publish would freeze live scores.
+      - a week listed in review.skipped / vs_model.skipped (picks or live scores not fetched this update);
+      - Review empty although FPL has your points for a finished gameweek;
+      - You vs the model empty or missing although a finished gameweek you played has a forecast saved before its
+        deadline (history/proj_gwN.json), which is all it needs.
+    Missing / late / ambiguous: data from a build.py older than FL-070 has no review.skipped and is only checked for
+    being empty; no finished gameweek yet (pre-season, GW1 in play) is not checked.
+    """
+    fin = set(D["meta"].get("finished_gws") or [])
+    played = {h.get("gw") for h in D.get("history") or []} & fin
+    rv, vm = D.get("review") or {}, D.get("vs_model") or {}
+    for name, sec in (("Review", rv), ("You vs the model", vm)):
+        if sec.get("skipped"):
+            warnings.append(f"{name}: GW{', GW'.join(map(str, sec['skipped']))} left out, picks or scores not fetched "
+                            f"this update (the next refresh tries again)")
+    if played and not rv.get("weeks"):
+        warnings.append(f"Review is empty although {len(played)} finished gameweek(s) have your points: picks not fetched?")
+    saved = {g for g in played if os.path.exists(os.path.join(HERE, "history", f"proj_gw{g}.json"))}
+    if saved and not vm.get("weeks"):
+        warnings.append(f"You vs the model is empty although GW{', GW'.join(map(str, sorted(saved)))} have a forecast "
+                        f"saved before the deadline")
 
 
 def check_setpieces(D, errors, warnings):
@@ -686,9 +726,11 @@ def main(path):
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
     check_sources(D, warnings)
+    check_logs(D, warnings)
     check_model_inputs(D["meta"], errors, warnings)
     check_season_end(D["meta"], errors, warnings)
     check_setpieces(D, errors, warnings)
+    check_picks_sections(D, warnings)
     # Planner strategy tabs (views/planner.js): each tab shows one optimiser plan per strategy. Every plan must name
     # players we list and field a legal XI; a strategy with no plans (build.py drops Play safe and Chase rank when the
     # field ownership file is missing) is a warning, and the tab says so instead of showing the Balanced plan.

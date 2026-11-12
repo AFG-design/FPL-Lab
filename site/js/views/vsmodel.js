@@ -262,13 +262,15 @@ function vmStreak(V) {
 
 function vVsModel() {
   const V = D.vs_model;
-  if (!V || !V.weeks?.length) return stateView({ kind: "empty", title: "You vs the model isn't ready", body: "It needs a finished gameweek with a forecast saved before its deadline. It appears after the next data refresh." });
+  // FL-070: weeks whose picks (or live scores) couldn't be fetched this update are in V.skipped; say so, never just omit
+  const skipTxt = V?.skipped?.length ? `${V.skipped.map(g => "GW" + g).join(", ")} left out: your picks or that week's scores couldn't be fetched this update.` : "";
+  if (!V || !V.weeks?.length) return stateView({ kind: "empty", title: "You vs the model isn't ready", body: skipTxt || "It needs a finished gameweek with a forecast saved before its deadline. It appears after the next data refresh." });
   const weeks = V.weeks.slice().reverse(), n = V.next;
   const opts = [...(n?.gw ? [[`n${n.gw}`, `GW${n.gw}`]] : []), ...weeks.map(w => [String(w.gw), `GW${w.gw}`])];
   if (!opts.some(([k]) => k === S.vmgw)) S.vmgw = String(weeks[0].gw);
   const w = weeks.find(x => String(x.gw) === S.vmgw);
   return `${vmStreak(V)}<div class="panel vm-intro"><h2>You vs the model</h2>
-      <p>Each gameweek your actual points, after hits, against the model's target: its highest projected score for that week from what it suggested before the deadline, rounded. Beat it to win the week.</p>
+      <p>Each gameweek your actual points, after hits, against the model's target: its highest projected score for that week from what it suggested before the deadline, rounded. Beat it to win the week.</p>${skipTxt ? `<ul class="alerts"><li class="warn"><span>${skipTxt}</span></li></ul>` : ""}
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
     ${w ? vmWeek(w) : vmNext(n)}
