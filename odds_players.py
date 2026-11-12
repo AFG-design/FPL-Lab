@@ -2,7 +2,7 @@
 """Player betting odds (anytime goalscorer, assists) from The Odds API, for the next gameweek.
 
 Needs the ODDS_API_KEY environment variable (a GitHub Actions secret). Without it the script
-does nothing. The refresh workflow runs every 10-30 minutes, but this only calls the API at a
+does nothing. The refresh workflow runs every 10-60 minutes, but this only calls the API at a
 few checkpoints before each deadline (CHECKPOINTS), so a free key (500 credits a month) lasts:
 about 10 fixtures x 2 markets = ~20 credits per refresh, 3 refreshes per gameweek.
 

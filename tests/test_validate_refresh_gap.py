@@ -19,6 +19,12 @@ class RefreshGap(unittest.TestCase):
         self.assertEqual(run(meta(prev_built="2026-11-21T07:30:00+00:00")), [])
         self.assertEqual(run(meta(prev_built="2026-11-21T07:15:00+00:00")), [])   # exactly 45 minutes
 
+    def test_an_hour_inside_the_window_warns(self):
+        # FL-111: hourly outside the window, but every 30 minutes in the 6 h before a deadline, so an hour here is late
+        w = run(meta(prev_built="2026-11-21T07:00:00+00:00"))
+        self.assertEqual(len(w), 1)
+        self.assertIn("(scheduled every 30 minutes this close to a deadline)", w[0])
+
     def test_long_gap_inside_the_window_warns(self):
         w = run(meta(prev_built="2026-11-21T00:06:00+00:00"))
         self.assertEqual(len(w), 1)

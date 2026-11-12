@@ -60,7 +60,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 
 Workflows in `.github/workflows/`:
 
-- `refresh.yml` runs `scripts/refresh.py`, then publishes `site/` to GitHub Pages. It is scheduled twice an hour (at 7 and 37 minutes past), and also runs on every push to `main`, from the Run workflow button and from the dashboard's Refresh button. A second schedule every 10 minutes only rebuilds while a match is on.
+- `refresh.yml` runs `scripts/refresh.py`, then publishes `site/` to GitHub Pages. It is scheduled hourly (at 7 minutes past), and also runs on every push to `main`, from the Run workflow button and from the dashboard's Refresh button. A second schedule every 10 minutes rebuilds while a match is on, every 30 minutes in the 6 hours before a deadline, and otherwise on the first run of each hour (`scripts/refresh_due.py`).
 - `check.yml` (Check site) runs on every pull request: see **Run locally** below.
 - `priors.yml` refreshes `priors.json` and the AFG records (`afg/records.json`) every Monday at 04:17 UTC.
 - There are no separate crowd or Understat workflows: the refresh job runs `crowd.py` and `understat.py` each time. To force a new crowd sample for a gameweek already sampled, run `python3 crowd.py TEAM_ID --force` locally and commit `crowd/latest.json`.
@@ -75,7 +75,7 @@ The schedule is what is asked for, not what happens. GitHub starts scheduled run
 - **Refresh now:** Actions → "Refresh FPL data" → Run workflow, or the button on the dashboard.
 - **Compare any team:** `watch.json` lists extra team IDs to fetch each refresh (`{"teams": [{"id": 123456, "label": "Friend"}]}`, up to 20). The overall leader is always included. The Rivals page adds and removes teams in one tap if Sync is set up; editing the file triggers a rebuild.
 - **Live gameweeks:** a second schedule runs every 10 minutes but only rebuilds while a match is on (kick-off up to 2.5 hours ago), so Home's Current GW view stays current. GitHub can start scheduled runs late or skip them (see **Reliable automatic updates** below); on a matchday without the backup scheduler, updates have been about 90 minutes apart.
-- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). Inside 6 hours of a deadline, `validate.py` also warns on the Health page when the previous refresh was more than 45 minutes earlier, or when it can't tell. GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
+- **Health check:** the site warns when data is over 2 hours old or the last refresh job failed (read from the public GitHub API). Inside 6 hours of a deadline, `validate.py` also warns on the Health page when the previous refresh was more than 45 minutes earlier (refreshes are every 30 minutes in that window, plus 15 minutes' slack), or when it can't tell. GitHub also emails you when a scheduled run fails (Settings → Notifications → Actions on github.com).
 
 ## Run locally
 
@@ -192,6 +192,6 @@ GitHub's built-in schedule can start late or not at all. A free external schedul
    - **Advanced → Request method:** `POST`
    - **Headers:** `Authorization: Bearer YOUR_TOKEN`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`
    - **Request body:** `{"ref":"main","inputs":{"live_only":"true"}}`
-3. Save. Each call starts the refresh workflow; with `live_only` it rebuilds every 10 minutes while a match is on and otherwise about every half hour (other calls finish in seconds). GitHub replies 204 (no content) when it works.
+3. Save. Each call starts the refresh workflow; with `live_only` it rebuilds every 10 minutes while a match is on, every 30 minutes in the 6 hours before a deadline and otherwise about once an hour (other calls finish in seconds). GitHub replies 204 (no content) when it works.
 
 The dashboard's **Refresh data now** button does the same on demand when the token saved under **Sync plan** has Actions access.

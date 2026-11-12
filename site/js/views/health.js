@@ -10,7 +10,7 @@ function vHealth() {
   const pill = (ok, warn) => ok ? '<span class="pill good">OK</span>' : warn ? '<span class="pill warn">Check</span>' : '<span class="pill bad">Problem</span>';
   const po = S_.player_odds, poErr = po?.error && po.error.at && (!po.built || po.error.at > po.built) ? po.error.message : null;
   const rows = [
-    ["FPL data", S_.fpl?.built, `GW${S_.fpl?.gw} · ${S_.fpl?.players} players`, ageH(S_.fpl?.built) < (inPlay ? 0.5 : 1.5), ageH(S_.fpl?.built) < 3, inPlay ? "Every 10 minutes during matches, otherwise every 30" : "Every 30 minutes"],
+    ["FPL data", S_.fpl?.built, `GW${S_.fpl?.gw} · ${S_.fpl?.players} players`, ageH(S_.fpl?.built) < (inPlay ? 0.5 : 1.5), ageH(S_.fpl?.built) < 3, inPlay ? "Every 10 minutes during matches, otherwise hourly" : "Hourly; every 30 minutes in the 6 hours before a deadline and every 10 during matches"],
     ["Understat shots", S_.understat?.built, S_.understat ? `${S_.understat.matches} matches · ${S_.understat.players} players matched (${S_.understat.unmatched} not)` : "", ageH(S_.understat?.built) < 6, ageH(S_.understat?.built) < 48, "New matches each refresh"],
     ["Match odds", S_.odds?.built, S_.odds ? `${S_.odds.matches} matches, ${S_.odds.upcoming} upcoming` : "", ageH(S_.odds?.built) < 6, ageH(S_.odds?.built) < 48, "football-data.co.uk, each refresh"],
     ["Player odds", po?.built, po ? `GW${po.gw} · ${po.fixtures} fixtures · ${po.credits_left ?? "–"} credits left${po.unmatched ? ` · ${po.unmatched} names unmatched` : ""}` : "Not collected", !!po && !poErr && po.gw >= (D.meta.cur_gw || 0), !!po, "Before each deadline (The Odds API)"],
@@ -33,7 +33,7 @@ function vHealth() {
   return `<div class="kpis" style="margin-bottom:16px">
       <div class="kpi"><span class="lbl">Site data</span><b>${ageTxt(D.meta.built)}</b><span class="delta muted">${ukTime(D.meta.built)}, took ${D.meta.build_secs ?? "–"}s</span></div>
       <div class="kpi"><span class="lbl">Last refresh run</span><b class="${HEALTH.last && HEALTH.last.conclusion !== "success" ? "down" : ""}">${HEALTH.last ? (HEALTH.last.conclusion === "success" ? "Worked" : esc(HEALTH.last.conclusion || "–")) : "–"}</b><span class="delta muted">${HEALTH.last ? ageTxt(HEALTH.last.updated_at) : "checking GitHub…"}</span></div>
-      <div class="kpi"><span class="lbl">Longest gap between runs</span><b class="${maxGap > 45 ? "down" : ""}">${maxGap == null ? "–" : maxGap < 90 ? Math.round(maxGap) + " min" : (maxGap / 60).toFixed(1) + " h"}</b><span class="delta muted">over the last ${runs.length} runs</span></div>
+      <div class="kpi"><span class="lbl">Longest gap between runs</span><b class="${maxGap > 75 ? "down" : ""}">${maxGap == null ? "–" : maxGap < 90 ? Math.round(maxGap) + " min" : (maxGap / 60).toFixed(1) + " h"}</b><span class="delta muted">over the last ${runs.length} runs</span></div>
     </div>
     <div class="panel"><h3>Sources</h3><div class="tablebox"><table><thead><tr><th>Source</th><th>Updated</th><th>Details</th><th>How often</th><th>Status</th></tr></thead><tbody>
       ${rows.map(([n, at, det, ok, warn, how]) => `<tr><td><b>${n}</b></td><td>${ageTxt(at)}</td><td class="muted">${esc(det)}</td><td class="muted">${how}</td><td>${pill(ok, warn)}</td></tr>`).join("")}</tbody></table></div>

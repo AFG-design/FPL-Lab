@@ -39,7 +39,7 @@ function vModel() {
     <li><b>Calibration.</b> The raw projections are adjusted so that, across past gameweeks, projected and real averages match (see the table above).</li>
     <li><b>Transfer plans.</b> An optimiser plans the next 5 gameweeks together: transfers, lineups and captains, within budget, squad shape, the 3-per-club rule and free-transfer rules. A banked free transfer is valued at 1.5 points.</li>
   </ul>
-  <p class="note">Selling prices and free transfers are estimated from your public transfer history, because FPL only shows exact values when you're signed in. The model and data are updated every 30 minutes.</p></div>`;
+  <p class="note">Selling prices and free transfers are estimated from your public transfer history, because FPL only shows exact values when you're signed in. The model and data are updated hourly, every 30 minutes in the 6 hours before a deadline and every 10 minutes while matches are on.</p></div>`;
 }
 
 /* ---------- the week's biggest misses, and what caused them ---------- */
