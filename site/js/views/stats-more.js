@@ -156,15 +156,8 @@ function leadersHTML() {
 }
 
 /* ---------- controls shared by these tabs ---------- */
-function statsTabsRow() {
-  const row = $("#app .stats-nav .ptabs"); if (!row) return;
-  const edge = () => { row.classList.toggle("more-r", row.scrollLeft + row.clientWidth < row.scrollWidth - 4); row.classList.toggle("more-l", row.scrollLeft > 4); };
-  const on = row.querySelector('[aria-pressed="true"]');
-  if (on && row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2);
-  row.addEventListener("scroll", edge, { passive: true }); edge();
-}
 function bindStatsMore() {
-  if (S.view === "stats") { saveStatsPrefs(); statsTabsRow(); }
+  if (S.view === "stats") saveStatsPrefs();
   document.querySelectorAll("#app [data-ssort]").forEach(th => th.onclick = e => {
     if (e.target.closest(".term")) return;   // the "Nailed" header's explainer, not a sort
     const [k, v] = th.dataset.ssort.split(":"); S[k] = v; render();

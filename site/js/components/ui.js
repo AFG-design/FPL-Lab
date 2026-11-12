@@ -98,3 +98,15 @@ const seasonOverView = what => stateView({ title: "Season over", body: `GW${D.me
 function stateView({ kind = "empty", title, body = "", action = "" }) {
   return `<div class="state ${kind}" role="${kind === "error" ? "alert" : "status"}">${icon(kind === "error" ? "alert" : "empty", "state-ic")}<h2>${title}</h2>${body ? `<p>${body}</p>` : ""}${action}</div>`;
 }
+
+/* FL-122: a strip of tabs or options that is wider than its box scrolls sideways; fade the edge that has more, so it
+   shows there is more to swipe to, and bring the selected option into view. Used on Fixtures and Stats (bind() in
+   shell/events.js); the Planner's tabs are left alone (FL-090). A strip that fits gets no fade. */
+function scrollStrips(sel) {
+  document.querySelectorAll(sel).forEach(row => {
+    const edge = () => { row.classList.toggle("more-r", row.scrollLeft + row.clientWidth < row.scrollWidth - 4); row.classList.toggle("more-l", row.scrollLeft > 4); };
+    const on = row.querySelector('[aria-pressed="true"]');
+    if (on && row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2);
+    row.addEventListener("scroll", edge, { passive: true }); edge();
+  });
+}

@@ -335,13 +335,17 @@ tr.is-rival td { background: var(--accent-soft); }
 .leaders td.on { color: var(--fg); font-weight: 600; }
 .leaders td:not(.on) .ld-val i { opacity: .55; }
 
+/* FL-122: any option strip on Fixtures or Stats that is wider than its box fades at the edge that has more to swipe
+   to (classes set by scrollStrips, components/ui.js). The Planner's strips are not included (FL-090). */
+:is(.view-fixtures, .view-stats) .seg { overscroll-behavior-x: contain; }
+:is(.view-fixtures, .view-stats) .seg.more-r { mask-image: linear-gradient(90deg, #000 80%, transparent); }
+:is(.view-fixtures, .view-stats) .seg.more-l { mask-image: linear-gradient(90deg, transparent, #000 20%); }
+:is(.view-fixtures, .view-stats) .seg.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); }
+
 @media (max-width: 720px) {
   /* Stats tabs: one row to swipe instead of three wrapped rows; the faded edge shows there's more */
   .stats-nav .ptabs { flex-wrap: nowrap; overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
   .stats-nav .ptabs button { scroll-snap-align: center; }
-  .stats-nav .ptabs.more-r { mask-image: linear-gradient(90deg, #000 85%, transparent); }
-  .stats-nav .ptabs.more-l { mask-image: linear-gradient(90deg, transparent, #000 15%); }
-  .stats-nav .ptabs.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent); }
 
   /* phones: smaller rank and points so the first stat columns fit beside the player */
   .leaders th, .leaders td { padding-left: 7px; padding-right: 7px; }

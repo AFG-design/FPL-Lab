@@ -29,6 +29,20 @@ function fxCells(t, g) {
       xgf: L * t.att * o.def * (home ? H : 1 / H), xga: L * o.att * t.def * (home ? 1 / H : H) };
   });
 }
+/* FL-122: on phones the summary columns (Strength, Avg, Matches or the window total) come after the first fixtures,
+   so the chips start next to the team name instead of off-screen. Desktop keeps them first. FX_LEAD fixtures go first;
+   a shorter window puts the summary after all of them. Phone = the same 720px breakpoint the Stats tabs use. Where
+   matchMedia isn't available (tests, very old browsers) the desktop order is used. The view re-renders when the
+   window crosses the breakpoint (bindFixtures). */
+const FX_PHONE_MQ = "(max-width: 720px)", FX_LEAD = 3;
+const fxPhone = () => typeof matchMedia === "function" && matchMedia(FX_PHONE_MQ).matches;
+const fxLead = (n, phone) => phone ? Math.min(FX_LEAD, n) : 0;
+let fxMqBound = false;
+function bindFixtures() {
+  if (fxMqBound || typeof matchMedia !== "function") return;
+  fxMqBound = true;
+  matchMedia(FX_PHONE_MQ).addEventListener("change", () => { if (S.view === "fixtures") render(); });
+}
 function vFixtures() {
   const mode = ["fdr", "overall", "att", "def"].includes(S.fxMode) ? S.fxMode : "fdr";
   const lastGw = Math.max(GWS[GWS.length - 1] || 0, ...Object.values(T).flatMap(t => (t.far || []).map(f => f[0])));
@@ -37,9 +51,10 @@ function vFixtures() {
   const anyEst = gws.some(g => !GWS.includes(g));
   const myTeams = new Set(D.squad.map(s => P[s.id]?.team));
   const sortBy = ["avg", "total", "team"].includes(S.fxSort) ? S.fxSort : "avg";
+  const lead = fxLead(gws.length, fxPhone());   // fixture columns shown before Avg and Matches (FL-122)
   const rows = Object.values(T).map(t => {
     let sum = 0, cnt = 0, nMatch = 0;
-    const cells = gws.map(g => {
+    const cellList = gws.map(g => {
       const fx = fxCells(t, g);
       nMatch += fx.length;
       if (!fx.length) { if (mode === "fdr") { sum += 5; cnt++; } return `<td class="fxc">${blankChip(g)}</td>`; }
@@ -54,7 +69,7 @@ function vFixtures() {
         const tip = `${x.est ? "Estimate from team ratings (past the model's projection weeks). " : ""}${T[x.opp].name} ${x.home ? "(home)" : "(away)"}: win ${Math.round(r.w * 100)}%, draw ${Math.round(r.d * 100)}%, loss ${Math.round(r.l * 100)}%. Projected ${x.xgf.toFixed(1)}–${x.xga.toFixed(1)}, clean sheet ${Math.round(csChance(x.xga) * 100)}%${x.eu ? `. Also plays ${x.eu}` : ""}`;
         return `<span class="${cls}${x.est ? " fx-est" : ""}" title="${esc(tip)}" data-fxtip="${esc(tip)}" tabindex="0">${oppTxt(x)} <small>${label}</small>${x.eu ? '<i class="eudot" aria-label="European game nearby"></i>' : ""}</span>`;
       }).join("")}</td>`;
-    }).join("");
+    });
     const st = teamStrength(t);
     const avg = cnt ? sum / cnt : 0;
     const avgTxt = mode === "fdr" ? avg.toFixed(1) : mode === "att" ? avg.toFixed(2) : Math.round(avg * 100) + "%";
@@ -64,7 +79,7 @@ function vFixtures() {
     const tot = mode === "fdr" ? nMatch : sum, totTxt = mode === "fdr" ? String(nMatch) : sum.toFixed(1);
     const strength = mode === "fdr" ? "" : `<td class="n">${Math.round(mode === "att" ? st.att : mode === "def" ? st.def : st.pts)}%</td>`;
     const good = v => mode === "fdr" ? -v : v;   // higher is better for every sort key
-    return { name: t.name, avg: good(avg), total: tot, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish fx-club">${badge(t.id, 20)}<span>${t.name}</span></button></td>${strength}<td class="n"><b>${avgTxt}</b></td><td class="n">${totTxt}</td>${cells}</tr>` };
+    return { name: t.name, avg: good(avg), total: tot, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish fx-club">${badge(t.id, 20)}<span>${t.name}</span></button></td>${cellList.slice(0, lead).join("")}${strength}<td class="n"><b>${avgTxt}</b></td><td class="n">${totTxt}</td>${cellList.slice(lead).join("")}</tr>` };
   }).sort((a, b) => sortBy === "team" ? a.name.localeCompare(b.name) : b[sortBy] - a[sortBy] || a.name.localeCompare(b.name));
   const help = {
     fdr: "FPL's official fixture difficulty for each match, 1 easiest to 5 hardest. Easiest run first.",
@@ -82,7 +97,7 @@ function vFixtures() {
       <div class="seg" role="group" aria-label="Colour by">${[["fdr", "Difficulty"], ["overall", "Win chance"], ["att", "Attack"], ["def", "Clean sheet"]].map(([k, l]) => `<button data-fx="${k}" aria-pressed="${mode === k}">${l}</button>`).join("")}</div>
       <div class="seg" role="group" aria-label="Gameweeks">${lengths.map(([k, l]) => `<button data-fxn="${k}" aria-pressed="${(S.fxN === "all" ? "all" : n) === k}">${l}</button>`).join("")}</div></div></div>
     <div class="fx-help"><p class="note">${help}${mode === "fdr" ? "" : " Colours use the same green-to-red scale; tap a fixture for win, draw and loss chances."}${mode === "fdr" ? "" : " Capitals = home."} Yellow edge = a team you own players from. Sort by Avg, the window's total (a double counts twice, a blank adds nothing) or team.${anyEst && mode !== "fdr" ? ` Faded cells past GW${GWS[GWS.length - 1]} are estimates from the team ratings: the model's own fixture projections stop there.` : ""}</p>${mode === "fdr" ? fdrKey() : ""}</div>
-    <div class="tablebox tick"><table><thead><tr>${sortTh("team", "Team", "sticky-col")}${mode === "fdr" ? "" : `<th class="n">${term("strength", strengthHead + " %")}</th>`}${sortTh("avg", mode === "fdr" ? "Avg FDR" : "Avg")}${sortTh("total", totHead)}${gws.map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>${swingsPanel()}`;
+    <div class="tablebox tick"><table><thead><tr>${sortTh("team", "Team", "sticky-col")}${gws.slice(0, lead).map(g => `<th>GW${g}</th>`).join("")}${mode === "fdr" ? "" : `<th class="n">${term("strength", strengthHead + " %")}</th>`}${sortTh("avg", mode === "fdr" ? "Avg FDR" : "Avg")}${sortTh("total", totHead)}${gws.slice(lead).map(g => `<th>GW${g}</th>`).join("")}</tr></thead><tbody>${rows.map(r => r.html).join("")}</tbody></table></div></div>${swingsPanel()}`;
 }
 
 /* ---------- fixture swings: when a team's run turns easy or hard ---------- */
