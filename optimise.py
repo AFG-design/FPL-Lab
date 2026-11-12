@@ -37,7 +37,12 @@ def spread(players, mult, eo, gw):
     return v ** 0.5
 
 
-def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=1.5,
+# Points a free transfer still banked at the end of the plan is worth. Part of every plan's VALUE (below), so it is in
+# vs_none / vs_balanced too; data.json's plan_rules.ft_value carries it to the Planner (FL-125).
+FT_VALUE = 1.5
+
+
+def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=FT_VALUE,
           hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
           eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0, floor=None,
           max_hits=None):

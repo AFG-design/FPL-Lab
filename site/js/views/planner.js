@@ -206,7 +206,7 @@ function draftSummary(d) {
   const moves = cleanMoves((d.moves || []).filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
   const sc = scoreMoves(moves, d.solved || null), w0 = sc.weeks[0], base = scoreMoves([]);   // with its saved lineups, as Transfer paths scores it
   const mult = {}; w0.team.xi.forEach(i => mult[i] = 1); mult[w0.team.cap] = 2;
-  const out = { name: d.name, moves, tot: sc.tot, gain: sc.tot - base.tot, w0: w0.team.pts, cap: w0.team.cap,
+  const out = { name: d.name, moves, tot: sc.tot, gain: gainVsNone(sc, base), w0: w0.team.pts, cap: w0.team.cap,
     hits: sc.weeks.reduce((a, w) => a + w.hits, 0), ftLeft: sc.ftLeft, spread: spreadVsField(mult, PG[0]), mode: d.mode, bank: w0.bank };
   SB.ov = keep.ov; S.mode = keep.mode;
   return out;
@@ -243,7 +243,7 @@ function plannerEditor() {
   const problems = sum.weeks.filter(w => w.bank < 0 || w.over.length);
   const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
   const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
-  const delta = sum.tot - sum.baseTot;
+  const delta = sum.gain;
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
   const sp = spreadVsField(mult, g);
   const tab = S.ptab || "suggest";
@@ -255,7 +255,7 @@ function plannerEditor() {
     <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs " + fieldSample().label)}.` : ""}</p></div>
   <div class="plansum">
     <div class="kpi"><span class="lbl">${esc(planName())} · ${PG.length} GWs</span><b>${f1(sum.tot)}</b><span class="delta muted">best XI + captain, minus hits</span></div>
-    <div class="kpi"><span class="lbl">vs no transfers</span><b class="${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}">${sgn(delta)}</b><span class="delta muted">${f1(sum.baseTot)} if you do nothing</span></div>
+    <div class="kpi"><span class="lbl">vs no transfers</span><b class="${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}">${sgn(delta)}</b><span class="delta muted" title="${GAIN_NOTE()}">${f1(sum.baseTot)} pts if you do nothing · banked FTs counted</span></div>
     <div class="kpi"><span class="lbl">GW${g} bank</span><b class="${wk.bank < 0 ? "down" : ""}">${money(wk.bank)}</b><span class="delta muted">after this week's moves</span></div>
     <div class="kpi"><span class="lbl">GW${g} ${term("ft", "free transfers")}</span><b>${wk.ft}</b><span class="delta muted">${wk.hits ? `${wk.hits} hit (−${wk.hits * 4})` : `next week: ${wk.next}`}</span></div>
   </div>
@@ -315,9 +315,9 @@ function vsCurrentTeam() {
   const base = baseScore(), plan = scoreMoves(SB.moves);
   const rows = plan.weeks.map((w, k) => { const b = base.weeks[k].team.pts, v = w.team.pts - 4 * w.hits;
     return `<tr><td>GW${w.gw}</td><td class="n">${w.n}${w.hits ? ` <span class="down">−${4 * w.hits}</span>` : ""}</td><td class="n">${f1(b)}</td><td class="n">${f1(v)}</td><td class="n ${v - b > 0.05 ? "up" : v - b < -0.05 ? "down" : ""}">${sgn(v - b)}</td></tr>`; }).join("");
-  const gain = plan.tot - base.tot;
-  return `<div class="vscur"><div class="bar" style="margin:14px 0 6px"><h3>${SB.moves.length ? "Your plan" : "No moves yet"} vs your current team</h3><b class="${gain > 0.05 ? "up" : gain < -0.05 ? "down" : ""}" style="font-size:var(--fs-lg)">${sgn(gain)}</b></div>
-    <p class="note" style="margin-top:0">Over ${PG.length} GWs, after hits: ${f1(plan.tot)} projected points vs ${f1(base.tot)} if you keep your squad and just pick the best XI and captain each week.${plan.ftLeft ? ` The plan also leaves ${plan.ftLeft} free transfer${plan.ftLeft === 1 ? "" : "s"} banked at the end.` : ""}</p>
+  const gain = gainVsNone(plan, base), ftGap = plan.ftLeft - base.ftLeft;
+  return `<div class="vscur"><div class="bar" style="margin:14px 0 6px"><h3>${SB.moves.length ? "Your plan" : "No moves yet"} vs no transfers</h3><b class="${gain > 0.05 ? "up" : gain < -0.05 ? "down" : ""}" style="font-size:var(--fs-lg)">${sgn(gain)}</b></div>
+    <p class="note" style="margin-top:0">Over ${PG.length} GWs, after hits: ${f1(plan.tot)} projected points vs ${f1(base.tot)} if you keep your squad and just pick the best XI and captain each week.${ftGap ? ` The plan leaves ${plan.ftLeft} free transfer${plan.ftLeft === 1 ? "" : "s"} banked at the end against ${base.ftLeft} if you keep your squad, so the figure above ${ftGap < 0 ? "takes off" : "adds"} ${f1(Math.abs(ftGap) * ftValue())} (${f1(ftValue())} a transfer); the weekly gains below are points only.` : ""}</p>
     <div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Moves</th><th class="n">Keep team</th><th class="n">Plan</th><th class="n">Gain</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 // what the strategy did to the team: upside (haul chance), how template it is, how nailed the starters are

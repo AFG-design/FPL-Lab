@@ -99,7 +99,7 @@ function pvStrat(mode) {
   const moves = cleanMoves(raw);
   const sc = planScore(pl, moves);
   const base = pvBase();
-  const gain = sc.tot - base.tot;
+  const gain = gainVsNone(sc, base);
   const traits = withMode(mode, () => planTraits(sc));
   const res = { mode, key, moves, sc, gain, conf: verdict(gain, 3, 1), dropped: wanted - moves.length, traits,
     hits: sc.weeks.reduce((a, w) => a + w.hits, 0), filled: sc.weeks.filter(w => w.filled).map(w => w.gw) };
@@ -124,7 +124,7 @@ function pvTabs() {
   const pv = S.pview;
   return `<div class="seg pviews" role="tablist" aria-label="Planner views">${PVIEWS.map(([k, l]) => {
     let tag = "";
-    if (k === "suggest") { const r = pvStrat(S.pstrat); tag = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${MODES[S.pstrat]} ${sgn(r.gain)}</small>` : `<small>${MODES[S.pstrat]} –</small>`; }
+    if (k === "suggest") { const r = pvStrat(S.pstrat); tag = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}" title="vs no transfers over ${PG.length} GWs, ${GAIN_NOTE()}">${MODES[S.pstrat]} ${sgn(r.gain)}</small>` : `<small>${MODES[S.pstrat]} –</small>`; }
     if (k === "edit" && SB.moves.length) tag = `<small>${SB.moves.length} move${SB.moves.length === 1 ? "" : "s"}</small>`;
     // FL-124: tabs say which is selected with aria-selected only (aria-pressed is for toggle buttons), as Home's do
     return `<button type="button" role="tab" id="pvtab-${k}" data-pview="${k}" aria-selected="${pv === k}" aria-controls="pvpanel" tabindex="${pv === k ? 0 : -1}">${l}${tag}</button>`;
@@ -164,7 +164,7 @@ function pvMine() {
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
       <div class="panel"><h3>What each strategy would do</h3>
-        <p class="note" style="margin-top:0">Projected points over ${PG.length} GWs vs keeping this team, after hits. Tap one to see the XI it leaves you.</p>
+        <p class="note" style="margin-top:0">vs no transfers over ${PG.length} GWs: projected points vs keeping this team, ${GAIN_NOTE()}. Tap one to see the XI it leaves you.</p>
         <div class="opts">${cards}</div></div>
       ${flagged.length ? `<div class="panel"><h3>Flagged in your squad</h3><div class="moves">${flagged.map(i => `<div class="move"><button data-p="${i}" class="linkish"><b>${esc(P[i].name)}</b></button><span class="muted">${esc(P[i].news || "flagged")}</span><span class="mono">${f1(xpFrom(i, PG[0], PG.length))} xP / ${PG.length} GWs</span></div>`).join("")}</div></div>` : ""}
     </div>
@@ -181,7 +181,7 @@ function pvStratSwitch() {
   const cur = S.pstrat;
   const btns = PV_MODES.map(m => {
     const r = pvStrat(m);
-    const sub = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</small>` : "<small>no plan</small>";
+    const sub = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}" title="vs no transfers over ${PG.length} GWs">${sgn(r.gain)}</small>` : "<small>no plan</small>";
     return `<button data-pstrat="${m}" aria-pressed="${m === cur}">${MODES[m]}${sub}</button>`;
   }).join("");
   const same = pvSameAs(cur);
@@ -189,7 +189,7 @@ function pvStratSwitch() {
   const sameTxt = same.length ? `Same transfers as ${same.map(m => MODES[m]).join(" and ")}${same.length === PV_MODES.length - 1 ? " this time: the strategies agree" : ""}.${same.includes("balanced") ? why : ""} Lineups and captains can still differ.` : "";
   return `<div class="panel pvstrat"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
     <div class="seg pvstratseg" role="group" aria-label="Strategy">${btns}</div></div>
-    <p class="note" style="margin:8px 0 0">${pvRule(cur)}${sameTxt ? ` <b>${sameTxt}</b>` : ""}</p></div>`;
+    <p class="note" style="margin:8px 0 0">Figures are vs no transfers over ${PG.length} GWs, ${GAIN_NOTE()}. ${pvRule(cur)}${sameTxt ? ` <b>${sameTxt}</b>` : ""}</p></div>`;
 }
 function pvMissing(mode) {
   const why = mode === "balanced" ? "The optimiser didn't produce any plans in this build." : `No ${MODES[mode]} plans in this build: they need the field-ownership data (managers near your rank or the top 10k), which wasn't available.`;
@@ -224,7 +224,7 @@ function pvStrategy(mode) {
   ${pvStratSwitch()}
   <div class="plansum">
     <div class="kpi"><span class="lbl">${MODES[mode]} · ${PG.length} GWs</span><b>${f1(r.sc.tot)}</b><span class="delta muted">projected, after hits</span></div>
-    <div class="kpi"><span class="lbl">vs My team</span><b class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</b><span class="delta">${vPill(r.conf)}</span></div>
+    <div class="kpi"><span class="lbl" title="${GAIN_NOTE()}">vs no transfers</span><b class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</b><span class="delta">${vPill(r.conf)}</span></div>
     ${mode === "balanced" ? `<div class="kpi"><span class="lbl">GW${g} xP</span><b>${f1(t.pts)}</b><span class="delta muted">${sgn(t.pts - 4 * wk.hits - bw.team.pts)} vs My team that week</span></div>`
       : `<div class="kpi"><span class="lbl">vs Balanced</span><b class="${r.vsBal < -0.05 ? "down" : ""}">${r.vsBal == null ? "–" : sgn(r.vsBal)}</b><span class="delta muted">${mode === "safe" ? "never below Balanced" : `budget −${f1(D.plan_rules?.chase_budget ?? 4)}`}${r.ftVsBal ? ` · ${Math.abs(r.ftVsBal)} ${r.ftVsBal < 0 ? "fewer" : "more"} ${term("ft", "FT")} banked` : ""}</span></div>`}
     <div class="kpi"><span class="lbl">GW${g} ${term("ft", "transfers")}</span><b>${wk.n}/${wk.ft}</b><span class="delta muted">${wk.hits ? `${wk.hits} hit (−${4 * wk.hits})` : "no hits"} · bank ${money(wk.bank)}</span></div>
@@ -236,7 +236,7 @@ function pvStrategy(mode) {
       ${pvGwSel(r.sc.weeks, g)}
       <div class="bar lu-bar"><h3>GW${g} team · ${MODES[mode]}</h3>${lineupToggle()}</div>
       ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, fresh: pvFresh(r.moves, g), run: 3 })}
-      <p class="note">The XI this plan leaves you in GW${g}. A green bar under a shirt marks a player bought in the plan. Confidence is the gain over keeping your team: Strong at 3+ points over ${PG.length} GWs, Marginal at 1–3, otherwise a coin flip.</p>
+      <p class="note">The XI this plan leaves you in GW${g}. A green bar under a shirt marks a player bought in the plan. Confidence is the gain over keeping your team (${GAIN_NOTE()}): Strong at 3+ points over ${PG.length} GWs, Marginal at 1–3, otherwise a coin flip.</p>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
       <div class="panel"><div class="bar"><h3>Moves · GW${g}</h3><span class="tag">${MODES[mode]}</span></div>${varSeg}${movesHTML}
@@ -256,7 +256,7 @@ function pvCompare() {
     ...PV_MODES.map(m => { const r = pvStrat(m); return r.key ? { name: MODES[m], view: m, ...r } : { name: MODES[m], view: m, missing: true }; })];
   if (SB.moves.length) {
     const sc = scoreMoves(SB.moves);
-    cols.push({ name: "Your plan", view: "edit", sc, gain: sc.tot - base.tot, moves: SB.moves, conf: verdict(sc.tot - base.tot, 3, 1), traits: planTraits(sc), hits: sc.weeks.reduce((a, w) => a + w.hits, 0) });
+    cols.push({ name: "Your plan", view: "edit", sc, gain: gainVsNone(sc, base), moves: SB.moves, conf: verdict(gainVsNone(sc, base), 3, 1), traits: planTraits(sc), hits: sc.weeks.reduce((a, w) => a + w.hits, 0) });
   }
   const live = cols.filter(c => !c.missing);
   const best = f => Math.max(...live.map(f));
@@ -264,7 +264,7 @@ function pvCompare() {
   const g0 = PG[0];
   const rows = [
     ["Projected points", c => c.sc.tot, f1],
-    ["vs My team", c => c.gain, sgn],
+    ["vs no transfers (banked FTs counted)", c => c.gain, sgn],
     ["Confidence", null, c => c.conf ? vPill(c.conf) : `<span class="muted">baseline</span>`],
     [`GW${g0} xP`, c => c.sc.weeks[0].team.pts, f1],
     [`GW${g0} captain`, null, c => esc(P[c.sc.weeks[0].team.cap]?.name || "–")],
@@ -322,7 +322,7 @@ function bindPlannerViews() {
     activatePlan({ moves: r.moves, mode: m, solved: solvedFrom(r.sc) }, "plan:" + r.key);
     S.pview = "edit"; store.set("fpl.pview", "edit");
     render(); window.scrollTo({ top: 0 });
-    toast(`${MODES[m]} plan is now Your plan: ${sgn(r.gain)} over ${PG.length} GWs. Undo is in Your moves.`);
+    toast(`${MODES[m]} plan is now Your plan: ${sgn(r.gain)} vs no transfers over ${PG.length} GWs. Undo is in Your moves.`);
   });
   on("[data-pvdraft]", b => {
     const [m] = b.dataset.pvdraft.split(":"), r = pvStrat(m), ds = getDrafts(); if (!r.key || ds.length >= 3) return;

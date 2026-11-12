@@ -9,6 +9,7 @@
     "test": "npm run lint && npm run check && node --test tests/*.mjs",
     "sw": "node scripts/sw-shell.mjs",
     "layout": "python3 scripts/layout_check.py",
+    "contrast": "python3 scripts/contrast_check.py",
     "taps": "python3 scripts/tap_check.py",
     "behaviour": "python3 scripts/behaviour_check.py"
   },

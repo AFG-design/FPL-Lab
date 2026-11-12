@@ -76,16 +76,18 @@ def _age_hours(newer, older):
 
 
 def check_logs(D, warnings):
-    """history/news.json and history/prices.json (FL-120): build.py never overwrites one it couldn't read, so its history
+    """history/news.json, history/prices.json (FL-120) and crowd/history.json (FL-152): build.py never overwrites one it couldn't read, so its history
     survives, but until someone fixes the file the injury news history and the price-change track record stop growing
     and this build shows them from nothing. A warning (Data health), not an error: everything else is right.
     Missing / late / ambiguous: a build.py older than FL-120 has no "ok" key; it is not checked (it would already have
     overwritten the file). A file that doesn't exist yet (first run) is not an error: build.py starts it, ok True.
     """
     src = D.get("sources") or {}
-    for key, what in (("news", "injury news history"), ("prices", "price-change track record")):
+    for key, path, what in (("news", "history/news.json", "injury news history"),
+                            ("prices", "history/prices.json", "price-change track record"),
+                            ("template", "crowd/history.json", "template tracker history")):
         if (src.get(key) or {}).get("ok") is False:
-            warnings.append(f"history/{key}.json is unreadable and was left untouched: the {what} isn't being updated "
+            warnings.append(f"{path} is unreadable and was left untouched: the {what} isn't being updated "
                             f"until the file is fixed or restored from Git history")
 
 
@@ -777,6 +779,25 @@ def main(path):
         moved = any(wk.get("in") for wk in pl.get("weeks", []))
         if moved and not k.endswith("roll") and pl["vs_none"] < rules.get("min_profit", 1.0) - 0.01:
             errors.append(f"Plan {k}: {pl['vs_none']:+.2f} vs no transfers, short of the profit rule")
+    # FL-125: the Planner's "vs no transfers" is vs_none, rebuilt in the browser from xp_total and ft_left with
+    # plan_rules.ft_value. Without ft_value it falls back to 1.5 and could disagree with data.json, so its absence
+    # with plans published is an error. Every plan's value must be xp_total + ft_value * ft_left, and value - vs_none
+    # the same keep-the-squad baseline for every plan (one figure, one baseline). Plans without these fields were
+    # already reported above.
+    ftv = rules.get("ft_value")
+    if plans and rules and (is_bad(ftv) or ftv < 0):
+        errors.append(f"plan_rules.ft_value is {ftv!r}: the Planner's 'vs no transfers' can't match the plans")
+    elif plans and rules:
+        bases = {}
+        for k, pl in plans.items():
+            if any(is_bad(pl.get(f)) for f in ("value", "xp_total", "ft_left", "vs_none")):
+                continue
+            if abs(pl["value"] - (pl["xp_total"] + ftv * pl["ft_left"])) > 0.02:
+                errors.append(f"Plan {k}: value {pl['value']} isn't xP {pl['xp_total']} + {ftv:g} x {pl['ft_left']} FTs banked")
+            bases[k] = pl["value"] - pl["vs_none"]
+        if bases and max(bases.values()) - min(bases.values()) > 0.03:
+            errors.append(f"Plans disagree on the no-transfers baseline (value - vs_none from {min(bases.values()):.2f} "
+                          f"to {max(bases.values()):.2f}): the Planner's 'vs no transfers' would not match")
     for n in D.get("plan_notes") or []:
         if not n.endswith("dropped"):   # a move-count option dropped by the profit rule is normal, not a fault
             warnings.append(f"Plans: {n}")

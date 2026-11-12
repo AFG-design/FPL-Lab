@@ -57,11 +57,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install the optimiser
@@ -76,7 +76,7 @@ jobs:
           python3 scripts/refresh.py
       - name: Keep sampled data for recovery if the refresh fails
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: failed-refresh-${{ github.run_attempt }}
           path: |
@@ -85,8 +85,8 @@ jobs:
             understat/
             odds/
             ${{ runner.temp }}/refresh-attempt-*.tar.gz
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
@@ -98,4 +98,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

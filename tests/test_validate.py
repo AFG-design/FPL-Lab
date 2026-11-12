@@ -180,7 +180,7 @@ class Validator(unittest.TestCase):
 
     def test_plan_budgets_reject_nan_and_missing_hit_gain(self):
         self.D["plans"] = {"best": {"weeks": [], "vs_balanced": 0, "vs_none": 0}}
-        self.D["plan_rules"] = {"hit_gain": 1}
+        self.D["plan_rules"] = {"hit_gain": 1, "ft_value": 1.5}
         self.run_check()
         for field in ("vs_balanced", "vs_none"):
             self.D["plans"]["best"][field] = float("nan")
@@ -193,6 +193,21 @@ class Validator(unittest.TestCase):
         self.run_check("budget figures")
         del self.D["plans"]["best"]["hit_gain"]
         self.run_check("budget figures")
+
+    def test_planner_gain_matches_vs_none(self):
+        """FL-125: the Planner rebuilds vs_none from xp_total, ft_left and plan_rules.ft_value."""
+        plan = lambda xp, ft, vs: {"weeks": [], "vs_balanced": 0, "vs_none": vs, "xp_total": xp, "ft_left": ft,
+                                   "value": xp + 1.5 * ft}
+        self.D["plans"] = {"roll": plan(243.0, 4, 5.88), "chase_roll": plan(242.54, 3, 3.92)}
+        self.D["plan_rules"] = {"ft_value": 1.5, "tie": 0.1}
+        self.run_check()
+        del self.D["plan_rules"]["ft_value"]
+        self.run_check("plan_rules.ft_value")
+        self.D["plan_rules"]["ft_value"] = 1.5
+        self.D["plans"]["roll"]["value"] += 1.5          # FT counted at a different rate from plan_rules
+        self.run_check("isn't xP")
+        self.D["plans"]["roll"] = plan(243.0, 4, 7.38)    # points-only gain: a different baseline from chase_roll
+        self.run_check("no-transfers baseline")
 
     def test_deadline_parse_failure_remains_a_warning(self):
         self.D["meta"]["deadline"] = "2026-11-09T12:00:00+00:00"

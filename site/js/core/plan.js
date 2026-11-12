@@ -190,10 +190,19 @@ function scoreMoves(moves, solved = moves === SB.moves ? SB.solved : null) {
 }
 let _base = null;
 const baseScore = () => _base || (_base = scoreMoves([]));
+// FL-125: the one "vs no transfers" figure on the Planner, the same measure as data.json's plans[*].vs_none
+// (optimise.strategy_plans): projected points over the plan after hits, plus ft_value for each free transfer banked at
+// the end, against keeping the squad and picking the best XI each week. Points alone would overstate a plan that
+// spends transfers (on 12 Nov, Balanced showed +7.4 where data.json had +5.88). Missing: a data.json from before
+// plan_rules.ft_value -> 1.5, optimise.FT_VALUE; validate.py errors when plans are published without it, so the
+// fallback only covers an old copy cached on the device.
+const ftValue = () => D.plan_rules?.ft_value ?? 1.5;
+const gainVsNone = (sc, base) => sc.tot - base.tot + ftValue() * (sc.ftLeft - base.ftLeft);
+const GAIN_NOTE = () => `after hits, with each free transfer banked at the end worth ${f1(ftValue())}`;
 function sandboxSummary() {
   const sc = scoreMoves(SB.moves), base = baseScore();
   sc.weeks.forEach((w, i) => w.base = base.weeks[i].team.pts);
-  return { weeks: sc.weeks, tot: sc.tot, baseTot: base.tot, ftLeft: sc.ftLeft };
+  return { weeks: sc.weeks, tot: sc.tot, baseTot: base.tot, ftLeft: sc.ftLeft, baseFtLeft: base.ftLeft, gain: gainVsNone(sc, base) };
 }
 function myTeam() {
   const g = D.meta.next_gw, sc = scoreMoves(SB.moves), w = sc.weeks[0];
