@@ -22,6 +22,7 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
     chance outside 0-1, or expected goals outside 0.05-6
   - meta.odds rows used + rows dropped not adding up to odds/odds.json's rows (data.json built from another odds file)
   - a player kept as close to a return (FL-093) whose status, chance, minutes or news don't match the reason given
+  - priors.json holding a prior from a season outside its "seasons" list (the two calendar seasons before this one)
   - model settings exported for the site (meta.model) that aren't finite numbers in a sane range: home 1.0-1.5,
     cs_k 0.5-1.5 (data built before the field existed has no meta.model and is not checked)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
@@ -798,6 +799,15 @@ def main(path):
         if not ok:
             errors.append(f"{pl.get('name')} ({pl.get('id')}): kept as returning '{why}' but status {pl.get('status')}, "
                           f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
+    # FL-113: priors only from the seasons make_priors.py lists in priors.json "seasons" (the two calendar seasons
+    # before this one). A file written before that field existed is not checked.
+    pri = load(os.path.join(HERE, "priors.json")) or {}
+    if pri.get("seasons"):
+        allowed = {f"{y}/{(y + 1) % 100:02d}" for y in pri["seasons"]}
+        bad = sorted({v.get("season") for v in (pri.get("players") or {}).values()} - allowed, key=str)
+        if bad:
+            errors.append(f"priors.json holds priors from season(s) {', '.join(map(str, bad))}, outside "
+                          f"{', '.join(sorted(allowed))}: rates from old seasons (and 0 xG before 2022/23) would be used")
     check_sources(D, warnings)
     check_logs(D, warnings)
     check_model_inputs(D["meta"], errors, warnings)
