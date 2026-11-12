@@ -314,13 +314,13 @@ def check_squad(D, detail, errors, warnings):
                           f"missing {sorted(set(previous) - set(ids))}, unexpected {sorted(set(ids) - set(previous))}")
 
 
-GAP_WINDOW_H, GAP_MAX_MIN = 6, 45
+GAP_WINDOW_H, GAP_MAX_MIN = 6, 75   # FL-111: refreshes are hourly outside matches, so an hour plus 15 minutes' slack
 
 
 def check_refresh_gap(meta, warnings):
     """Warn when refreshes are far apart close to a deadline.
 
-    The Refresh workflow is scheduled every 30 minutes, but GitHub starts scheduled runs late or not at all (gaps of
+    The Refresh workflow is scheduled hourly (every 10 minutes during matches), but GitHub starts scheduled runs late or not at all (gaps of
     8 hours seen in November 2026), so the last data before a deadline can be hours old. A warning, never an error: a
     late refresh is still the freshest data there is, and stopping the publish would make it worse.
     Missing / late / ambiguous: data built by an older build.py has no prev_built key and is not checked; a key that
@@ -346,7 +346,7 @@ def check_refresh_gap(meta, warnings):
         return
     if gap > GAP_MAX_MIN:
         warnings.append(f"Refresh gap: {gap / 60:.1f} h since the previous refresh, {hours:.1f} h before the "
-                        f"GW{meta.get('next_gw')} deadline (scheduled every 30 minutes). GitHub's schedule is "
+                        f"GW{meta.get('next_gw')} deadline (scheduled hourly). GitHub's schedule is "
                         f"unreliable: set up the backup scheduler in the README")
 
 

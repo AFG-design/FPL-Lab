@@ -2,12 +2,12 @@ name: Refresh FPL data
 
 on:
   schedule:
-    - cron: "7,37 * * * *"   # every 30 minutes (UTC); an external scheduler can also start it (see README)
+    - cron: "7 * * * *"      # hourly (UTC), FL-111; an external scheduler can also start it (see README)
     - cron: "*/10 * * * *"   # every 10 minutes, but only goes ahead while a Premier League match is on (see "check")
   workflow_dispatch:          # "Run workflow" button, the dashboard's Refresh button, or an external scheduler
     inputs:
       live_only:
-        description: "Only rebuild while a match is on (or on the half hour). For an external scheduler every 10 minutes."
+        description: "Only rebuild while a match is on (or on the hour). For an external scheduler every 10 minutes."
         required: false
         default: "false"
   push:
@@ -26,7 +26,8 @@ concurrency:
 jobs:
   # The 10-minute schedule (and an external scheduler sending live_only=true) is for live gameweeks:
   # rebuild if a match kicked off in the last 2.5 hours (or kicks off in the next 10 minutes), otherwise
-  # only on the first run of each half hour. Everything else always runs.
+  # only on the first run of each hour (FL-111: hourly outside match windows). Everything else always runs.
+  # If the fixture list can't be fetched, no match counts as live and only the hourly rebuild goes ahead.
   check:
     runs-on: ubuntu-latest
     outputs:
@@ -47,7 +48,7 @@ jobs:
               fx = []
           now = dt.datetime.now(dt.timezone.utc)
           live = any(f.get("kickoff_time") and -dt.timedelta(minutes=10) <= now - dt.datetime.fromisoformat(f["kickoff_time"].replace("Z", "+00:00")) <= dt.timedelta(hours=2.5) for f in fx)
-          live = live or now.minute % 30 < 10      # outside matches, still rebuild about every half hour
+          live = live or now.minute < 10      # outside matches, still rebuild about once an hour
           print("run=" + ("true" if live else "false"))
           PY
 

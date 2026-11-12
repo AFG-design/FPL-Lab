@@ -4,7 +4,7 @@ This file is the single source of truth for how FPL LAB is built. Any other inst
 memory) point here; if they disagree, this file wins. When the owner settles a new rule, add it here in the
 same PR.
 
-Static site on GitHub Pages (`site/`); `build.py` rebuilds `site/data.json` every 30 minutes (Refresh workflow),
+Static site on GitHub Pages (`site/`); `build.py` rebuilds `site/data.json` hourly, every 10 minutes during matches (Refresh workflow),
 then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing design.
 
 ## How to work

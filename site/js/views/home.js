@@ -197,7 +197,7 @@ function vCurrent() {
   const planBtn = `<button class="btn primary" data-plgo="edit">Continue planning${ng ? ` for GW${ng}` : ""}</button>`;
   if (cg == null) return stateView({ title: "No gameweek has started yet", body: `Your submitted squad and its points appear here after the GW${ng || 1} deadline.`, action: planBtn });
   const s = L && L.gw === cg ? liveState() : null;
-  if (!s) return stateView({ title: `GW${cg} scores aren't available`, body: `The latest data has no live scores for GW${cg}${L ? ` (it has GW${L.gw})` : ""}. They usually return with the next refresh, every 30 minutes and every 10 during matches.`, action: planBtn });
+  if (!s) return stateView({ title: `GW${cg} scores aren't available`, body: `The latest data has no live scores for GW${cg}${L ? ` (it has GW${L.gw})` : ""}. They usually return with the next refresh: hourly, and every 10 minutes during matches.`, action: planBtn });
 
   const allDone = L.fixtures.length > 0 && L.fixtures.every(f => f.done);
   const phase = D.meta.cur_finished ? "final" : allDone ? "awaiting" : L.fixtures.some(f => f.started) ? "live" : "pre";
