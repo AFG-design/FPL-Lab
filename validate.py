@@ -76,16 +76,18 @@ def _age_hours(newer, older):
 
 
 def check_logs(D, warnings):
-    """history/news.json and history/prices.json (FL-120): build.py never overwrites one it couldn't read, so its history
+    """history/news.json, history/prices.json (FL-120) and crowd/history.json (FL-152): build.py never overwrites one it couldn't read, so its history
     survives, but until someone fixes the file the injury news history and the price-change track record stop growing
     and this build shows them from nothing. A warning (Data health), not an error: everything else is right.
     Missing / late / ambiguous: a build.py older than FL-120 has no "ok" key; it is not checked (it would already have
     overwritten the file). A file that doesn't exist yet (first run) is not an error: build.py starts it, ok True.
     """
     src = D.get("sources") or {}
-    for key, what in (("news", "injury news history"), ("prices", "price-change track record")):
+    for key, path, what in (("news", "history/news.json", "injury news history"),
+                            ("prices", "history/prices.json", "price-change track record"),
+                            ("template", "crowd/history.json", "template tracker history")):
         if (src.get(key) or {}).get("ok") is False:
-            warnings.append(f"history/{key}.json is unreadable and was left untouched: the {what} isn't being updated "
+            warnings.append(f"{path} is unreadable and was left untouched: the {what} isn't being updated "
                             f"until the file is fixed or restored from Git history")
 
 
