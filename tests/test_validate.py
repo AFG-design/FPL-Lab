@@ -220,9 +220,11 @@ class Validator(unittest.TestCase):
                                             "xp_total": 240 + vs_none, "ft_left": 1, "value": 241.5 + vs_none}
         self.D["players"] += [{"id": i, "name": f"P{i}", "price": 5.0, "pos": "MID", "xp": {}} for i in range(20, 23)]
         self.D["plans"] = {"roll": plan(0, 0.0, 4.0), "three": plan(3, 1.2, 5.2)}
-        self.D["plan_rules"] = {"ft_value": 1.5, "min_profit": 1.0, "tie": 0.1}
+        self.D["plan_rules"] = {"ft_value": 1.5, "min_profit": 1.0, "tie": 0.1, "recommend_margin": 1.0}
+        self.D["recommended"] = {"balanced": "three", "safe": None, "chase": None}
         self.run_check()
         self.D["plans"]["three"].update(vs_roll=0.32, vs_none=4.32, xp_total=244.32, value=245.82)
+        self.D["recommended"]["balanced"] = "roll"
         self.run_check("vs rolling this week, short of the profit rule")
         del self.D["plans"]["three"]["vs_roll"]
         self.run_check("has no vs_roll")

@@ -1,5 +1,5 @@
-// FL-110: Re-plan and the strategy tab's pick measure moves this week against rolling the transfer, with
-// plan_rules.min_profit (it replaced an undocumented 0.5 in the browser). Uses the shipped WASM solver.
+// FL-110: Re-plan measures moves this week against rolling the transfer, with plan_rules.min_profit, and the
+// strategy tab's pick uses min_profit as its margin (it replaced an undocumented 0.5). Uses the shipped WASM solver.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -44,12 +44,8 @@ test("Re-plan: a signing worth +3 a week over rolling is made this week", async 
   assert.ok(res.moves.some(m => m.gw === 10 && m.in === 16), JSON.stringify(res.moves));
 });
 
-test("the tab's pick: fewest moves within min_profit of the best, none without min_profit", () => {
-  const run = planner(4, RULES);
-  run(`D.plans = { roll: { vs_roll: 0 }, one: { vs_roll: 1.2 }, two: { vs_roll: 2.0 } }`);
-  assert.equal(run(`recommendedPlan("balanced")`), "one");          // the 0.5 it replaced picked "two"
-  run(`D.plan_rules = { ...D.plan_rules, min_profit: 0.5 }`);
-  assert.equal(run(`recommendedPlan("balanced")`), "two");
-  run(`delete D.plan_rules.min_profit`);
-  assert.equal(run(`recommendedPlan("balanced")`), null);
+test("the tab's pick is the build's (FL-108), worked out with min_profit as its margin (FL-110)", () => {
+  const run = planner(4, { ...RULES, recommend_margin: 1 });
+  run(`D.plans = { roll: { vs_roll: 0 }, one: { vs_roll: 1.2 }, two: { vs_roll: 2.0 } }; D.recommended = { balanced: "one" }`);
+  assert.equal(run(`recommendedPlan("balanced")`), "one");
 });

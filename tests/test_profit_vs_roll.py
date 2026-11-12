@@ -71,5 +71,13 @@ class ProfitVsRoll(unittest.TestCase):
                     self.assertGreaterEqual(p["value"] - plans[mode + "roll"]["value"], optimise.MIN_PROFIT - 1e-9, (g, k))
 
 
+class PickMargin(unittest.TestCase):
+    def test_recommended_margin_is_the_profit_rule(self):
+        # the undocumented 0.5 is gone: an extra move this week must add MIN_PROFIT to be the pick
+        self.assertEqual(optimise.RECOMMEND_MARGIN, optimise.MIN_PROFIT)
+        plans = {"roll": {"vs_roll": 0.0}, "one": {"vs_roll": 1.2}, "two": {"vs_roll": 2.0}}
+        self.assertEqual(optimise.recommended(plans)["balanced"], "one")       # 0.5 picked "two"
+
+
 if __name__ == "__main__":
     unittest.main()
