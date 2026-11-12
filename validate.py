@@ -298,6 +298,36 @@ def check_refresh_gap(meta, warnings):
                         f"unreliable: set up the backup scheduler in the README")
 
 
+def check_season_end(meta, errors, warnings):
+    """FL-060: after GW38's deadline FPL lists no next gameweek, and build.py publishes a season-end build (no forecasts
+    or plans, season stats and live scores only) with meta.season_over set.
+
+    An error when FPL drops the next gameweek before the last one is current (an API fault mid-season): publishing would
+    blank the Planner and every xP, so the publish stops and the last good site stays up. Also an error when the flag
+    disagrees with next_gw, or a season-end build still carries forecast weeks. A correct season-end build gets one
+    warning so Data health says why there are no forecasts.
+    Missing / late / ambiguous: data from a build.py older than FL-060 has no season_over key and is not checked (it
+    can't say whether the season was over). season_over set but no last_gw is an error: the end of the season can't be
+    confirmed, so the publish stops rather than assume it.
+    """
+    if "season_over" not in meta:
+        return
+    over, nxt, cur, last = meta["season_over"], meta.get("next_gw"), meta.get("cur_gw"), meta.get("last_gw")
+    if bool(over) != (nxt is None):
+        errors.append(f"Season end: season_over is {over} but next_gw is {nxt}")
+        return
+    if not over:
+        return
+    if last is None or cur != last:
+        errors.append(f"FPL lists no next gameweek but the current one is GW{cur}, not the last (GW{last}): "
+                      f"not publishing a site with no forecasts mid-season")
+        return
+    if meta.get("proj_gws") or meta.get("plan_gws"):
+        errors.append(f"Season over but forecast weeks {meta.get('proj_gws')} / plan weeks {meta.get('plan_gws')} are set")
+        return
+    warnings.append(f"Season over: GW{cur} was the last gameweek, so there are no forecasts or plans until FPL opens next season")
+
+
 def main(path):
     with open(path) as f:
         D = json.load(f)
@@ -572,7 +602,7 @@ def main(path):
     po = sorted(((int(f[len("player_odds_gw"):-5]), f) for f in os.listdir(os.path.join(HERE, "history"))
                  if f.startswith("player_odds_gw") and f.endswith(".json")), reverse=True)
     for pg, f in po:
-        if pg >= g:   # the coming gameweek is still being collected
+        if g and pg >= g:   # the coming gameweek is still being collected (season over: none is, check them all)
             continue
         data = load(os.path.join(HERE, "history", f)) or {}
         snaps = snapshots(data)
@@ -591,12 +621,13 @@ def main(path):
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
     check_sources(D, warnings)
+    check_season_end(D["meta"], errors, warnings)
     # Planner strategy tabs (views/planner.js): each tab shows one optimiser plan per strategy. Every plan must name
     # players we list and field a legal XI; a strategy with no plans (build.py drops Play safe and Chase rank when the
     # field ownership file is missing) is a warning, and the tab says so instead of showing the Balanced plan.
     pids = {p["id"] for p in D["players"]}
     plans = D.get("plans") or {}
-    if not plans:
+    if not plans and not D["meta"].get("season_over"):   # season over: check_season_end explains the empty planner
         warnings.append("No optimiser plans: the Planner strategy tabs show a 'no plan' message")
     for k, pl in plans.items():
         for wk in pl.get("weeks", []):

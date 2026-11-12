@@ -91,6 +91,10 @@ function skeleton(kind = "page") {
     </div>
   </div>`;
 }
+/* Season end (FL-060): after GW38's deadline FPL lists no next gameweek, so build.py sets meta.season_over and sends no
+   forecast weeks or plans. Views that plan the next gameweek show this instead. Missing flag (older data.json): false. */
+const seasonOver = () => !!D.meta?.season_over;
+const seasonOverView = what => stateView({ title: "Season over", body: `GW${D.meta.cur_gw} was the last gameweek, so there is nothing left to ${what}. This returns when FPL opens next season.` });
 function stateView({ kind = "empty", title, body = "", action = "" }) {
   return `<div class="state ${kind}" role="${kind === "error" ? "alert" : "status"}">${icon(kind === "error" ? "alert" : "empty", "state-ic")}<h2>${title}</h2>${body ? `<p>${body}</p>` : ""}${action}</div>`;
 }

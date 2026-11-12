@@ -23,7 +23,7 @@ function header() {
     statBadge("Overall rank", `<span id="rankNum">${rankFmt(m.rank)}</span>`, { sub: move }) +
     statBadge("Points", m.points, { sub: `GW${meta.picks_gw}: ${m.gw_points ?? "–"}` }) +
     statBadge("Bank", money(m.bank), { sub: `${m.free_transfers} free transfer${m.free_transfers === 1 ? "" : "s"}` }) +
-    `<div class="stat deadline${deadlineSoon(meta.deadline) ? " soon" : ""}" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><dt>GW${meta.next_gw} deadline</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : ""}</dd></div>`;
+    `<div class="stat deadline${deadlineSoon(meta.deadline) ? " soon" : ""}" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><dt>${meta.next_gw ? `GW${meta.next_gw} deadline` : "Next deadline"}</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : meta.season_over ? "Season over" : ""}</dd></div>`;
   // first load only: the rank arrow nudges up and the rank counts in from last week's figure
   if (!RANK_INTRO_DONE) {
     RANK_INTRO_DONE = true;

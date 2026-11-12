@@ -28,7 +28,8 @@ const HOME_VIEWS = [["next", "Next deadline"], ["current", "Current GW"]];
 { const v = store.get("fpl.home"); S.home = HOME_VIEWS.some(([k]) => k === v) ? v : null; }
 const gwInProgress = () => D.meta.cur_gw != null && !D.meta.cur_finished;
 function homeView() {
-  if (!S.home) S.home = gwInProgress() ? "current" : "next";   // first visit: fixed for the visit, not stored
+  // Season over (FL-060): no next deadline, so Current GW opens whatever was stored or picked first
+  if (!S.home) S.home = gwInProgress() || seasonOver() ? "current" : "next";   // first visit: fixed for the visit, not stored
   return S.home;
 }
 const hm = iso => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
@@ -45,7 +46,7 @@ function vHome() {
   const hint = v === "next" && gwInProgress() ? `<span class="home-hint"><span class="live-dot" aria-hidden="true"></span>GW${cg} is under way: its points are in Current GW.</span>`
     : v === "current" && ng ? `<span class="home-hint">Plan changes apply to the GW${ng} deadline.</span>` : "";
   let body;
-  try { body = v === "current" ? vCurrent() : vNext(); } catch (e) {
+  try { body = v === "current" ? vCurrent() : seasonOver() ? seasonOverView("plan") : vNext(); } catch (e) {
     console.error(e);
     body = stateView({ kind: "error", title: "This view couldn't be drawn", body: "Something in the latest data didn't match what this page expects. The other view should still work." });
   }
@@ -337,7 +338,7 @@ function vCurrent() {
   const scores = scoresStrip() + livePanel();
   return `${hero}${tiles}<div class="home-main">${pitchCol}<div class="home-side">${lm}${rv}${nd}${ol}</div></div>
     <div id="gwScores" tabindex="-1" class="gwscores">${scores || `<p class="note">Match cards for GW${cg} are shown until the GW${ng || ""} deadline.${phase === "final" ? ' Full breakdown in <button class="linkish" data-v-go="review">Review</button>.' : ""}</p>`}</div>
-    <p class="prevgw"><span>GW${cg} squad is locked. Plan changes apply to the ${ng ? `GW${ng} ` : "next "}deadline.</span><span class="prevgw-go"><button class="linkish" data-plgo="edit">Continue planning →</button></span></p>`;
+    ${seasonOver() ? "" : `<p class="prevgw"><span>GW${cg} squad is locked. Plan changes apply to the ${ng ? `GW${ng} ` : "next "}deadline.</span><span class="prevgw-go"><button class="linkish" data-plgo="edit">Continue planning →</button></span></p>`}`;
 }
 
 /* ---------- events ---------- */

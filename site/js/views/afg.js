@@ -111,6 +111,7 @@ function afgScoreboard() {
 
 function vAfg() {
   const A = D.afg, g = D.meta.next_gw;
+  if (seasonOver()) return seasonOverView("suggest");
   if (!A || !A.p) return stateView({ kind: "empty", title: "No AFG suggestion yet", body: "It appears after the next data refresh." });
   if (A.gw !== g) return stateView({ kind: "empty", title: `AFG is still on GW${A.gw}`, body: "It catches up on the next data refresh." });
   const me = myTeam(), squad = me.week.sq, af = afgXI(squad, g);

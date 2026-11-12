@@ -12,7 +12,7 @@ function chipBadges(chips) {
   const st = chipState(chips); if (!st) return '<span class="muted">–</span>';
   return `<span class="chipset">${st.map(c => `<span class="cbadge ${c.used ? "used" : ""}" title="${CHIP_NAME[c.k]}: ${c.used ? "used GW" + c.used : "still available"}">${CHIP_SHORT[c.k]}</span>`).join("")}</span>`;
 }
-const recTeam = () => myTeam();
+const recTeam = () => seasonOver() ? null : myTeam();   // season over: no planned team, so no field or rival swing
 const field = () => {
   const f = D.crowd?.[S.field === "near" ? "near" : "top10k"];
   return f?.n > 0 && f.eo && f.cap && f.own ? f : null;
@@ -40,10 +40,10 @@ function vRivals() {
   const C = D.crowd;
   if (!C) return `<div class="panel"><h2>Rivals</h2><p class="muted">Ownership data appears after the next gameweek deadline, once managers' teams become public.</p></div>`;
   const g = D.meta.next_gw, t = recTeam(), F = field();
-  const rows = F ? fieldRows(F, t.mult, g) : [];
+  const rows = F && t ? fieldRows(F, t.mult, g) : [];
   const thr = rows.filter(r => r.impact < -0.3).sort((a, b) => a.impact - b.impact).slice(0, 8);
   const edge = rows.filter(r => r.impact > 0.3).sort((a, b) => b.impact - a.impact).slice(0, 8);
-  const xiOwn = F ? t.xi.reduce((a, i) => a + (F.own[i] || 0), 0) / t.xi.length : null;
+  const xiOwn = F && t ? t.xi.reduce((a, i) => a + (F.own[i] || 0), 0) / t.xi.length : null;
   const capTop = Object.entries(F?.cap || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const chipTxt = Object.entries(F?.chips || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[k] || k} ${v.toFixed(0)}%`).join(" · ") || "none";
   const label = S.field === "near" ? `managers near your rank (${rankFmt(F?.rank_from)}–${rankFmt(F?.rank_to)})` : "the top 10k";
@@ -81,7 +81,7 @@ function vRivals() {
   return `
   <div class="panel"><div class="bar"><h2>The field</h2>
       <div class="seg" role="group" aria-label="Compare with"><button data-field="top10k" aria-pressed="${S.field !== "near"}">Top 10k</button><button data-field="near" aria-pressed="${S.field === "near"}">Around your rank</button></div></div>
-    ${F ? `<p class="note" style="margin-top:0">What ${label} owned and captained in GW${C.gw} (${F.n.toLocaleString("en-GB")} teams sampled), against your planned GW${g} team. ${term("eo", "EO")} (effective ownership) counts captains twice. ${term("swing", "Swing")} = how much a player's projected points move your rank: negative means the field gains on you if he delivers.</p>
+    ${!t ? `<p class="note" style="margin-top:0">Season over: there is no next gameweek to set your team against the field.</p>` : F ? `<p class="note" style="margin-top:0">What ${label} owned and captained in GW${C.gw} (${F.n.toLocaleString("en-GB")} teams sampled), against your planned GW${g} team. ${term("eo", "EO")} (effective ownership) counts captains twice. ${term("swing", "Swing")} = how much a player's projected points move your rank: negative means the field gains on you if he delivers.</p>
     <div class="kpis" style="margin-bottom:14px">
       <div class="kpi"><span class="lbl">Your XI's average ownership</span><b>${xiOwn.toFixed(0)}%</b><span class="delta muted">${xiOwn > 60 ? "very template" : xiOwn > 40 ? "fairly template" : "plenty of differentials"}</span></div>
       <div class="kpi"><span class="lbl">Their captain</span><b>${esc(P[capTop[0]?.[0]]?.name || "–")}</b><span class="delta muted">${capTop[0] ? capTop[0][1].toFixed(0) + "% of teams" : ""}</span></div>
@@ -102,6 +102,8 @@ function vRivals() {
 /* ---------- compare two teams: where your squads differ and who that favours next gameweek ---------- */
 function teamCompare(rv, { gw, close }) {
   const t = recTeam(), g = D.meta.next_gw;
+  if (!t) return `<div class="panel cmp-panel"><div class="bar"><h3>You vs ${esc(rv.player)}</h3>${close ? `<button class="btn" ${close}>Close</button>` : ""}</div>
+    <p class="note">Season over: there is no next gameweek to compare your teams for.</p></div>`;
   const theirs = {}; rv.picks.forEach(([el, m]) => theirs[el] = m);
   const all = new Set([...Object.keys(theirs).map(Number), ...Object.keys(t.mult).map(Number)]);
   const diffs = [...all].filter(i => P[i]).map(i => ({ id: i, me: t.mult[i] || 0, them: theirs[i] || 0, x: xpg(i, g) })).filter(r => r.me !== r.them).map(r => ({ ...r, sw: (r.me - r.them) * r.x }));
