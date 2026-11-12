@@ -205,6 +205,19 @@ team_value = squad_state.team_value(own_picks, bank, {i: e["now_cost"] for i, e 
 pstats = ctx["pstats"]
 
 
+def done_gws(pid, n=None):
+    """The last n gameweeks up to the current one (all of them for n None) for the form windows below, leaving out any
+    week his club hasn't finished (FL-083). Mid-gameweek pstats has no row for a club still to play (or part way through
+    a double), the model's rule (fplmodel.unfinished_team_weeks); counting that week anyway made an ever-present starter
+    whose club plays on Monday show 4 starts from 5, and shortened every "last 4/6" window by a week. The window reaches
+    one week further back instead.
+    Missing / ambiguous: a fixture FPL hasn't given a gameweek (postponed) isn't pending and changes nothing; a blank
+    week (no fixture) is still counted as a week, as before; a player who changed club is judged by his current club."""
+    team = elements[pid]["team"]
+    gws = [g for g in range(1, cur_gw + 1) if (team, g) not in ctx["pending_team_gws"]]
+    return gws if n is None else gws[-n:]
+
+
 def series(pid, key, cast=float):
     return [round(cast(pstats[pid][g][key]), 2) if g in pstats.get(pid, {}) else 0 for g in range(1, cur_gw + 1)]
 
@@ -212,14 +225,15 @@ def series(pid, key, cast=float):
 def starts_record(pid, e, n=5):
     """[starts, games] over his club's last n finished gameweeks (a double counts each game): real starts, for the
     player sheet, which used to print the model's start chance as if it were a share of games."""
-    gws = sorted({x[0] for x in ctx["team_fix"].get(e["team"], []) if x[0] and x[0] <= cur_gw})[-n:]
+    pending = ctx["pending_team_gws"]   # FL-083: a game not finished yet isn't one he could have started
+    gws = sorted({x[0] for x in ctx["team_fix"].get(e["team"], []) if x[0] and x[0] <= cur_gw and (e["team"], x[0]) not in pending})[-n:]
     s = pstats.get(pid, {})
     games = sum(sum(1 for x in ctx["team_fix"][e["team"]] if x[0] == g) for g in gws)
     return [min(games, sum(s[g]["starts"] for g in gws if g in s)), games]
 
 
 def rolling(pid, n):
-    gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1)]
+    gws = done_gws(pid, n)
     s = pstats.get(pid, {})
     mins = sum(s[g]["minutes"] for g in gws if g in s)
     xgi = sum(float(s[g]["expected_goal_involvements"]) for g in gws if g in s)
@@ -277,17 +291,17 @@ for g, data in model_live.items():
 
 
 def ga_window(pid, n):
-    """Goals, assists, FPL (Opta) xG and xA, and minutes over the last n gameweeks, finished matches only.
-    A player with no row in a gameweek (no fixture, or not yet played) adds nothing for it."""
+    """Goals, assists, FPL (Opta) xG and xA, and minutes over the last n gameweeks his club has finished (done_gws).
+    A player with no row in a gameweek (no fixture, or he didn't play) adds nothing for it."""
     s = pstats.get(pid, {})
-    gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1) if g in s]
+    gws = [g for g in done_gws(pid, n) if g in s]
     tot = lambda k, cast=float: sum(cast(s[g][k]) for g in gws)
     return {"g": tot("goals_scored", int), "a": tot("assists", int), "xg": round(tot("expected_goals"), 2),
             "xa": round(tot("expected_assists"), 2), "mins": tot("minutes", int)}
 
 
 def bonus_form(pid, n):
-    gws = [g for g in range(max(1, cur_gw - n + 1), cur_gw + 1)]
+    gws = done_gws(pid, n)
     s = pstats.get(pid, {})
     mins = sum(s[g]["minutes"] for g in gws if g in s)
     bps = sum(s[g]["bps"] for g in gws if g in s)
@@ -321,7 +335,7 @@ def shot_stats(pid, mins4):
 
 def dc_record(pid, n=None):
     """Defensive contribution: games reaching the threshold, out of 60+ minute games."""
-    gws = range(1, cur_gw + 1) if n is None else range(max(1, cur_gw - n + 1), cur_gw + 1)
+    gws = done_gws(pid, n)
     s = pstats.get(pid, {})
     apps = [g for g in gws if s.get(g, {}).get("minutes", 0) >= 60]
     hits = sum(1 for g in apps if ctx["dc_hit"][pid].get(g))
