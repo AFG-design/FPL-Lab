@@ -228,6 +228,24 @@ class Validator(unittest.TestCase):
         self.run_check("vs rolling this week, short of the profit rule")
         del self.D["plans"]["three"]["vs_roll"]
         self.run_check("has no vs_roll")
+    def test_club_limit_allows_holding_four_until_a_transfer(self):
+        """FL-074: four from one club may be kept in a week without transfers, never in a week with one."""
+        for p in self.D["players"]:
+            p["team"] = 1 if p["id"] in (1, 2, 3, 4) else 100 + p["id"]
+        self.D["players"].append({"id": 30, "name": "New", "price": 5.0, "pos": "MID", "xp": {}, "team": 130})
+        xi = list(range(1, 12))
+        figs = {"vs_balanced": 0, "vs_none": 0, "vs_roll": 0, "xp_total": 240, "ft_left": 1, "value": 241.5}
+        self.D["plans"] = {"roll": {"weeks": [{"gw": 11, "in": [], "out": [], "xi": xi, "captain": 1}], **figs}}
+        self.D["recommended"] = {"balanced": "roll", "safe": None, "chase": None}
+        self.D["plan_rules"] = {"ft_value": 1.5, "recommend_margin": 1.0}
+        h = self.run_check()
+        self.assertTrue(any("FPL takes no transfer" in w for w in h["warnings"]), h["warnings"])
+        self.D["plans"]["one"] = {"weeks": [{"gw": 11, "in": [30], "out": [9], "xi": xi, "captain": 1}],
+                                  **dict(figs, vs_roll=1.5, vs_none=1.5, xp_total=241.5, value=243.0)}
+        self.D["recommended"]["balanced"] = "one"
+        self.run_check("4 players from club 1 in a week with transfers")
+        self.D["plans"]["one"]["weeks"][0]["out"] = [4]
+        self.run_check()
 
     def test_planner_gain_matches_vs_none(self):
         """FL-125: the Planner rebuilds vs_none from xp_total, ft_left and plan_rules.ft_value."""

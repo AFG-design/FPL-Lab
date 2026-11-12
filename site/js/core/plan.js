@@ -182,7 +182,10 @@ function scoreMoves(moves, solved = moves === SB.moves ? SB.solved : null) {
   const weeks = ftTable(moves).map(r => {
     const sq = squadAt(r.gw, moves), team = bestXI(sq, r.gw, undefined, solved);
     tot += team.pts - 4 * r.hits;
-    const over = Object.entries(clubCounts(sq)).filter(([, v]) => v > 3).map(([t]) => T[t].short);
+    // more than 3 from a club is only a problem in a week with a transfer: a squad that already holds 4 (a real move
+    // between Premier League clubs) can keep them until it next transfers, and then must be back to 3 (FL-074)
+    const held = clubCounts(D.squad.map(s => s.id));
+    const over = Object.entries(clubCounts(sq)).filter(([t, v]) => v > 3 && (r.n > 0 || v > (held[t] || 0))).map(([t]) => T[t].short);
     return { ...r, team, sq, bank: bankAt(r.gw, moves), over };
   });
   return { weeks, tot, ftLeft: weeks.length ? weeks[weeks.length - 1].next : 0 };

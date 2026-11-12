@@ -6,6 +6,12 @@
   const XI_MAX = { GKP: 1, DEF: 5, MID: 5, FWD: 3 };
   const POOL = { GKP: 10, DEF: 26, MID: 30, FWD: 16 };
 
+  // {team: how many over 3 the squad holds now}, for the clubs where it holds more than 3 (FL-074)
+  function clubOver(squad, P) {
+    const n = {};
+    squad.forEach(i => { const t = P[i].team; n[t] = (n[t] || 0) + 1; });
+    return Object.fromEntries(Object.entries(n).filter(([, c]) => c > 3).map(([t, c]) => [t, c - 3]));
+  }
   function variance(pos, x) { return pos === "MID" ? 1.9 * x + 0.23 * x * x : ({ GKP: 2.8, DEF: 3.3, FWD: 3.8 }[pos] || 3) * x; }
 
   /* input: { players:{id:{pos,team,price,xp:{gw:x},ok}}, squad:[ids], sell:{id:£m}, bank, ft0, gws:[..],
@@ -81,8 +87,20 @@
       con(ids.map(i => ` + ${cp(i, w)}`).join(""), "=", 1);
       const cap = inp.captains && inp.captains[g];
       if (cap && ids.includes(cap)) con(` ${cp(cap, w)}`, "=", 1);
+      // club limit (FL-074, as optimise.py): 3 from a club, but a squad already holding more from one club (a real
+      // move between Premier League clubs) may keep them in a gameweek with no transfers; any gameweek with a
+      // transfer (m_w = 1) must end with at most 3 from every club
       const teams = [...new Set(ids.map(i => P[i].team))];
-      teams.forEach(t => con(ids.filter(i => P[i].team === t).map(i => ` + ${sq(i, w)}`).join(""), "<=", 3));
+      const extra = clubOver(inp.squad, P);
+      if (Object.keys(extra).length) {
+        bin.push(`m_${w}`);
+        con(ids.map(i => ` + ${ti(i, w)}`).join("") + ` - 15 m_${w}`, "<=", 0);
+      }
+      teams.forEach(t => {
+        const lhs = ids.filter(i => P[i].team === t).map(i => ` + ${sq(i, w)}`).join("");
+        if (extra[t]) con(lhs + ` + ${extra[t]} m_${w}`, "<=", 3 + extra[t]);
+        else con(lhs, "<=", 3);
+      });
       // bank
       const bk = `b_${w}`, prevBk = w === 0 ? null : `b_${w - 1}`;
       let lhs = ` ${bk}` + (prevBk ? ` - ${prevBk}` : "");

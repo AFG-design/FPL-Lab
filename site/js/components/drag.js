@@ -28,7 +28,7 @@ function canBuy(g, out, inn) {
   const budget = bankAt(g) + (D.squad.some(s => s.id === out) && !SB.moves.some(m => m.in === out) ? sellPrice(out) : po.price);
   if (pi.price > budget + 1e-9) return `Not enough money: ${money(pi.price)} needed, ${money(budget)} available.`;
   const cc = clubCounts(sq.filter(i => i !== out));
-  if ((cc[pi.team] || 0) >= 3) return `You'd have 4 players from ${T[pi.team].name}.`;
+  if ((cc[pi.team] || 0) >= 3) return `You'd have ${(cc[pi.team] || 0) + 1} players from ${T[pi.team].name}: FPL allows 3.`;
   return "";
 }
 function dropOn(src, kind, dst) {
