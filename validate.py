@@ -89,6 +89,42 @@ def check_logs(D, warnings):
                             f"until the file is fixed or restored from Git history")
 
 
+def check_model_inputs(meta, errors, warnings):
+    """The status log and europe.json (FL-072): build.py runs on without either, so these are the only sign.
+
+    Status log (history/status.json, every flagged player's status at each deadline): without it the model can't tell
+    an injured player from a dropped one and its minutes go wrong. An ERROR once a deadline has passed (cur_gw >= 1)
+    when the file is missing or unreadable: the publish stops, and because the Refresh workflow commits nothing when
+    validate.py fails, the next refresh errors again until the log is restored (build.py would otherwise start a new,
+    near-empty log and the loss would go quiet). Before the first deadline a missing log is normal. A log that loads but
+    holds no deadline once the season has started is a warning: it can't be told apart from a log that was reset.
+    europe.json (midweek European fixtures): missing or unreadable is a warning (the rotation allowance and the "also
+    plays" flags are missing; an entry that fails part way leaves the competitions after it without them), and so is
+    each competition skipped because its dates or teams aren't confirmed.
+    Missing / late / ambiguous: data from a build.py older than FL-072 has neither key and is not checked.
+    """
+    cur = meta.get("cur_gw") or 0
+    sl = meta.get("status_log")
+    if sl:
+        if sl.get("state") in ("missing", "unreadable") and cur >= 1:
+            errors.append(f"Status log (history/status.json) {sl['state']}"
+                          f"{': ' + sl['error'] if sl.get('error') else ''}. The model can't tell injured from dropped "
+                          f"players without it: restore the file from Git history")
+        elif sl.get("state") == "ok" and cur >= 1 and not sl.get("gws"):
+            warnings.append("Status log (history/status.json) has no deadline saved although the season has started: "
+                            "the model has no injury history")
+    eu = meta.get("europe")
+    if eu:
+        if eu.get("state") == "missing":
+            warnings.append("europe.json is missing: no rotation allowance or 'also plays' flags for European midweeks")
+        elif eu.get("state") == "unreadable":
+            warnings.append(f"europe.json didn't load ({eu.get('error')}): some or all European midweeks have no rotation "
+                            f"allowance or 'also plays' flag")
+        if eu.get("unconfirmed"):
+            warnings.append(f"europe.json: {', '.join(eu['unconfirmed'])} skipped (dates or teams not confirmed), so no "
+                            f"rotation allowance for those matches until \"confirmed\" is set")
+
+
 def check_sources(D, warnings):
     """Warn when an input the model or the plans lean on didn't load, or is older than its own schedule allows.
 
@@ -691,6 +727,7 @@ def main(path):
         break
     check_sources(D, warnings)
     check_logs(D, warnings)
+    check_model_inputs(D["meta"], errors, warnings)
     check_season_end(D["meta"], errors, warnings)
     check_setpieces(D, errors, warnings)
     check_picks_sections(D, warnings)
