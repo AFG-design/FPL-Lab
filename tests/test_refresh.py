@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from scripts.refresh import DATA, refresh
 
@@ -78,3 +79,21 @@ class RefreshRace(unittest.TestCase):
             refresh(build)
         self.assertEqual(len(attempts), 3)
         self.assertEqual(self.git("show", "origin/main:history/rival"), "3")
+
+    def test_lost_push_reply_is_not_rebuilt(self):
+        """FL-117: refresh pushes through scripts/push_data.push_head, so a push the remote accepted but whose reply
+        was lost ends the refresh instead of building again."""
+        attempts, run = [], subprocess.run
+
+        def build():
+            attempts.append(1)
+            Path("history/status.json").write_text('{"gw":10}')
+
+        def lost_reply(args, **kwargs):
+            result = run(args, **kwargs)
+            return subprocess.CompletedProcess(args, 1) if args[:2] == ["git", "push"] else result
+
+        with patch("scripts.push_data.subprocess.run", side_effect=lost_reply):
+            refresh(build)
+        self.assertEqual(len(attempts), 1)
+        self.assertEqual(self.git("show", "origin/main:history/status.json"), '{"gw":10}')
