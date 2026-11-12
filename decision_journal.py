@@ -16,7 +16,7 @@ Everything is read from files saved BEFORE the deadline, so an entry shows what 
 
 dl: the deadline snapshot; proj: history/proj_gw{N}.json (status and chance before the deadline); my_moves: your FPL
 transfers that gameweek ([[out, in], ...], from /entry/{id}/transfers/); picks: FPL's picks for the gameweek;
-fixtures: FPL fixtures; best: fpl_score.best_suggestion(dl["plans"], gw) -- the same plan the You vs the model target
+fixtures: FPL fixtures; best: fpl_score.recommended_suggestion(dl, gw) (FL-108: the recommended plan) -- the same plan the You vs the model target
 uses, so the two sections on that tab always talk about the same suggestion.
 
 Missing / late / ambiguous:

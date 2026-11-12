@@ -445,6 +445,45 @@ def check_season_end(meta, errors, warnings):
     warnings.append(f"Season over: GW{cur} was the last gameweek, so there are no forecasts or plans until FPL opens next season")
 
 
+def check_recommended(D, errors, warnings):
+    """FL-108: the recommended plan is worked out once in build.py (optimise.recommended) and every screen uses it.
+    Errors: data.json has plans but no "recommended"; a recommended key that isn't a plan of that strategy; a choice the
+    rule (fewest moves within plan_rules.recommend_margin of the strategy's best vs_roll) wouldn't make, worked out again
+    here on its own. Warnings: a strategy that has move options but no recommendation; the target You vs the model
+    shows for the week to come isn't the Balanced recommendation (possible only in a build after the deadline)."""
+    plans = D.get("plans") or {}
+    if not plans:
+        return
+    rec = D.get("recommended")
+    if not isinstance(rec, dict):
+        errors.append("Plans published without 'recommended': Home, the Planner and the journal can't agree on a plan")
+        return
+    margin = (D.get("plan_rules") or {}).get("recommend_margin")
+    if margin is None:
+        errors.append("plan_rules.recommend_margin missing: the recommended plan can't be checked")
+        return
+    for mode in ("balanced", "safe", "chase"):
+        keys = [k if mode == "balanced" else f"{mode}_{k}" for k in ("roll", "one", "two", "three")]
+        keys = [k for k in keys if k in plans and plans[k].get("vs_roll") is not None]
+        want = None
+        if keys:
+            top = max(plans[k]["vs_roll"] for k in keys)
+            want = next(k for k in keys if plans[k]["vs_roll"] >= top - margin - 1e-9)
+        got = rec.get(mode)
+        if got is not None and got not in plans:
+            errors.append(f"Recommended {mode} plan {got!r} isn't among the plans")
+        elif got != want:
+            errors.append(f"Recommended {mode} plan is {got!r} but the rule picks {want!r}")
+        elif keys and got is None:
+            warnings.append(f"No recommended {mode} plan although it has move options")
+    nxt = ((D.get("vs_model") or {}).get("next") or {}).get("target") or {}
+    if nxt.get("plan") and rec.get("balanced") and nxt["plan"] != rec["balanced"]:
+        # the snapshot is rewritten by every build before the deadline, so the two differ only in a build that ran
+        # after it (the snapshot then keeps the last pre-deadline plan): a warning, not an error
+        warnings.append(f"You vs the model's next target is plan {nxt['plan']} but Home recommends {rec['balanced']} "
+                        "(the saved pre-deadline plan differs from this build's)")
+
+
 def main(path):
     with open(path) as f:
         D = json.load(f)
@@ -566,8 +605,8 @@ def main(path):
             n_ = {k: sum(pos_.get(i) == k for i in w["model"]["xi"]) for k in ("GKP", "DEF", "MID", "FWD")}
             if n_["GKP"] != 1 or n_["DEF"] < 3 or n_["MID"] < 2 or n_["FWD"] < 1:
                 errors.append(f"You vs the model GW{w['gw']}: the model's XI isn't a legal formation ({n_})")
-            # the week is your actual points after hits against the model's highest projected score from what it
-            # suggested (or, marked assumed, its best pick from your 15), rounded: the target
+            # the week is your actual points after hits against the projected score of the plan the model recommended (FL-108)
+            # before the deadline (or, marked assumed, its best pick from your 15), rounded: the target
             tg_ = w.get("target") or {}
             cap_mult_ = 3 if tg_.get("basis") == "your 15" and w.get("chip") == "3xc" else 2
             if tg_.get("captain_multiplier", cap_mult_) != cap_mult_:
@@ -830,6 +869,7 @@ def main(path):
                 errors.append(f"Plan {k} GW{wk.get('gw')}: XI has {len(wk.get('xi', []))} players or captain outside it")
             if len(wk.get("in", [])) != len(wk.get("out", [])):
                 errors.append(f"Plan {k} GW{wk.get('gw')}: {len(wk.get('in', []))} in vs {len(wk.get('out', []))} out")
+    check_recommended(D, errors, warnings)
     # strategy budgets (optimise.strategy_plans): Play safe never below Balanced, Chase rank at most chase_budget below,
     # and no plan with transfers short of the profit rule. A breach means the solver ignored its floor: stop the publish.
     rules = D.get("plan_rules") or {}

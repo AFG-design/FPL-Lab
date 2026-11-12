@@ -32,7 +32,7 @@ function pvKeys(mode) {
     seen.add(sig); return true;
   });
 }
-// the variant the tab opens on: fewest moves within 0.5 of the best (recommendedPlan's rule), only when the
+// the variant the tab opens on: the build's recommended plan (D.recommended, FL-108), only when the
 // strategy's own plans exist
 function pvKey(mode) {
   const keys = pvKeys(mode); if (!keys.length) return null;
@@ -207,7 +207,7 @@ function pvStrategy(mode) {
   const varSeg = variants.length > 1 ? `<div class="bar" style="margin:0 0 6px"><span class="lbl">This week</span><div class="seg" role="group" aria-label="Moves this week">${variants.map(k => {
     const v = k.split("_").pop();
     return `<button data-pvvar="${mode}:${k}" aria-pressed="${k === r.key}">${PV_VAR_LABEL[v]}${k === rec ? " ★" : ""}</button>`;
-  }).join("")}</div></div><p class="note" style="margin:0 0 8px">★ the pick: the fewest moves within 0.5 points of the best.</p>` : "";
+  }).join("")}</div></div><p class="note" style="margin:0 0 8px">★ the pick: ${D.plan_rules?.recommend_margin != null ? `the fewest moves within ${D.plan_rules.recommend_margin} points of the best` : "the build’s recommended plan"}.</p>` : "";
   const movesHTML = now.length ? now.map(m => `<div class="sugg">
       <div class="sg-top"><div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="in">▲ <button data-p="${m.in}" class="linkish">${esc(P[m.in].name)}</button></span><span class="muted mono">${money(P[m.in].price)} · <span class="club-dot" style="--club:${clubCol(P[m.in])}" aria-hidden="true"></span>${T[P[m.in].team].short}</span></div>
         <span class="sg-gain ${xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length) > 0.05 ? "up" : "down"}" title="xP over the rest of the plan, in minus out">${sgn(xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length))}</span></div>

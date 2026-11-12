@@ -180,7 +180,8 @@ class Validator(unittest.TestCase):
 
     def test_plan_budgets_reject_nan_and_missing_hit_gain(self):
         self.D["plans"] = {"best": {"weeks": [], "vs_balanced": 0, "vs_none": 0}}
-        self.D["plan_rules"] = {"hit_gain": 1, "ft_value": 1.5}
+        self.D["plan_rules"] = {"hit_gain": 1, "ft_value": 1.5, "recommend_margin": 0.5}
+        self.D["recommended"] = {"balanced": None, "safe": None, "chase": None}   # "best" is never the recommendation (FL-108)
         self.run_check()
         for field in ("vs_balanced", "vs_none"):
             self.D["plans"]["best"][field] = float("nan")
@@ -194,12 +195,31 @@ class Validator(unittest.TestCase):
         del self.D["plans"]["best"]["hit_gain"]
         self.run_check("budget figures")
 
+    def test_recommended_plan_is_one_definition(self):
+        """FL-108: data.json names one recommended plan per strategy, and it is the one the rule picks."""
+        plan = lambda vs: {"weeks": [], "vs_balanced": 0, "vs_none": vs, "vs_roll": vs, "xp_total": 240 + vs, "ft_left": 1,
+                           "value": 241.5 + vs}
+        self.D["plans"] = {"roll": plan(0.0), "one": plan(-0.9), "two": plan(0.19), "three": plan(0.19)}
+        self.D["plan_rules"] = {"hit_gain": 2, "ft_value": 1.5, "recommend_margin": 0.5}
+        self.D["recommended"] = {"balanced": "roll", "safe": None, "chase": None}
+        self.run_check()
+        self.D["recommended"]["balanced"] = "three"            # the highest single-week score, not the rule's pick
+        self.run_check("rule picks 'roll'")
+        self.D["recommended"]["balanced"] = "safe_roll"
+        self.run_check("isn't among the plans")
+        del self.D["recommended"]
+        self.run_check("without 'recommended'")
+        self.D["recommended"] = {"balanced": "roll", "safe": None, "chase": None}
+        del self.D["plan_rules"]["recommend_margin"]
+        self.run_check("recommend_margin missing")
+
     def test_planner_gain_matches_vs_none(self):
         """FL-125: the Planner rebuilds vs_none from xp_total, ft_left and plan_rules.ft_value."""
         plan = lambda xp, ft, vs: {"weeks": [], "vs_balanced": 0, "vs_none": vs, "xp_total": xp, "ft_left": ft,
                                    "value": xp + 1.5 * ft}
         self.D["plans"] = {"roll": plan(243.0, 4, 5.88), "chase_roll": plan(242.54, 3, 3.92)}
-        self.D["plan_rules"] = {"ft_value": 1.5, "tie": 0.1}
+        self.D["plan_rules"] = {"ft_value": 1.5, "tie": 0.1, "recommend_margin": 0.5}
+        self.D["recommended"] = {"balanced": None, "safe": None, "chase": None}   # no vs_roll on these plans: nothing to compare
         self.run_check()
         del self.D["plan_rules"]["ft_value"]
         self.run_check("plan_rules.ft_value")

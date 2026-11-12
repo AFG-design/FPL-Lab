@@ -34,13 +34,12 @@ function spreadVsField(mult, g) {
   D.players.forEach(p => { const x = xpg(p.id, g); if (x <= 0) return; const d = (mult[p.id] || 0) - (F.eo[p.id] || 0) / 100; if (d) v += variance(p.pos, x) * d * d; });
   return Math.sqrt(v);
 }
+// The recommended plan (FL-108) is worked out once in the build (optimise.recommended) and shipped as D.recommended
+// ({mode: plan key}), so Home, the Planner, the journal and You vs the model all name the same plan. Missing (a
+// strategy with no plans, or a data.json from before FL-108): null, and the tabs show no recommendation, never a guess.
 function recommendedPlan(mode = S.mode) {
-  const pl = D.plans || {};
-  const keys = ["roll", "one", "two", "three"].map(k => mk(k, mode)).filter(k => pl[k]);
-  if (!keys.length) return null;
-  const best = keys.reduce((a, k) => pl[k].vs_roll > pl[a].vs_roll ? k : a, keys[0]);
-  for (const k of keys) if (pl[k].vs_roll >= pl[best].vs_roll - 0.5) return k;  // fewer moves when it's close
-  return best;
+  const k = D.recommended?.[mode];
+  return k && D.plans?.[k] ? k : null;
 }
 const mvKey = mv => mv.map(m => `${m.gw}:${m.out}>${m.in}`).sort().join(",");
 const sameMoves = (a, b) => mvKey(a) === mvKey(b);

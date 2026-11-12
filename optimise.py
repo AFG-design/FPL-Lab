@@ -218,6 +218,34 @@ STRATEGY = {
 }
 
 
+# The recommended plan (FL-108): one definition, worked out once in build.py and shipped as data.json "recommended"
+# ({mode: plan key}) and saved in history/deadline_gwN.json, so Home, the Planner, the decision journal and You vs the
+# model all name the same plan. Per strategy, among its move options for this week (roll, one, two, three: "best" is
+# left out, it is the same solve with week 1 left free), the fewest moves whose vs_roll is within RECOMMEND_MARGIN
+# points of that strategy's best vs_roll. RECOMMEND_MARGIN is the 0.5 the browser used to apply on its own.
+RECOMMEND_OPTIONS = ("roll", "one", "two", "three")
+RECOMMEND_MARGIN = 0.5
+
+
+def recommended(plans, margin=RECOMMEND_MARGIN):
+    """{mode: plan key or None} for balanced, safe and chase (see RECOMMEND_OPTIONS above).
+
+    Missing / ambiguous: a strategy with none of the move options (no plans, or Play safe / Chase rank skipped for want
+    of field ownership) -> None for it, never another strategy's plan. A plan without vs_roll (saved before that field
+    existed) can't be compared, so it is left out; if no plan of the strategy has one, that strategy is None.
+    Equal vs_roll: the option with fewer moves wins (the order of RECOMMEND_OPTIONS), so the answer is stable."""
+    out = {}
+    for mode in ("balanced", "safe", "chase"):
+        keys = [k if mode == "balanced" else f"{mode}_{k}" for k in RECOMMEND_OPTIONS]
+        keys = [k for k in keys if k in (plans or {}) and plans[k].get("vs_roll") is not None]
+        if not keys:
+            out[mode] = None
+            continue
+        top = max(plans[k]["vs_roll"] for k in keys)
+        out[mode] = next(k for k in keys if plans[k]["vs_roll"] >= top - margin - 1e-9)
+    return out
+
+
 def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes=("balanced", "safe", "chase"), **kw):
     """Plans per strategy and move option. options: [(key, week1_moves)]. Returns ({plan key: plan}, notes).
     Plan keys: "best", "roll", ... for Balanced and "safe_best", "chase_roll", ... for the others.

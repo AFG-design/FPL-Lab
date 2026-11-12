@@ -4,7 +4,8 @@ import json, os, sys, unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, ".."))
 from decision_journal import entry, compare
-from fpl_score import best_suggestion
+from fpl_score import plan_suggestion
+best_suggestion = lambda plans, gw: plan_suggestion(plans, "two", gw)   # the plan these entries are checked against
 
 DL = {"plan_gws": [10, 11, 12, 13, 14], "xp": {"1": [4, 4, 4, 4, 4], "2": [2, 2, 2, 2, 2], "3": [6, 5, 5, 5, 5],
                                                "4": [5, 5, 5, 5, 5], "9": [8, 7, 7, 7, 7]},
@@ -41,8 +42,8 @@ class Journal(unittest.TestCase):
     def test_real_gw10_snapshot(self):
         with open(os.path.join(HERE, "..", "history", "deadline_gw10.json")) as f:
             dl = json.load(f)
-        from fpl_score import pair_moves
-        b = best_suggestion(dl["plans"], 10)
+        from fpl_score import pair_moves, recommended_suggestion
+        b = recommended_suggestion(dl, 10)                                   # FL-108: the recommended plan, "two"
         pos = {40: "MID", 115: "DEF", 4: "DEF", 183: "MID"}               # Rogers, De Cuyper out; Gabriel, Rudoni in
         b["out"], b["in"] = pair_moves(b["out"], b["in"], pos)
         e = entry(10, dl, None, [], PICKS, [], b, {})

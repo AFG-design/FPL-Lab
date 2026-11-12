@@ -1,16 +1,17 @@
 // You vs the model (F1d): each finished gameweek, your actual points against the model's target, with both teams on
 // pitches side by side. The data comes from build.py's vs_model block (fpl_score.py has the rules).
-//   Result: your actual points after hits v the model's target = its highest projected score for that week across
-//   every plan it suggested before the deadline (xP less 4 per hit), rounded to the nearest point. Above: win.
+//   Result: your actual points after hits v the model's target = the projected score for that week of the plan it
+//   recommended before the deadline (FL-108: the Balanced recommendation Home showed; xP less 4 per hit), rounded to
+//   the nearest point. Above: win.
 //   Your pitch: the XI you submitted with each player's actual points (armband included), auto-subs marked.
-//   The model's pitch: the XI of its best suggested plan with each player's projected points from before the deadline
+//   The model's pitch: the XI of its recommended plan with each player's projected points from before the deadline
 //   and, under it, what he actually scored. Players it signed show IN; the moves and hits are listed below the pitch.
 // Missing / late / ambiguous:
 //   - no vs_model in the data (no saved forecast yet, or the build step failed): an empty state, nothing made up;
 //   - a week with no saved suggestion (GW8 and GW9: saving began at GW10): target.assumed; the model's side is then its
 //     best pick from your own 15 (no transfers) and the page says so above the pitches;
 //   - the suggested plan's bench wasn't saved, so its pitch has no bench and says so;
-//   - the gameweek to come: its target is the best suggestion so far, which can change with each refresh until the
+//   - the gameweek to come: its target is the recommended plan so far, which can change with each refresh until the
 //     deadline (the page says so); no saved plans yet -> "no target yet";
 //   - a player no longer in the data isn't drawn (luCard skips him).
 const VM_MODE = { safe: "Safe", chase: "Chase" };
@@ -86,7 +87,7 @@ function vmWeek(w) {
   const modelActual = sug ? t.actual : w.model.pts;
   const hitsTxt = w.hits ? `after −${w.hits} in hits` : "no hits";
   return `<div class="panel vm-head"><h2>GW${w.gw}: you v the model</h2>
-      ${vmScore(w.you_net, `Actual points, ${hitsTxt}`, t.par, `Its best projected score before the deadline: ${f1(t.exp)}, rounded`, w.res)}
+      ${vmScore(w.you_net, `Actual points, ${hitsTxt}`, t.par, `Its recommended plan’s projected score before the deadline: ${f1(t.exp)}, rounded`, w.res)}
       ${t.assumed ? `<p class="vm-assumed"><b>Assumed target.</b> No suggestion was saved before the GW${w.gw} deadline (saving began at GW10), so the target is what the model projected for its best pick from your own 15, with no transfers.</p>` : ""}
       ${w.you.pts !== w.fpl_pts ? `<p class="vm-assumed"><b>Check:</b> our rules give your team ${w.you.pts}, FPL gave ${w.fpl_pts}.</p>` : ""}
     </div>
@@ -107,7 +108,7 @@ function vmNext(n) {
   const mult = vmCaptainMultiplier(t, null);
   const items = vmModelItems({ xi: t.xi, bench: [], cap: t.captain }, i => xpg(i, n.gw), () => null, new Set(D.squad.map(s => s.id)), false, mult);
   return `<div class="panel vm-head"><h2>GW${n.gw}: the score to beat</h2>
-      ${vmScore(null, "Your actual points, after hits, once GW" + n.gw + " finishes", t.par, `Its best projected score so far: ${f1(t.exp)}, rounded`, null)}
+      ${vmScore(null, "Your actual points, after hits, once GW" + n.gw + " finishes", t.par, `Its recommended plan’s projected score so far: ${f1(t.exp)}, rounded`, null)}
       <p class="note">The target is fixed at the deadline${n.deadline ? ` (${esc(ukTime(n.deadline))})` : ""}. Until then it follows the model's latest plans and can change with each refresh.</p></div>
     <div class="panel" style="max-width:720px"><div class="bar"><h3>What the model suggests</h3><span class="tag">${esc(vmPlan(t.plan))}</span></div>
       ${luPitch(items.xi, [], { label: `The model's GW${n.gw} XI`, note: "Its bench isn't saved with the plan." })}
@@ -269,7 +270,7 @@ function vVsModel() {
   if (!opts.some(([k]) => k === S.vmgw)) S.vmgw = String(weeks[0].gw);
   const w = weeks.find(x => String(x.gw) === S.vmgw);
   return `${vmStreak(V)}<div class="panel vm-intro"><h2>You vs the model</h2>
-      <p>Each gameweek your actual points, after hits, against the model's target: its highest projected score for that week from what it suggested before the deadline, rounded. Beat it to win the week.</p>${skipTxt ? `<ul class="alerts"><li class="warn"><span>${skipTxt}</span></li></ul>` : ""}
+      <p>Each gameweek your actual points, after hits, against the model's target: the projected score for that week of the plan it recommended before the deadline (Balanced), rounded. Beat it to win the week.</p>${skipTxt ? `<ul class="alerts"><li class="warn"><span>${skipTxt}</span></li></ul>` : ""}
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
     ${w ? vmWeek(w) : vmNext(n)}

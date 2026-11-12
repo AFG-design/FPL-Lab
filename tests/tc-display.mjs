@@ -20,8 +20,8 @@ for chip in (None, "3xc"):
                     subs=actual["subs"], pts=actual["total"], formation="4-4-2", captain_multiplier=actual["captain_multiplier"])
         for basis in ("suggested", "your 15"):
             if basis == "suggested":
-                suggestion = f.best_suggestion({"best": {"weeks": [dict(gw=10, xi=team["xi"], captain=10,
-                    xp=f.expected(team, xp), hits=0)]}}, 10)
+                suggestion = f.plan_suggestion({"best": {"weeks": [dict(gw=10, xi=team["xi"], captain=10,
+                    xp=f.expected(team, xp), hits=0)]}}, "best", 10)
                 target = dict(suggestion, basis=basis, xi_xp=xp, xi_pts={i: p[1] for i, p in played.items()}, actual=0)
             else:
                 target = dict(basis=basis, assumed=True, exp=f.expected(team, xp, chip), captain_multiplier=f.captain_multiplier(chip))
