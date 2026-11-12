@@ -233,7 +233,7 @@ Bench baseline on main 34b3910 with archive odds: current corr .434 / rank .549 
   for GW2+ of the horizon: 5-GW picks +0.00 / +0.06, CIs cross 0. Reject.
 
 ## 30 Oct 2026 — adopted: xMins minutes model on by default (PR #23, commit `0468850`)
-(Entry added 11 Nov 2026 from `docs/xmins-eval.md` and the comment on `DEFAULTS["xmins"]` in fplmodel.py; no new runs.)
+(Entry added 11 Nov 2026 from `docs/archive/xmins-eval.md` and the comment on `DEFAULTS["xmins"]` in fplmodel.py; no new runs.)
 - What: start chance and minutes come from the external XGBoost model in `xmins.py` (four models, trained on 2022-23
   and 2023-24, stored as plain JSON in `xmins/`) instead of the weighted counts. Availability, Europe and the return
   ramp still apply on top. `xmins_combine` "B" (bench chance unconditional, capped at 1 − start chance): A had lower

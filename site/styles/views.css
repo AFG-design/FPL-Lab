@@ -9,7 +9,6 @@
 .dash-big span { color: var(--muted); font-size: var(--fs-sm); }
 .dash-sub { font-size: var(--fs-xs); color: var(--muted); }
 .dash-rank { display: grid; gap: 8px; }
-.spark { width: 100%; max-width: 220px; height: auto; overflow: visible; }
 .dash-caps ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .dash-cap {
   all: unset; box-sizing: border-box; cursor: pointer; width: 100%;

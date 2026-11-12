@@ -1,26 +1,5 @@
 // This week.
 /* ---------- This week ---------- */
-function modeBar() {
-  if (!D.plans?.safe_roll) return "";
-  return `<div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
-    <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
-    <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]}</p></div>`;
-}
-/* ---------- rank trend sparkline ---------- */
-function rankSpark(hist) {
-  const pts = hist.filter(h => h.rank).slice(-10);
-  if (pts.length < 2) return "";
-  const W = 220, H = 36, lo = Math.min(...pts.map(h => h.rank)), hi = Math.max(...pts.map(h => h.rank));
-  // log scale, inverted: up the chart = better rank
-  const y = r => hi === lo ? H / 2 : 4 + (H - 8) * (Math.log(r) - Math.log(lo)) / (Math.log(hi) - Math.log(lo));
-  const x = i => 3 + (W - 6) * i / (pts.length - 1);
-  const d = pts.map((h, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(h.rank).toFixed(1)}`).join("");
-  const last = pts[pts.length - 1];
-  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Overall rank from GW${pts[0].gw} (${rankFmt(pts[0].rank)}) to GW${last.gw} (${rankFmt(last.rank)})">
-    <path d="${d}" fill="none" stroke="var(--accent-text)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${x(pts.length - 1)}" cy="${y(last.rank)}" r="3.5" fill="var(--accent-text)"/></svg>`;
-}
-
 const rankShort = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
 // Everything the homepage's Next deadline view says about the coming deadline, worked out once from the plan
 // (the same scorer, verdicts and risk checks the old single-page homepage used). Returns null when there's no

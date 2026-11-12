@@ -368,7 +368,7 @@ for pid, e in elements.items():
     xp = {g: round(v, 2) for g, v in r["xp"].items()}
     vals = list(xp.values())
     m4, xgi4, pts4 = rolling(pid, 4)
-    m6, xgi6, pts6 = rolling(pid, 6)
+    _, xgi6, pts6 = rolling(pid, 6)
     pr = (priors or {}).get("players", {}).get(str(pid))
     det = r["detail"].get(next_gw, {})
     slope = DEFAULTS["cal_slope"]
@@ -644,7 +644,7 @@ GROUP = {"mins": "Minutes", "goals": "Attack", "assists": "Attack", "cs": "Defen
          "dc": "Defence", "bonus": "Bonus", "cards": "Cards and other", "other": "Cards and other"}
 
 
-def why_text(c, d, st, xd):
+def why_text(c, d, st):
     mins = st["minutes"]
     if c == "mins":
         if mins == 0:
@@ -695,7 +695,7 @@ for g in [g for g in finished_gws if g >= 3][-4:]:
         miss = pts - x
         cands = [(c, d) for c, d in diffs.items() if d * miss > 0] or list(diffs.items())
         c, d = max(cands, key=lambda cd: abs(cd[1]))
-        rows.append({"id": pid, "xp": round(x, 1), "pts": pts, "miss": round(miss, 1), "why": why_text(c, d, L["stats"], exp_),
+        rows.append({"id": pid, "xp": round(x, 1), "pts": pts, "miss": round(miss, 1), "why": why_text(c, d, L["stats"]),
                      "cat": GROUP.get(c, "Cards and other")})
     tot = sum(blame.values()) or 1
     over = sorted([r for r in rows if r["xp"] >= 3], key=lambda r: r["miss"])[:8]

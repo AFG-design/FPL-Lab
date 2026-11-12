@@ -21,7 +21,6 @@ function vmPlan(key) {
 }
 const vmRes = { W: ["Win", "good"], D: ["Draw", "warn"], L: ["Defeat", "bad"] };
 const vmNm = i => P[i] ? esc(P[i].name) : "Unknown player";
-const vmPts = n => `${n} pt${n === 1 ? "" : "s"}`;
 
 // New builds pass the multiplier used by the scorer. Older cached builds lack the field: reconstruct FL-035's
 // exact rule from the target basis (suggested plans: ×2; the marked assumed pick from your 15: your chip).

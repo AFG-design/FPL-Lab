@@ -16,7 +16,7 @@ POS = {1: "GKP", 2: "DEF", 3: "MID", 4: "FWD"}
 DC_THR = {"DEF": 10, "MID": 12, "FWD": 12}   # FPL 2025/26+ rules: defensive contributions needed for 2 points
 
 DEFAULTS = {
-    # tuned by backtest.py / tune.py on GW3-7 of 2026/27; recency and minutes re-tested with bench.py
+    # tuned by backtest.py on GW3-7 of 2026/27 (grid search, tune.py, since removed); recency and minutes re-tested with bench.py
     # (GW3-7 of 2026/27 plus GW4-38 of 2025/26)
     "recency": 0.8,        # weight per gameweek back, player rates (0.7 before bench.py; 0.8 = same accuracy, better top picks)
     "team_recency": 0.93,  # weight per gameweek back, team ratings
@@ -47,7 +47,7 @@ DEFAULTS = {
     "opp_adj": 0.5,        # opponent-adjusted form: past xG/xA divided by (opponent defence rating) ** opp_adj.
                            # GW3-7: corr unchanged, top-30 over-projection +0.22 -> +0.13
     "sp_match": 0.0,       # set-piece matchups: set-piece xG scaled by (opponent set-piece xG conceded / average) ** sp_match.
-                           # Off: GW3-7 corr 0.417 -> 0.416. Re-test with tune_v3.py as data grows
+                           # Off: GW3-7 corr 0.417 -> 0.416. Re-test with bench.py '{"sp_match": 0.5}' as data grows
     "sp_prior": 4.0,       # games of league-average prior for team set-piece conceding
     "min_valid": True,     # minutes history: skip blank gameweeks and weeks before the player joined
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
@@ -59,15 +59,11 @@ DEFAULTS = {
     "late_abs": True,      # injury news around a gameweek, or a 'd' <=75% flag at its deadline, explains a regular's
                            # non-start that week (late_news_absences, doubtful_absences); False = old behaviour
     "news_abs": True,      # count a cleared-news 0-minute week as an absence (news_absences); False = old behaviour
-    "p60_prior": 0.0,      # pseudo-starts of his club's (same position) rate of starters playing 60+ minutes
-    "mstart_prior": 0.0,   # pseudo-starts of his club's (same position) average minutes when starting
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
     "xmins": True,         # start chance / minutes from the external XGBoost model in xmins.py instead of the weighted
                            # counts below; availability, Europe and the return ramp still apply on top. bench.py vs counts:
                            # corr +0.005 / +0.016 / +0.014 (2026/27, 2025/26, 2024/25); start-chance Brier -20%.
                            # Model files missing or xgboost not installed: project() raises (no silent fallback).
-    "xmins_combine": "B",  # B: bench chance unconditional, capped at 1 - start chance; A: conditional on not starting
-                           # (A had lower MAE but -0.1 to -0.2 points bias)
     "xmins_skip_out": False,  # leave weeks he was out (ctx["out"]) out of the xMins history, as the counts do
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
@@ -545,27 +541,6 @@ def project(ctx, as_of, horizon=6, params=None):
         for (g, opp, home, f) in lst:
             team_gws[tid].add(g)
 
-    # ---- club sub patterns: how often each club's starters (by position) play 60+, and for how long
-    sub_pat = {}
-    if P["p60_prior"] or P["mstart_prior"]:
-        acc = defaultdict(lambda: [0.0, 0.0, 0.0])
-        for pid, e in elements.items():
-            gs = pstats.get(pid, {})
-            for g in hist_gws:
-                s_ = gs.get(g)
-                if s_ and s_["starts"] > 0:
-                    a = acc[(e["team"], e["element_type"])]
-                    a[0] += 1; a[1] += s_["minutes"] >= 60; a[2] += min(90, s_["minutes"])
-        lg = defaultdict(lambda: [0.0, 0.0, 0.0])
-        for (t, et), a in acc.items():
-            for i in range(3):
-                lg[et][i] += a[i]
-        for (t, et), a in acc.items():
-            L = lg[et]
-            # shrink each club towards the league rate for the position (10 starts of prior)
-            sub_pat[(t, et)] = ((a[1] + 10 * L[1] / L[0]) / (a[0] + 10), (a[2] + 10 * L[2] / L[0]) / (a[0] + 10))
-        for et, L in lg.items():
-            sub_pat[(None, et)] = (L[1] / L[0], L[2] / L[0]) if L[0] else (0.75, 75)
     xm_pred = {}
     if P["xmins"]:
         import xmins
@@ -643,17 +618,15 @@ def project(ctx, as_of, horizon=6, params=None):
             elif s["minutes"] > 0:
                 sub += w
                 msub += w * s["minutes"]
-        tp60, tmst = sub_pat.get((e["team"], e["element_type"]), sub_pat.get((None, e["element_type"]), (0.75, 75)))
-        a60, ams = P["p60_prior"], P["mstart_prior"]
         if wsum:
             sp_ = P["start_prior"]
             # last season's share of the 38 games he'd have started, judged from his minutes
             prs = (pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230)) if pr else None) if sp_ else None
             p_start = (st + sp_ * prs) / (wsum + sp_) if prs is not None else st / wsum
             p_sub = sub / wsum
-            m_start = (mstart + ams * tmst) / (st + ams) if (st or ams) else 75
+            m_start = mstart / st if st else 75
             m_sub = msub / sub if sub else 20
-            p60_given_start = (p60s + a60 * tp60) / (st + a60) if (st or a60) else 0.75
+            p60_given_start = p60s / st if st else 0.75
         else:
             p_start = p_sub = 0.0
             m_start, m_sub, p60_given_start = 75, 20, 0.75
@@ -661,7 +634,7 @@ def project(ctx, as_of, horizon=6, params=None):
             # p60_given_start stays from his own starts (the external model has no 60+ output)
             xs_, xc_, xms_, xmc_ = xm_pred[pid]
             p_start, m_start, m_sub = xs_, xms_, xmc_
-            p_sub = (1 - xs_) * xc_ if P["xmins_combine"] == "A" else min(xc_, 1 - xs_)
+            p_sub = min(xc_, 1 - xs_)   # bench chance unconditional, capped at 1 - start chance
         # ---- DC hit probability
         thr = ctx["dc_thr"].get(pos, 99)
         hits = n60 = 0
