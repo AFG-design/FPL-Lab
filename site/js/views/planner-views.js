@@ -79,7 +79,7 @@ function useModelPlan(key, mode) {
 }
 function pvRule(mode) {
   const R = D.plan_rules || {}, n = x => (x ?? 0).toFixed(x % 1 ? 1 : 0);
-  const profit = R.min_profit != null ? ` It only suggests transfers that beat keeping your squad by at least ${n(R.min_profit)} point${R.min_profit === 1 ? "" : "s"}.` : "";
+  const profit = R.min_profit != null ? ` It only suggests a move this week if it beats rolling the transfer by at least ${n(R.min_profit)} point${R.min_profit === 1 ? "" : "s"} over the plan, and only plans moves later if they beat keeping your squad by as much.` : "";
   const hitCap = R.max_hits?.[mode];
   const hits = hitCap === 0 ? " It never takes a hit."
     : R.hit_gain != null ? ` It takes at most ${hitCap ?? 1} hit a week, and only when the plan beats its best hit-free version by the 4 points plus ${n(R.hit_gain)} more over the plan.` : "";
@@ -207,7 +207,7 @@ function pvStrategy(mode) {
   const varSeg = variants.length > 1 ? `<div class="bar" style="margin:0 0 6px"><span class="lbl">This week</span><div class="seg" role="group" aria-label="Moves this week">${variants.map(k => {
     const v = k.split("_").pop();
     return `<button data-pvvar="${mode}:${k}" aria-pressed="${k === r.key}">${PV_VAR_LABEL[v]}${k === rec ? " ★" : ""}</button>`;
-  }).join("")}</div></div><p class="note" style="margin:0 0 8px">★ the pick: ${D.plan_rules?.recommend_margin != null ? `the fewest moves within ${D.plan_rules.recommend_margin} points of the best` : "the build’s recommended plan"}.</p>` : "";
+  }).join("")}</div></div><p class="note" style="margin:0 0 8px">★ the pick: ${D.plan_rules?.recommend_margin != null ? `the fewest moves within ${D.plan_rules.recommend_margin} point${D.plan_rules.recommend_margin === 1 ? "" : "s"} of the best` : "the build’s recommended plan"}.</p>` : "";
   const movesHTML = now.length ? now.map(m => `<div class="sugg">
       <div class="sg-top"><div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="in">▲ <button data-p="${m.in}" class="linkish">${esc(P[m.in].name)}</button></span><span class="muted mono">${money(P[m.in].price)} · <span class="club-dot" style="--club:${clubCol(P[m.in])}" aria-hidden="true"></span>${T[P[m.in].team].short}</span></div>
         <span class="sg-gain ${xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length) > 0.05 ? "up" : "down"}" title="xP over the rest of the plan, in minus out">${sgn(xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length))}</span></div>

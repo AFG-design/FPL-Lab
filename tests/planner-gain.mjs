@@ -57,7 +57,7 @@ for (const ftv of [1.5, 2]) {
 }
 
 test("the strategy tab is labelled as vs no transfers", () => {
-  const run = app({ ft_value: 1.5, tie: 0.1, strategy: {} });
+  const run = app({ ft_value: 1.5, tie: 0.1, min_profit: 1, strategy: {} });
   const html = run("pvTabs()");
   assert.match(html, /title="vs no transfers over 2 GWs, after hits, with each free transfer banked at the end worth 1\.5">Balanced \+10\.5</);
 });

@@ -402,7 +402,7 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
     if (forced.length) throw new Error(`no plan meets your locks and bans (${forced.map(i => P[i]?.name || i).join(", ")} ${forced.length === 1 ? "forces a move" : "force moves"}). Check you have enough free transfers and money, or lift a lock or ban`);
     bal = { ...none, moves: [] };
   }
-  let res = bal;
+  let res = bal, stratInp = null;
   if (mode !== "balanced") {
     status(`Planning ${MODES[mode]}…`); await new Promise(r => setTimeout(r, 30));
     const st = R.strategy?.[mode] || {};
@@ -411,8 +411,26 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
     const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
     if (mode === "chase" && chaseCap > 0) inp.maxHits = chaseCap;
     try { res = (await hitRule(await solveP(inp), { ...inp, maxHits: 0 })) || bal; } catch (e) { res = bal; }
+    stratInp = inp;
   }
-  if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };   // no moves for the sake of it (forced moves always stay)
+  // no moves for the sake of it (optimise.strategy_plans, FL-110; forced moves always stay): moves this week must beat
+  // rolling this week (the same rules with no moves in the first gameweek) by min_profit, and a plan that only moves
+  // later must beat keeping the squad by as much (FL-073). Missing roll plan (the solver found none): measured
+  // against keeping the squad, as before.
+  // The roll plan is worked out as the server's is: Balanced with no moves this week, then for Play safe / Chase rank
+  // their own terms held to the same budget against Balanced's roll plan (falling back to it).
+  if (!forced.length && res.moves.some(m => m.gw === PG[0])) {
+    status("Checking against rolling the transfer…"); await new Promise(r => setTimeout(r, 30));
+    let roll = null;
+    try { roll = await solveP({ ...common, week1Moves: 0 }); } catch (e) { roll = null; }
+    if (roll && stratInp) {
+      const floor = mode === "safe" ? roll.value - R.safe_budget - R.tie : roll.value - R.chase_budget;
+      const ri = { ...stratInp, week1Moves: 0, floor };
+      try { roll = (await hitRule(await solveP(ri), { ...ri, maxHits: 0 })) || roll; } catch (e) { /* keep Balanced's roll */ }
+    }
+    if (roll && res.value < roll.value + R.min_profit) res = roll;
+  }
+  if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };
   // keep the optimiser's own lineup and captain with its moves, so what's shown (and the gain) is the plan that
   // passed the points budget, not one re-picked by the browser's milder rules
   const solved = {};

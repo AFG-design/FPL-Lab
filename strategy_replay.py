@@ -78,8 +78,9 @@ def autosub(xi, bench, pts, mins, players):
 def app_pick(plans, mode):
     """--pick app: the plan the app recommends for a strategy, worked out as build.py does. vs_roll is each plan's value
     against that strategy's Roll plan (projected points after hits plus FT_VALUE per banked free transfer, the same
-    figure as build.py's vs_roll); then optimise.recommended where it exists (FL-108), else the browser's rule it
-    replaced: the fewest moves (Roll, 1, 2, 3) within 0.5 of the best vs_roll. None if the strategy has no Roll plan."""
+    figure as build.py's vs_roll); then optimise.recommended where it exists (FL-108), else the browser's rule: the
+    fewest moves (Roll, 1, 2, 3) within MIN_PROFIT of the best vs_roll (FL-110; it was an undocumented 0.5). None if
+    the strategy has no Roll plan."""
     pre = "" if mode == "balanced" else f"{mode}_"
     roll = plans.get(pre + "roll")
     if not roll:
@@ -93,7 +94,7 @@ def app_pick(plans, mode):
         return optimise.recommended(sub)[mode]
     keys = list(sub)
     top = max(sub[k]["vs_roll"] for k in keys)
-    return next(k for k in keys if sub[k]["vs_roll"] >= top - 0.5)
+    return next(k for k in keys if sub[k]["vs_roll"] >= top - optimise.MIN_PROFIT)
 
 
 def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best"):
