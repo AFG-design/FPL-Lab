@@ -4,6 +4,8 @@ Chooses transfers, lineups and captains for each of the next H gameweeks to
 maximise projected points, respecting budget, squad shape, the 3-per-club rule
 and FPL's free-transfer rules (1 per week, roll up to 5, extra moves cost 4).
 """
+import copy
+
 import pulp
 
 SHAPE = {"GKP": 2, "DEF": 5, "MID": 5, "FWD": 3}
@@ -199,6 +201,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
 # the squad, or it is dropped.
 # Budgets and profit are in VALUE points (plain projected points over the plan, minus hits, plus banked FTs).
 SAFE_BUDGET = 0.0
+SKIPPED = []   # week-1 move counts of the solver runs strategy_plans skipped as repeats (FL-118), for the build log
 CHASE_BUDGET = 2.0
 MIN_PROFIT = 1.0
 HIT_GAIN = 2.0   # a plan keeps a hit only if it beats the best plan without hits by this much per hit, after the -4
@@ -223,7 +226,28 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
     Balanced is returned and a note says why (the Planner shows a 'no plan' message, validate.py warns)."""
     notes = []
     base = dict(players=players, squad=squad, sell=sell, bank=bank, ft0=ft0, gws=gws, **kw)
-    none = solve(**base, week1_moves=0, freeze_after=0)          # keep the squad for the whole plan
+    free = []   # (other args, plan) for each solve with week 1 left free (the "best" option)
+
+    def run(**a):
+        """solve(), but skip a run that would repeat a plan already found (FL-118). A run that fixes week 1 at
+        n moves repeats an earlier run with week 1 left free when every other argument is the same and that plan,
+        proven optimal, made exactly n moves in week 1: the fixed-n problem only removes plans the free run had
+        already beaten, so its plan is optimal there too. Only proven-optimal plans are reused; one that stopped at
+        the time limit (optimal False) or found nothing is never reused, and the run goes ahead as before. The reused
+        plan is a deep copy, so later edits (hit_gain) can't leak between plans."""
+        n = a.get("week1_moves")
+        other = tuple(sorted((k, id(v) if isinstance(v, dict) else v) for k, v in a.items() if k != "week1_moves"))
+        if n is not None:
+            for o, r in free:
+                if o == other and r["optimal"] and len(r["weeks"][0]["in"]) == n:
+                    SKIPPED.append(n)
+                    return copy.deepcopy(r)
+        r = solve(**base, **a)
+        if n is None and r:
+            free.append((other, r))
+        return r
+
+    none = run(week1_moves=0, freeze_after=0)          # keep the squad for the whole plan
     if not none:
         return {}, ["no plan without transfers could be worked out"]
     v0 = none["value"]
@@ -247,7 +271,7 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
         return alt
 
     for key, n in options:
-        bal = solve(**base, week1_moves=n, max_hits=MAX_HITS["balanced"])
+        bal = run(week1_moves=n, max_hits=MAX_HITS["balanced"])
         if not bal:
             notes.append(f"balanced {key}: needs a hit, and Balanced never takes one: dropped")
             continue
@@ -260,10 +284,10 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
                     floor = max(floor, v0 + MIN_PROFIT)   # still a clear profit on doing nothing
                 st = dict(week1_moves=n, eo=eo, eo_weeks=EO_WEEKS or len(gws), floor=floor, **STRATEGY[mode])
                 if MAX_HITS[mode]:
-                    r = hit_rule(solve(**base, **st, max_hits=MAX_HITS[mode]) or bal,
-                                 lambda: solve(**base, **st, max_hits=0), f"{mode} {key}") or bal
+                    r = hit_rule(run(**st, max_hits=MAX_HITS[mode]) or bal,
+                                 lambda: run(**st, max_hits=0), f"{mode} {key}") or bal
                 else:
-                    r = solve(**base, **st, max_hits=0) or bal
+                    r = run(**st, max_hits=0) or bal
             moves = sum(len(w["in"]) for w in r["weeks"])
             if moves and r["value"] < v0 + MIN_PROFIT and key != "roll":
                 notes.append(f"{mode} {key}: {r['value'] - v0:+.1f} vs no transfers, below the {MIN_PROFIT:g} profit rule: dropped")
