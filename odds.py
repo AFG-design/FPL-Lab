@@ -166,6 +166,33 @@ def carry_played(matches, previous, season, past_ok):
     return kept + matches, status
 
 
+def one_row_per_fixture(matches, fixtures):
+    """One odds row per FPL fixture (FL-112).
+
+    football-data.co.uk's fixtures.csv keeps listing a match for a while after it is played, so the same fixture came
+    back twice: once from this season's results file (played) and once from the fixtures file (upcoming). Both rows
+    then counted in the market team ratings, and Health reported upcoming odds for a gameweek that was over.
+    Rules: an upcoming row is dropped once FPL marks its fixture finished; if a fixture id still appears more than
+    once, the played row wins over an upcoming one, and the later row wins between two of the same kind (new rows
+    come after carried ones, so fresh odds win).
+    Missing / late / ambiguous: a fixture FPL doesn't list or whose `finished` is missing counts as not finished, so its
+    upcoming row stays until FPL confirms the result. A finished match whose only row was the upcoming one (results
+    file failed and nothing to carry) loses its odds rather than having pre-match odds passed off as played; the count
+    goes into status["dropped_finished"] so validate.py and Health can see it.
+    Returns (matches, dropped_finished, dropped_duplicate).
+    """
+    finished = {f["id"] for f in fixtures if f.get("finished")}
+    kept = [m for m in matches if m.get("played") or m.get("fixture") not in finished]
+    dropped_finished = len(matches) - len(kept)
+    best = {}
+    for i, m in enumerate(kept):
+        cur = best.get(m.get("fixture"))
+        if cur is None or bool(m.get("played")) >= bool(kept[cur].get("played")):
+            best[m.get("fixture")] = i
+    out = [m for i, m in enumerate(kept) if best.get(m.get("fixture")) == i]
+    return out, dropped_finished, len(kept) - len(out)
+
+
 def main():
     boot = fpl("/bootstrap-static/")
     fixtures = fpl("/fixtures/")
@@ -174,6 +201,18 @@ def main():
     past = fetch(f"{BASE}/mmz4281/{code}/E0.csv")
     upcoming = fetch(f"{BASE}/fixtures.csv")
     if not past and not upcoming:
+        # keep the previous odds, but still with one row per fixture: a file written before FL-112 can hold a played
+        # and an upcoming row for the same match, and validate.py now stops the publish on that
+        try:
+            with open(OUT) as f:
+                previous = json.load(f)
+            ms, df, dd = one_row_per_fixture(previous.get("matches", []), fixtures)
+            if df or dd:
+                previous["matches"] = ms
+                previous.setdefault("status", {}).update(dropped_finished=df, dropped_duplicate=dd)
+                json.dump(previous, open(OUT, "w"), separators=(",", ":"))
+        except (OSError, ValueError, AttributeError):
+            pass   # no readable previous file: validate.py already warns that match odds didn't load
         print("football-data.co.uk unavailable; keeping previous odds"); sys.exit(0)
     rows = (rows_from(past, True) if past else []) + (rows_from(upcoming, False) if upcoming else [])
 
@@ -185,6 +224,7 @@ def main():
     except (OSError, ValueError):
         previous = None   # first run, or an unreadable file: nothing to carry over (carry_played reports it)
     out, status = carry_played(out, previous, code, bool(past))
+    out, status["dropped_finished"], status["dropped_duplicate"] = one_row_per_fixture(out, fixtures)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     json.dump({"built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "season": code, "matches": out,
                "unmatched_names": sorted(unmatched), "status": status}, open(OUT, "w"), separators=(",", ":"))

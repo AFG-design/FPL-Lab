@@ -18,6 +18,7 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - free transfers outside 0-5, a negative/non-finite bank, or squad prices that break FPL's half-profit rule
   - a Free Hit restore that disagrees with independent FPL chip history and the pre-Free-Hit picks
   - an empty squad after the first deadline
+  - a fixture id that appears more than once in odds/odds.json (it would count twice in the market team ratings)
   - model settings exported for the site (meta.model) that aren't finite numbers in a sane range: home 1.0-1.5,
     cs_k 0.5-1.5 (data built before the field existed has no meta.model and is not checked)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
@@ -703,6 +704,12 @@ def main(path):
                         f"(since {ost.get('past_failed_since')}); {ost.get('kept_played', 0)} of {n_played} played matches "
                         f"carried over from the last good file" + ("" if n_played >= 20 else
                         ": fewer than 20, so the betting-market team ratings are off"))
+    # one row per fixture (FL-112, odds.one_row_per_fixture): a fixture id twice would count that match twice in the
+    # betting-market team ratings, so stop the publish
+    dup = sorted(f for f, n in Counter(m.get("fixture") for m in odds.get("matches", [])).items() if n > 1)
+    if dup:
+        errors.append(f"Match odds: {len(dup)} fixture id(s) appear more than once in odds/odds.json "
+                      f"(e.g. {', '.join(map(str, dup[:5]))}); each match would count twice in the market team ratings")
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 
