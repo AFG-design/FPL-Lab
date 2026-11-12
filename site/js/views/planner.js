@@ -120,7 +120,7 @@ function pairsHTML(g) {
     ${list.map(r => {
       // only hits that pass the hit rule are listed; the gain is after the hit, and the −4 pill says it took one
       const v = { ...verdict(r.gain, 3, 1), tag: r.hitWeeks.length ? "Chase rank" : null };
-      const line = (o, n) => `<div class="move"><span class="out">▼ ${esc(P[o].name)}</span><span class="in">▲ <button data-p="${n}" style="all:unset;cursor:pointer">${esc(P[n].name)}</button></span><span class="muted mono">${money(P[n].price)} · ${T[P[n].team].short}</span></div>`;
+      const line = (o, n) => `<div class="move"><span class="out">▼ ${esc(P[o].name)}</span><span class="in">▲ <button data-p="${n}" class="linkish">${esc(P[n].name)}</button></span><span class="muted mono">${money(P[n].price)} · ${T[P[n].team].short}</span></div>`;
       const up = P[r.n1].price - P[r.o1].price > P[r.n2].price - P[r.o2].price ? [r.o1, r.n1, r.o2, r.n2] : [r.o2, r.n2, r.o1, r.n1];
       return `<div class="sugg"><div class="sg-top"><div class="moves" style="margin:0">${line(r.o1, r.n1)}${line(r.o2, r.n2)}</div><span class="sg-gain ${r.gain > 0.05 ? "up" : "down"}">${sgn(r.gain)}</span></div>
         <div class="sg-meta">${vPill(v)}${hitPills(r.hitWeeks)}</div>
@@ -157,7 +157,7 @@ function suggestionsHTML(g) {
     const v = { ...verdict(s2.gain, 3, 1), tag: s2.hitWeeks.length ? "Chase rank" : null };   // only hits that pass the hit rule are listed
     const po = P[s2.out], pi = P[s2.in];
     return `<div class="sugg">
-      <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" style="all:unset;cursor:pointer">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · <span class="club-dot" style="--club:${clubCol(pi)}" aria-hidden="true"></span>${T[pi.team].short}</span></div>
+      <div class="sg-top"><div class="move"><span class="out">▼ ${esc(po.name)}</span><span class="in">▲ <button data-p="${pi.id}" class="linkish">${esc(pi.name)}</button></span><span class="muted mono">${money(pi.price)} · <span class="club-dot" style="--club:${clubCol(pi)}" aria-hidden="true"></span>${T[pi.team].short}</span></div>
         <span class="sg-gain ${s2.gain > 0.05 ? "up" : "down"}">${sgn(s2.gain)}</span></div>
       <div class="sg-meta">${vPill(v)}${hitPills(s2.hitWeeks)}<span class="fx sgfx">${fxChips(pi, g, 4)}</span></div>
       <div class="sg-why"><b>Out:</b> ${whyOut(s2.out, g)}<br><b>In:</b> ${whyIn(s2.in, g)}</div>

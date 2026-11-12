@@ -51,11 +51,13 @@ const afgMove = (m, g) => `${f1(m)} <span class="muted">→</span> <b>${f1(g)}</
 function afgRow(i, g, open = false) {
   const a = afgOf(i), n = afgN(i);
   const top = a?.why?.slice().sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0];
+  // FL-124: the summary is the row's toggle, so it holds no other control (a button inside it was invalid and fought
+  // the toggle for taps); the player sheet opens from a button in the expanded row
   return `<details class="afg-row"${open ? " open" : ""}><summary>
-      <span class="afg-name"><button type="button" class="pname linkish" data-p="${i}">${esc(P[i].name)}</button><span class="afg-fx">${afgFx(i, g)}</span></span>
+      <span class="afg-name"><span class="pname">${esc(P[i].name)}</span><span class="afg-fx">${afgFx(i, g)}</span></span>
       <span class="afg-nums">${afgMove(xpg(i, g), afgX(i, g))} <span class="tag afg-d ${n > 0.05 ? "up" : n < -0.05 ? "down" : ""}">${n ? sgn(n) : "±0.0"}</span></span>
       <span class="afg-sub">${top ? esc(top[2]) : "No fan factors this week"}</span>
-    </summary>${afgWhy(a)}</details>`;
+    </summary>${afgWhy(a)}<p class="afg-open"><button type="button" class="btn sm" data-p="${i}">${esc(P[i].name)}: player details</button></p></details>`;
 }
 
 function afgScoreboard() {

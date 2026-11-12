@@ -2,7 +2,8 @@ name: Check site
 
 # Runs on every pull request (and on demand): lint and the whole-app check, a fresh data build validated by
 # validate.py, then every screen opened at 390px and 1280px (scripts/layout_check.py), text size and WCAG AA contrast
-# in light and dark on every screen (scripts/contrast_check.py), then the planner and offline
+# in light and dark on every screen (scripts/contrast_check.py), tap targets and two ARIA patterns on a touch screen
+# (scripts/tap_check.py), then the planner and offline
 # behaviour checks (scripts/behaviour_check.py). Screenshots are kept as a
 # downloadable artifact for 14 days, pass or fail, so a change can be looked at without running anything.
 # Builds data.json from the live FPL API rather than downloading the published one, so a PR that changes
@@ -55,6 +56,9 @@ jobs:
       - name: Text size and contrast in both themes
         if: always() && steps.build.outcome == 'success'
         run: python3 scripts/contrast_check.py
+      - name: Tap targets and ARIA patterns on touch
+        if: always() && steps.build.outcome == 'success'
+        run: python3 scripts/tap_check.py
       - name: Planner and offline behaviour
         if: always() && steps.build.outcome == 'success'
         run: python3 scripts/behaviour_check.py
