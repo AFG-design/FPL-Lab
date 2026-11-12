@@ -4,6 +4,15 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-116: dead code removed (neutral, as required)
+
+- Removed the rejected minutes switches `p60_prior` / `mstart_prior` (22 Oct: worse on both seasons at every weight)
+  and `xmins_combine`'s "A" path (more bias); both were off, so the remaining maths is the same expression with zero
+  weights. `start_prior` stays (left at 0 deliberately; a candidate for returning regulars, see FL-093).
+- Backtest JSON with and without the status log byte-identical to main `a8f877b`; bench identical on all three seasons
+  (1-GW MAE 1.763 / 1.858 / 1.763, 5-GW picks 18.18 / 19.13 / 19.01, every paired CI [0, 0]).
+- One-off tuning scripts (tune.py, tune_v3.py, tune_odds.py) are gone; bench.py does the same comparisons
+  (`python3 bench.py '{"sp_match": 0.5}'`). tune_ep.py stays for FL-134.
 ## 12 Nov 2026 — FL-113: priors from the last two calendar seasons only (Adopt as Marginal)
 
 - Known error (audit B8 / N6): make_priors.py took a player's last two Premier League seasons however old (42 of 481
