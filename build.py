@@ -1056,17 +1056,47 @@ for w in review["weeks"]:
                   round(sx.get(p["element"], 0.0), 2) if sx is not None else None] for p in pk["picks"]]
     w["autosubs"] = [[a["element_in"], a["element_out"]] for a in pk.get("automatic_subs", [])]
 
+# ---------------------------------------------------------------- history logs that can't be rebuilt
+def load_log(path, empty, valid):
+    """A log this build updates and can't rebuild (history/news.json, history/prices.json, crowd/history.json), protected the way status.json is (FL-120).
+    Returns (data, ok). Missing file (first run): a fresh copy of `empty`, ok. Unreadable, or not the expected shape
+    (valid(data) is False): an empty copy for this build only and ok False, so save_log leaves the file alone (its
+    history can't be rebuilt) and data.json's sources say so for validate.py (Data health warning)."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        if not valid(data):
+            raise ValueError("unexpected shape")
+        return data, True
+    except FileNotFoundError:
+        return json.loads(json.dumps(empty)), True
+    except Exception as ex:
+        print(f"{os.path.relpath(path, HERE)} unreadable, not updating it:", ex)
+        return json.loads(json.dumps(empty)), False
+
+
+def save_log(path, data, ok):
+    if not ok:
+        return                       # never overwrite a log that failed to load
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, separators=(",", ":"))
+    os.replace(tmp, path)            # atomic: a crash mid-write can't leave a half-written log
+
+
 # ---- template tracker: your team against the top-10k template, week by week
+# crowd/history.json can't be rebuilt (FL-152): template_backfill.py only re-creates "backfill" weeks from managers who
+# are top-10k now (survivorship), never the real weekly samples (crowd.py), which are gone once the gameweek is.
+# Missing (first run): starts empty, ok. Unreadable or the wrong shape: this build's tracker starts from nothing, the
+# file is left alone (never overwritten) and sources.template.ok is False -> Data health warning (validate.py).
 TPL_F = os.path.join(HERE, "crowd", "history.json")
-try:
-    TPL = json.load(open(TPL_F))
-except Exception:
-    TPL = {"gws": {}}
+TPL, tpl_ok = load_log(TPL_F, {"gws": {}}, lambda d: isinstance(d, dict) and isinstance(d.get("gws"), dict) and all(
+    isinstance(v, dict) and all(isinstance(v.get(k), dict) for k in ("own", "eo", "cap")) for v in d["gws"].values()))
 if crowd and crowd.get("complete", True) and TPL["gws"].get(str(crowd["gw"]), {}).get("source") != "sample":
     t10 = crowd["top10k"]
     TPL["gws"][str(crowd["gw"])] = {"n": t10["n"], "source": "sample",
                                     **{k: {i: v for i, v in t10[k].items() if v >= 0.5} for k in ("own", "eo", "cap")}}
-    json.dump(TPL, open(TPL_F, "w"), separators=(",", ":"))
+    save_log(TPL_F, TPL, tpl_ok)
 template = []
 for w in review["weeks"]:
     g, pk, tg = w["gw"], past.get(w["gw"]), TPL["gws"].get(str(w["gw"]))
@@ -1347,34 +1377,6 @@ keep |= {x[0] for t in template for k in ("missing", "diffs") for x in t[k]}
 keep = {i for i in keep if i in players}
 for i in set().union(*[set(w["in"]) | set(w["xi"]) | set(w["bench"]) for pl in plans.values() for w in pl["weeks"]]) if plans else set():
     keep.add(i)
-
-# ---------------------------------------------------------------- history logs that can't be rebuilt
-def load_log(path, empty, valid):
-    """A history/ log this build updates (news.json, prices.json), protected the way status.json is (FL-120).
-    Returns (data, ok). Missing file (first run): a fresh copy of `empty`, ok. Unreadable, or not the expected shape
-    (valid(data) is False): an empty copy for this build only and ok False, so save_log leaves the file alone (its
-    history can't be rebuilt) and data.json's sources say so for validate.py (Data health warning)."""
-    try:
-        with open(path) as f:
-            data = json.load(f)
-        if not valid(data):
-            raise ValueError("unexpected shape")
-        return data, True
-    except FileNotFoundError:
-        return json.loads(json.dumps(empty)), True
-    except Exception as ex:
-        print(f"{os.path.relpath(path, HERE)} unreadable, not updating it:", ex)
-        return json.loads(json.dumps(empty)), False
-
-
-def save_log(path, data, ok):
-    if not ok:
-        return                       # never overwrite a log that failed to load
-    tmp = path + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(data, f, separators=(",", ":"))
-    os.replace(tmp, path)            # atomic: a crash mid-write can't leave a half-written log
-
 
 # ---------------------------------------------------------------- injury news history
 # Every change to a player's FPL status, chance of playing or news text, timed by FPL's own news_added
@@ -1657,7 +1659,7 @@ out["sources"] = {
     "prices": {"nights": len(PH.get("nights", [])), "pending": len(PH.get("pending", {})), "ok": prices_ok},
     "news": {"players": len(NH), "ok": news_ok},
     "status": {"gws": sorted(int(g) for g in (st_.get("gws") or {})), "updated": st_.get("updated")},
-    "template": {"gws": sorted(int(g) for g in TPL.get("gws", {}))},
+    "template": {"gws": sorted(int(g) for g in TPL.get("gws", {})), "ok": tpl_ok},
     # pre-deadline snapshots kept (deadline_snapshot.py); data only, not shown yet
     "deadline": {"gws": sorted(int(f_[11:-5]) for f_ in os.listdir(HIST) if f_.startswith("deadline_gw") and f_.endswith(".json"))},
 }
