@@ -17,6 +17,10 @@ Injury flags in this season's backtest come only from history/status.json (saved
 the hindsight flags in ctx["out"] are not used for them. Decisions should rest on corr / rank / picks.
 Captain (cap) and top-5 are noisy (the top two projections are ~0.2 pts apart), so a candidate's cap and
 top5 differences are only meaningful when the paired bootstrap 95% CI (over gameweeks) excludes 0.
+
+Under each model line, "all players" scores the pool plus everyone outside it who played that GW (no minutes in
+the 3 GWs before: new signings, returners), with that outside-pool group on its own, so a change
+that helps or hurts them is visible. It is reported only; the decision metrics above still use the pool.
 """
 import json, math, os, random, sys
 from collections import defaultdict
@@ -107,6 +111,50 @@ def pool_rows(ctx, k, pred):
     return rows
 
 
+def all_rows(ctx, k, pred):
+    """FL-137: the pool plus everyone outside it who played in GW k, for the "all players" line. The pool
+    (pool_rows: minutes in one of the 3 GWs before) leaves out new signings and returners, about 6% of appearances,
+    which the model projects far too low (docs/parts-audit.md, section 4). Rows are (pid, pos, pred, actual, in_pool).
+    The in-pool rows are exactly pool_rows (so "all" = pool + the appearances it misses). An outside-pool player with
+    no projection counts as projected 0, never dropped, so a gap in the model shows up here instead of hiding.
+    Outside-pool players who didn't play GW k aren't scored (nothing would tell them apart from everyone unused)."""
+    rows = []
+    for pid, e in ctx["elements"].items():
+        a = ctx["pts_gw"].get(pid, {}).get(k)
+        if a is None:
+            continue
+        in_pool = any(ctx["pstats"].get(pid, {}).get(g, {}).get("minutes", 0) > 0 for g in range(k - 3, k))
+        if in_pool and pid not in pred:   # as pool_rows
+            continue
+        if not in_pool and ctx["pstats"].get(pid, {}).get(k, {}).get("minutes", 0) <= 0:
+            continue
+        rows.append((pid, POS[e["element_type"]], pred.get(pid, 0.0), a, in_pool))
+    return rows
+
+
+def score_all(rows_by_gw):
+    """Accuracy over all_rows: every player who played, and the part outside the pool on its own."""
+    rows = [r for rs in rows_by_gw.values() for r in rs]
+    out = [r for r in rows if not r[4]]
+
+    def part(rs):
+        if not rs:
+            return {"n": 0, "mae": float("nan"), "corr": float("nan"), "bias": float("nan"),
+                    "pred": float("nan"), "real": float("nan")}
+        P, A = [r[2] for r in rs], [r[3] for r in rs]
+        n = len(rs)
+        return {"n": n, "mae": sum(abs(p - a) for p, a in zip(P, A)) / n, "corr": _corr(P, A) if n > 1 else float("nan"),
+                "bias": (sum(P) - sum(A)) / n, "pred": sum(P) / n, "real": sum(A) / n}
+    return {"all": part(rows), "outside": part(out)}
+
+
+def fmt_all(name, m):
+    a, o = m["all"], m["outside"]
+    share = f"{100 * o['n'] / a['n']:.1f}%" if a["n"] else "–"
+    return (f"  all players   {name:<16} n={a['n']:5d} MAE {a['mae']:.3f} corr {a['corr']:.3f} bias {a['bias']:+.2f}"
+            f" | outside pool n={o['n']} ({share}) projected {o['pred']:.2f} v real {o['real']:.2f}, MAE {o['mae']:.3f}")
+
+
 _CUR = {}
 
 
@@ -133,12 +181,16 @@ def current_ctx():
     return _CUR["ctx"]
 
 
-def run_current(params, gws=None):
+def run_current(params, gws=None, everyone=None):
+    """everyone: optional dict, filled with all_rows per GW for the "all players" line (the pool is unchanged)."""
     ctx = current_ctx()
     out = {}
     for k in (gws or range(3, _CUR["cur"] + 1)):
         res = project(ctx, k, 1, dict(params, use_flags=False))["players"]
-        out[k] = pool_rows(ctx, k, {pid: r["xp"].get(k, 0.0) for pid, r in res.items()})
+        pred = {pid: r["xp"].get(k, 0.0) for pid, r in res.items()}
+        out[k] = pool_rows(ctx, k, pred)
+        if everyone is not None:
+            everyone[k] = all_rows(ctx, k, pred)
     return out
 
 
@@ -167,14 +219,17 @@ def _season(season):
     return _SEASON[season]
 
 
-def run_archive(params, season="2025-26", gws=range(4, 39)):
+def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None):
     ctx, team_at = _season(season)
     out = {}
     for k in gws:
         cx = dict(ctx)
         cx["elements"] = {pid: dict(e, team=team_at(pid, k) or e["team"]) for pid, e in ctx["elements"].items()}
         res = project(cx, k, 1, dict(params, use_flags=False))["players"]
-        out[k] = pool_rows(cx, k, {pid: r["xp"].get(k, 0.0) for pid, r in res.items()})
+        pred = {pid: r["xp"].get(k, 0.0) for pid, r in res.items()}
+        out[k] = pool_rows(cx, k, pred)
+        if everyone is not None:
+            everyone[k] = all_rows(cx, k, pred)
     return out
 
 
@@ -255,13 +310,16 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
         if not quiet:
             print(f"--- {s} ---")
         for name, p in variants.items():
+            ev = {}
             if s == "current":
-                m = score(run_current(p))
+                m = score(run_current(p, everyone=ev))
             else:
-                m = score(run_archive(p, s))
+                m = score(run_archive(p, s, everyone=ev))
             res[s][name] = m
+            m["_all"] = score_all(ev)
             if not quiet:
                 print(fmt(name, m))
+                print(fmt_all(name, m["_all"]))
         names = list(variants)
         for name in names[1:]:
             ci = res[s].setdefault("_ci", {})[name] = paired_ci(res[s][names[0]], res[s][name])

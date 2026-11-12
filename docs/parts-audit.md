@@ -68,7 +68,7 @@
 
 - Players who played but not in the previous 3 GWs (new signings, returners) make up about 6% of appearances and 3.5% of points.
 - They aren't in the points backtest pool. The model projects 0.03 points for them with xMins off and 0.35 with it on, against 1.6-1.75 real.
-- Small and hard to predict without flags. Add an "all players" line to bench output so changes for them are visible.
+- Small and hard to predict without flags. Add an "all players" line to bench output so changes for them are visible. (Done in FL-137: `bench.py` prints it under each model line.)
 
 ## Verdict
 
