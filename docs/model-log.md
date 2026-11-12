@@ -10,8 +10,9 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   every GW10 match was in odds/odds.json twice (played + upcoming): 110 rows, 10 fixture ids duplicated. GW10 counted
   twice in the market team ratings, and Health reported 10 upcoming odds when there were none.
 - Fix: `odds.one_row_per_fixture` drops an upcoming row once FPL marks its fixture finished, then keeps one row per
-  fixture id (played beats upcoming). validate.py errors on a duplicate id. FPL `finished` missing = not finished
-  (row kept). Re-run on 12 Nov: 110 → 100 rows, 0 upcoming.
+  fixture id (played beats upcoming). odds.py writes the file that way and `fplmodel.prepare` applies the same rule to
+  whatever file it gets, so an old or un-rewritten file can't double-count. validate.py warns about extra rows in the
+  file. FPL `finished` missing = not finished (row kept). Re-run on 12 Nov: 110 → 100 rows, 0 upcoming.
 - Baseline main `a8f877b`, frozen API responses to GW10, same priors, status log and archive odds both sides; the
   "after" side uses the committed odds file passed through the fix.
 - Backtest (GW3–10, n=3,050), without / with status log: MAE 1.8111 → 1.8111 / 1.7625 → 1.7625, corr .4301 → .4301 /
