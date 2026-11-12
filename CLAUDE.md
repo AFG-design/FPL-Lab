@@ -24,6 +24,10 @@ then `validate.py` gates the publish. UK spelling, £, metric. Keep the existing
 - Planner strategies: Balanced and Play safe never take a hit; only Chase rank may consider a −4. Every
   strategy must always weigh making no moves (rolling the free transfer) and pick it when it's the best option
   that gameweek. No moves for the sake of it, only for a projected net gain.
+- Chase rank may give up at most 2 projected points (`CHASE_BUDGET = 2.0` in `optimise.py`) against Balanced's plan
+  for the same move option, to back differentials and likely hauls. Points here are value points over the whole plan:
+  projected points minus hits, plus banked free transfers. Play safe gives up none (`SAFE_BUDGET = 0.0`).
+  `validate.py` checks the limit; change the number in `optimise.py` and here together.
 
 ## Missing, late or ambiguous data
 - Every change states what it does when its input is missing, late (e.g. odds not out, status log not saved
