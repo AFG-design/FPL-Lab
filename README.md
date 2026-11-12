@@ -37,7 +37,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `archive.py` | Rebuilds a past season (default 2025/26) in the live API's shape from the public vaastav/Fantasy-Premier-League archive, for `bench.py`. Cached in `archive/` (not committed) |
 | `crowd.py` | Samples 2,000 top-10k teams, 500 around your rank and your mini-league rivals once per gameweek into `crowd/latest.json` |
 | `europe.json` | European fixtures used to flag rotation risk. Edit if dates change |
-| `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/`. Runs inside the refresh job; `understat.yml` is a manual run only |
+| `understat.py` | Shots, shots in the box, big chances (xG ≥ 0.3) and chances created from Understat, cached per match in `understat/`. Runs inside the refresh job |
 | `xmins.py` + `xmins/` | The minutes model, on by default: four pre-trained XGBoost models (start chance, minutes if he starts, bench-appearance chance, minutes from the bench) stored as plain JSON in `xmins/`. Its inputs are rebuilt from FPL data before each gameweek; missing history is left as missing, not filled in. See `docs/xmins-eval.md` |
 | `site/plan-solver.js` | The browser version of the optimiser |
 | `odds.py` | Betting-market expected goals per match from football-data.co.uk (match result and over/under odds), blended into team ratings and fixture projections |
@@ -54,8 +54,8 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `make_priors.py` | Downloads every player's previous seasons into `priors.json` (weekly workflow) |
 | `build.py` | Fetches the FPL API, runs everything and writes `site/data.json` |
 | `validate.py` | Checks a freshly built `data.json` before it is published. Errors stop the refresh, so the last good site stays live; warnings are saved for the Data health page |
-| `scripts/refresh.py` | What the refresh job runs: `crowd.py`, `understat.py`, `odds.py` and `odds_players.py` (if one fails, the job warns and the build uses the last committed data), then `build.py` and `validate.py`, then commits the data and pushes it to `main`, with up to three attempts if `main` moved meanwhile |
-| `scripts/push_data.py` | Used by the priors and archive-odds workflows to push their data commit: rebases on the latest `main` and retries, never force-pushes, and fails visibly if the edits overlap |
+| `scripts/refresh.py` | What the refresh job runs: `crowd.py`, `understat.py`, `odds.py` and `odds_players.py` (if one fails, the job warns and the build uses the last committed data), then `build.py` and `validate.py`, then commits the data and pushes it to `main` with `push_head` from `scripts/push_data.py`; if `main` moved meanwhile it rebuilds on the new `main` (up to three attempts) |
+| `scripts/push_data.py` | The one push routine for every workflow that commits data. The priors and archive-odds workflows run it: it rebases on the latest `main` and retries, never force-pushes, and fails visibly if the edits overlap. The refresh uses its push step (`push_head`) |
 | `site/` | The web app (see **Front end** below) |
 
 Workflows in `.github/workflows/`:
@@ -63,7 +63,7 @@ Workflows in `.github/workflows/`:
 - `refresh.yml` runs `scripts/refresh.py`, then publishes `site/` to GitHub Pages. It is scheduled twice an hour (at 7 and 37 minutes past), and also runs on every push to `main`, from the Run workflow button and from the dashboard's Refresh button. A second schedule every 10 minutes only rebuilds while a match is on.
 - `check.yml` (Check site) runs on every pull request: see **Run locally** below.
 - `priors.yml` refreshes `priors.json` and the AFG records (`afg/records.json`) every Monday at 04:17 UTC.
-- `crowd.yml` and `understat.yml` are manual runs only. The refresh job already runs `crowd.py` and `understat.py` each time.
+- There are no separate crowd or Understat workflows: the refresh job runs `crowd.py` and `understat.py` each time. To force a new crowd sample for a gameweek already sampled, run `python3 crowd.py TEAM_ID --force` locally and commit `crowd/latest.json`.
 - `odds-archive.yml` (Backfill archive odds) is a manual run only: it rebuilds `odds/archive/` with `odds_archive.py`.
 
 The schedule is what is asked for, not what happens. GitHub starts scheduled runs when it has room, and they can be hours late: on 10 Nov 2026 the data commits on `main` were about eight hours apart for most of the day (03:26, 11:42 and 19:39 UTC). For updates you can rely on, set up the backup scheduler in **Reliable automatic updates (backup scheduler)** below.

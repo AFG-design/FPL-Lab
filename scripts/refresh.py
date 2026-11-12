@@ -6,6 +6,9 @@ from pathlib import Path
 import subprocess
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))   # run as scripts/refresh.py from the repo root
+from scripts.push_data import push_head  # noqa: E402  the one push step every data workflow uses (FL-117)
+
 DATA = ("crowd", "understat", "odds", "history", "site/badges")
 
 
@@ -47,17 +50,15 @@ def refresh(build_data):
         if pending_merge or changed_index():
             git("commit", "-m", "Data update")
         # Push even an unchanged tree: a build from an outdated base must retry too.
-        if subprocess.call(["git", "push", "origin", "HEAD:refs/heads/main"]) == 0:
+        # push_head is True when main holds this commit, including a push whose reply was lost.
+        if push_head():
             return
         # The job may fail on a later retry. Keep each rejected sample for the
         # recovery artifact even if the next build stops before making a commit.
         if "RUNNER_TEMP" in os.environ:
             archive = Path(os.environ["RUNNER_TEMP"]) / f"refresh-attempt-{attempt}.tar.gz"
             git("archive", "--format=tar.gz", "-o", str(archive), "HEAD", *DATA)
-        git("fetch", "origin", "main")
-        latest, candidate = revision("FETCH_HEAD"), revision("HEAD")
-        if latest == candidate:  # The server accepted the push but the reply was lost.
-            return
+        latest, candidate = revision("FETCH_HEAD"), revision("HEAD")   # push_head fetched main
         if latest == base or attempt == 3:
             raise RuntimeError(f"Could not publish refresh attempt {attempt} ({candidate})")
         # Replay whole sampled files only where main has not changed that path.
