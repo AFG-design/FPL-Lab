@@ -4,6 +4,27 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-092: upcoming fixture odds from The Odds API (Adopt as Marginal)
+
+- Known error (audit C7, still true for GW10): the fixture-odds blend (direct_w 0.85) never ran live, because
+  odds/odds.json had no upcoming matches (football-data's fixtures.csv lists them only days ahead).
+- Fix: odds.py takes one bulk h2h + totals snapshot from The Odds API (one region, 2 credits) at the 72/24/3 h
+  checkpoints, converts it as before (margin removed per bookmaker, median, Poisson fit) and saves each snapshot to
+  history/fixture_odds_gw{N}.json. The latest snapshot supplies the upcoming rows; football-data still supplies played
+  matches and any fixture the snapshot lacks. Built on FL-112 (PR #120).
+- Credits: 6 per gameweek here + about 60 for odds_players.py = 66; the busiest month (6 GWs) is about 396 of the
+  free 500, and both scripts stop at 40 left.
+- Backtest and bench: identical to main on every metric (no model code changed; backtests already give GW k its own
+  pre-match odds). Same tables as FL-112: MAE 1.8111 / 1.7625 (without / with status log); 5-GW picks 18.18 / 19.13 /
+  19.01, every paired CI [0, 0].
+- What live gains (GW k projected from data before k, with v without GW k's own odds, use_flags off):
+  GW8 MAE 1.7686 → 1.7677, GW9 1.5844 → 1.5796, GW10 1.7568 → 1.7492; mean |Δ xP| 0.04-0.06, largest ±0.38.
+- Not measured: a live build with a real snapshot (the key is a GitHub secret; the API host is blocked in the dev
+  session). A stand-in reply ran end to end: 10/10 GW11 fixtures matched, 0 validate errors.
+- Decision: CI includes zero (bench can't see live inputs), fixes a known error, no segment worse → Adopt as
+  Marginal. Re-check: after the first deadline, confirm history/fixture_odds_gw*.json has all three snapshots and
+  Health shows the credits left.
+
 ## 12 Nov 2026 — FL-112: odds file holds one row per fixture (Adopt as Marginal)
 
 - Known error (audit A6, 10 Nov): football-data.co.uk's fixtures.csv keeps listing a match after it is played, so
