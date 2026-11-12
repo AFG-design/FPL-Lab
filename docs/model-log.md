@@ -4,6 +4,33 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-112: odds file holds one row per fixture (Adopt as Marginal)
+
+- Known error (audit A6, 10 Nov): football-data.co.uk's fixtures.csv keeps listing a match after it is played, so
+  every GW10 match was in odds/odds.json twice (played + upcoming): 110 rows, 10 fixture ids duplicated. GW10 counted
+  twice in the market team ratings, and Health reported 10 upcoming odds when there were none.
+- Fix: `odds.one_row_per_fixture` drops an upcoming row once FPL marks its fixture finished, then keeps one row per
+  fixture id (played beats upcoming). odds.py writes the file that way and `fplmodel.prepare` applies the same rule to
+  whatever file it gets, so an old or un-rewritten file can't double-count. validate.py warns about extra rows in the
+  file. FPL `finished` missing = not finished (row kept). Re-run on 12 Nov: 110 → 100 rows, 0 upcoming.
+- Baseline main `a8f877b`, frozen API responses to GW10, same priors, status log and archive odds both sides; the
+  "after" side uses the committed odds file passed through the fix.
+- Backtest (GW3–10, n=3,050), without / with status log: MAE 1.8111 → 1.8111 / 1.7625 → 1.7625, corr .4301 → .4301 /
+  .4439 → .4439. Every segment, minutes figure and raw part identical; no flags. Expected: a backtest GW k only uses
+  odds before k, and the duplicate rows were all GW10, so only live GW11+ ratings move.
+- bench.py, before → after (identical; every paired CI [0, 0], captain changed 0/8, 0/35, 0/35):
+
+| Season | 1-GW MAE | 1-GW corr | 1-GW picks | 5-GW corr | 5-GW picks |
+|---|---|---|---|---|---|
+| 2026/27, GW3–10 | 1.763 → 1.763 | .444 → .444 | 4.35 → 4.35 | .583 → .583 | 18.18 → 18.18 (4 origins) |
+| 2025/26 | 1.858 → 1.858 | .411 → .411 | 4.45 → 4.45 | .523 → .523 | 19.13 → 19.13 |
+| 2024/25 | 1.763 → 1.763 | .428 → .428 | 4.22 → 4.22 | .557 → .557 | 19.01 → 19.01 |
+
+- Live GW11 (same code, old v cleaned odds file): mean |Δ| 0.003 xP next GW, 0.009 over 5 GWs; largest 5-GW move
+  ±0.10 (defenders of clubs whose GW10 match was double-counted: Ajer, Hall, Kayode +0.10, Gabriel −0.10).
+- Decision: CI includes zero (exactly 0), fixes a known error, no segment worse → Adopt as Marginal. Re-check: none
+  needed beyond confirming Health shows 0 upcoming odds the morning after each gameweek.
+
 ## 9 Nov 2026 — FL-081: invalid return dates no longer crash projections
 
 - Baseline: main `2377fcc`; identical frozen GW3–9 API responses, priors, status log and archive odds
