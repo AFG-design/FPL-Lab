@@ -16,6 +16,7 @@ import squad_state
 import fpl_score
 import decision_journal
 import deadline_snapshot
+import setpiece_log
 
 TEAM_ID = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("FPL_TEAM_ID", 8122679))
 OUT = sys.argv[2] if len(sys.argv) > 2 else "data.json"
@@ -1201,24 +1202,21 @@ for tid in teams:
         takers = sorted([e for e in elements.values() if e["team"] == tid and e.get(field)], key=lambda e: e[field])
         row[key] = [e["id"] for e in takers[:3]]
     sp_now[str(tid)] = row
-sp_changes = []
-try:
+# The change list is kept in history/setpieces.json (setpiece_log.py, FL-069), committed with the rest of history/.
+# The deployed data.json, the list's old home, is only read when that file is missing (to seed it) or unreadable;
+# setpieces["status"] says which, for Data health and the Stats page.
+
+
+def _deployed():
     prev_url = os.environ.get("PAGES_DATA_URL", "https://afg-design.github.io/FPL-Lab/data.json")
     with urllib.request.urlopen(urllib.request.Request(prev_url, headers={"User-Agent": "fpl-lab"}), timeout=15) as r:
-        prev = json.load(r)
-    prev_sp = (prev.get("setpieces") or {})
-    sp_changes = prev_sp.get("changes", [])
-    for tid, row in sp_now.items():
-        old = (prev_sp.get("now") or {}).get(tid)
-        if not old:
-            continue
-        for key in row:
-            a, b2 = (old.get(key) or [None])[0], (row[key] or [None])[0]
-            if a != b2:
-                sp_changes.insert(0, {"date": dt.date.today().isoformat(), "team": int(tid), "type": key, "old": a, "new": b2})
-except Exception as ex:
-    print("no previous deploy to compare set pieces:", type(ex).__name__)
-setpieces = {"now": sp_now, "changes": sp_changes[:30]}
+        return json.load(r)
+
+
+sp_season = f"{events[0]['deadline_time'][:4]}-{str(int(events[0]['deadline_time'][:4]) + 1)[2:]}"
+setpieces = setpiece_log.update(os.path.join(HERE, "history", "setpieces.json"), sp_now,
+                                dt.datetime.now(dt.timezone.utc), sp_season, _deployed)
+sp_changes = setpieces["changes"]
 
 # ---------------------------------------------------------------- teams: fixtures and trends
 team_out = {}

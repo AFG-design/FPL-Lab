@@ -1,78 +1,20 @@
 """FL-060: the refresh must still build and validate after GW38's deadline, when FPL lists no next gameweek.
 
-Runs the real build.py in a temporary copy of the repo against recorded FPL API responses
-(tests/fixtures/season_end_api.json.gz: bootstrap, fixtures, live and one entry, no rival or league data; the manager's
-name is replaced). The responses are turned into a season end the way FPL reports one: the current gameweek is the last
-one, its matches are still being played and no event is marked is_next. Any fetch outside the fixture (rivals, the
-overall leader, the previous deploy) fails, as a flaky network would, and the build must carry on without it.
+Runs the real build.py offline on recorded FPL responses turned into a season end the way FPL reports one: the current
+gameweek is the last one, its matches are still being played and no event is marked is_next (tests/build_harness.py).
 """
-import gzip
-import io
-import json
-import os
 from pathlib import Path
-import runpy
-import shutil
 import sys
-import tempfile
 import unittest
-from unittest import mock
-import urllib.request
 
-ROOT = Path(__file__).resolve().parent.parent
-FIXTURE = ROOT / "tests" / "fixtures" / "season_end_api.json.gz"
-API = "https://fantasy.premierleague.com/api"
-TEAM_ID = "8122679"
-
-
-def season_end(api):
-    """The recorded mid-season responses as FPL serves them just after the last deadline."""
-    boot = api["/bootstrap-static/"]
-    cur = next(e["id"] for e in boot["events"] if e["is_current"])
-    boot["events"] = [e for e in boot["events"] if e["id"] <= cur]
-    for e in boot["events"]:
-        e["is_next"] = False
-        if e["id"] == cur:
-            e["finished"] = e["data_checked"] = False   # live: the last gameweek is still being played
-    api["/fixtures/"] = [f for f in api["/fixtures/"] if f["event"] and f["event"] <= cur]
-    return api, cur
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_harness import ROOT, offline_build  # noqa: E402
 
 
 class SeasonEnd(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        tmp = tempfile.TemporaryDirectory()
-        cls.addClassCleanup(tmp.cleanup)
-        cls.repo = Path(tmp.name) / "repo"
-        # build.py reads and writes history/, odds/ and friends next to itself: work on a copy, never the real repo
-        shutil.copytree(ROOT, cls.repo, ignore=shutil.ignore_patterns(".git", "node_modules", "site", "tests"))
-        (cls.repo / "site").mkdir()
-        with gzip.open(FIXTURE, "rt") as f:
-            api, cls.cur = season_end(json.load(f))
-
-        def urlopen(req, *a, **k):
-            url = req.full_url if hasattr(req, "full_url") else req
-            path = url[len(API):] if url.startswith(API) else None
-            if path not in api:
-                raise OSError(f"offline in test: {url}")
-            return io.BytesIO(json.dumps(api[path]).encode())
-
-        cls.out = cls.repo / "site" / "data.json"
-        cwd, argv, path = os.getcwd(), sys.argv, list(sys.path)
-        try:
-            os.chdir(cls.repo)
-            sys.argv = ["build.py", TEAM_ID, str(cls.out)]
-            sys.path.insert(0, str(cls.repo))
-            for name in [m for m in sys.modules if (cls.repo / f"{m}.py").exists()]:
-                del sys.modules[name]   # import the copy's modules, not ones another test loaded from the repo
-            with mock.patch.object(urllib.request, "urlopen", urlopen), mock.patch("time.sleep"):
-                runpy.run_path(str(cls.repo / "build.py"), run_name="__main__")
-            validate = runpy.run_path(str(cls.repo / "validate.py"))
-            cls.rc = validate["main"](str(cls.out))
-        finally:
-            os.chdir(cwd)
-            sys.argv, sys.path[:] = argv, path
-        cls.D = json.loads(cls.out.read_text())
+        cls.repo, cls.D, cls.rc, cls.cur = offline_build(cls)
 
     def test_builds_without_a_next_gameweek(self):
         m = self.D["meta"]
