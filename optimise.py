@@ -193,7 +193,9 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
 #               tracks what the managers around you own, avoids starters who may not play and avoids marginal hits.
 #   Chase rank  gives up at most CHASE_BUDGET points to back differentials and players with a high chance of a haul.
 # Every plan that makes a transfer must beat making no transfers at all by MIN_PROFIT points (the "no moves for the
-# sake of it" rule); a move-count option that can't is dropped rather than shown.
+# sake of it" rule); a move-count option that can't is dropped rather than shown. Roll (no moves this week) is never
+# dropped, since it is the option that always exists, but it isn't exempt either (FL-073): a Roll plan whose later
+# moves can't clear MIN_PROFIT is replaced by the keep-squad plan (no moves in any week), with a note saying so.
 # Hits: Balanced and Play safe never take one (MAX_HITS); a move option that would need a hit is dropped for them.
 # Chase rank may take at most one -4 a week, and keeps it only if the plan beats its own best plan with no hits by
 # HIT_GAIN points per hit in plain projected points over the plan (the -4 already counted): its taste for upside
@@ -298,11 +300,20 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
                      + ("hit-free plan used" if alt else "dropped"))
         return alt
 
+    def keep_squad(r, label):
+        """FL-073: r if it makes no moves or clears the profit rule; otherwise the keep-squad plan, with a note."""
+        if not sum(len(w["in"]) for w in r["weeks"]) or r["value"] >= v0 + MIN_PROFIT:
+            return r
+        notes.append(f"{label}: {r['value'] - v0:+.1f} vs no transfers, below the {MIN_PROFIT:g} profit rule: keep-squad plan used")
+        return copy.deepcopy(none)
+
     for key, n in options:
         bal = run(week1_moves=n, max_hits=MAX_HITS["balanced"])
         if not bal:
             notes.append(f"balanced {key}: needs a hit, and Balanced never takes one: dropped")
             continue
+        if key == "roll":   # Play safe and Chase rank are then held to their budgets against the plan Balanced shows
+            bal = keep_squad(bal, "balanced roll")
         for mode in modes:
             if mode == "balanced":
                 r = bal
@@ -316,8 +327,10 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
                                  lambda: run(**st, max_hits=0), f"{mode} {key}") or bal
                 else:
                     r = run(**st, max_hits=0) or bal
+            if key == "roll" and mode != "balanced":
+                r = keep_squad(r, f"{mode} roll")
             moves = sum(len(w["in"]) for w in r["weeks"])
-            if moves and r["value"] < v0 + MIN_PROFIT and key != "roll":
+            if moves and r["value"] < v0 + MIN_PROFIT:
                 notes.append(f"{mode} {key}: {r['value'] - v0:+.1f} vs no transfers, below the {MIN_PROFIT:g} profit rule: dropped")
                 continue
             r = dict(r)   # Play safe / Chase rank may fall back to the Balanced plan object: keep their figures apart

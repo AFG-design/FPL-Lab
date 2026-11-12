@@ -4,6 +4,18 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-073: Roll plans follow the profit rule (planner; Adopt as Marginal)
+
+- Known error (code review, reproduced 5 Nov): optimise.strategy_plans exempted the Roll option from "no moves for the
+  sake of it", so a Roll plan could recommend later transfers worth less than MIN_PROFIT (Chase rank −0.8 against doing
+  nothing). Fix: a Roll plan whose moves miss MIN_PROFIT against keeping the squad is replaced by the keep-squad plan,
+  with a note; validate.py no longer exempts Roll.
+- Projections unchanged: backtest (GW3–10, n=3,050) MAE 1.812 / 1.763 with the status log, identical; `--compare`
+  flags nothing; bench identical on all three seasons (5-GW picks 18.11 / 19.13 / 19.01), every paired CI [0, 0].
+- strategy_replay.py `--pick app` (new: every move option the build offers, then the plan the app recommends), GW5–38:
+  2025/26 Balanced 1790 → 1790, Play safe 1842 → 1839 (one week, GW5), Chase 1855 → 1855; 2024/25 all identical
+  (2057 / 2082 / 1983). The rule bound once in 204 strategy-weeks.
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
 ## 12 Nov 2026 — FL-116: dead code removed (neutral, as required)
 
 - Removed the rejected minutes switches `p60_prior` / `mstart_prior` (22 Oct: worse on both seasons at every weight)

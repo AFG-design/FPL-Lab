@@ -920,7 +920,8 @@ def main(path):
         if nh and rules.get("hit_gain") is not None and pl.get("hit_gain", -99) < rules["hit_gain"] * nh - 0.01:
             errors.append(f"Plan {k}: {nh} hit(s) gaining {pl.get('hit_gain', 'unknown')} vs no hits, short of the hit rule")
         moved = any(wk.get("in") for wk in pl.get("weeks", []))
-        if moved and not k.endswith("roll") and pl["vs_none"] < rules.get("min_profit", 1.0) - 0.01:
+        # FL-073: Roll isn't exempt; a Roll plan whose later moves miss the rule is replaced by the keep-squad plan
+        if moved and pl["vs_none"] < rules.get("min_profit", 1.0) - 0.01:
             errors.append(f"Plan {k}: {pl['vs_none']:+.2f} vs no transfers, short of the profit rule")
     # FL-125: the Planner's "vs no transfers" is vs_none, rebuilt in the browser from xp_total and ft_left with
     # plan_rules.ft_value. Without ft_value it falls back to 1.5 and could disagree with data.json, so its absence
