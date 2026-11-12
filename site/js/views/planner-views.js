@@ -126,7 +126,8 @@ function pvTabs() {
     let tag = "";
     if (k === "suggest") { const r = pvStrat(S.pstrat); tag = r.key ? `<small class="${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${MODES[S.pstrat]} ${sgn(r.gain)}</small>` : `<small>${MODES[S.pstrat]} –</small>`; }
     if (k === "edit" && SB.moves.length) tag = `<small>${SB.moves.length} move${SB.moves.length === 1 ? "" : "s"}</small>`;
-    return `<button role="tab" data-pview="${k}" aria-selected="${pv === k}" aria-pressed="${pv === k}">${l}${tag}</button>`;
+    // FL-124: tabs say which is selected with aria-selected only (aria-pressed is for toggle buttons), as Home's do
+    return `<button type="button" role="tab" id="pvtab-${k}" data-pview="${k}" aria-selected="${pv === k}" aria-controls="pvpanel" tabindex="${pv === k ? 0 : -1}">${l}${tag}</button>`;
   }).join("")}</div>`;
 }
 function pvGwSel(weeks, g) {
@@ -165,7 +166,7 @@ function pvMine() {
       <div class="panel"><h3>What each strategy would do</h3>
         <p class="note" style="margin-top:0">Projected points over ${PG.length} GWs vs keeping this team, after hits. Tap one to see the XI it leaves you.</p>
         <div class="opts">${cards}</div></div>
-      ${flagged.length ? `<div class="panel"><h3>Flagged in your squad</h3><div class="moves">${flagged.map(i => `<div class="move"><button data-p="${i}" style="all:unset;cursor:pointer"><b>${esc(P[i].name)}</b></button><span class="muted">${esc(P[i].news || "flagged")}</span><span class="mono">${f1(xpFrom(i, PG[0], PG.length))} xP / ${PG.length} GWs</span></div>`).join("")}</div></div>` : ""}
+      ${flagged.length ? `<div class="panel"><h3>Flagged in your squad</h3><div class="moves">${flagged.map(i => `<div class="move"><button data-p="${i}" class="linkish"><b>${esc(P[i].name)}</b></button><span class="muted">${esc(P[i].news || "flagged")}</span><span class="mono">${f1(xpFrom(i, PG[0], PG.length))} xP / ${PG.length} GWs</span></div>`).join("")}</div></div>` : ""}
     </div>
   </div>`;
 }
@@ -208,7 +209,7 @@ function pvStrategy(mode) {
     return `<button data-pvvar="${mode}:${k}" aria-pressed="${k === r.key}">${PV_VAR_LABEL[v]}${k === rec ? " ★" : ""}</button>`;
   }).join("")}</div></div><p class="note" style="margin:0 0 8px">★ the pick: the fewest moves within 0.5 points of the best.</p>` : "";
   const movesHTML = now.length ? now.map(m => `<div class="sugg">
-      <div class="sg-top"><div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="in">▲ <button data-p="${m.in}" style="all:unset;cursor:pointer">${esc(P[m.in].name)}</button></span><span class="muted mono">${money(P[m.in].price)} · <span class="club-dot" style="--club:${clubCol(P[m.in])}" aria-hidden="true"></span>${T[P[m.in].team].short}</span></div>
+      <div class="sg-top"><div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="in">▲ <button data-p="${m.in}" class="linkish">${esc(P[m.in].name)}</button></span><span class="muted mono">${money(P[m.in].price)} · <span class="club-dot" style="--club:${clubCol(P[m.in])}" aria-hidden="true"></span>${T[P[m.in].team].short}</span></div>
         <span class="sg-gain ${xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length) > 0.05 ? "up" : "down"}" title="xP over the rest of the plan, in minus out">${sgn(xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length))}</span></div>
       <div class="sg-meta"><span class="fx sgfx">${fxChips(P[m.in], g, 4)}</span></div>
       <div class="sg-why"><b>Out:</b> ${whyOut(m.out, g)}<br><b>In:</b> ${whyIn(m.in, g)}</div></div>`).join("")
@@ -294,17 +295,24 @@ function vPlanner() {
   <div class="pvhead">${pvTabs()}
     ${pv === "compare" ? "" : `<div class="bar" style="margin:0"><span class="lbl">${term("horizon", "Plan length")}</span>
       <div class="seg" role="group" aria-label="Plan length">${[3, 5, 6].filter(h => h <= GWS.length).map(h => `<button data-horizon="${h}" aria-pressed="${S.horizon === h}">${h} GWs</button>`).join("")}</div></div>`}</div>
-  ${body}`;
+  <div id="pvpanel" role="tabpanel" aria-labelledby="pvtab-${pv}">${body}</div>`;
 }
 function bindPlannerViews() {
   // keep the open tab in sight when the tab row scrolls sideways (phones)
-  const bar = document.querySelector(".pviews"), cur = bar?.querySelector('[aria-pressed="true"]');
+  const bar = document.querySelector(".pviews"), cur = bar?.querySelector('[aria-selected="true"]');
   if (bar && cur && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = Math.max(0, cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2);
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el));
   on("[data-pview]", b => {
     let v = b.dataset.pview;
     if (PV_MODES.includes(v)) { S.pstrat = v; store.set("fpl.pstrat", v); v = "suggest"; }
     S.pview = v; store.set("fpl.pview", v); if (v !== "edit") SB.sel = null; render(); window.scrollTo({ top: 0 });
+  });
+  // arrow keys, Home and End move along the tabs, as on Home (the selected tab is the only one in the Tab order)
+  const tabs = [...document.querySelectorAll('.pviews [role="tab"]')];
+  tabs.forEach((b, i) => b.onkeydown = e => {
+    const n = tabs.length, j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i - 1 + n) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault(); tabs[j].click(); document.getElementById(tabs[j].id)?.focus();
   });
   on("[data-pstrat]", b => { S.pstrat = b.dataset.pstrat; store.set("fpl.pstrat", S.pstrat); render(); });
   on("[data-pvgw]", b => { PV.gw = +b.dataset.pvgw; render(); });

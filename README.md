@@ -95,10 +95,11 @@ Before committing front-end changes:
 ```
 npm test        # ESLint + Stylelint, then the whole-app check below
 npm run layout  # every screen at 390px and 1280px: JS errors, error cards, sideways scroll, missing files (needs Python Playwright and a local data.json)
+npm run taps    # every screen as a phone: controls at least 40x40px on touch, none inside a <summary>, no aria-pressed on tabs
 npm run sw      # after adding or removing a script or stylesheet: refreshes the offline file list in sw.js
 ```
 
-The **Check site** workflow runs `npm test`, a fresh build, `validate.py` and `npm run layout` on every pull request, and keeps the screenshots as a downloadable artifact (Actions → the run → Artifacts).
+The **Check site** workflow runs `npm test`, a fresh build, `validate.py`, `npm run layout` and `npm run taps` on every pull request, and keeps the screenshots as a downloadable artifact (Actions → the run → Artifacts).
 
 `npm run check` reads every script in page order to catch names that are used but never defined (or defined twice), confirms every file the page, manifest and service worker refer to exists, and that each one is cached for offline use.
 

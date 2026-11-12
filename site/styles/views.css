@@ -140,6 +140,7 @@ tr.is-rival td { background: var(--accent-soft); }
 
 /* ---------- AFG suggestion ---------- */
 .afg-hero p { max-width: 75ch; }
+.afg-open { margin: 10px 0 0; }
 .afg-why { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
 .afg-why li { display: grid; gap: 1px; font-size: var(--fs-sm); padding-left: 10px; border-left: 2px solid var(--line); }
 .afg-k { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
@@ -271,12 +272,15 @@ tr.is-rival td { background: var(--accent-soft); }
 
 /* ---------- Planner view tabs (views/planner-views.js) ---------- */
 .pvhead { display: grid; gap: 10px; margin-bottom: 14px; }
+
+/* the Planner's tab panel (FL-124) lays out its contents as the view did before it existed */
+#pvpanel { display: grid; gap: 20px; min-width: 0; }
 .pviews { display: flex; width: 100%; padding: 3px; }
 .pviews button { flex: 1 0 auto; display: grid; justify-items: center; gap: 1px; padding: 7px 12px; font-size: var(--fs-md); }
 .pviews button small { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--faint); }
 .pviews button small.up { color: var(--good); }
 .pviews button small.down { color: var(--bad); }
-.pviews button[aria-pressed="true"] { box-shadow: inset 0 -2px 0 var(--accent-text), 0 0 0 1px var(--line-strong); }
+.pviews button[aria-selected="true"] { box-shadow: inset 0 -2px 0 var(--accent-text), 0 0 0 1px var(--line-strong); }
 .pvtl > summary { font-size: var(--fs-md); color: var(--fg); font-weight: 600; }
 .pvcmp td.pvcell { display: table-cell; min-width: 150px; white-space: normal; font-size: var(--fs-sm); vertical-align: top; }
 .pvcmp td.pvcell > span { display: block; }
@@ -900,3 +904,26 @@ tr.is-rival td { background: var(--accent-soft); }
 .j-tbl .n { text-align: right; white-space: nowrap; }
 .j-miss { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .j-tbl th small { display: block; font-weight: 400; font-size: var(--fs-xs); }
+
+/* ---------- tap targets on touch screens (FL-124) ----------
+   At least 40 x 40px for every control when the pointer is a finger. Boxed controls grow. Text-style buttons (player
+   names in tables, glossary terms, link-style buttons) keep their look: they are at least 40px wide, and an invisible
+   ::after gives them a 40px-tall hit area; table cells get 2px more padding so neighbouring rows' hit areas don't
+   overlap. Inline links inside a sentence are exempt (WCAG 2.5.8). Last in the last stylesheet, because .linkish and
+   .term reset everything (all: unset). Checked by scripts/tap_check.py. */
+@media (pointer: coarse) {
+  .btn, .seg button, .gwsel button, select, summary, .chipbtn, .skip, .st-when, .mc-p, .mc-club,
+  input:not([type="checkbox"], [type="radio"], [type="hidden"]) { min-height: 40px; }
+  .theme-toggle, .icon-only, .vm-dot, .xptable .xstar { min-width: 40px; min-height: 40px; }
+  .seg button { min-width: 40px; }
+  .rs-btn { min-height: 40px; }
+  .j-why { margin-bottom: 10px; }   /* clear of the hit area of the name on the next line */
+  summary { display: flex; align-items: center; }
+  .linkish, button.pname, .term, td > a:only-child { position: relative; display: inline-block; min-width: 40px; }
+  .linkish::after, button.pname::after, .term::after, td > a:only-child::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 50%; height: max(100%, 40px); transform: translateY(-50%);
+  }
+  th, td { padding-top: 10px; padding-bottom: 10px; }
+  .pcell { gap: 12px; }
+  .cmp-hit { display: grid; flex: none; place-items: center; width: 40px; height: 40px; margin: -10px -2px -10px -10px; cursor: pointer; }
+}
