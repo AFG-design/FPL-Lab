@@ -93,17 +93,21 @@ except Exception:
 # injury / suspension log: each player's status at every deadline, so the model can tell
 # "injured" from "dropped" later in the season (FPL keeps no history of this)
 STATUS_LOG = os.path.join(HERE, "history", "status.json")
-status_ok = True
+# How the log loaded goes to meta.status_log (FL-072): "ok", "missing" (no file: normal before the first deadline, the
+# log is lost after it) or "unreadable". Either of the last two leaves the model without the injury history for this
+# build, so validate.py makes it an error once the season has started.
+status_ok, status_state, status_err = True, "ok", None
 try:
     status_log = json.load(open(STATUS_LOG))
     if not isinstance(status_log.get("gws"), dict):
         raise ValueError("no 'gws' table")
 except FileNotFoundError:
-    status_log = {"gws": {}}
+    status_log, status_state = {"gws": {}}, "missing"
 except Exception as ex:
     # never overwrite a log that failed to load: it can't be rebuilt
     print("history/status.json unreadable, not updating it:", ex)
-    status_log, status_ok = {"gws": {}}, False
+    status_log, status_ok, status_state, status_err = {"gws": {}}, False, "unreadable", str(ex)[:200]
+status_loaded_gws = len(status_log["gws"])   # before this build adds the coming deadline
 # When the previous refresh ran: the status log's own "updated" stamp, read before this build rewrites it. It goes
 # to meta.prev_built so validate.py can warn when refreshes are far apart close to a deadline (GitHub's schedule is
 # best effort and has left gaps of 8 hours). Missing or unreadable log, or a stamp that isn't a timestamp: None, and
@@ -131,10 +135,15 @@ ctx = prepare(boot, fixtures, model_live, priors, market, sp_data, status_log)
 # European midweek congestion: small rotation risk for league games within ~3 days of a European match.
 # A competition marked "confirmed": false in europe.json (dates or teams guessed) is skipped: no rotation
 # allowance and no "also plays" flag until someone confirms it.
+# How it loaded goes to meta.europe (FL-072): "ok", "missing" or "unreadable" (bad JSON, or an entry that fails part
+# way: the competitions read before it keep their allowance, those after it get none), plus the unconfirmed ones
+# skipped. validate.py warns on anything but a clean load, and lists the skipped competitions.
 congestion, euro_flags, euro_skipped = {}, {}, []
+euro_state, euro_err, euro_n = "ok", None, 0
 try:
     europe = json.load(open(os.path.join(HERE, "europe.json")))["competitions"]
     short_to_id = {t["short_name"]: t["id"] for t in boot["teams"]}
+    euro_n = len(europe)
     for comp, c in europe.items():
         if c.get("confirmed") is False:
             euro_skipped.append(comp)
@@ -150,7 +159,11 @@ try:
                 if near:
                     congestion[(tid, f["event"])] = 0.93
                     euro_flags[(tid, f["event"])] = f"{comp} {near[0].strftime('%a %d %b')}"
+except FileNotFoundError:
+    euro_state = "missing"
+    print("europe.json not found: no European rotation allowance")
 except Exception as ex:
+    euro_state, euro_err = "unreadable", f"{type(ex).__name__}: {ex}"[:200]
     print("europe.json not used:", ex)
 ctx["congestion"] = congestion
 elements, teams = ctx["elements"], ctx["teams"]
@@ -1481,6 +1494,9 @@ out = {
              "league_goals": round(res["league"], 2) if res else None, "picks_gw": picks_gw, "finished_gws": finished_gws,
              "squad_gw": squad_gw, "fh_restored": fh_active,   # squad and bank come from GW squad_gw (the week before a Free Hit)
              "price_deadlines": boot["game_config"]["settings"].get("price_change_deadlines", []),
+             # FL-072: whether the status log and europe.json loaded (validate.py check_sources)
+             "status_log": {"state": status_state, "gws": status_loaded_gws, "error": status_err},
+             "europe": {"state": euro_state, "competitions": euro_n, "unconfirmed": euro_skipped, "error": euro_err},
              "priors_season": next(iter((priors or {}).get("players", {}).values()), {}).get("season"),
              "prev_built": prev_built,   # the refresh before this one (None: unknown), for validate.py's gap warning
              "build_secs": None},
