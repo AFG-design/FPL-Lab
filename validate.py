@@ -928,6 +928,17 @@ def main(path):
     rules = D.get("plan_rules") or {}
     if plans and not rules:
         warnings.append("plan_rules missing: the strategy budgets can't be checked")
+    # FL-075: the browser planner (Re-plan, Transfer paths' Optimise) solves with these and refuses without them
+    need_ = ("pool", "decay", "bench_w", "hit", "max_moves_week", "eo_weeks", "ft_value", "variance", "variance_other")
+    if plans and rules:
+        miss_ = [k for k in need_ if rules.get(k) is None]
+        if miss_:
+            errors.append(f"plan_rules lacks the planner settings {miss_}: Re-plan would refuse to run")
+        elif (set(rules["pool"]) != {"GKP", "DEF", "MID", "FWD"} or any(not isinstance(v, int) or v < 1 for v in rules["pool"].values())
+              or not 0 < rules["decay"] <= 1 or not 0 <= rules["bench_w"] <= 1 or rules["eo_weeks"] < 1
+              or any(len(v) != 2 or is_bad(v[0]) or is_bad(v[1]) for v in list(rules["variance"].values()) + [rules["variance_other"]])):
+            errors.append(f"plan_rules planner settings out of range: pool {rules['pool']}, decay {rules['decay']}, "
+                          f"bench_w {rules['bench_w']}, eo_weeks {rules['eo_weeks']}")
     for k, pl in plans.items():
         if "vs_balanced" not in pl or "vs_none" not in pl:
             if rules:

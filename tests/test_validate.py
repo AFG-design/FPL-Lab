@@ -9,6 +9,9 @@ import unittest
 from unittest.mock import patch
 
 import validate
+import optimise
+# what build.py always ships in plan_rules beside the budgets (FL-075 settings, FL-108 margin, FL-125 ft_value)
+SETTINGS = {**optimise.planner_settings(5), "ft_value": 1.5, "recommend_margin": optimise.RECOMMEND_MARGIN}
 from squad_state import validation_source
 
 
@@ -180,7 +183,7 @@ class Validator(unittest.TestCase):
 
     def test_plan_budgets_reject_nan_and_missing_hit_gain(self):
         self.D["plans"] = {"best": {"weeks": [], "vs_balanced": 0, "vs_none": 0}}
-        self.D["plan_rules"] = {"hit_gain": 1, "ft_value": 1.5, "recommend_margin": 0.5}
+        self.D["plan_rules"] = {**SETTINGS, "hit_gain": 1, "ft_value": 1.5, "recommend_margin": 0.5}
         self.D["recommended"] = {"balanced": None, "safe": None, "chase": None}   # "best" is never the recommendation (FL-108)
         self.run_check()
         for field in ("vs_balanced", "vs_none"):
@@ -200,7 +203,7 @@ class Validator(unittest.TestCase):
         plan = lambda vs: {"weeks": [], "vs_balanced": 0, "vs_none": vs, "vs_roll": vs, "xp_total": 240 + vs, "ft_left": 1,
                            "value": 241.5 + vs}
         self.D["plans"] = {"roll": plan(0.0), "one": plan(-0.9), "two": plan(0.19), "three": plan(0.19)}
-        self.D["plan_rules"] = {"hit_gain": 2, "ft_value": 1.5, "recommend_margin": 0.5}
+        self.D["plan_rules"] = {**SETTINGS, "hit_gain": 2, "ft_value": 1.5, "recommend_margin": 0.5}
         self.D["recommended"] = {"balanced": "roll", "safe": None, "chase": None}
         self.run_check()
         self.D["recommended"]["balanced"] = "three"            # the highest single-week score, not the rule's pick
@@ -220,7 +223,7 @@ class Validator(unittest.TestCase):
                                             "xp_total": 240 + vs_none, "ft_left": 1, "value": 241.5 + vs_none}
         self.D["players"] += [{"id": i, "name": f"P{i}", "price": 5.0, "pos": "MID", "xp": {}} for i in range(20, 23)]
         self.D["plans"] = {"roll": plan(0, 0.0, 4.0), "three": plan(3, 1.2, 5.2)}
-        self.D["plan_rules"] = {"ft_value": 1.5, "min_profit": 1.0, "tie": 0.1, "recommend_margin": 1.0}
+        self.D["plan_rules"] = {**SETTINGS, "ft_value": 1.5, "min_profit": 1.0, "tie": 0.1, "recommend_margin": 1.0}
         self.D["recommended"] = {"balanced": "three", "safe": None, "chase": None}
         self.run_check()
         self.D["plans"]["three"].update(vs_roll=0.32, vs_none=4.32, xp_total=244.32, value=245.82)
@@ -237,7 +240,7 @@ class Validator(unittest.TestCase):
         figs = {"vs_balanced": 0, "vs_none": 0, "vs_roll": 0, "xp_total": 240, "ft_left": 1, "value": 241.5}
         self.D["plans"] = {"roll": {"weeks": [{"gw": 11, "in": [], "out": [], "xi": xi, "captain": 1}], **figs}}
         self.D["recommended"] = {"balanced": "roll", "safe": None, "chase": None}
-        self.D["plan_rules"] = {"ft_value": 1.5, "recommend_margin": 1.0}
+        self.D["plan_rules"] = {**SETTINGS, "ft_value": 1.5, "recommend_margin": 1.0}
         h = self.run_check()
         self.assertTrue(any("FPL takes no transfer" in w for w in h["warnings"]), h["warnings"])
         self.D["plans"]["one"] = {"weeks": [{"gw": 11, "in": [30], "out": [9], "xi": xi, "captain": 1}],
@@ -246,13 +249,23 @@ class Validator(unittest.TestCase):
         self.run_check("4 players from club 1 in a week with transfers")
         self.D["plans"]["one"]["weeks"][0]["out"] = [4]
         self.run_check()
+    def test_planner_settings_shipped_with_plans(self):
+        """FL-075: Re-plan reads the planner settings from plan_rules; plans without them stop the publish."""
+        self.D["plans"] = {"roll": {"weeks": [], "vs_balanced": 0, "vs_none": 0, "xp_total": 240, "ft_left": 1, "value": 241.5}}
+        self.D["plan_rules"] = {**SETTINGS, "ft_value": 1.5, "tie": 0.1}
+        self.D["recommended"] = {"balanced": None, "safe": None, "chase": None}   # no vs_roll: nothing to pick
+        self.run_check()
+        del self.D["plan_rules"]["pool"]
+        self.run_check("lacks the planner settings ['pool']")
+        self.D["plan_rules"].update(pool={"GKP": 0, "DEF": 40, "MID": 45, "FWD": 25})
+        self.run_check("planner settings out of range")
 
     def test_planner_gain_matches_vs_none(self):
         """FL-125: the Planner rebuilds vs_none from xp_total, ft_left and plan_rules.ft_value."""
         plan = lambda xp, ft, vs: {"weeks": [], "vs_balanced": 0, "vs_none": vs, "xp_total": xp, "ft_left": ft,
                                    "value": xp + 1.5 * ft}
         self.D["plans"] = {"roll": plan(243.0, 4, 5.88), "chase_roll": plan(242.54, 3, 3.92)}
-        self.D["plan_rules"] = {"ft_value": 1.5, "tie": 0.1, "recommend_margin": 0.5}
+        self.D["plan_rules"] = {**SETTINGS, "ft_value": 1.5, "tie": 0.1, "recommend_margin": 0.5}
         self.D["recommended"] = {"balanced": None, "safe": None, "chase": None}   # no vs_roll on these plans: nothing to compare
         self.run_check()
         del self.D["plan_rules"]["ft_value"]

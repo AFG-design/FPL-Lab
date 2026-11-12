@@ -35,11 +35,19 @@ def _k(k, lam):
     return max(0.0, k) if lam < 0 else k
 
 
+# Variance of a player's points for one fixture, a * x + b * x^2 for xP x, fitted on GW3-7 backtest residuals.
+VARIANCE = {"GKP": (2.8, 0.0), "DEF": (3.3, 0.0), "MID": (1.9, 0.23), "FWD": (3.8, 0.0)}
+VARIANCE_OTHER = (3.0, 0.0)   # a position not listed (none in FPL today)
+DECAY = 0.9            # weight of each later gameweek in the objective (plan week w counts DECAY ** w)
+BENCH_W = 0.1          # weight of bench players' xP (they still count for something: auto-subs)
+HIT = 4
+MAX_MOVES_WEEK = 4
+
+
 def variance(pos, x):
-    """Variance of a player's points for one fixture, fitted on GW3-7 backtest residuals."""
-    if pos == "MID":
-        return 1.9 * x + 0.23 * x * x
-    return {"GKP": 2.8, "DEF": 3.3, "FWD": 3.8}.get(pos, 3.0) * x
+    """Variance of a player's points for one fixture (VARIANCE)."""
+    a, b = VARIANCE.get(pos, VARIANCE_OTHER)
+    return a * x + b * x * x
 
 
 def spread(players, mult, eo, gw):
@@ -60,8 +68,8 @@ def spread(players, mult, eo, gw):
 FT_VALUE = 1.5
 
 
-def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_value=FT_VALUE,
-          hit=4, week1_moves=None, max_moves_week=4, banned=(), locked=(), time_limit=40,
+def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W, ft_value=FT_VALUE,
+          hit=HIT, week1_moves=None, max_moves_week=MAX_MOVES_WEEK, banned=(), locked=(), time_limit=40,
           eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0, floor=None,
           max_hits=None):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
@@ -276,6 +284,17 @@ def recommended(plans, margin=RECOMMEND_MARGIN):
         top = max(plans[k]["vs_roll"] for k in keys)
         out[mode] = next(k for k in keys if plans[k]["vs_roll"] >= top - margin - 1e-9)
     return out
+
+
+def planner_settings(n_gws):
+    """Everything the browser's planner (site/plan-solver.js, Re-plan and Transfer paths' Optimise) needs to solve with
+    the same maths as solve() and strategy_plans (FL-075), shipped in data.json plan_rules: the shortlist sizes, the
+    objective's decay and bench weight, hits, the weekly move cap, how many weeks the ownership term covers and the
+    variance formula. The Safe and Chase weights (STRATEGY) and the budgets are shipped beside these in plan_rules.
+    n_gws: the plan's length, for eo_weeks when EO_WEEKS is None (the whole plan)."""
+    return {"pool": dict(POOL), "decay": DECAY, "bench_w": BENCH_W, "hit": HIT, "max_moves_week": MAX_MOVES_WEEK,
+            "eo_weeks": EO_WEEKS or n_gws,
+            "variance": {k: list(v) for k, v in VARIANCE.items()}, "variance_other": list(VARIANCE_OTHER)}
 
 
 def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes=("balanced", "safe", "chase"), **kw):

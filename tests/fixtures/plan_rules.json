@@ -1,0 +1,59 @@
+{
+ "ft_value": 1.5,
+ "safe_budget": 0.0,
+ "chase_budget": 2.0,
+ "min_profit": 1.0,
+ "hit_gain": 2.0,
+ "max_hits": {
+  "balanced": 0,
+  "safe": 0,
+  "chase": 1
+ },
+ "recommend_margin": 1.0,
+ "tie": 0.1,
+ "strategy": {
+  "balanced": {},
+  "safe": {
+   "lam": 0.1,
+   "nail_w": 0.5,
+   "hit_margin": 2.0
+  },
+  "chase": {
+   "lam": -0.15,
+   "haul_w": 5.0
+  }
+ },
+ "pool": {
+  "GKP": 14,
+  "DEF": 40,
+  "MID": 45,
+  "FWD": 25
+ },
+ "decay": 0.9,
+ "bench_w": 0.1,
+ "hit": 4,
+ "max_moves_week": 4,
+ "eo_weeks": 5,
+ "variance": {
+  "GKP": [
+   2.8,
+   0.0
+  ],
+  "DEF": [
+   3.3,
+   0.0
+  ],
+  "MID": [
+   1.9,
+   0.23
+  ],
+  "FWD": [
+   3.8,
+   0.0
+  ]
+ },
+ "variance_other": [
+  3.0,
+  0.0
+ ]
+}

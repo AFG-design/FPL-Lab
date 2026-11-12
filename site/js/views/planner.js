@@ -369,11 +369,16 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   // points budget against it, no transfers unless they beat keeping the squad by the profit rule, and no hits unless
   // they pay (hit rule).
   // Missing input: no field ownership -> Play safe / Chase rank can't be worked out, so it says so and stops.
-  const R = D.plan_rules || { safe_budget: 0, chase_budget: 2, min_profit: 1, hit_gain: 2, tie: 0.1, strategy: {} };
+  // FL-075: every setting comes from the build (data.json plan_rules), the same numbers the server's plans used. A
+  // data.json without them (older than FL-075) can't be re-planned the same way, so it says so instead of guessing.
+  const R = D.plan_rules;
+  const settings = window.FPLSolver.settingsFrom(R);
+  const ruleKeys = ["safe_budget", "chase_budget", "min_profit", "hit_gain", "tie", "strategy"];
+  if (!settings || ruleKeys.some(k => R[k] == null)) throw new Error("this data update doesn't carry the planner's settings; try again after the next refresh");
   if (mode !== "balanced" && !eoFrac) throw new Error(`${MODES[mode]} needs the field-ownership data, which isn't in this build`);
   const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
     ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: rules.locked, banned: rules.banned, captains,
-    maxHits: 0, poolExtra };
+    maxHits: 0, poolExtra, ...settings };
   // hits: Balanced and Play safe never take one; Chase rank at most plan_rules.max_hits.chase a week, or your own
   // "Hits" choice if that is stricter
   const chaseCap = Math.min(R.max_hits?.chase ?? 1, rules.maxHits ?? 99);
@@ -408,7 +413,7 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
     const st = R.strategy?.[mode] || {};
     let floor = mode === "safe" ? bal.value - R.safe_budget - R.tie : bal.value - R.chase_budget;
     if (!forced.length && bal.value >= none.value + R.min_profit) floor = Math.max(floor, none.value + R.min_profit);
-    const inp = { ...common, eo: eoFrac, eoWeeks: PG.length, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
+    const inp = { ...common, eo: eoFrac, floor, lam: st.lam || 0, haulW: st.haul_w || 0, nailW: st.nail_w || 0, hitMargin: st.hit_margin || 0 };
     if (mode === "chase" && chaseCap > 0) inp.maxHits = chaseCap;
     try { res = (await hitRule(await solveP(inp), { ...inp, maxHits: 0 })) || bal; } catch (e) { res = bal; }
     stratInp = inp;

@@ -1614,7 +1614,9 @@ out = {
     "lineup": lineup, "plans": plans, "plan_notes": plan_notes, "recommended": recommended,
     "plan_rules": {"ft_value": optimise.FT_VALUE, "safe_budget": optimise.SAFE_BUDGET, "chase_budget": optimise.CHASE_BUDGET, "min_profit": optimise.MIN_PROFIT, "hit_gain": optimise.HIT_GAIN, "max_hits": optimise.MAX_HITS,
                    "recommend_margin": optimise.RECOMMEND_MARGIN,
-                   "tie": optimise.TIE, "strategy": optimise.STRATEGY},
+                   "tie": optimise.TIE, "strategy": optimise.STRATEGY,
+                   # FL-075: the browser's planner reads these instead of keeping its own copies
+                   **optimise.planner_settings(len(proj_gws[:PLAN_GWS]))},
     "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "journal": journal, "setpieces": setpieces,
     "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
