@@ -18,7 +18,7 @@ Hard failures (exit 1, so the Refresh workflow stops before uploading and the la
   - free transfers outside 0-5, a negative/non-finite bank, or squad prices that break FPL's half-profit rule
   - a Free Hit restore that disagrees with independent FPL chip history and the pre-Free-Hit picks
   - an empty squad after the first deadline
-  - a fixture id that appears more than once in odds/odds.json (it would count twice in the market team ratings)
+  - meta.odds rows used + rows dropped not adding up to odds/odds.json's rows (data.json built from another odds file)
   - model settings exported for the site (meta.model) that aren't finite numbers in a sane range: home 1.0-1.5,
     cs_k 0.5-1.5 (data built before the field existed has no meta.model and is not checked)
 Warnings (printed, and saved in data.json "health" for the Health page; never fail the build):
@@ -30,6 +30,7 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
   - Understat shots data missing, or covering fewer matches than have finished while its last successful update
     is over 36 hours old (understat.py keeps the previous file when Understat is down, so it goes stale silently)
   - no betting odds for any of next gameweek's fixtures
+  - odds/odds.json holding extra rows (a stale upcoming row or a fixture id twice); the model uses one per fixture
   - this season's played-match odds failed to download or came back short (played rows carried over from the last
     good odds file, or none to carry)
   - once the current gameweek is finished, per-GW points not adding up to a player's FPL total (DD hauls column)
@@ -704,12 +705,19 @@ def main(path):
                         f"(since {ost.get('past_failed_since')}); {ost.get('kept_played', 0)} of {n_played} played matches "
                         f"carried over from the last good file" + ("" if n_played >= 20 else
                         ": fewer than 20, so the betting-market team ratings are off"))
-    # one row per fixture (FL-112, odds.one_row_per_fixture): a fixture id twice would count that match twice in the
-    # betting-market team ratings, so stop the publish
-    dup = sorted(f for f, n in Counter(m.get("fixture") for m in odds.get("matches", [])).items() if n > 1)
-    if dup:
-        errors.append(f"Match odds: {len(dup)} fixture id(s) appear more than once in odds/odds.json "
-                      f"(e.g. {', '.join(map(str, dup[:5]))}); each match would count twice in the market team ratings")
+    # one row per fixture (FL-112): fplmodel.prepare already uses one row per fixture whatever the file holds, so the
+    # model can't double-count; extra rows in the file only mean odds.py hasn't rewritten it yet (e.g. football-data
+    # down), so warn rather than stop the publish
+    dup = sorted(f for f, n in Counter(m.get("fixture") for m in odds.get("matches", []) if m.get("fixture") is not None).items() if n > 1)
+    extra = ((D["meta"].get("odds") or {}).get("file_extra_rows") or 0)
+    if dup or extra:
+        warnings.append(f"Match odds: odds/odds.json has {extra} extra row(s) ({len(dup)} fixture id(s) more than once"
+                        + (f", e.g. {', '.join(map(str, dup[:5]))}" if dup else "") + "); the model used one row per "
+                        "fixture, and odds.py rewrites the file on its next successful run")
+    used = (D["meta"].get("odds") or {}).get("matches")
+    if odds.get("matches") and used is not None and used + extra != len(odds["matches"]):
+        errors.append(f"Match odds: the build used {used} rows and dropped {extra}, but odds/odds.json has "
+                      f"{len(odds['matches'])}: data.json was built from a different odds file")
     if g and not any(m.get("gw") == g and not m.get("played") for m in odds.get("matches", [])):
         warnings.append(f"No betting odds for any GW{g} fixture: fixture xG comes from team ratings only")
 

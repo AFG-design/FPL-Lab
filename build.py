@@ -1532,8 +1532,10 @@ out = {
              # finished Premier League matches so far, so the site and validate.py can say how many of them the
              # Understat file covers (it keeps its last good copy when Understat is down)
              "finished_fixtures": sum(1 for f in fixtures if f.get("event") and f.get("finished")),
-             "odds": {"built": market.get("built"), "matches": len(market.get("matches", [])),
-                      "upcoming": sum(1 for m in market.get("matches", []) if not m["played"])} if market else None,
+             "odds": {"built": market.get("built"), "matches": len(ctx["market"]),
+                      "upcoming": sum(1 for m in ctx["market"] if not m["played"]),
+                      # rows the model left out of the file (FL-112): stale upcoming rows and duplicate fixture ids
+                      "file_extra_rows": sum(ctx["market_dropped"])} if market else None,
              "player_odds": {"built": player_odds.get("built"), "gw": player_odds.get("gw"),
                              "fixtures": len(player_odds.get("fixtures", {})),
                              "players": sum(len(f["players"]) for f in player_odds.get("fixtures", {}).values()),

@@ -8,6 +8,7 @@ import math, re, datetime as dt
 import warnings
 import numpy as np
 from collections import defaultdict
+from odds import one_row_per_fixture
 
 P_UNKNOWN_WEEKS = 6  # 'Unknown return date': availability climbs over 6 gameweeks rather than 3
 
@@ -257,6 +258,7 @@ def unfinished_team_weeks(fixtures):
 
 def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
     """Index the raw API responses once; reused across projections."""
+    mk_rows, *mk_dropped = one_row_per_fixture((market or {}).get("matches", []), fixtures)
     elements = {e["id"]: e for e in boot["elements"]}
     teams = {t["id"]: t for t in boot["teams"]}
     pending = unfinished_team_weeks(fixtures)
@@ -321,8 +323,11 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         # status and chance saved before each deadline: {gw: {pid: (status, chance)}} (empty with no status log)
         "status_rows": {int(g): {int(pid): tuple(v) for pid, v in rows.items()} for g, rows in (status_log or {}).get("gws", {}).items()},
         "sp": sp,
-        "market": (market or {}).get("matches", []),
-        "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in (market or {}).get("matches", [])},
+        # one row per fixture (FL-112): an odds file can still hold a played and an upcoming row for the same match
+        # (written before odds.one_row_per_fixture, or not rewritten while football-data.co.uk was down)
+        "market": mk_rows,
+        "market_fx": {m["fixture"]: (m["lam_h"], m["lam_a"]) for m in mk_rows},
+        "market_dropped": mk_dropped,
     }
 
 

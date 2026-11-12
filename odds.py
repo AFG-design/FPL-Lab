@@ -179,6 +179,8 @@ def one_row_per_fixture(matches, fixtures):
     upcoming row stays until FPL confirms the result. A finished match whose only row was the upcoming one (results
     file failed and nothing to carry) loses its odds rather than having pre-match odds passed off as played; the count
     goes into status["dropped_finished"] so validate.py and Health can see it.
+    A row with no fixture id is kept as it is. fplmodel.prepare applies the same rule to whatever file it is given,
+    so an odds file written before this fix (or one odds.py couldn't rewrite) never double-counts a match.
     Returns (matches, dropped_finished, dropped_duplicate).
     """
     finished = {f["id"] for f in fixtures if f.get("finished")}
@@ -186,10 +188,12 @@ def one_row_per_fixture(matches, fixtures):
     dropped_finished = len(matches) - len(kept)
     best = {}
     for i, m in enumerate(kept):
+        if m.get("fixture") is None:
+            continue   # no id to match on: kept as it is, never merged with another row
         cur = best.get(m.get("fixture"))
         if cur is None or bool(m.get("played")) >= bool(kept[cur].get("played")):
             best[m.get("fixture")] = i
-    out = [m for i, m in enumerate(kept) if best.get(m.get("fixture")) == i]
+    out = [m for i, m in enumerate(kept) if m.get("fixture") is None or best.get(m.get("fixture")) == i]
     return out, dropped_finished, len(kept) - len(out)
 
 

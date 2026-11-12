@@ -75,8 +75,18 @@ class OneRowPerFixture(unittest.TestCase):
         self.assertEqual([(m["fixture"], m["played"]) for m in d["matches"]], [(100, True)])
 
 
+class ModelUsesOneRow(unittest.TestCase):
+    def test_prepare_counts_each_match_once_whatever_the_file_holds(self):
+        from fplmodel import prepare
+        boot = {"elements": [], "teams": BOOT["teams"], "events": [], "game_config": {"scoring": {}}}
+        row = lambda played: {"fixture": 100, "gw": 10, "h": 1, "a": 2, "lam_h": 1.6, "lam_a": 1.0, "played": played}
+        ctx = prepare(boot, FIXTURES, {}, None, {"matches": [row(True), row(False), {**row(True), "fixture": None}]})
+        self.assertEqual([(m["fixture"], m["played"]) for m in ctx["market"]], [(100, True), (None, True)])  # was 3 rows
+        self.assertEqual(sum(ctx["market_dropped"]), 1)
+
+
 class ValidateDuplicates(unittest.TestCase):
-    def errors(self, matches):
+    def health(self, matches, meta_odds=None):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "history").mkdir()
@@ -84,16 +94,27 @@ class ValidateDuplicates(unittest.TestCase):
             (root / "odds" / "odds.json").write_text(json.dumps({"matches": matches}))
             D = {"meta": {"built": "2026-11-08T12:00:00+00:00", "next_gw": 11, "cur_gw": 10, "team_id": 1},
                  "manager": {"free_transfers": 1, "bank": 0.0}, "squad": [], "players": [], "history": []}
+            if meta_odds:
+                D["meta"]["odds"] = meta_odds
             (root / "data.json").write_text(json.dumps(D))
             with patch.object(validate, "HERE", str(root)), contextlib.redirect_stdout(io.StringIO()):
                 validate.main(root / "data.json")
-            return [e for e in json.loads((root / "data.json").read_text())["health"]["errors"] if e.startswith("Match odds")]
+            h = json.loads((root / "data.json").read_text())["health"]
+            pick = lambda xs: [x for x in xs if x.startswith("Match odds") and "age unknown" not in x]
+            return pick(h["errors"]), pick(h["warnings"])
 
-    def test_duplicate_fixture_id_stops_the_publish(self):
-        e = self.errors([{"fixture": 100, "gw": 10, "played": True}, {"fixture": 100, "gw": 10, "played": False}])
+    def test_old_file_with_duplicates_warns_but_publishes(self):
+        dup = [{"fixture": 100, "gw": 10, "played": True}, {"fixture": 100, "gw": 10, "played": False}]
+        e, w = self.health(dup, {"matches": 1, "upcoming": 0, "file_extra_rows": 1})
+        self.assertEqual(e, [])
+        self.assertEqual(len(w), 1)
+        self.assertIn("1 extra row(s) (1 fixture id(s) more than once, e.g. 100)", w[0])
+        self.assertEqual(self.health([dup[0]], {"matches": 1, "upcoming": 0, "file_extra_rows": 0}), ([], []))
+
+    def test_data_built_from_another_odds_file_stops_the_publish(self):
+        e, _ = self.health([{"fixture": 100, "gw": 10, "played": True}], {"matches": 7, "upcoming": 0, "file_extra_rows": 0})
         self.assertEqual(len(e), 1)
-        self.assertIn("1 fixture id(s) appear more than once", e[0])
-        self.assertEqual(self.errors([{"fixture": 100, "gw": 10, "played": True}]), [])
+        self.assertIn("used 7 rows and dropped 0, but odds/odds.json has 1", e[0])
 
 
 if __name__ == "__main__":
