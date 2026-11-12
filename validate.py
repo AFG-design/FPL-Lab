@@ -75,6 +75,20 @@ def _age_hours(newer, older):
         return None
 
 
+def check_logs(D, warnings):
+    """history/news.json and history/prices.json (FL-120): build.py never overwrites one it couldn't read, so its history
+    survives, but until someone fixes the file the injury news history and the price-change track record stop growing
+    and this build shows them from nothing. A warning (Data health), not an error: everything else is right.
+    Missing / late / ambiguous: a build.py older than FL-120 has no "ok" key; it is not checked (it would already have
+    overwritten the file). A file that doesn't exist yet (first run) is not an error: build.py starts it, ok True.
+    """
+    src = D.get("sources") or {}
+    for key, what in (("news", "injury news history"), ("prices", "price-change track record")):
+        if (src.get(key) or {}).get("ok") is False:
+            warnings.append(f"history/{key}.json is unreadable and was left untouched: the {what} isn't being updated "
+                            f"until the file is fixed or restored from Git history")
+
+
 def check_sources(D, warnings):
     """Warn when an input the model or the plans lean on didn't load, or is older than its own schedule allows.
 
@@ -676,6 +690,7 @@ def main(path):
                                 f"(check the ODDS_API_KEY secret and credits)")
         break
     check_sources(D, warnings)
+    check_logs(D, warnings)
     check_season_end(D["meta"], errors, warnings)
     check_setpieces(D, errors, warnings)
     check_picks_sections(D, warnings)

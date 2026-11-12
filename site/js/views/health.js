@@ -17,8 +17,9 @@ function vHealth() {
     ["Ownership samples", S_.crowd?.built, S_.crowd ? `GW${S_.crowd.gw} · top 10k ${S_.crowd.top10k} · near you ${S_.crowd.near} · ladder ${S_.crowd.teams} · rivals ${S_.crowd.rivals}` : "", S_.crowd?.gw === D.meta.cur_gw, S_.crowd?.gw === D.meta.cur_gw - 1, "Once per gameweek, after the deadline"],
   ];
   const logs = [
-    ["Price changes", `${S_.prices?.nights ?? 0} night${S_.prices?.nights === 1 ? "" : "s"} recorded`, "Stats → Prices track record"],
-    ["Injury news", `${S_.news?.players ?? 0} players with a news history`, "Player panel → News history"],
+    // FL-120: ok false = the file was unreadable and left untouched, so this build's count starts from nothing
+    ["Price changes", S_.prices?.ok === false ? "history/prices.json unreadable: not updated this build" : `${S_.prices?.nights ?? 0} night${S_.prices?.nights === 1 ? "" : "s"} recorded`, "Stats → Prices track record"],
+    ["Injury news", S_.news?.ok === false ? "history/news.json unreadable: not updated this build" : `${S_.news?.players ?? 0} players with a news history`, "Player panel → News history"],
     ["Injury status", S_.status?.gws?.length ? `GW${S_.status.gws.join(", GW")}` : "–", "Tells injured from dropped in the model"],
     ["Top-10k template", S_.template?.gws?.length ? `GW${S_.template.gws[0]}–${S_.template.gws[S_.template.gws.length - 1]}` : "–", "Review → Template tracker"],
   ];
