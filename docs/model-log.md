@@ -4,6 +4,26 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 12 Nov 2026 — FL-113: priors from the last two calendar seasons only (Adopt as Marginal)
+
+- Known error (audit B8 / N6): make_priors.py took a player's last two Premier League seasons however old (42 of 481
+  priors on 9 Nov predated 2025/26, back to 2015/16; FPL xG is 0 before 2022/23), while archive.py, which builds the
+  backtests' past-season priors, already used the two calendar seasons before. Failed downloads shrank the file silently.
+- Fix: priors only from the two seasons before the current one (2024/25, 2025/26), weights 1:2, zero-minute seasons left
+  out (as archive.py); never a season before 2022/23; the script exits 1 and keeps the old file if more than 2% of
+  downloads fail or the count drops below 85% of the previous file. priors.json records its "seasons"; validate.py
+  errors on a prior from another season.
+- Same download (12 Nov) through old and new logic: 481 → 459 priors (22 dropped: older seasons or 0 minutes in both
+  recent seasons), 72 changed. priors.json in this PR is the new-logic file.
+- Backtest (GW3–10, n=3,050), old-logic v new-logic priors: without status log MAE 1.8111 → 1.8120, corr .4301 → .4301;
+  with 1.7625 → 1.7634, .4439 → .4440. No flags. "Has prior" +0.020 MAE / "no prior" −0.019 to −0.022 (players moved
+  between the two). Top 30: −0.010 / +0.006.
+- bench.py: past seasons identical (archive.py already used this rule; CIs [0, 0]). This season: 1-GW MAE 1.7625 →
+  1.7634, picks 4.353 → 4.347 (−0.006 [−0.083, +0.061]); 5-GW picks 18.18 → 18.11 (−0.07 [−0.20, 0.00], 4 origins);
+  captain unchanged 0/8.
+- Live GW11: 13 players move more than 0.1 xP over 5 GWs (Egan +1.26, Ajayi +0.83, Tzolis +0.49, N.Jackson −0.35).
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal. Re-check this season's
+  5-GW picks around GW20, when there are enough origins.
 ## 12 Nov 2026 — FL-093: returning players stay in the projected list (Adopt as Marginal)
 
 - Known error (FPL Review comparison, 6 Nov): Saliba, Minteh and Mitoma were missing from data.json. Cause:
