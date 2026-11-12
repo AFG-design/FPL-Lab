@@ -75,7 +75,28 @@ def autosub(xi, bench, pts, mins, players):
     return xi
 
 
-def replay(season, k_from, k_to, sim, modes=MODES, seed=0):
+def app_pick(plans, mode):
+    """--pick app: the plan the app recommends for a strategy, worked out as build.py does. vs_roll is each plan's value
+    against that strategy's Roll plan (projected points after hits plus FT_VALUE per banked free transfer, the same
+    figure as build.py's vs_roll); then optimise.recommended where it exists (FL-108), else the browser's rule it
+    replaced: the fewest moves (Roll, 1, 2, 3) within 0.5 of the best vs_roll. None if the strategy has no Roll plan."""
+    pre = "" if mode == "balanced" else f"{mode}_"
+    roll = plans.get(pre + "roll")
+    if not roll:
+        return None
+    sub = {}
+    for k in ("roll", "one", "two", "three"):
+        p = plans.get(pre + k)
+        if p:
+            sub[pre + k] = dict(p, vs_roll=p["xp_total"] + optimise.FT_VALUE * (p["ft_left"] - roll["ft_left"]) - roll["xp_total"])
+    if hasattr(optimise, "recommended"):
+        return optimise.recommended(sub)[mode]
+    keys = list(sub)
+    top = max(sub[k]["vs_roll"] for k in keys)
+    return next(k for k in keys if sub[k]["vs_roll"] >= top - 0.5)
+
+
+def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best"):
     ctx, team_at = bench._season(season)
     price, own = season_tables(season)
     last = max(price)
@@ -140,11 +161,19 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0):
                              "p10": {}, "nailed": 0, "name": str(i)}
                     pts.setdefault(i, ctx["pts_gw"].get(i, {}).get(k, 0)); mins.setdefault(i, 0)
             sell = {i: fpl_sell(t["buy"][i], pl[i]["price"]) for i in t["squad"]}
-            plans, _ = optimise.strategy_plans(pl, t["squad"], sell, t["bank"], min(t["ft"], 5), gws, [("best", None)],
+            if pick == "app":   # the move options the build offers, and the plan the app recommends among them
+                opts = [("best", None), ("roll", 0), ("one", 1), ("two", 2)] + ([("three", 3)] if t["ft"] >= 3 else [])
+            else:
+                opts = [("best", None)]
+            plans, _ = optimise.strategy_plans(pl, t["squad"], sell, t["bank"], min(t["ft"], 5), gws, opts,
                                                eo=eo, modes=("balanced", m), time_limit=20)
             optimise.STRATEGY["chase"]["haul_w"] = keep_hw
-            key = "best" if m == "balanced" else f"{m}_best"
-            r = plans.get(key) or plans.get("best")
+            if pick == "app":
+                key = app_pick(plans, m) or app_pick(plans, "balanced")
+                r = plans.get(key) if key else None
+            else:
+                key = "best" if m == "balanced" else f"{m}_best"
+                r = plans.get(key) or plans.get("best")
             if not r:                                  # nothing usable: keep the squad, best XI by projection
                 r = optimise.solve(pl, t["squad"], sell, t["bank"], min(t["ft"], 5), gws, week1_moves=0, freeze_after=0)
             w0 = r["weeks"][0]
@@ -188,6 +217,9 @@ def main():
     ap.add_argument("--modes", default=",".join(MODES), help="strategies to replay, e.g. chase (each team is independent)")
     ap.add_argument("--seed", type=int, default=0, help="0: best starting squad; N: ban 4 random players of it first")
     ap.add_argument("--old", action="store_true", help="the settings before points budgets (for a before/after table)")
+    ap.add_argument("--pick", choices=("best", "app"), default="best",
+                    help="best: plan with week 1 left free (the original replay); app: every move option the build "
+                         "offers, then the plan the app recommends (Roll, 1, 2 or 3 moves), as Home shows it")
     a = ap.parse_args()
     if not os.path.exists(os.path.join(bench.HERE, "raw", "bootstrap.json")):
         sys.exit("strategy_replay: needs raw/bootstrap.json (the scoring rules); save bootstrap-static there first")
@@ -197,7 +229,7 @@ def main():
         optimise.MIN_PROFIT, optimise.EO_WEEKS = -1e9, 2
     res = {}
     for s in a.seasons:
-        res[s] = summary(replay(s, a.k_from, a.k_to, a.sim, tuple(a.modes.split(",")), a.seed))
+        res[s] = summary(replay(s, a.k_from, a.k_to, a.sim, tuple(a.modes.split(",")), a.seed, a.pick))
         print(f"\n{s}  (GW{a.k_from}-{a.k_to})")
         print(f"{'':10s} {'real':>6s} {'proj':>7s} {'vs field':>9s} {'spread':>7s} {'green':>6s} {'red':>4s} {'hits':>5s} {'moves':>6s}")
         for m, r in res[s].items():
