@@ -3,9 +3,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import makeHighs from "../site/vendor/highs.js";
+import { readFileSync } from "node:fs";
 import solver from "../site/plan-solver.js";
 
 const highs = await makeHighs();
+const SETTINGS = solver.settingsFrom(JSON.parse(readFileSync(new URL("./fixtures/plan_rules.json", import.meta.url), "utf8")));
 const POS = [...Array(3).fill("GKP"), ...Array(7).fill("DEF"), ...Array(7).fill("MID"), ...Array(5).fill("FWD")];
 const GWS = [11, 12, 13];
 function setup(xpOf = {}) {
@@ -16,7 +18,7 @@ function setup(xpOf = {}) {
   return { players, squad: [1, 2, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20] };
 }
 const club1 = (players, ids) => ids.filter(i => players[i].team === 1).length;
-const run = (inp) => solver.solve(highs, { sell: {}, bank: 0, ft0: 1, gws: GWS, maxHits: 0, ...inp });
+const run = (inp) => solver.solve(highs, { sell: {}, bank: 0, ft0: 1, gws: GWS, maxHits: 0, ...SETTINGS, ...inp });
 
 test("rolling with four from one club has a plan (it was infeasible)", async () => {
   const { players, squad } = setup();

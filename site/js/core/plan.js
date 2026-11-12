@@ -26,10 +26,12 @@ function verdict(g, strong = 3, marg = 1) {
 // One confidence scale everywhere (U1): Strong / Marginal / Coin flip from verdict(). v.tag adds a separate, neutral
 // pill for context that isn't confidence (e.g. "Field's pick": most managers in the selected sample captain him).
 const vPill = v => `<span class="pill ${v.c}">${v.t}</span>${v.tag ? ` <span class="pill mut">${v.tag}</span>` : ""}`;
-function variance(pos, x) { return pos === "MID" ? 1.9 * x + 0.23 * x * x : ({ GKP: 2.8, DEF: 3.3, FWD: 3.8 }[pos] || 3) * x; }
+// the build's variance formula (plan_rules.variance, optimise.VARIANCE: a * x + b * x^2), FL-075
+function variance(pos, x) { const R = D.plan_rules, [a, b] = R.variance[pos] || R.variance_other; return a * x + b * x * x; }
+// missing ownership sample or variance formula (a data.json older than FL-075): null, and the spread isn't shown
 function spreadVsField(mult, g) {
   const F = fieldSample()?.data;
-  if (!F) return null;
+  if (!F || !D.plan_rules?.variance || !D.plan_rules.variance_other) return null;
   let v = 0;
   D.players.forEach(p => { const x = xpg(p.id, g); if (x <= 0) return; const d = (mult[p.id] || 0) - (F.eo[p.id] || 0) / 100; if (d) v += variance(p.pos, x) * d * d; });
   return Math.sqrt(v);

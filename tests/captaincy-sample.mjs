@@ -11,7 +11,7 @@ function setup(crowd) {
   const ctx = vm.createContext({location: {hash: ''}, crowd,
     myTeam: () => team, scoreMoves: () => score, baseScore: () => score, mk: x => x,
     verdict: () => ({t:'Strong', c:'good'}), threats: () => [], vPill: () => '',
-    term: (_, label) => label, MODES: {balanced:'Balanced'},
+    term: (_, label) => label, MODES: {balanced:'Balanced'}, ftValue: () => 1.5,
     priceRising: () => false, priceFalling: () => false});   // plan.js is stubbed here; no player has a price projection
   for (const file of ['core/state', 'core/model', 'views/week', 'views/planner']) {
     vm.runInContext(readFileSync(new URL(`../site/js/${file}.js`, import.meta.url), 'utf8'), ctx);

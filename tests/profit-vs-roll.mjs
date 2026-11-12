@@ -27,7 +27,8 @@ function planner(x16, rules) {
   `, ctx);
   return expr => vm.runInContext(expr, ctx);
 }
-const RULES = { ft_value: 1.5, min_profit: 1, hit_gain: 2, tie: 0.1, safe_budget: 0, chase_budget: 2, strategy: {} };
+// data.json plan_rules as build.py writes them (FL-075: the browser solver reads its settings from these)
+const RULES = JSON.parse(readFileSync(new URL("./fixtures/plan_rules.json", import.meta.url), "utf8"));
 
 // Over 3 GWs, signing 16 (4.9) for 9 (4) now gains 0.9 a week. Against never transferring that is 2.7 less the free
 // transfer it doesn't bank (1.5) = +1.2, which cleared the rule; against rolling (sign him next week instead) it's

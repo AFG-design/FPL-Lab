@@ -7,6 +7,8 @@ import makeHighs from "../site/vendor/highs.js";
 import solver from "../site/plan-solver.js";
 
 const highs = await makeHighs();
+// data.json plan_rules as build.py writes them (optimise.py's values), FL-075: the browser solver reads these
+const RULES = JSON.parse(readFileSync(new URL("./fixtures/plan_rules.json", import.meta.url), "utf8"));
 function planner() {
   const positions = ["GKP", "GKP", ...Array(5).fill("DEF"), ...Array(5).fill("MID"), ...Array(3).fill("FWD"), "MID"];
   const players = positions.map((pos, i) => ({
@@ -15,13 +17,13 @@ function planner() {
     xp: { 10: i === 15 ? 20 : i === 7 ? 8 : 4, 11: i === 15 ? 20 : i === 7 ? 8 : 4 },
   }));
   const ctx = vm.createContext({ location: { hash: "" }, setTimeout,
-    window: { FPLSolver: solver }, highs, players });
+    window: { FPLSolver: solver }, highs, players, RULES });
   for (const file of ["core/state", "core/model", "core/plan", "views/planner", "views/planner-views"]) {
     vm.runInContext(readFileSync(new URL("../site/js/" + file + ".js", import.meta.url), "utf8"), ctx);
   }
   vm.runInContext(`
     D = { players, squad: players.slice(0, 15).map(p => ({ id: p.id, sell: 5 })),
-      manager: { bank: 0, free_transfers: 1 },
+      manager: { bank: 0, free_transfers: 1 }, plan_rules: RULES,
       crowd: { top10k: { n: 100, cap: {}, eo: Object.fromEntries(players.map(p => [p.id, 50])) } } };
     P = Object.fromEntries(players.map(p => [p.id, p]));
     GWS = PG = [10, 11];

@@ -4,15 +4,25 @@
   const SHAPE = { GKP: 2, DEF: 5, MID: 5, FWD: 3 };
   const XI_MIN = { GKP: 1, DEF: 3, MID: 2, FWD: 1 };
   const XI_MAX = { GKP: 1, DEF: 5, MID: 5, FWD: 3 };
-  const POOL = { GKP: 10, DEF: 26, MID: 30, FWD: 16 };
-
+  // FL-075: the shortlist sizes, decay, bench weight, hit cost, weekly move cap, ownership horizon, FT value and the
+  // variance formula all come from the build (data.json plan_rules, optimise.planner_settings), so the browser solves
+  // with the same maths as the server's plans. They used to be copies here (a smaller shortlist, eoWeeks 2), and
+  // Re-plan could find a worse plan than the server's Balanced one. Missing (a data.json from before FL-075): the
+  // solver refuses with a reason instead of guessing.
+  const NEEDED = ["pool", "decay", "benchW", "hit", "maxMovesWeek", "eoWeeks", "ftValue", "variance", "varianceOther"];
+  function settingsFrom(rules) {
+    if (!rules) return null;
+    const s = { pool: rules.pool, decay: rules.decay, benchW: rules.bench_w, hit: rules.hit, maxMovesWeek: rules.max_moves_week,
+      eoWeeks: rules.eo_weeks, ftValue: rules.ft_value, variance: rules.variance, varianceOther: rules.variance_other };
+    return NEEDED.every(k => s[k] != null) ? s : null;
+  }
+  function variance(inp, pos, x) { const [a, b] = inp.variance[pos] || inp.varianceOther; return a * x + b * x * x; }
   // {team: how many over 3 the squad holds now}, for the clubs where it holds more than 3 (FL-074)
   function clubOver(squad, P) {
     const n = {};
     squad.forEach(i => { const t = P[i].team; n[t] = (n[t] || 0) + 1; });
     return Object.fromEntries(Object.entries(n).filter(([, c]) => c > 3).map(([t, c]) => [t, c - 3]));
   }
-  function variance(pos, x) { return pos === "MID" ? 1.9 * x + 0.23 * x * x : ({ GKP: 2.8, DEF: 3.3, FWD: 3.8 }[pos] || 3) * x; }
 
   /* input: { players:{id:{pos,team,price,xp:{gw:x},ok}}, squad:[ids], sell:{id:£m}, bank, ft0, gws:[..],
               locked:[ids], banned:[ids], captains:{gw:id}, maxHits: 0|1|2|null(any), eo:{id:frac}|null, lam,
@@ -21,8 +31,10 @@
               floor: minimum plan value (plain xP over the plan, minus 4 per hit, plus ftValue per FT banked at the end),
               the same measure as optimise.py's VALUE; the strategies use it as their points budget } */
   function buildLP(inp) {
-    const P = inp.players, gws = inp.gws, W = gws.map((_, w) => w);
-    const decay = inp.decay ?? 0.9, benchW = inp.benchW ?? 0.1, ftValue = inp.ftValue ?? 1.5, hit = 4;
+    const missing = NEEDED.filter(k => inp[k] == null);
+    if (missing.length) throw new Error(`planner settings missing from this data update (${missing.join(", ")}); try again after the next refresh`);
+    const P = inp.players, gws = inp.gws, W = gws.map((_, w) => w), POOL = inp.pool;
+    const decay = inp.decay, benchW = inp.benchW, ftValue = inp.ftValue, hit = inp.hit;
     const locked = new Set(inp.locked || []), banned = new Set(inp.banned || []);
     const pool = new Set(inp.squad);
     (inp.poolExtra || []).forEach(i => P[i] && pool.add(i));
@@ -43,7 +55,7 @@
     const con = (lhs, op, rhs) => cons.push(` c${k++}:${lhs} ${op} ${n(rhs)}`);
     const sq = (i, w) => `s_${i}_${w}`, xi = (i, w) => `x_${i}_${w}`, cp = (i, w) => `c_${i}_${w}`;
     const ti = (i, w) => `i_${i}_${w}`, to = (i, w) => `o_${i}_${w}`;
-    const eoW = inp.eoWeeks ?? 2;
+    const eoW = inp.eoWeeks;
 
     for (const w of W) {
       const g = gws[w], d = Math.pow(decay, w);
@@ -63,7 +75,7 @@
         const x = P[i].xp[g] || 0;
         let cx = d * (x - benchW * x), cc = d * x, cs = d * benchW * x;
         if (inp.eo && inp.lam && w < eoW && x > 0) {
-          const v = variance(P[i].pos, x), e = inp.eo[i] || 0;
+          const v = variance(inp, P[i].pos, x), e = inp.eo[i] || 0;
           const kx = 1 - 2 * e, kc = 3 - 2 * e;
           // chase (lam < 0) only rewards differentials, never dropping what the field owns
           cx -= inp.lam * d * v * (inp.lam < 0 ? Math.max(0, kx) : kx);
@@ -108,7 +120,7 @@
       con(lhs, "=", w === 0 ? inp.bank : 0);
       // free transfers and hits
       const nw = ids.map(i => ` + ${ti(i, w)}`).join("");
-      con(nw, "<=", inp.maxMovesWeek ?? 4);
+      con(nw, "<=", inp.maxMovesWeek);
       if (w === 0 && inp.week1Moves != null) con(nw, "=", inp.week1Moves);   // e.g. 0: roll this week (FL-110)
       con(` h_${w} + f_${w}` + ids.map(i => ` - ${ti(i, w)}`).join(""), ">=", 0);
       con(` f_${w + 1} - f_${w} + ${ids.map(i => ti(i, w)).join(" + ")} - h_${w}`, "<=", 1);
@@ -143,8 +155,8 @@
       });
       weeks.push({ gw: g, xi: ids.filter(i => v(`x_${i}_${w}`)), captain: ids.find(i => v(`c_${i}_${w}`)), hits: v(`h_${w}`), ft: v(`f_${w}`) });
     });
-    const ftEnd = v(`f_${inp.gws.length}`), ftValue = inp.ftValue ?? 1.5;
-    const pts = weeks.reduce((a, w) => a + w.xi.reduce((b, i) => b + (inp.players[i].xp[w.gw] || 0), 0) + (inp.players[w.captain]?.xp[w.gw] || 0) - 4 * w.hits, 0);
+    const ftEnd = v(`f_${inp.gws.length}`), ftValue = inp.ftValue;
+    const pts = weeks.reduce((a, w) => a + w.xi.reduce((b, i) => b + (inp.players[i].xp[w.gw] || 0), 0) + (inp.players[w.captain]?.xp[w.gw] || 0) - inp.hit * w.hits, 0);
     return { moves, weeks, objective: sol.ObjectiveValue, ftLeft: ftEnd, value: pts + ftValue * ftEnd };
   }
 
@@ -180,6 +192,6 @@
     throw err;
   }
 
-  const api = { buildLP, readSolution, solve };
+  const api = { buildLP, readSolution, solve, settingsFrom };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FPLSolver = api;
 })(typeof window !== "undefined" ? window : globalThis);
