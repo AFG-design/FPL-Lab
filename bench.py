@@ -114,7 +114,7 @@ def pool_rows(ctx, k, pred):
 def all_rows(ctx, k, pred):
     """FL-137: the pool plus everyone outside it who played in GW k, for the "all players" line. The pool
     (pool_rows: minutes in one of the 3 GWs before) leaves out new signings and returners, about 6% of appearances,
-    which the model projects far too low (docs/parts-audit.md, section 4). Rows are (pid, pos, pred, actual, in_pool).
+    which the model projects far too low (docs/archive/parts-audit.md, section 4). Rows are (pid, pos, pred, actual, in_pool).
     The in-pool rows are exactly pool_rows (so "all" = pool + the appearances it misses). An outside-pool player with
     no projection counts as projected 0, never dropped, so a gap in the model shows up here instead of hiding.
     Outside-pool players who didn't play GW k aren't scored (nothing would tell them apart from everyone unused)."""

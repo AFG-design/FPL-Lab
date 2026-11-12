@@ -1,5 +1,5 @@
 """An external pre-trained expected-minutes model (XGBoost, trained on 2022-23 and 2023-24). On by default since
-30 Oct 2026 (fplmodel.DEFAULTS["xmins"]); evaluation in docs/xmins-eval.md.
+30 Oct 2026 (fplmodel.DEFAULTS["xmins"]); evaluation in docs/archive/xmins-eval.md.
 
 Source: a user-supplied joblib file (original_xmins_model.joblib). It was opened with a whitelist unpickler (no code
 from the file ran) and its four boosters exported to plain XGBoost JSON in xmins/, so nothing here loads a pickle.

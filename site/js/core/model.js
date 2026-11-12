@@ -1,7 +1,6 @@
 // Fixture colouring, projections and the lineup/captain rules (same maths as the optimiser).
 /* ---------- helpers ---------- */
 function attClass(x) { return x >= 1.9 ? "d1" : x >= 1.5 ? "d2" : x >= 1.15 ? "d3" : x >= 0.85 ? "d4" : "d5"; }
-function defClass(x) { return x <= 0.85 ? "d1" : x <= 1.1 ? "d2" : x <= 1.4 ? "d3" : x <= 1.75 ? "d4" : "d5"; }
 const fxFor = (tid, g) => T[tid].fx[g] || [];
 // The model settings the site restates, read from data.json (meta.model, written by build.py from
 // fplmodel.DEFAULTS): home = home goal multiplier (away = 1 / home), cs_k = clean-sheet constant.
@@ -33,7 +32,6 @@ const xpg = (id, g) => (P[id]?.xp[g]) || 0;
 // projections resting on our defaults (unknown return date, no chance given) rather than FPL data
 const ASM_TIP = "Assumed — no official data";
 const isAsm = (id, g) => !!P[id]?.assumed?.includes(+g);
-const asmAttr = (id, g) => isAsm(id, g) ? ` title="${ASM_TIP}"` : "";
 const xpCell = (id, g) => isAsm(id, g) ? `<span class="asm" title="${ASM_TIP}">${f1(xpg(id, g))}</span>` : f1(xpg(id, g));
 const xpFrom = (id, g, n = 99) => GWS.filter(x => x >= g).slice(0, n).reduce((a, x) => a + xpg(id, x), 0);
 

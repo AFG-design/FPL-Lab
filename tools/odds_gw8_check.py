@@ -1,7 +1,7 @@
-# Research only: scratch script for the 26 Oct 2026 GW8 player-odds check (see docs/odds-log.md). Not part of the app.
+# Research only: the 26 Oct 2026 GW8 player-odds check (see docs/odds-log.md), kept for the FL-021 re-test. Not part of the app.
 import json, math, sys, statistics as st
 from pathlib import Path
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from odds_players import load_json, snapshots
 import bench
