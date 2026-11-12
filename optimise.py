@@ -192,10 +192,15 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
 #   Play safe   never gives up points against Balanced (budget 0); among plans worth the same it picks the one that
 #               tracks what the managers around you own, avoids starters who may not play and avoids marginal hits.
 #   Chase rank  gives up at most CHASE_BUDGET points to back differentials and players with a high chance of a haul.
-# Every plan that makes a transfer must beat making no transfers at all by MIN_PROFIT points (the "no moves for the
-# sake of it" rule); a move-count option that can't is dropped rather than shown. Roll (no moves this week) is never
-# dropped, since it is the option that always exists, but it isn't exempt either (FL-073): a Roll plan whose later
-# moves can't clear MIN_PROFIT is replaced by the keep-squad plan (no moves in any week), with a note saying so.
+# "No moves for the sake of it" (MIN_PROFIT), measured against the right alternative (FL-110):
+#   - a plan that makes moves THIS week must beat rolling this week (the same strategy's Roll plan: no moves now, free
+#     to move later) by MIN_PROFIT points; a move-count option that can't is dropped rather than shown. Before FL-110
+#     it was measured against keeping the squad for the whole plan, which a Roll plan with later moves beats easily,
+#     so the rule almost never bound (live 12 Nov: Balanced 3 moves for +0.32 against rolling);
+#   - a Roll plan (no moves this week, moves later) must beat keeping the squad for the whole plan by MIN_PROFIT, or
+#     it is replaced by the keep-squad plan, with a note (FL-073). Roll is never dropped: it always exists.
+# So every plan with moves beats keeping the squad by at least MIN_PROFIT too.
+# Missing: options without "roll" (strategy_replay's default) -> the yardstick is Balanced's Roll plan, solved here.
 # Hits: Balanced and Play safe never take one (MAX_HITS); a move option that would need a hit is dropped for them.
 # Chase rank may take at most one -4 a week, and keeps it only if the plan beats its own best plan with no hits by
 # HIT_GAIN points per hit in plain projected points over the plan (the -4 already counted): its taste for upside
@@ -224,9 +229,10 @@ STRATEGY = {
 # ({mode: plan key}) and saved in history/deadline_gwN.json, so Home, the Planner, the decision journal and You vs the
 # model all name the same plan. Per strategy, among its move options for this week (roll, one, two, three: "best" is
 # left out, it is the same solve with week 1 left free), the fewest moves whose vs_roll is within RECOMMEND_MARGIN
-# points of that strategy's best vs_roll. RECOMMEND_MARGIN is the 0.5 the browser used to apply on its own.
+# points of that strategy's best vs_roll. RECOMMEND_MARGIN is MIN_PROFIT (FL-110): each extra move this week has to
+# earn the same profit the rule asks of any move. It replaced an undocumented 0.5 the browser applied on its own.
 RECOMMEND_OPTIONS = ("roll", "one", "two", "three")
-RECOMMEND_MARGIN = 0.5
+RECOMMEND_MARGIN = MIN_PROFIT
 
 
 def recommended(plans, margin=RECOMMEND_MARGIN):
@@ -337,6 +343,22 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
             r["vs_none"] = round(r["value"] - v0, 2)
             r["vs_balanced"] = round(r["value"] - bal["value"], 2)
             plans[key if mode == "balanced" else f"{mode}_{key}"] = r
+    # FL-110: a plan with moves this week must beat rolling this week by MIN_PROFIT (same strategy's Roll plan)
+    rolls = {}
+    for k in list(plans):
+        if not plans[k]["weeks"][0]["in"]:
+            continue
+        mode = k.split("_")[0] if "_" in k else "balanced"
+        ref = plans.get("roll" if mode == "balanced" else f"{mode}_roll")
+        if ref is None:   # no Roll option asked for: Balanced's Roll plan, solved once, as the yardstick
+            if "balanced" not in rolls:
+                r0 = run(week1_moves=0, max_hits=0)
+                rolls["balanced"] = keep_squad(r0, "balanced roll") if r0 else none
+            ref = rolls["balanced"]
+        gain = plans[k]["value"] - ref["value"]
+        if gain < MIN_PROFIT:
+            notes.append(f"{k}: {gain:+.1f} vs rolling this week, below the {MIN_PROFIT:g} profit rule: dropped")
+            del plans[k]
     return plans, notes
 
 

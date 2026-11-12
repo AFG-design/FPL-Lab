@@ -212,6 +212,20 @@ class Validator(unittest.TestCase):
         self.D["recommended"] = {"balanced": "roll", "safe": None, "chase": None}
         del self.D["plan_rules"]["recommend_margin"]
         self.run_check("recommend_margin missing")
+    def test_moves_this_week_must_beat_rolling(self):
+        """FL-110: a plan with moves this week needs vs_roll >= min_profit (FL-073: Roll is no longer exempt)."""
+        wk = lambda n: [{"in": list(range(20, 20 + n)), "out": list(range(1, 1 + n)), "hits": 0,
+                         "xi": list(range(1, 12)), "captain": 1}]
+        plan = lambda n, vs_roll, vs_none: {"weeks": wk(n), "vs_balanced": 0, "vs_none": vs_none, "vs_roll": vs_roll,
+                                            "xp_total": 240 + vs_none, "ft_left": 1, "value": 241.5 + vs_none}
+        self.D["players"] += [{"id": i, "name": f"P{i}", "price": 5.0, "pos": "MID", "xp": {}} for i in range(20, 23)]
+        self.D["plans"] = {"roll": plan(0, 0.0, 4.0), "three": plan(3, 1.2, 5.2)}
+        self.D["plan_rules"] = {"ft_value": 1.5, "min_profit": 1.0, "tie": 0.1}
+        self.run_check()
+        self.D["plans"]["three"].update(vs_roll=0.32, vs_none=4.32, xp_total=244.32, value=245.82)
+        self.run_check("vs rolling this week, short of the profit rule")
+        del self.D["plans"]["three"]["vs_roll"]
+        self.run_check("has no vs_roll")
 
     def test_planner_gain_matches_vs_none(self):
         """FL-125: the Planner rebuilds vs_none from xp_total, ft_left and plan_rules.ft_value."""

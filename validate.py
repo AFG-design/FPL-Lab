@@ -923,6 +923,12 @@ def main(path):
         # FL-073: Roll isn't exempt; a Roll plan whose later moves miss the rule is replaced by the keep-squad plan
         if moved and pl["vs_none"] < rules.get("min_profit", 1.0) - 0.01:
             errors.append(f"Plan {k}: {pl['vs_none']:+.2f} vs no transfers, short of the profit rule")
+        # FL-110: moves this week must beat rolling this week (the same strategy's Roll plan, vs_roll) by min_profit
+        if pl.get("weeks") and pl["weeks"][0].get("in"):
+            if pl.get("vs_roll") is None:
+                errors.append(f"Plan {k}: makes moves this week but has no vs_roll, so the profit rule can't be checked")
+            elif is_bad(pl["vs_roll"]) or pl["vs_roll"] < rules.get("min_profit", 1.0) - 0.01:
+                errors.append(f"Plan {k}: {pl['vs_roll']} vs rolling this week, short of the profit rule")
     # FL-125: the Planner's "vs no transfers" is vs_none, rebuilt in the browser from xp_total and ft_left with
     # plan_rules.ft_value. Without ft_value it falls back to 1.5 and could disagree with data.json, so its absence
     # with plans published is an error. Every plan's value must be xp_total + ft_value * ft_left, and value - vs_none
