@@ -243,12 +243,13 @@ class Validator(unittest.TestCase):
         self.assertIn("wasn't rewritten", " ".join(h["warnings"]))
 
     def test_next_target_non_finite_does_not_bypass_tolerance(self):
-        self.D["vs_model"] = {"next": {"target": {"xi": list(range(1, 12)), "exp": 30, "par": 30}}}
+        self.D["vs_model"] = {"next": {"target": {"xi": list(range(1, 12)), "exp": 30, "par": None}}}
         self.run_check()
-        for field in ("exp", "par"):
-            self.D["vs_model"]["next"]["target"][field] = float("nan")
-            self.run_check("next week's target doesn't add up")
-            self.D["vs_model"]["next"]["target"][field] = 30
+        self.D["vs_model"]["next"]["target"]["exp"] = float("nan")
+        self.run_check("next week's target doesn't add up")
+        self.D["vs_model"]["next"]["target"]["exp"] = 30
+        self.D["vs_model"]["next"]["target"]["par"] = 30          # FL-109: nothing to beat before it is played
+        self.run_check("hasn't been played")
 
 
 class Evidence(unittest.TestCase):

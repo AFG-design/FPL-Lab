@@ -1152,21 +1152,25 @@ for x in [t["element_in"] for t in transfers] + [t["element_out"] for t in trans
     pass  # players referenced in the review are kept below
 
 # ---------------------------------------------------------------- you vs the model on your own 15 (F1)
-# Each finished gameweek, YOUR ACTUAL points (after hits) against the PROJECTED score of the plan the model recommended
-# before the deadline (FL-108: the Balanced recommendation, the plan Home and the Planner opened on, from
-# history/deadline_gwN.json via fpl_score.recommended_suggestion), its week's xP less 4 per hit, rounded to the nearest
-# point (fpl_score.target). Beat it: win; equal: draw; below: defeat.
-# Then the record and winning run (fpl_score.streak).
+# Each finished gameweek, YOUR ACTUAL points (after hits) against what the model's suggested team ACTUALLY scored (after
+# its hits): actual v actual (FL-109, decided 12 Nov; it replaced the 4 Nov rule that used the suggestion's projected
+# score, so the record and streak were recomputed from GW8 under it). The suggested team is the plan the model
+# recommended before the deadline (FL-108: the Balanced recommendation Home showed, from history/deadline_gwN.json via
+# fpl_score.recommended_suggestion), scored by FPL's rules with its bench, so auto-subs and the vice apply
+# (fpl_score.suggested_team, score_team). It is scored without your chip: the saved plans don't use one (FL-035).
+# Beat it: win; equal: draw; below: defeat. Then the record and winning run (fpl_score.streak).
 # Missing / late / ambiguous:
-#   - no saved suggestion for the week (history/deadline_gwN.json starts at GW10): the target is assumed instead, from
-#     the model's best pick from your own 15 with the forecast saved before that deadline (proj_gwN.json, no hits),
-#     and the week is marked target.basis = "your 15" and target.assumed = True so the tab says so;
+#   - no saved suggestion for the week (history/deadline_gwN.json starts at GW10): the target is assumed instead: the
+#     model's best pick from your own 15 with the forecast saved before that deadline (proj_gwN.json, no transfers),
+#     scored the same way on what happened, with your chip; marked target.basis = "your 15", target.assumed = True;
+#   - a snapshot saved before FL-109 has no bench: it is rebuilt in the optimiser's order and marked
+#     target.bench_src = "derived"; if the squad can't be rebuilt, the XI is scored without auto-subs and marked
+#     "missing" (the tab says so);
 #   - no saved forecast at all -> no head-to-head for that week, never a re-run with today's model (record starts GW8);
 #   - a gameweek not finished yet -> not scored (players still to play would look like non-starters);
 #   - picks or live data that couldn't be fetched -> that week is skipped and counted in "skipped".
-# Both your team and the model's pick from your 15 are also scored on what happened by FPL's rules (auto-subs, vice,
-# chips) for the side-by-side pitches; the suggested XI's actual points are shown too (no auto-subs: its bench isn't
-# saved). These are information only. Your side is checked against FPL's own points ("fpl_pts") in validate.py.
+# The suggestion's projected score (target.exp) is kept for information, labelled as projected. Your side is checked
+# against FPL's own points ("fpl_pts") in validate.py.
 vs_model = None
 try:
     pos_all = {pid: POS[e["element_type"]] for pid, e in elements.items()}
@@ -1194,17 +1198,11 @@ try:
         sug = fpl_score.recommended_suggestion(dl_, g)
         if sug:   # out[k] -> in[k] like for like (the optimiser doesn't pair them)
             sug["out"], sug["in"] = fpl_score.pair_moves(sug["out"], sug["in"], pos_all)
-            sug_pts = sum(played_g.get(i, (0, 0))[1] for i in sug["xi"]) + (sug["captain_multiplier"] - 1) * played_g.get(sug["captain"], (0, 0))[1]
-            tgt = {"basis": "suggested", "assumed": False, "exp": round(sug["exp"], 1), "plan": sug["plan"],
-                   "captain_multiplier": sug["captain_multiplier"], "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"], "in": sug["in"], "captain": sug["captain"],
-                   "xi": sug["xi"], "actual": sug_pts - fpl_score.HIT * sug["hits"],
-                   # per player, for the pitch (F1d): xP saved before the deadline (first plan gameweek) and actual
-                   "xi_xp": {str(i): (dl_.get("xp", {}).get(str(i)) or [0])[0] for i in sug["xi"]},
-                   "xi_pts": {str(i): played_g.get(i, (0, 0))[1] for i in sug["xi"]}}
+            tgt = fpl_score.suggested_target(dl_, sug, g, played_g, pos_all)
         else:
             tgt = {"basis": "your 15", "assumed": True, "captain_multiplier": fpl_score.captain_multiplier(chip),
-                   "exp": round(fpl_score.expected(mod_t, sx, chip), 1)}
-        tgt["par"] = fpl_score.target(sug["exp"] if sug else fpl_score.expected(mod_t, sx, chip))
+                   "exp": round(fpl_score.expected(mod_t, sx, chip), 1), "pts": b["total"], "actual": b["total"]}
+        tgt["par"] = tgt["actual"]   # FL-109: the score to beat is what the model's team actually scored, after hits
         you_net = a["total"] - hits_g
         vm_weeks.append({"gw": g, "chip": chip, "res": fpl_score.result(you_net, tgt["par"]), "target": tgt,
                          "you_net": you_net, "hits": hits_g,
@@ -1220,9 +1218,12 @@ try:
         ns_ = fpl_score.recommended_suggestion(nd_, next_gw)
         if ns_:
             ns_["out"], ns_["in"] = fpl_score.pair_moves(ns_["out"], ns_["in"], pos_all)
-            vm_next["target"] = {"exp": round(ns_["exp"], 1), "par": fpl_score.target(ns_["exp"]), "plan": ns_["plan"],
+            # not played yet: no actual score to beat, so no par; exp is its projected score, shown as projected
+            vm_next["target"] = {"exp": round(ns_["exp"], 1), "par": None, "plan": ns_["plan"],
                                  "captain_multiplier": ns_["captain_multiplier"], "hits": ns_["hits"], "out": ns_["out"], "in": ns_["in"], "captain": ns_["captain"],
                                  "xi": ns_["xi"], "built": nd_.get("built")}
+            nt_ = fpl_score.suggested_team(nd_, ns_, next_gw, pos_all)
+            vm_next["target"].update(bench=nt_["bench"], vice=nt_["vice"], bench_src=nt_["bench_src"])
     if vm_weeks:
         st_ = fpl_score.streak([w["res"] for w in vm_weeks], season_from_gw1=vm_weeks[0]["gw"] == 1)
         vs_model = {"from_gw": vm_weeks[0]["gw"], "weeks": vm_weeks, "skipped": vm_skipped, **st_,

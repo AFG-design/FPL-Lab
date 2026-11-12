@@ -19,7 +19,8 @@ FIX = [{"id": 101, "event": 11, "team_h": 1, "team_a": 2}, {"id": 102, "event": 
        {"id": 103, "event": 14, "team_h": 1, "team_a": 3}]
 MARKET = {"built": "2026-11-06T18:00:00Z", "matches": [{"fixture": 101, "lam_h": 1.8, "lam_a": 0.9, "p_over": 0.55}]}
 PLANS = {"roll": {"xp_total": 250.1, "ft_left": 2, "vs_roll": 0,
-                  "weeks": [{"gw": 11, "out": [], "in": [], "hits": 0, "captain": 1, "xi": [1], "xp": 50.0, "bench": [3]}]}}
+                  "weeks": [{"gw": 11, "out": [], "in": [], "hits": 0, "captain": 1, "xi": [1], "xp": 50.0, "bench": [3],
+                                "vice": 1, "spread": 4.2}]}}
 
 
 class Snapshot(unittest.TestCase):
@@ -53,7 +54,8 @@ class Snapshot(unittest.TestCase):
         s = build(11, GWS, PLAYERS, [1], 0, 1, PLANS, MARKET, FIX, built="t")
         w = s["plans"]["roll"]["weeks"][0]
         self.assertEqual((w["captain"], w["xi"], w["hits"]), (1, [1], 0))
-        self.assertNotIn("bench", w)
+        self.assertEqual((w["bench"], w["vice"]), ([3], 1))      # FL-109: saved so auto-subs can be applied
+        self.assertNotIn("spread", w)                              # still compact: only what scoring needs
         self.assertEqual(build(11, GWS, PLAYERS, [], 0, 1, {}, MARKET, FIX, built="t")["missing"]["plans"], "no squad")
         self.assertEqual(build(11, GWS, PLAYERS, [1], 0, 1, {}, MARKET, FIX, built="t")["missing"]["plans"],
                          "no plans built this build")

@@ -605,25 +605,44 @@ def main(path):
             n_ = {k: sum(pos_.get(i) == k for i in w["model"]["xi"]) for k in ("GKP", "DEF", "MID", "FWD")}
             if n_["GKP"] != 1 or n_["DEF"] < 3 or n_["MID"] < 2 or n_["FWD"] < 1:
                 errors.append(f"You vs the model GW{w['gw']}: the model's XI isn't a legal formation ({n_})")
-            # the week is your actual points after hits against the projected score of the plan the model recommended (FL-108)
-            # before the deadline (or, marked assumed, its best pick from your 15), rounded: the target
+            # FL-109, actual v actual: the week is your actual points after hits against what the model's team actually
+            # scored after its hits. "suggested": the recommended plan (FL-108) scored with its bench and auto-subs; its
+            # points must add up from the per-player actuals shown on the pitch. "your 15" (assumed): the model's pick
+            # from your 15, scored the same way (w["model"]["pts"]). exp (projected) must still match the plan.
             tg_ = w.get("target") or {}
             cap_mult_ = 3 if tg_.get("basis") == "your 15" and w.get("chip") == "3xc" else 2
             if tg_.get("captain_multiplier", cap_mult_) != cap_mult_:
                 errors.append(f"You vs the model GW{w['gw']}: target captain multiplier disagrees with its basis")
-            ok_ = tg_.get("par") is not None and abs(tg_["par"] - tg_.get("exp", -999)) <= 0.5
+            ok_ = tg_.get("par") is not None and tg_.get("actual") == tg_["par"]
             if tg_.get("basis") == "your 15":
                 xp_ = {int(k): v for k, v in w.get("xp", {}).items()}
                 m_ = w["model"]
                 cnt_ = m_["xi"] + (m_["bench"] if w.get("chip") == "bboost" else [])
                 exp_ = sum(xp_.get(i, 0) for i in cnt_) + (2 if w.get("chip") == "3xc" else 1) * xp_.get(m_["cap"], 0)
-                ok_ = ok_ and tg_.get("assumed") is True and abs(tg_["exp"] - exp_) <= 0.2
+                ok_ = (ok_ and tg_.get("assumed") is True and abs(tg_["exp"] - exp_) <= 0.2
+                       and tg_.get("pts") == m_["pts"] == tg_["actual"])
             elif tg_.get("basis") == "suggested":
-                ok_ = ok_ and len(tg_.get("xi", [])) == 11 and abs(tg_["exp"] - (tg_["xp"] - 4 * tg_["hits"])) <= 0.2
+                xi_, bench_, src_ = tg_.get("xi", []), tg_.get("bench") or [], tg_.get("bench_src")
+                ok_ = (ok_ and len(xi_) == 11 and abs(tg_["exp"] - (tg_["xp"] - 4 * tg_["hits"])) <= 0.2
+                       and tg_.get("actual") == (tg_.get("pts") or 0) - 4 * tg_["hits"]
+                       and src_ in ("saved", "derived", "missing")
+                       and (src_ == "missing" or (len(bench_) == 4 and len(set(xi_) | set(bench_)) == 15)))
+                if ok_:   # its points add up from what each player scored, after its auto-subs
+                    fin_ = list(xi_)
+                    for o_, i_ in tg_.get("subs") or []:
+                        fin_ = [i_ if x == o_ else x for x in fin_]
+                    pts_ = {int(k): v for k, v in (tg_.get("xi_pts") or {}).items()}
+                    sum_ = sum(pts_.get(i, 0) for i in fin_) + (tg_["captain_multiplier"] - 1) * (
+                        pts_.get(tg_.get("armband"), 0) if tg_.get("armband") is not None else 0)
+                    if sum_ != tg_.get("pts"):
+                        errors.append(f"You vs the model GW{w['gw']}: the model's team scores {sum_} from its players, not {tg_.get('pts')}")
+                if src_ in ("derived", "missing"):
+                    warnings.append(f"You vs the model GW{w['gw']}: the suggested team's bench was "
+                                    + ("rebuilt (not saved with the plan)" if src_ == "derived" else "not available, so no auto-subs for it"))
             else:
                 ok_ = False
             if not ok_:
-                errors.append(f"You vs the model GW{w['gw']}: target {tg_.get('basis')} {tg_.get('exp')}/{tg_.get('par')} doesn't add up")
+                errors.append(f"You vs the model GW{w['gw']}: target {tg_.get('basis')} {tg_.get('actual')}/{tg_.get('par')} doesn't add up")
             elif w["you_net"] != w["you"]["pts"] - w["hits"]:
                 errors.append(f"You vs the model GW{w['gw']}: your score after hits {w['you_net']} isn't {w['you']['pts']} - {w['hits']}")
             else:
@@ -640,11 +659,14 @@ def main(path):
         nt_ = (vm.get("next") or {}).get("target")
         if nt_ and nt_.get("captain_multiplier", 2) != 2:
             errors.append("You vs the model: next week's suggested target must use captain ×2")
-        if nt_ and (len(nt_.get("xi", [])) != 11 or is_bad(nt_.get("par")) or is_bad(nt_.get("exp")) or abs(nt_["par"] - nt_["exp"]) > 0.5 or len(nt_.get("out", [])) != len(nt_.get("in", []))):
-            errors.append(f"You vs the model: next week's target doesn't add up ({nt_.get('exp')}/{nt_.get('par')}, {len(nt_.get('xi', []))} in the XI)")
+        # FL-109: the week to come hasn't been played, so it has no score to beat (par None); exp is its projection
+        if nt_ and nt_.get("par") is not None:
+            errors.append(f"You vs the model: GW{vm['next'].get('gw')} hasn't been played but has a score to beat ({nt_['par']})")
+        if nt_ and (len(nt_.get("xi", [])) != 11 or is_bad(nt_.get("exp")) or len(nt_.get("out", [])) != len(nt_.get("in", []))):
+            errors.append(f"You vs the model: next week's target doesn't add up ({nt_.get('exp')}, {len(nt_.get('xi', []))} in the XI)")
         for w in vm.get("weeks", []):
             t_ = w.get("target") or {}
-            if t_.get("basis") == "suggested" and set(map(int, t_.get("xi_xp", {}))) != set(t_.get("xi", [])):
+            if t_.get("basis") == "suggested" and set(map(int, t_.get("xi_xp", {}))) != set(t_.get("xi", [])) | set(t_.get("bench") or []):
                 errors.append(f"You vs the model GW{w['gw']}: projected points missing for part of the suggested XI")
         if len(vm.get("trail", [])) != len(vm.get("weeks", [])) or (vm.get("trail") and vm["trail"][-1]["run"] != vm.get("run")):
             errors.append("You vs the model: the streak trail doesn't match the weeks or the current run")

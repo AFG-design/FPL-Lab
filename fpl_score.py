@@ -189,6 +189,62 @@ def recommended_suggestion(snap, gw, mode="balanced"):
     return s
 
 
+def suggested_team(snap, sug, gw, pos):
+    """The recommended plan's team for gameweek gw in score_team's shape, so it can be scored on what happened with
+    FPL's automatic substitutions (FL-109). snap: the deadline snapshot; sug: plan_suggestion / recommended_suggestion's
+    result for gw; pos: {id: position}.
+
+    Returns {"xi", "bench", "captain", "vice", "pos", "bench_src"}:
+      - bench_src "saved": the plan week has the bench and vice the optimiser chose (saved from FL-109 on);
+      - bench_src "derived": snapshots from before FL-109 (GW10, GW11) saved only the XI. The squad is rebuilt from the
+        snapshot's squad and the plan's moves up to gw, and the bench and vice are put in the optimiser's own order
+        (optimise.solve: spare keeper first, then outfield by that week's xP, highest first; vice = the highest xP in
+        the XI after the captain), using the xP saved in the snapshot. Equal xP: lower id first, as the solver's
+        sorted pool does. The xP is rounded to 0.01 there, so a near-tie can in principle come out the other way;
+      - bench_src "missing": the squad can't be rebuilt (moves that don't add up to 15, an XI player not in the squad,
+        or a player with no position): the XI is scored with no bench and no auto-subs, and no vice. Never a guess.
+    """
+    plan = (snap.get("plans") or {}).get(sug["plan"]) or {}
+    wk = next((w for w in plan.get("weeks", []) if w.get("gw") == gw), {})
+    xi, cap = list(sug["xi"]), sug["captain"]
+    if wk.get("bench") is not None and wk.get("vice") is not None:
+        return {"xi": xi, "bench": list(wk["bench"]), "captain": cap, "vice": wk["vice"], "pos": pos,
+                "bench_src": "saved"}
+    squad = list(snap.get("squad") or [])
+    for w in plan.get("weeks", []):
+        if w.get("gw", 0) > gw:
+            break
+        squad = [i for i in squad if i not in set(w.get("out", []))] + list(w.get("in", []))
+    if len(set(squad)) != 15 or not set(xi) <= set(squad) or any(i not in pos for i in squad):
+        return {"xi": xi, "bench": [], "captain": cap, "vice": None, "pos": pos, "bench_src": "missing"}
+    k = (snap.get("plan_gws") or []).index(gw) if gw in (snap.get("plan_gws") or []) else None
+    x = lambda i: ((snap.get("xp") or {}).get(str(i)) or [0] * 5)[k] if k is not None else 0.0
+    bench = sorted((i for i in squad if i not in xi), key=lambda i: (pos[i] != "GKP", -x(i), i))
+    vice = (sorted((i for i in xi if i != cap), key=lambda i: (-x(i), i)) or [cap])[0]
+    return {"xi": xi, "bench": bench, "captain": cap, "vice": vice, "pos": pos, "bench_src": "derived"}
+
+
+def suggested_target(snap, sug, gw, played, pos):
+    """You vs the model's target for a week with a saved suggestion (FL-109, actual v actual): the recommended plan's
+    team (suggested_team) scored on what happened by FPL's rules, auto-subs and vice included, with no chip (the saved
+    plans don't use one, FL-035), less 4 per hit. par = actual: the whole-number score to beat.
+    Also kept, for the pitch: its projected score (exp, xP less hits), each player's xP saved before the deadline for gw
+    and actual points, the auto-subs and who wore the armband."""
+    team = suggested_team(snap, sug, gw, pos)
+    sc = score_team(team, played)
+    gws = snap.get("plan_gws") or []
+    k = gws.index(gw) if gw in gws else None
+    ids = sug["xi"] + team["bench"]
+    xp = lambda i: (((snap.get("xp") or {}).get(str(i)) or [])[k:k + 1] or [0])[0] if k is not None else 0
+    actual = sc["total"] - HIT * sug["hits"]
+    return {"basis": "suggested", "assumed": False, "exp": round(sug["exp"], 1), "plan": sug["plan"],
+            "captain_multiplier": sc["captain_multiplier"], "xp": sug["xp"], "hits": sug["hits"], "out": sug["out"],
+            "in": sug["in"], "captain": sug["captain"], "xi": sug["xi"], "bench": team["bench"], "vice": team["vice"],
+            "bench_src": team["bench_src"], "armband": sc["captain"], "subs": sc["subs"], "pts": sc["total"],
+            "actual": actual, "par": actual,
+            "xi_xp": {str(i): xp(i) for i in ids}, "xi_pts": {str(i): played.get(i, (0, 0))[1] for i in ids}}
+
+
 def pair_moves(outs, ins, pos):
     """Transfers as FPL makes them: each player out paired with a player in for the same position. The optimiser lists
     outs and ins separately (in no particular pairing), so pairing by list order can show a midfielder replaced by a
@@ -206,14 +262,9 @@ def pair_moves(outs, ins, pos):
     return [o for o, _ in pairs], [i for _, i in pairs]
 
 
-def target(exp):
-    """The whole-number score to beat: the model's expected points rounded to the nearest point, halves up (48.5 -> 49).
-    FPL points are whole numbers, so a decimal target could never be drawn; rounding makes a draw possible but rare."""
-    return int(exp + 0.5) if exp >= 0 else -int(-exp + 0.5)
-
-
 def result(you, par):
-    """W, D or L for you: your actual points against the model's target (its expected points, rounded)."""
+    """W, D or L for you: your actual points after hits against the model's target. From FL-109 the target is what the
+    model's suggested team actually scored after its hits (actual v actual); before, it was its expected points."""
     return "W" if you > par else "L" if you < par else "D"
 
 
