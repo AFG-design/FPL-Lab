@@ -482,6 +482,36 @@ def check_recommended(D, errors, warnings):
         # after it (the snapshot then keeps the last pre-deadline plan): a warning, not an error
         warnings.append(f"You vs the model's next target is plan {nxt['plan']} but Home recommends {rec['balanced']} "
                         "(the saved pre-deadline plan differs from this build's)")
+def check_club_limit(D, errors, warnings):
+    """FL-074: FPL's limit of 3 from one club. A real move between Premier League clubs can leave the squad holding more;
+    FPL lets you keep them but takes no transfer until you're back to 3 from that club. Every plan week is replayed from
+    the squad: a week with a transfer must end with at most 3 from every club, a week without one may hold no more than
+    you hold now. Error if a plan breaks that; warning (Health page) while your squad holds more than 3 from a club."""
+    team = {p["id"]: p.get("team") for p in D["players"]}
+    squad = [s["id"] for s in D.get("squad") or []]
+    if not squad or any(team.get(i) is None for i in squad):
+        return   # check_squad reports a squad with players missing from the list
+    def counts(ids):
+        c = {}
+        for i in ids:
+            c[team.get(i)] = c.get(team.get(i), 0) + 1
+        return c
+    held = counts(squad)
+    for t, c in held.items():
+        if c > 3:
+            name = ((D.get("teams") or {}).get(str(t)) or {}).get("name", f"club {t}")
+            warnings.append(f"Your squad has {c} players from {name}: FPL takes no transfer until you're back to 3, "
+                            "so the plans sell one in any week they make a move")
+    for k, pl in (D.get("plans") or {}).items():
+        sq = set(squad)
+        for wk in pl.get("weeks", []):
+            sq = (sq - set(wk.get("out", []))) | set(wk.get("in", []))
+            for t, c in counts(sq).items():
+                limit = 3 if wk.get("in") else max(3, held.get(t, 0))
+                if c > limit:
+                    errors.append(f"Plan {k} GW{wk.get('gw')}: {c} players from club {t}"
+                                  + (" in a week with transfers" if wk.get("in") else ""))
+                    break
 
 
 def main(path):
@@ -892,6 +922,7 @@ def main(path):
             if len(wk.get("in", [])) != len(wk.get("out", [])):
                 errors.append(f"Plan {k} GW{wk.get('gw')}: {len(wk.get('in', []))} in vs {len(wk.get('out', []))} out")
     check_recommended(D, errors, warnings)
+    check_club_limit(D, errors, warnings)
     # strategy budgets (optimise.strategy_plans): Play safe never below Balanced, Chase rank at most chase_budget below,
     # and no plan with transfers short of the profit rule. A breach means the solver ignored its floor: stop the publish.
     rules = D.get("plan_rules") or {}

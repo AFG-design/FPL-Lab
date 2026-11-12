@@ -9,6 +9,22 @@ import copy
 import pulp
 
 SHAPE = {"GKP": 2, "DEF": 5, "MID": 5, "FWD": 3}
+# FPL's club limit (bootstrap-static game_settings.squad_team_limit = 3). A real move between Premier League clubs can
+# leave you holding more than 3 from one club (FL-074). FPL lets you keep them, but you can't make another transfer
+# until you're back to 3 from that club (FPL, quoted by FourFourTwo when Solanke's move to Spurs left managers with 4
+# Spurs players). So the plans may keep the extra player(s) only in a gameweek with no transfers; any gameweek with a
+# transfer must end with at most 3 from every club. Before FL-074 every week was capped at 3, so a squad holding 4
+# had no legal plan at all: no plans in the build and Re-plan failed.
+CLUB_MAX = 3
+
+
+def club_over(squad, players):
+    """{team: how many over CLUB_MAX you hold now} for the clubs where you hold more than CLUB_MAX (usually {})."""
+    n = {}
+    for i in squad:
+        t = players[i]["team"]
+        n[t] = n.get(t, 0) + 1
+    return {t: c - CLUB_MAX for t, c in n.items() if c > CLUB_MAX}
 XI_MIN = {"GKP": 1, "DEF": 3, "MID": 2, "FWD": 1}
 XI_MAX = {"GKP": 1, "DEF": 5, "MID": 5, "FWD": 3}
 POOL = {"GKP": 14, "DEF": 40, "MID": 45, "FWD": 25}
@@ -78,6 +94,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
     sp = {i: (sell[i] if i in sell else players[i]["price"]) for i in pool}
     xp = {(i, w): players[i]["xp"].get(gws[w], 0.0) for i in pool for w in W}
 
+    extra = club_over(squad, players)      # FL-074: clubs you already hold more than 3 from
     m = pulp.LpProblem("fpl", pulp.LpMaximize)
     B = pulp.LpBinary
     sq = pulp.LpVariable.dicts("sq", (pool, W), cat=B)
@@ -111,11 +128,18 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=0.9, bench_w=0.1, ft_va
             m += pulp.lpSum(xi[i][w] for i in ids) <= XI_MAX[pos]
         m += pulp.lpSum(xi[i][w] for i in pool) == 11
         m += pulp.lpSum(cp[i][w] for i in pool) == 1
+        n_w = pulp.lpSum(tin[i][w] for i in pool)
+        if extra:   # moved_w is 1 in any week with a transfer; then every club must be back to CLUB_MAX
+            moved_w = pulp.LpVariable(f"moved_{w}", cat=B)
+            m += n_w <= 15 * moved_w
         for t in {players[i]["team"] for i in pool}:
-            m += pulp.lpSum(sq[i][w] for i in pool if players[i]["team"] == t) <= 3
+            cnt = pulp.lpSum(sq[i][w] for i in pool if players[i]["team"] == t)
+            if t in extra:
+                m += cnt <= CLUB_MAX + extra[t] * (1 - moved_w)
+            else:
+                m += cnt <= CLUB_MAX
         prev_bank = bank if w == 0 else bk[w - 1]
         m += bk[w] == prev_bank + pulp.lpSum(sp[i] * tout[i][w] - buy[i] * tin[i][w] for i in pool)
-        n_w = pulp.lpSum(tin[i][w] for i in pool)
         m += n_w <= max_moves_week
         m += hits[w] >= n_w - ft[w]
         m += ft[w + 1] <= ft[w] - n_w + hits[w] + 1
@@ -381,8 +405,11 @@ def _check(weeks, players, squad, sp, buy, bank, init, locked, banned):
         clubs = {}
         for i in have:
             clubs[players[i]["team"]] = clubs.get(players[i]["team"], 0) + 1
-        if max(clubs.values()) > 3:
-            return f"GW{wk['gw']}: more than 3 from one club"
+        held = club_over(squad, players)
+        for t, c in clubs.items():
+            limit = CLUB_MAX if wk["in"] else CLUB_MAX + held.get(t, 0)
+            if c > limit:
+                return f"GW{wk['gw']}: {c} from one club" + (" in a week with transfers" if wk["in"] and t in held else "")
         if len(wk["xi"]) != 11 or wk["captain"] not in wk["xi"]:
             return f"GW{wk['gw']}: invalid starting XI or captain"
         if any(i not in have for i in locked if i in players) or have & set(banned):
