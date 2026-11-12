@@ -109,6 +109,15 @@ function afgScoreboard() {
     ${btTiles}</div>`;
 }
 
+/* FL-126: AFG's own words for how far it leans, so a punt never borrows the model's confidence scale (Strong /
+   Marginal / Coin flip, core/plan.js). The AFG log shows its nudges are right about half the time, so these say how
+   big the lean is, never how sure it is, and none of them is green. Same cut-offs as before (captain 1 / 0.4 AFG pts
+   clear of the vice, punts 1.5 / 0.8 over yours). A missing or non-numeric gap reads as "Barely leans" (the lowest
+   label), never as a bigger lean. */
+function afgLean(g, big, slight) {
+  return g >= big ? { t: "Big lean", c: "warn" } : g >= slight ? { t: "Small lean", c: "mut" } : { t: "Barely leans", c: "mut" };
+}
+
 function vAfg() {
   const A = D.afg, g = D.meta.next_gw;
   if (seasonOver()) return seasonOverView("suggest");
@@ -116,7 +125,7 @@ function vAfg() {
   if (A.gw !== g) return stateView({ kind: "empty", title: `AFG is still on GW${A.gw}`, body: "It catches up on the next data refresh." });
   const me = myTeam(), squad = me.week.sq, af = afgXI(squad, g);
   const capSame = af.cap === me.cap, capGap = afgX(af.cap, g) - afgX(af.vice, g);
-  const capV = verdict(capGap, 1, 0.4);
+  const capV = afgLean(capGap, 1, 0.4);
   const ins = af.xi.filter(i => !me.xi.includes(i)), outs = me.xi.filter(i => !af.xi.includes(i));
   const punts = afgPunts(squad, g);
   const pool = Object.keys(A.p).map(Number).filter(i => P[i] && A.p[i].m >= 2);
@@ -132,7 +141,7 @@ function vAfg() {
   const xiStep = step(2, "Lineup", ins.length ? `<span class="pill warn">Differs</span>` : `<span class="pill good">Same</span>`,
     ins.length ? `Start <b>${ins.map(i => esc(P[i].name)).join(", ")}</b>; bench <b>${outs.map(i => esc(P[i].name)).join(", ")}</b>` : "Same XI as the model",
     ins.length ? `<p class="sub">${ins.map((i, k) => `${esc(P[i].name)} ${afgMove(xpg(i, g), afgX(i, g))} over ${esc(P[outs[k]]?.name || "")} ${afgMove(xpg(outs[k], g), afgX(outs[k], g))}`).join(". ")}.</p>` : `<p class="sub">The fan factors don't change who starts.</p>`);
-  const puntStep = step(3, "Punts", punts.length ? vPill(verdict(punts[0].gain, 1.5, 0.8)) : `<span class="pill mut">None</span>`,
+  const puntStep = step(3, "Punts", punts.length ? vPill(afgLean(punts[0].gain, 1.5, 0.8)) : `<span class="pill mut">None</span>`,
     punts.length ? `${punts.length} swap${punts.length > 1 ? "s" : ""} the fan factors like` : "No swap stands out this week",
     punts.length ? punts.map(m => `<div class="sugg">
         <div class="sg-top"><div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="in">▲ <button type="button" class="linkish" data-p="${m.in}">${esc(P[m.in].name)}</button></span><span class="muted mono">${money(P[m.in].price)} · ${T[P[m.in].team].short}</span></div><span class="sg-gain up">+${f1(m.gain)}</span></div>
