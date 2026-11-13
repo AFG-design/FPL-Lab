@@ -95,6 +95,7 @@ function vRivals() {
     <div style="margin-top:14px"><span class="lbl">Captaincy split</span><div class="capbars" style="margin-top:6px">${capTop.map(([id, v], k) => `<div class="cb ${k === 0 ? "top" : ""}"><span class="pname">${esc(P[id]?.name || id)}</span><div class="track"><div class="fill" style="width:${v}%"></div></div><span class="val">${v.toFixed(0)}%</span></div>`).join("")}</div></div>
     ` : `<p class="note">Ownership and captaincy sample unavailable for ${label}. Choose another sample or wait for the next update.</p>`}
   </div>
+  ${eliteGapPanel(C)}
   <div class="grid2">
     <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" class="sel" aria-label="League">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
       ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek. Gameweek points are before hits, as FPL shows them${live ? ", with provisional bonus" : ""}${lg && lg.rows.some(r => hitOf(r) > 0) ? "; a small −4 or −8 beside a score is that manager's hit, not taken off" : ""}.${live ? ` Live points include automatic substitutions once a starter's matches are over and his replacement has played (the same rule for every row).${(C.vice_unknown || []).some(e => lg?.rows.some(r => r.entry === e)) ? " For managers sampled before the vice-captain was saved, the armband isn't passed to the vice if the captain doesn't play." : ""}` : ""}</p></div>
@@ -179,3 +180,40 @@ async function watchEdit(id, add) {
   } catch (e) { WATCH.msg = "Couldn't reach GitHub."; }
   WATCH.busy = false; render();
 }
+
+/* FL-141: the top 10k against everyone, from the ownership sample (crowd.py, every 5th top-10k manager) and FPL's own
+   figures. Overall ownership is FPL's selected_by_percent (P[i].own); "started" in the top 10k is effective ownership
+   minus captaincy (a captain counts twice in EO; a Bench Boost bench counts as started); benched = owned - started.
+   Chips: the sample's share against FPL's count of everyone who played each chip that GW. Hits: the sample's average;
+   FPL publishes no overall figure, so none is shown. Missing / old / incomplete: no top-10k sample -> no panel; a
+   sample from an earlier GW or with failed requests (FL-082) -> said in the note; a player not in this build's list
+   (crowd sample slimmed to it) -> left out. */
+function eliteGapPanel(C) {
+  const TK = C?.top10k;
+  if (!TK || !TK.n || !TK.own) return "";
+  const ids = Object.keys(TK.own).map(Number).filter(i => P[i]);
+  const gap = i => (TK.own[i] || 0) - (P[i].own || 0);
+  const started = i => Math.max(0, (TK.eo?.[i] || 0) - (TK.cap?.[i] || 0));
+  const benched = i => Math.max(0, (TK.own[i] || 0) - started(i));
+  const byGap = ids.filter(i => (TK.own[i] || 0) >= 5 || (P[i].own || 0) >= 5).sort((a, b) => gap(b) - gap(a));
+  const fav = byGap.slice(0, 6), avoid = byGap.slice(-6).reverse().filter(i => gap(i) < 0);
+  const bench = ids.filter(i => (TK.own[i] || 0) >= 10).sort((a, b) => benched(b) - benched(a)).slice(0, 6).filter(i => benched(i) >= 1);
+  const pc = x => `${x.toFixed(0)}%`;
+  const nm = i => `<button data-p="${i}" class="pname linkish">${esc(P[i].name)}</button> <span class="muted">${T_TEAM(i)}</span>`;
+  const tbl = (list, head, cells) => `<div class="tablebox"><table><thead><tr><th>${head}</th>${cells.map(c => `<th class="n">${c[0]}</th>`).join("")}</tr></thead><tbody>${list.map(i => `<tr class="${MINE.has(i) ? "mine" : ""}"><td>${nm(i)}</td>${cells.map(c => `<td class="n">${c[1](i)}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${cells.length + 1}" class="muted">None</td></tr>`}</tbody></table></div>`;
+  const gapCells = [["Top 10k", i => pc(TK.own[i] || 0)], ["Everyone", i => pc(P[i].own || 0)], ["Gap", i => `<b class="${gap(i) > 0 ? "up" : "down"}">${gap(i) > 0 ? "+" : ""}${gap(i).toFixed(0)}</b>`]];
+  const NAMES = { bboost: "Bench Boost", "3xc": "Triple Captain", freehit: "Free Hit", wildcard: "Wildcard" };
+  const chips = Object.keys(NAMES).map(k => `<tr><td>${NAMES[k]}</td><td class="n">${TK.chips?.[k] != null ? `${TK.chips[k].toFixed(1)}%` : "0%"}</td><td class="n">${C.overall_chips?.[k] != null ? `${C.overall_chips[k].toFixed(1)}%` : "–"}</td></tr>`).join("");
+  const notes = [];
+  if (C.gw !== D.meta.cur_gw) notes.push(`This sample is from GW${C.gw}; this week's is taken after the deadline.`);
+  if (C.complete === false) notes.push(`Some requests failed when it was taken (${C.failed}), so it's smaller than planned.`);
+  return `<div class="panel"><div class="bar"><h2>Top 10k v everyone</h2><span class="muted">GW${C.gw} teams</span></div>
+    <p class="note" style="margin-top:0">Where the top 10,000 managers (${TK.n.toLocaleString("en-GB")} teams sampled) differ from all ${C.total_players ? C.total_players.toLocaleString("en-GB") : "FPL"} managers. Ownership is the share of teams that own him.${notes.length ? " " + notes.join(" ") : ""}</p>
+    <div class="statgrid"><div><h3 style="margin-bottom:8px">The top 10k own more</h3>${tbl(fav, "Player", gapCells)}</div>
+    <div><h3 style="margin-bottom:8px">Everyone owns more</h3>${tbl(avoid, "Player", gapCells)}</div></div>
+    <div class="statgrid" style="margin-top:14px"><div><h3 style="margin-bottom:8px">Owned but benched by the top 10k</h3>${tbl(bench, "Player", [["Owned", i => pc(TK.own[i] || 0)], ["Started", i => pc(started(i))], ["Benched", i => pc(benched(i))]])}
+      <p class="note">Started = in the XI (a Bench Boost bench counts as started).</p></div>
+    <div><h3 style="margin-bottom:8px">Chips played GW${C.gw}</h3><div class="tablebox"><table><thead><tr><th>Chip</th><th class="n">Top 10k</th><th class="n">Everyone</th></tr></thead><tbody>${chips}</tbody></table></div>
+      <p class="note">Hits: ${TK.hits != null ? `the top 10k took ${TK.hits.toFixed(2)} points of hits per manager on average` : "not in this sample"}; FPL doesn't publish a figure for everyone.</p></div></div></div>`;
+}
+const T_TEAM = i => (T[P[i]?.team]?.short || "");   // club short name (global T: teams)

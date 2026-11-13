@@ -952,7 +952,11 @@ if crowd:
         live_gw["hits"] = max(live_gw.get("hits") or 0, cur_h["event_transfers_cost"] if cur_h else 0)
         live_gw["total_before"] = (prev_h["total_points"] if prev_h else 0) - live_gw["hits"]
         live_gw["sample_n"] = len(tm)
-    crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play,
+    # FL-141: everyone's chip use that GW (FPL's event chip_plays / total players), for the top-10k v everyone panel.
+    # FPL publishes no overall hits figure, so there is none (the panel says so). Missing chip_plays -> {}.
+    _tot = boot.get("total_players") or 0
+    _ov_chips = {c["chip_name"]: round(100 * c["num_played"] / _tot, 1) for c in (g_ev.get("chip_plays") or [])} if _tot else {}
+    crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play, "overall_chips": _ov_chips, "total_players": _tot,
                  # FL-153: managers whose sample has no vice-captain (taken before it was saved): armband never moved
                  "vice_unknown": sorted(set(vice_unknown)),
                  "top10k": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["top10k"].items()},

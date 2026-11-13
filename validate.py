@@ -204,6 +204,17 @@ def check_model_inputs(meta, errors, warnings):
                             f"rotation allowance for those matches until \"confirmed\" is set")
 
 
+def check_overall(D, errors):
+    """FL-141: FPL's own all-manager figures shown next to the top 10k on Rivals. Missing is fine (shown as '–')."""
+    cr = D.get("crowd") or {}
+    tp, oc = cr.get("total_players"), cr.get("overall_chips")
+    if tp is not None and not (isinstance(tp, int) and tp > 0):
+        errors.append(f"crowd.total_players should be a positive whole number, got {tp!r}")
+    for k, v in (oc or {}).items():
+        if not (isinstance(v, (int, float)) and 0 <= v <= 100):
+            errors.append(f"crowd.overall_chips[{k}] should be a % from 0 to 100, got {v!r}")
+
+
 def check_sources(D, warnings):
     """Warn when an input the model or the plans lean on didn't load, or is older than its own schedule allows.
 
@@ -1013,6 +1024,7 @@ def main(path):
             errors.append(f"priors.json holds priors from season(s) {', '.join(map(str, bad))}, outside "
                           f"{', '.join(sorted(allowed))}: rates from old seasons (and 0 xG before 2022/23) would be used")
     check_sources(D, warnings)
+    check_overall(D, errors)
     check_logs(D, warnings)
     check_model_inputs(D["meta"], errors, warnings)
     check_club_then(D["meta"], warnings)
