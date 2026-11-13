@@ -4,6 +4,22 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-094: a team-mate returning, diagnosed (no model change; Don't adopt)
+
+- The item: lower a stand-in's minutes when the regular he covered for comes back. Its example was wrong (Konsa is at
+  Aston Villa, Saliba at Arsenal), so it was checked before building.
+- First check (tools/returning_mates.py, first version): a "return" = a regular back after 2+ weeks with 0 minutes who
+  then STARTS. Stand-ins over-projected +18.9 minutes [12.8, 24.8] (2024/25) and +13.6 [9.2, 18.6] (2025/26) beyond
+  players like them; returners projected at a 15% start chance. A position cap (a club's projected starters held to
+  the number it uses) changed nothing, because the returner wasn't projected to start.
+- Why: that definition picks events by their outcome (he started, so his stand-in was benched), and the archive has
+  no injury flags, so a past regular's injury weeks look like being dropped. Not the model's error.
+- Honest check (this season only, from the status log): a return = flagged at the previous deadline, cleared at this
+  one, started or not. 11 regulars: start chance 0.54 v 73% started, xMin 49 v 55. Their 15 stand-ins: 0.48 v 53%
+  started, xMin 45 v 53 — not over-projected at all. With xmins_skip_out (injury weeks left out of the xMins
+  history): returners 0.58, xMin 53 v 55; stand-ins unchanged.
+- Decision: no change (the cap code was removed, not shipped). Too few honest returns to tune on (11); the mild
+  under-projection of returners goes to FL-114 (xmins_skip_out). Re-run tools/returning_mates.py around GW20.
 ## 13 Nov 2026 — FL-115: European rotation cut tested; kept at 0.93 (no model change; Don't adopt the alternatives)
 
 - The cut (a starter's start chance x0.93 in a league game from 2 days before to 3 after a European match; 70% of the
