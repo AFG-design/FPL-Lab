@@ -88,6 +88,8 @@ npm run dev                               # serves site/ at http://localhost:800
 
 `build.py` also updates files in `history/`; discard those changes (`git checkout -- history/`) unless you mean to commit them. The site needs no build step: GitHub Pages publishes `site/` exactly as it is.
 
+**FPL School review** (any team ID, a rating and one suggested move; read-only, saves nothing): run `python3 tools/fpl_school.py` and open http://localhost:8765, or `python3 tools/fpl_school.py 123456` for the same review in the terminal. It runs on your computer because FPL's API doesn't answer other websites' pages, so the published site can't load a team it doesn't already have.
+
 Before changing the model, run `python3 bench.py` (needs `raw/` from a local build: `bootstrap.json`, `fixtures.json`, `live1.json`…). Model changes also need the backtest; what to run and when to adopt a change are in `CLAUDE.md` ("Model changes").
 
 Before committing front-end changes:
