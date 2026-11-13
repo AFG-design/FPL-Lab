@@ -286,3 +286,15 @@ class Streak(unittest.TestCase):
         self.assertEqual((inv["name"], inv["locked"]), ("Invincibles", True))
         self.assertTrue(streak(["W"] * 38, season_from_gw1=True)["invincible"])
         self.assertFalse(streak(["W"] * 37 + ["D"], season_from_gw1=True)["invincible"])
+
+
+class RecordStart(unittest.TestCase):
+    """FL-109 follow-up: the record starts at GW10, the first deadline with a saved suggestion."""
+
+    def test_gw8_and_gw9_dont_count(self):
+        from fpl_score import counts_for_record, RECORD_FROM_GW
+        self.assertEqual(RECORD_FROM_GW, 10)
+        self.assertFalse(counts_for_record(8))
+        self.assertFalse(counts_for_record(9))
+        self.assertTrue(counts_for_record(10))
+        self.assertTrue(counts_for_record(11))

@@ -136,6 +136,15 @@ def supercomputer_pick(squad, pos, xp):
 # ---------------------------------------------------------------- you vs the model: record and streak (F1c)
 MILESTONES = [(3, "Hat-trick"), (6, "Six-pointer"), (10, "Double figures"), (19, "Half-season")]
 MAX_WILDCARDS = 2
+# The record starts at GW10 (decided 13 Nov, FL-109 follow-up): the first deadline with the model's suggestion saved
+# (history/deadline_gwN.json). GW8 and GW9 have only the saved forecast, so the model's side was its best pick from your
+# own 15, which was your exact XI and captain both weeks: draws by construction, not a real contest.
+RECORD_FROM_GW = 10
+
+
+def counts_for_record(gw):
+    """True if gameweek gw counts towards You vs the model's record and streak (RECORD_FROM_GW on)."""
+    return gw >= RECORD_FROM_GW
 
 
 def expected(team, xp, chip=None):

@@ -8,8 +8,9 @@
 //   are listed below the pitch.
 // Missing / late / ambiguous:
 //   - no vs_model in the data (no saved forecast yet, or the build step failed): an empty state, nothing made up;
-//   - a week with no saved suggestion (GW8 and GW9: saving began at GW10): target.assumed; the model's side is then its
-//     best pick from your own 15 (no transfers) and the page says so above the pitches;
+//   - the record starts at GW10 (vs_model.from_gw; GW8 and GW9 aren't scored: fpl_score.RECORD_FROM_GW);
+//   - a later week with no saved suggestion: target.assumed; the model's side is then its best pick from your own 15
+//     (no transfers) and the page says so above the pitches;
 //   - the suggested plan's bench wasn't saved (snapshots before FL-109): the build rebuilt it (bench_src "derived") or
 //     couldn't ("missing", no auto-subs), and the pitch says which; a build from before FL-109 (no target.pts) shows
 //     its projected target, labelled as such;
@@ -263,7 +264,7 @@ function vmStreak(V) {
       <div class="vm-run"><div><span class="lbl">Winning run</span><b>${head}</b><span class="note">${sub}</span></div>
         <div class="vm-rec" aria-label="Record: won ${rec.W}, drawn ${rec.D}, lost ${rec.L}"><span><b>${rec.W}</b>Won</span><span><b>${rec.D}</b>Drawn</span><span><b>${rec.L}</b>Lost</span></div></div>
       <div class="vm-dots" role="group" aria-label="Results week by week, oldest first">${dots}</div>
-      <p class="note vm-key">W win · D draw · L defeat · ? to play · ★ milestone${V.weeks.some(w => w.target?.assumed) ? " · dotted: target assumed (no saved suggestion)" : ""}${V.used ? " · ringed: saved by a wildcard" : ""}</p>
+      <p class="note vm-key">The record starts at GW${V.from_gw ?? 10}, the first week the model's suggestion was saved before the deadline. W win · D draw · L defeat · ? to play · ★ milestone${V.weeks.some(w => w.target?.assumed) ? " · dotted: target assumed (no saved suggestion)" : ""}${V.used ? " · ringed: saved by a wildcard" : ""}</p>
       <div class="vm-cols2">
         <div><h3>Streak Wildcards</h3><div class="vm-wcs" aria-label="Holding ${held} of 2">${slots}<span><b>${held}</b> of 2 held</span></div>
           <p class="note">Earned at each milestone of a run. One saves the run from a defeat; a draw always ends it.${V.used ? ` Used: ${V.used}.` : ""}${V.lost ? ` ${V.lost} missed because you already held 2.` : ""}</p></div>
