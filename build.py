@@ -876,8 +876,28 @@ if crowd:
     # another gameweek than your live one, there is no provisional bonus for it, so confirmed points only.
     pts_live = {int(k): v for k, v in live_gw["pts_all"].items()} if live_gw and live_gw["gw"] == G else lv
 
-    def team_live(p):
-        return sum(pts_live.get(el, 0) * m for el, m in p)
+    # FL-153: rivals' live points with FPL's auto-subs, by liveState's rules (fpl_score.live_team_points): minutes
+    # and each club's match state this gameweek (done: finished or provisionally finished; blank: no match).
+    mins_live = {x["id"]: x["stats"]["minutes"] for x in live[G]["elements"]} if G in live else {}
+    _fx_g = [f for f in fixtures if f.get("event") == G]
+
+    def _club_state(t):
+        fs = [f for f in _fx_g if t in (f["team_h"], f["team_a"])]
+        if not fs:
+            return "blank"
+        if all(f["finished"] or f.get("finished_provisional") for f in fs):
+            return "done"
+        return "playing" if any(f["started"] for f in fs) else "to play"
+    _cstate = {t: _club_state(t) for t in teams}
+    el_state = {i: _cstate.get(e["team"], "to play") for i, e in elements.items()}
+    el_pos = {i: POS[e["element_type"]] for i, e in elements.items()}
+    vice_unknown = []
+
+    def team_live(pk, e_id):
+        r_ = fpl_score.live_team_points(pk["p"], pts_live, mins_live, el_state, el_pos, pk.get("chip"), pk.get("v"))
+        if not r_["vice_known"]:
+            vice_unknown.append(e_id)
+        return r_["total"], r_["subs"]
 
     leagues_out = []
     for lg in crowd["leagues"]:
@@ -896,14 +916,16 @@ if crowd:
             f = fresh.get(e_id, {})
             pk = crowd["rivals"].get(str(e_id)) if e_id != TEAM_ID else (
                 {"p": [[x["element"], x["multiplier"]] for x in picks["picks"]], "chip": picks["active_chip"],
-                 "hits": picks["entry_history"]["event_transfers_cost"]} if picks and picks_gw == G else None)
+                 "hits": picks["entry_history"]["event_transfers_cost"],
+                 "v": next((x["element"] for x in picks["picks"] if x.get("is_vice_captain")), None)} if picks and picks_gw == G else None)
+            tl = team_live(pk, e_id) if pk and lv else None
             used = history["chips"] if e_id == TEAM_ID else crowd.get("rival_chips", {}).get(str(e_id))
             rows.append({"chips": [{"name": c["name"], "event": c["event"]} for c in used] if used is not None else None,
                          "entry": e_id, "player": mbr["player"], "team": mbr["team"], "me": e_id == TEAM_ID,
                          "rank": f.get("rank"), "last_rank": f.get("last_rank"), "total": f.get("total"),
                          "gw_pts": f.get("event_total"), "picks": pk["p"] if pk else None,
                          "chip": pk["chip"] if pk else None, "hits": pk["hits"] if pk else 0,
-                         "live": team_live(pk["p"]) if pk and lv else None})
+                         "live": tl[0] if tl else None, "live_subs": tl[1] if tl else None})
         rows.sort(key=lambda r: (r["rank"] or 1e9))
         leagues_out.append({"id": lg["id"], "name": lg["name"], "size": lg["size"],
                             "my_rank": (me_rank or {}).get("rank", lg["my_rank"]), "rows": rows})
@@ -927,6 +949,8 @@ if crowd:
         live_gw["total_before"] = (prev_h["total_points"] if prev_h else 0) - live_gw["hits"]
         live_gw["sample_n"] = len(tm)
     crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play,
+                 # FL-153: managers whose sample has no vice-captain (taken before it was saved): armband never moved
+                 "vice_unknown": sorted(set(vice_unknown)),
                  "top10k": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["top10k"].items()},
                  "near": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["near"].items()},
                  "leagues": leagues_out,

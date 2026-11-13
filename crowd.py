@@ -118,7 +118,9 @@ def picks(eid):
     d = get(f"/entry/{eid}/event/{G}/picks/")
     if not d:
         return eid, None
+    # "v": the vice-captain (FL-153), so rivals' live points can pass him the armband when the captain doesn't play
     return eid, {"p": [[x["element"], x["multiplier"]] for x in d["picks"]], "chip": d.get("active_chip"),
+                 "v": next((x["element"] for x in d["picks"] if x.get("is_vice_captain")), None),
                  "hits": d["entry_history"]["event_transfers_cost"], "tx": d["entry_history"]["event_transfers"],
                  "pts": d["entry_history"]["points"], "total": d["entry_history"]["total_points"],
                  "bank": d["entry_history"]["bank"], "value": d["entry_history"]["value"]}
