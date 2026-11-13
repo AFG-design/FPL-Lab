@@ -426,6 +426,9 @@ for pid, e in elements.items():
         "xgi90": round(r["xg90"] + r["xa90"], 2), "xg90": round(r["xg90"], 2), "xa90": round(r["xa90"], 2),
         "xgi90_4": round(xgi4, 2), "xgi90_6": round(xgi6, 2), "pts4": pts4, "pts6": pts6, "mins4": m4,
         "dc90": round(r["dc90"], 1), "dc_rate": round(r["p_dc"], 2), "p_start": round(r["p_start"], 2),
+        # FL-030: new to the Premier League: share of his start chance that is our price-band guess (0-1); the site
+        # marks his start chance assumed while it is above 0 (start_assumed below)
+        **({"arrival": round(r["start_guess"], 2), "start_assumed": True} if r.get("start_guess") else {}),
         # next gameweek, per match, after flags, rotation and return ramp: what the forecast used (p_start is before them)
         "start_next": None if r["start_next"] is None else round(r["start_next"], 2),
         "sub_next": None if r["sub_next"] is None else round(r["sub_next"], 2),

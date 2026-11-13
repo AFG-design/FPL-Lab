@@ -109,10 +109,13 @@ def load_season(season, scoring_from):
 
     live = defaultdict(dict)
     club = defaultdict(dict)  # pid -> gw -> team id
-    for r in gw_rows:
+    price_in = {}             # FL-030: his price at his first gameweek row (price at arrival), not the season-end one
+    for r in sorted(gw_rows, key=lambda r: (int(r["GW"]), r.get("kickoff_time") or "")):
         pid, g = int(r["element"]), int(r["GW"])
         if pid not in praw:
             continue
+        if r.get("value") not in (None, ""):
+            price_in.setdefault(pid, int(float(r["value"])))
         pos = POS[int(praw[pid]["element_type"])]
         tid = name_to_id.get(r["team"])
         if tid:
@@ -139,7 +142,8 @@ def load_season(season, scoring_from):
         po = r.get("penalties_order")
         elements.append({"id": pid, "element_type": int(r["element_type"]), "team": int(r["team"]), "web_name": r["web_name"],
                          "code": r["code"], "status": "a", "chance_of_playing_next_round": None, "removed": False,
-                         "penalties_order": int(float(po)) if po not in ("", None, "None") else None})
+                         "penalties_order": int(float(po)) if po not in ("", None, "None") else None,
+                         "now_cost": price_in.get(pid)})
     boot = {"elements": elements, "teams": [{"id": tid, "short_name": t["short_name"], "name": t["name"]} for tid, t in teams.items()],
             "game_config": scoring_from["game_config"],
             "events": [{"id": g, "finished": True} for g in range(1, 39)]}

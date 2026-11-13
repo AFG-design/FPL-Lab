@@ -76,6 +76,8 @@ DEFAULTS = {
                            # (build.py saves it beside the live numbers). Needs ctx["sell"], else project() raises.
     "save_split": True,    # FL-079: goalkeeper save points worked out for a start and a sub appearance separately,
                            # then weighted by their chances; False = old behaviour (one Poisson on expected minutes)
+    "new_signings": True,  # FL-030: a mover keeps his minutes from his old club; a player new to the PL gets a price-band
+                           # start chance fading over 5 games (ARRIVAL_START). False = old behaviour
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -125,6 +127,12 @@ def understat_sp(boot, fixtures, shots_cache, us_players):
 
 
 OUT_STATUS = ("i", "s", "n", "u")
+
+# FL-030: start chance of a player new to the Premier League, by price at arrival (now_cost, tenths of £m), for his
+# first ARRIVAL_GAMES registered club games. Share of those games started by 2022/23-2023/24 arrivals (no PL minutes in
+# the two seasons before; vaastav archive), so 2024/25 and 2025/26 stay out of sample for bench.py.
+ARRIVAL_GAMES = 5
+ARRIVAL_START = ((45, 0.07), (54, 0.23), (69, 0.21), (10 ** 6, 0.30))
 
 
 def out_weeks(boot, status_log=None, hindsight=True):
@@ -361,6 +369,14 @@ def clubs_then(elements, fixtures, live, pending=(), clubs=None):
     return xg, ambiguous
 
 
+def _moved(club_then, elements):
+    out = defaultdict(dict)
+    for (pid, g), c in club_then.items():
+        if c is not None and c != elements.get(pid, {}).get("team"):
+            out[pid][g] = c
+    return out
+
+
 def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
     """Index the raw API responses once; reused across projections."""
     mk_rows, *mk_dropped = one_row_per_fixture((market or {}).get("matches", []), fixtures)
@@ -428,7 +444,9 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         # backtests (FL-068): each week's xG credited to the club he played for that week (clubs_then)
         "team_gw_xg_then": team_gw_xg_then, "club_ambiguous": club_ambiguous,
         # FL-065: {(pid, gw): the club he played for that week} (None: ambiguous), for his past opponents
-        "club_then": club_then, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
+        "club_then": club_then,
+        # FL-030: {pid: {gw: club}} for the weeks he played for a club other than today's (a known club only)
+        "moved": {p: d for p, d in _moved(club_then, elements).items()}, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
         "out_late": out_late, "out_doubt": out_doubt,
         # status and chance saved before each deadline: {gw: {pid: (status, chance)}} (empty with no status log)
@@ -662,10 +680,11 @@ def project(ctx, as_of, horizon=6, params=None):
     if P["xmins"]:
         import xmins
         skip = ctx.get("out", {}) if P["xmins_skip_out"] else None
-        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip)
+        moved = ctx.get("moved") if P["new_signings"] else None
+        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, moved)
     xm_sell = {}
     if P["xmins"] and P["xmins_sell"]:
-        xm_sell, _ = xmins.predict_sell(ctx, as_of, team_gws, kick, upcoming, skip)
+        xm_sell, _ = xmins.predict_sell(ctx, as_of, team_gws, kick, upcoming, skip, ctx.get("moved") if P["new_signings"] else None)
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -714,6 +733,8 @@ def project(ctx, as_of, horizon=6, params=None):
             # only gameweeks where his club played and he was registered; a blank week or one
             # before he joined says nothing about whether he starts
             played = team_gws.get(e["team"], set())
+            if P["new_signings"] and pid in ctx.get("moved", {}):   # FL-030: his weeks at his old club count too
+                played = played | {g for g, c in ctx["moved"][pid].items() if g in team_gws.get(c, ())}
             # backtests (FL-068): only what was known at this forecast's deadline; live: everything known now
             ko_ = known_out(ctx, as_of) if (not P["use_flags"] and P["hist_honest"]) else ctx
             outw = ko_.get("out", {}).get(pid, set()) if P["use_out"] else set()
@@ -762,6 +783,22 @@ def project(ctx, as_of, horizon=6, params=None):
             xs_, xc_, xms_, xmc_ = xm_pred[pid]
             p_start, m_start, m_sub = xs_, xms_, xmc_
             p_sub = min(xc_, 1 - xs_)   # bench chance unconditional, capped at 1 - start chance
+        start_guess = 0.0
+        if P["new_signings"] and not pr and e.get("now_cost"):
+            # FL-030: new to the Premier League (no prior: no PL minutes in the last two seasons). With no history the
+            # minutes model gave arrivals about a 30% start chance whatever their type, while cheap arrivals (academy,
+            # back-up) start 7% of their first 5 games and £4.6m+ ones 21-30% (2022/23-2023/24 archive, ARRIVAL_START).
+            # The price-band guess replaces it at first and fades out over his first 5 registered club games.
+            # Price is today's (FPL keeps no price history here); marked assumed for the site while it applies.
+            n_reg = sum(1 for g in hist_gws if g in gs)
+            # only until he first plays: once he has minutes, his own games say more than his price (applied to
+            # players with minutes too, it dragged down promoted clubs' regulars: pool corr 0.444 -> 0.434)
+            if n_reg < ARRIVAL_GAMES and not any(gs[g]["minutes"] for g in hist_gws if g in gs):
+                start_guess = 1 - n_reg / ARRIVAL_GAMES
+                c_ = e["now_cost"]
+                guess = next(v for lim, v in ARRIVAL_START if c_ <= lim)
+                p_start = start_guess * guess + (1 - start_guess) * p_start
+                p_sub = min(p_sub, 1 - p_start)
         # ---- DC hit probability
         thr = ctx["dc_thr"].get(pos, 99)
         hits = n60 = 0
@@ -875,6 +912,7 @@ def project(ctx, as_of, horizon=6, params=None):
             "has_prior": bool(pr),
             "min_src": "xmins" if pid in xm_pred else "counts",   # counts: no fixture in the horizon for the xMins inputs
             "min_src_next": "xmins_sell" if pid in xm_sell else None,
+            "start_guess": start_guess,   # FL-030: weight of the arrival price-band guess in his start chance (0 = none)
             "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
             "start_next": start_next, "sub_next": sub_next,
         }

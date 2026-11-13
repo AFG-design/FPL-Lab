@@ -104,6 +104,19 @@ def check_logs(D, warnings):
                             f"until the file is fixed or restored from Git history")
 
 
+def check_arrivals(D, errors):
+    """FL-030: the arrival guess (new to the PL) only for a player with no prior in priors.json, as a weight in (0, 1],
+    with his start chance marked assumed for the site."""
+    pri = set(((load(os.path.join(HERE, "priors.json")) or {}).get("players") or {}))
+    for pl in D.get("players", []):
+        a_ = pl.get("arrival")
+        if a_ is None:
+            continue
+        if is_bad(a_) or not 0 < a_ <= 1 or pl.get("start_assumed") is not True or str(pl.get("id")) in pri:
+            errors.append(f"{pl.get('name')} ({pl.get('id')}): arrival guess {a_} needs a weight in (0, 1], "
+                          f"start_assumed and no prior in priors.json")
+
+
 def check_club_then(meta, warnings):
     """FL-065: a player who has changed clubs has each past week credited to the club he played for then
     (fplmodel.clubs_then). A week that can't be told (one game at a club he has since left) is credited to no club: warn
@@ -940,6 +953,7 @@ def main(path):
         if not ok:
             errors.append(f"{pl.get('name')} ({pl.get('id')}): kept as returning '{why}' but status {pl.get('status')}, "
                           f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
+    check_arrivals(D, errors)
     # FL-082: make_priors.py writes start_rate; a prior without it uses fplmodel's minutes guess (inert while start_prior
     # is 0). Warn rather than fail: priors.json built before FL-082 has none until the Monday Priors run.
     _pp = ((load(os.path.join(HERE, "priors.json")) or {}).get("players") or {})

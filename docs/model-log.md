@@ -4,6 +4,29 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — FL-030: new signings (Adopt as Marginal, check carefully)
+
+- What was wrong (backlog FL-030 and FL-082's "new-signing minutes defaults", recorded before the fix): a player new to
+  the Premier League got the minutes model's no-history output, unmarked. The backlog expected "about a 5% start chance";
+  measured since the xMins model, it is the opposite: arrivals (no PL minutes in the two seasons before) averaged a 0.28
+  to 0.33 start chance in their first 5 games but started 0.10 to 0.16 (most are academy and back-up players).
+- Fix (new_signings; False = old): an arrival gets a start chance from his price band (ARRIVAL_START: £4.5m or less 0.07,
+  £4.6-5.4m 0.23, £5.5-6.9m 0.21, £7.0m+ 0.30; share of first-5 games started by 2022/23-2023/24 arrivals, so the bench
+  seasons are out of sample), fading over his first 5 registered club games and only until he first plays. Marked
+  assumed on the player sheet (arrival, start_assumed; validate checks it). A mover within the PL keeps his weeks at
+  his old club in both minutes models (ctx["moved"] from FL-065's clubs_then; no case this season).
+  A first version kept the guess after he had played: it dragged promoted clubs' regulars down (pool corr 0.444 -> 0.434)
+  and was dropped.
+- First-5-games check for arrivals (old -> new): start chance v started 0.33 -> 0.18 v 0.16 (this season), 0.29 -> 0.14
+  v 0.11 (2025/26), 0.28 -> 0.13 v 0.10 (2024/25); start Brier 0.237 -> 0.069, 0.214 -> 0.055, 0.197 -> 0.042; xP MAE
+  1.202 -> 0.746, 0.935 -> 0.549, 0.853 -> 0.483.
+- Backtest vs FL-065 (pool): identical with and without the status log (the pool is players who played in the 3 GWs
+  before, so the guess is already off). Not in pool, played: xMin MAE 29.7 -> 26.7, start Brier 0.260 -> 0.217.
+- bench.py: pool metrics and 5-GW picks identical in all three seasons (CI [0, 0]): the deciding metric can't see
+  arrivals by construction. All players MAE 1.753 -> 1.747, 1.845 -> 1.844, 1.748 -> 1.747.
+- Decision: CI includes zero; no segment worse; the old silent no-history default was recorded (FL-082 audit) before
+  the fix, so Adopt as Marginal. The price bands themselves are a fitted heuristic: re-check after January.
+
 ## 14 Nov 2026 — FL-065: past xG and opponents follow the club he played for that week (Adopt as Marginal)
 
 - Known error (traced 5 Nov, backlog FL-065: fplmodel L265-270, L564-565): the live model credited every past week's xG
