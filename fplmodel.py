@@ -52,6 +52,10 @@ DEFAULTS = {
     "min_valid": True,     # minutes history: skip blank gameweeks and weeks before the player joined
     "min_recency": 0.4,    # weight per gameweek back for minutes: who starts changes faster than how good he is
     "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
+    "hist_honest": True,   # backtests only (use_flags off), FL-068: judge each forecast on what was known at its deadline:
+                           # weeks out from the status and news logs as they stood then (known_out), not today's notes;
+                           # no zero for being unavailable today; past xG credited to the club he played for that week
+                           # (ctx["team_gw_xg_then"]). False = the old, hindsight backtest, for comparisons.
     "hist_odds_ahead": 0,  # backtests only (use_flags off): a fixture's own odds count only this many GWs past the
                            # forecast week. The live odds file holds the next round only, so a forecast made at GW k
                            # never had GW k+1's odds; the archive does (pre-match or closing prices), which leaked.
@@ -138,6 +142,63 @@ def out_weeks(boot, status_log=None, hindsight=True):
             if d > since:
                 out[e["id"]].add(g)
     return out
+
+
+def _elements_at(elements, news_log, when):
+    """Each player's status, chance and news as FPL showed them at time `when`, from history/news.json (one row per
+    change: [time, status, chance, text], oldest first). A player with no row by then shows no flag ('a', no news):
+    the log starts before GW1, so that is what FPL showed. Other fields (team, position) are today's."""
+    out = {}
+    for pid, e in elements.items():
+        st, ch, since, txt = "a", None, None, ""
+        for t, s_, c_, n_ in news_log.get(str(pid), ()):
+            if dt.datetime.fromisoformat(t.replace("Z", "+00:00")) > when:
+                break
+            st, ch, since, txt = s_, c_, (t if n_ else None), n_
+        out[pid] = dict(e, status=st, chance_of_playing_next_round=ch, news_added=since, news=txt)
+    return out
+
+
+def known_out(ctx, as_of):
+    """Backtests (FL-068): the weeks each player was out, as they could be known at GW as_of's deadline.
+
+    prepare() builds ctx["out"] from today's FPL notes, so a past forecast skipped weeks only a later note explained
+    (the use_out hindsight leak, model log 23 Oct). Here every source is rebuilt from what was saved by that deadline:
+    the status log (deadlines before as_of), and FPL's notes then (history/news.json, ctx["news_log"]), applied to
+    finished gameweeks before as_of only.
+    Missing input: no news log -> only the status-log sources (out flags, doubtful_absences); no status log either ->
+    no weeks out (the model knew of no injuries). Cached per as_of in ctx["_known_out"]."""
+    cache = ctx.setdefault("_known_out", {})
+    if as_of in cache:
+        return cache[as_of]
+    boot, rows_all = ctx["boot"], ctx.get("status_rows", {})
+    slog = {"gws": {str(g): {str(p): list(v) for p, v in r.items()} for g, r in rows_all.items() if g < as_of}}
+    ev = {e["id"]: e for e in boot.get("events", [])}
+    dl = ev.get(as_of, {}).get("deadline_time")
+    past = {pid: {g: s for g, s in gs.items() if g < as_of} for pid, gs in ctx["pstats"].items()}
+    tfix = {t: [x for x in lst if x[0] and x[0] < as_of] for t, lst in ctx["team_fix"].items()}
+    fx = [f for f in ctx["fixtures"] if f.get("event") and f["event"] < as_of]
+    events = [dict(e, finished=e["id"] < as_of) for e in boot.get("events", []) if e["id"] <= as_of]
+    out = out_weeks({"events": [], "elements": []}, slog, hindsight=False)
+    out_doubt = doubtful_absences(slog, ctx["elements"], past, tfix)
+    out_late, news_out = {}, {}
+    if ctx.get("news_log") is not None and dl:
+        when = dt.datetime.fromisoformat(dl.replace("Z", "+00:00"))
+        els = _elements_at(ctx["elements"], ctx["news_log"], when)
+        boot_then = {"events": [e for e in events if e.get("deadline_time") and e["deadline_time"] <= dl],
+                     "elements": list(els.values())}
+        for pid, g in out_weeks(boot_then, slog).items():
+            out[pid] |= {x for x in g if x < as_of}
+        out_late = late_news_absences(boot_then, els, past, tfix, fx)
+    for extra in (out_late, out_doubt):
+        for pid, g in extra.items():
+            out[pid] |= g
+    if ctx.get("news_log") is not None and dl:
+        news_out = news_absences(boot_then, els, past, tfix, out)
+        for pid, g in news_out.items():
+            out[pid] |= g
+    cache[as_of] = res = {"out": out, "out_news": news_out, "out_late": out_late, "out_doubt": out_doubt}
+    return res
 
 
 def _gw_ends(fixtures, pad_days=2):
@@ -252,6 +313,41 @@ def unfinished_team_weeks(fixtures):
             for t in (f["team_h"], f["team_a"])}
 
 
+def clubs_then(elements, fixtures, live, pending=()):
+    """Team xG per gameweek with each player's xG credited to the club he played for that week (FL-068), not today's.
+
+    The live data lists, per player, the fixtures he was registered for (explain[].fixture). His club in a fixture is
+    the side that is today's club; for a player who has since moved, the side that is in every one of his other
+    fixtures at clubs he has left. Ambiguous (a single such fixture, so either side could be his): his xG that week
+    (if any) is credited to neither club and the (pid, gw) is returned in the second value, so callers can count it.
+    Returns ({team: {gw: xG}}, [(pid, gw), ...])."""
+    fxd = {f["id"]: f for f in fixtures}
+    xg = defaultdict(lambda: defaultdict(float))
+    away, ambiguous = defaultdict(list), []
+    rows = []
+    for g, data in live.items():
+        for x in data["elements"]:
+            e = elements.get(x["id"])
+            if not e or (e["team"], g) in pending:
+                continue
+            sides = [(fxd[ex["fixture"]]["team_h"], fxd[ex["fixture"]]["team_a"]) for ex in x.get("explain", ())
+                     if ex.get("fixture") in fxd]
+            rows.append((x["id"], g, float(x["stats"]["expected_goals"]), sides))
+            if sides and not any(e["team"] in s for s in sides):
+                away[x["id"]].append(set(sides[0]))
+    for pid, g, v, sides in rows:
+        t = elements[pid]["team"]
+        if not sides or any(t in s for s in sides):
+            xg[t][g] += v
+            continue
+        common = set.intersection(*away[pid]) if len(away[pid]) > 1 else set()
+        if len(common) == 1:
+            xg[common.pop()][g] += v
+        elif v > 0:   # no xG to place otherwise
+            ambiguous.append((pid, g))
+    return xg, ambiguous
+
+
 def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=None):
     """Index the raw API responses once; reused across projections."""
     mk_rows, *mk_dropped = one_row_per_fixture((market or {}).get("matches", []), fixtures)
@@ -285,6 +381,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         if t:
             for g, s in gws.items():
                 team_gw_xg[t][g] += float(s["expected_goals"])
+    team_gw_xg_then, club_ambiguous = clubs_then(elements, fixtures, live, pending)
     # DC thresholds from FPL's rules. The data is only a check: the smallest count that earned points should
     # equal the rule (a single forward hit at 16 once set FWD to 16 when this was read from the data).
     thr = dict(DC_THR)
@@ -313,7 +410,9 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
     return {
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
-        "team_gw_xg": team_gw_xg, "pending_team_gws": pending, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
+        "team_gw_xg": team_gw_xg, "pending_team_gws": pending,
+        # backtests (FL-068): each week's xG credited to the club he played for that week (clubs_then)
+        "team_gw_xg_then": team_gw_xg_then, "club_ambiguous": club_ambiguous, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
         "out_late": out_late, "out_doubt": out_doubt,
         # status and chance saved before each deadline: {gw: {pid: (status, chance)}} (empty with no status log)
@@ -329,6 +428,8 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
 
 def team_ratings(ctx, as_of, P):
     fixtures, team_fix, team_gw_xg, teams = ctx["fixtures"], ctx["team_fix"], ctx["team_gw_xg"], ctx["teams"]
+    if not P["use_flags"] and P["hist_honest"] and "team_gw_xg_then" in ctx:
+        team_gw_xg = ctx["team_gw_xg_then"]   # backtests (FL-068): each week's xG to the club he played for then
     H, A = P["home"], 1 / P["home"]
     games = defaultdict(list)
     for f in fixtures:
@@ -591,11 +692,13 @@ def project(ctx, as_of, horizon=6, params=None):
             # only gameweeks where his club played and he was registered; a blank week or one
             # before he joined says nothing about whether he starts
             played = team_gws.get(e["team"], set())
-            outw = ctx.get("out", {}).get(pid, set()) if P["use_out"] else set()
-            if not P["news_abs"] and pid in ctx.get("out_news", {}):
-                outw = outw - ctx["out_news"][pid]   # for checking the cleared-news rule against the old behaviour
+            # backtests (FL-068): only what was known at this forecast's deadline; live: everything known now
+            ko_ = known_out(ctx, as_of) if (not P["use_flags"] and P["hist_honest"]) else ctx
+            outw = ko_.get("out", {}).get(pid, set()) if P["use_out"] else set()
+            if not P["news_abs"] and pid in ko_.get("out_news", {}):
+                outw = outw - ko_["out_news"][pid]   # for checking the cleared-news rule against the old behaviour
             if not P["late_abs"]:
-                outw = outw - ctx.get("out_late", {}).get(pid, set()) - ctx.get("out_doubt", {}).get(pid, set())
+                outw = outw - ko_.get("out_late", {}).get(pid, set()) - ko_.get("out_doubt", {}).get(pid, set())
             recent = [g for g in hist_gws if g in gs and g in played and g not in outw][-P["min_window"]:]
             # back (or coming back) from injury or a ban: he missed his club's most recent game
             club_recent = [g for g in hist_gws if g in played]
@@ -658,7 +761,10 @@ def project(ctx, as_of, horizon=6, params=None):
             if P["use_flags"]:
                 av, asm = availability_info(e, k, ko, ret, today)
             else:
-                av, asm = (0.0 if e["status"] == "u" else 1.0), False
+                # backtests: today's 'unavailable' (usually left the club since) zeroed him in every past week, so
+                # the old backtest knew who would leave. Honest (FL-068): available unless flagged at that deadline
+                # (hist_flags below, from the status log; no log = no flags known, so available).
+                av, asm = (1.0 if P["hist_honest"] else (0.0 if e["status"] == "u" else 1.0)), False
             if not P["use_flags"] and P["hist_flags"] and as_of in ctx.get("out_log", {}).get(pid, ()):
                 # backtests: only the flag saved at the FORECAST deadline (as_of) is known (status log, never hindsight).
                 # A flag first saved at a later deadline is the future, so it isn't used for k > 0 either.
