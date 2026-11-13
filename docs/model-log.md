@@ -4,7 +4,7 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
-## 14 Nov 2026 — FL-080: defensive contributions per fixture, no 60-minute gate (Adopt as Marginal, check carefully)
+## 13 Nov 2026 — FL-080: defensive contributions per fixture, no 60-minute gate (Adopt as Marginal, check carefully)
 
 - Known error (traced, backlog FL-080: fplmodel L644-650, L702): the DefCon chance was learned from gameweeks where he
   played 60+ (a double summed into one "week") and applied only to 60+ minute appearances. FPL's rules have no minutes
@@ -22,7 +22,7 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   (shown on the site) is now per start, and the player sheet says so.
 - Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal. Check carefully: this season's
   5-GW point estimate is −0.13 (CI touches 0); re-check at GW20.
-## 14 Nov 2026 — FL-030: new signings (Adopt as Marginal, check carefully)
+## 13 Nov 2026 — FL-030: new signings (Adopt as Marginal, check carefully)
 
 - What was wrong (backlog FL-030 and FL-082's "new-signing minutes defaults", recorded before the fix): a player new to
   the Premier League got the minutes model's no-history output, unmarked. The backlog expected "about a 5% start chance";
@@ -45,7 +45,7 @@ from odds/archive/ since PR #24, 31 Oct 2026).
 - Decision: CI includes zero; no segment worse; the old silent no-history default was recorded (FL-082 audit) before
   the fix, so Adopt as Marginal. The price bands themselves are a fitted heuristic: re-check after January.
 
-## 14 Nov 2026 — FL-065: past xG and opponents follow the club he played for that week (Adopt as Marginal)
+## 13 Nov 2026 — FL-065: past xG and opponents follow the club he played for that week (Adopt as Marginal)
 
 - Known error (traced 5 Nov, backlog FL-065: fplmodel L265-270, L564-565): the live model credited every past week's xG
   to a player's current club and judged his past form against his current club's opponents. 17 summer movers carried
