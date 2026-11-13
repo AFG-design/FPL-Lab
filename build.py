@@ -925,7 +925,11 @@ if crowd:
     crowd_out = {"gw": G, "built": crowd["built"], "in_play": in_play,
                  "top10k": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["top10k"].items()},
                  "near": {k: (slim(v) if isinstance(v, dict) and k in ("own", "cap", "eo") else v) for k, v in crowd["near"].items()},
-                 "leagues": leagues_out}
+                 "leagues": leagues_out,
+                 # FL-082: failed FPL requests and a defaulted rank, for validate.py's Health warnings and the Rivals
+                 # label; a sample from before these fields existed gives None (not known), never "complete"
+                 "complete": crowd.get("complete"), "failed": crowd.get("failed"),
+                 "rank_assumed": crowd["near"].get("rank_assumed")}
 
 # ---------------------------------------------------------------- weekly review
 def pts_of(pid, g):
@@ -1750,7 +1754,10 @@ out["sources"] = {
                      "fixtures": len((fo_.get("latest") or {}).get("rows") or []), "credits_left": fo_.get("credits_left"),
                      "skipped": fo_.get("skipped"), "error": (fo_.get("last_error") or {}) or None} if fo_ else None,
     "crowd": {"gw": cr_.get("gw"), "built": cr_.get("built"), "top10k": (cr_.get("top10k") or {}).get("n"),
-              "near": (cr_.get("near") or {}).get("n"), "teams": len(cr_.get("teams") or []), "rivals": len(cr_.get("rivals") or {})} if cr_ else None,
+              "near": (cr_.get("near") or {}).get("n"), "teams": len(cr_.get("teams") or []), "rivals": len(cr_.get("rivals") or {}),
+              # FL-082: a sample built before these fields existed has none (None: not known, not 0)
+              "complete": cr_.get("complete"), "failed": cr_.get("failed"),
+              "rank_assumed": (cr_.get("near") or {}).get("rank_assumed")} if cr_ else None,
     # ok False: the file was unreadable, not updated, and this build's figures start from nothing (FL-120)
     "prices": {"nights": len(PH.get("nights", [])), "pending": len(PH.get("pending", {})), "ok": prices_ok},
     "news": {"players": len(NH), "ok": news_ok},

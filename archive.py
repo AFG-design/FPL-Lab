@@ -84,7 +84,8 @@ def _priors(season, code_to_id):
                          "bonus90": t["bonus"] / m * 90, "saves90": t["saves"] / m * 90,
                          "dc90": t["dc"] / m * 90,
                          "yc90": t["yc"] / m * 90, "pts90": t["pts"] / m * 90, "last_pts": _num(r["total_points"], int),
-                         "last_mins": _num(r["minutes"], int), "last_xgi": _num(r.get("expected_goal_involvements"))}
+                         "last_mins": _num(r["minutes"], int), "last_xgi": _num(r.get("expected_goal_involvements")),
+                         "start_rate": min(1.0, t["starts"] / (38 * t["w"]))}   # as make_priors.py (FL-082)
     return {"players": out}
 
 

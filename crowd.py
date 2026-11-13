@@ -20,6 +20,9 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crowd", "latest.
 SMALL_LEAGUE = 70
 
 
+FAILED = []   # paths that still failed after every retry (404s are a real "no such team/league", not failures)
+
+
 def get(path, tries=5):
     for i in range(tries):
         try:
@@ -32,6 +35,7 @@ def get(path, tries=5):
             time.sleep(2 + 4 * i)
         except Exception:
             time.sleep(2 + 4 * i)
+    FAILED.append(path)
     return None
 
 
@@ -55,7 +59,13 @@ if not FORCE and os.path.exists(OUT):
 
 t0 = time.time()
 entry = get(f"/entry/{TEAM_ID}/")
-my_rank = entry.get("summary_overall_rank") or 100000
+if not entry:
+    sys.exit(f"crowd: /entry/{TEAM_ID}/ failed to download; keeping the previous sample")
+# FL-082: FPL gives no overall rank before your first finished gameweek. The rank band is then centred on 100,000,
+# marked rank_assumed so the Rivals page and Health say so (it used to be silent).
+my_rank = entry.get("summary_overall_rank")
+rank_assumed = not my_rank
+my_rank = my_rank or 100000
 
 
 def standings(league, page):
@@ -145,11 +155,14 @@ def aggregate(ids):
 
 
 near_ranks = [r["rank"] for r in near_rows]
+# complete: every request answered. Failed requests (FL-082) shrink the samples without a word, so they are counted;
+# an incomplete sample is retried on the next run (see the early exit above) and isn't saved to the template history.
 out = {
-    "gw": G, "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "complete": True,
+    "gw": G, "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "complete": not FAILED,
+    "failed": len(FAILED),
     "top10k": aggregate(top_sample),
     "near": dict(aggregate(near_sample), rank_from=min(near_ranks) if near_ranks else None,
-                 rank_to=max(near_ranks) if near_ranks else None),
+                 rank_to=max(near_ranks) if near_ranks else None, rank_assumed=rank_assumed),
     "leagues": leagues,
     "rivals": {str(i): all_picks[i] for i in rival_ids if all_picks.get(i)},
     # individual teams (rank before the GW, total before the GW, picks) for live rank estimates
@@ -163,4 +176,5 @@ out = {
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 json.dump(out, open(OUT, "w"), separators=(",", ":"))
 print(f"GW{G}: top10k n={out['top10k']['n']}, near n={out['near']['n']}, leagues {len(leagues)}, "
-      f"rivals {len(out['rivals'])}, {out['secs']}s")
+      f"rivals {len(out['rivals'])}, {out['secs']}s" + (f", {len(FAILED)} requests failed" if FAILED else "")
+      + (", rank assumed 100,000 (FPL gave none)" if rank_assumed else ""))

@@ -5,8 +5,12 @@ Run occasionally (new signings appear during the season).
 Seasons (FL-113): only the two calendar seasons before the current one count (2025/26 and 2024/25 in 2026/27), weighted
 2:1 for the more recent, the same rule archive.py uses for the backtests. A player's last two Premier League seasons
 used to count however old they were (2015/16 for one player on 9 Nov 2026), and FPL's xG is 0 before 2022/23.
+start_rate (FL-082): his share of his club's 38 league games started, over the same seasons and weights. It used to be
+summed and dropped, so fplmodel fell back to a guess from minutes without saying so.
 Missing / late / ambiguous:
   - a player with no Premier League minutes in either season gets no prior (the model's positional prior stands in);
+  - a counted season with no "starts" field: no start_rate for that player (never estimated from minutes here);
+    fplmodel then uses its minutes proxy, and validate.py warns how many priors lack it;
   - a season name that can't be read is left out, never guessed;
   - FPL xG doesn't exist before 2022/23 (XG_FIRST): such a season never counts, even if the window is changed;
   - failed downloads: if more than MAX_FAILED of the players couldn't be fetched, or the new file would hold fewer than
@@ -66,7 +70,9 @@ def summarise(history_past, current_start):
     m = tot["minutes"]
     w = sum(wt for wt, _ in seasons)
     last = seasons[-1][1]
+    has_starts = all("starts" in s for _, s in seasons)
     return {
+        **({"start_rate": min(1.0, tot["starts"] / (38 * w))} if has_starts else {}),
         "season": last["season_name"], "mins": round(m / w),
         "xg90": tot["xg"] / m * 90, "xa90": tot["xa"] / m * 90, "bonus90": tot["bonus"] / m * 90,
         "saves90": tot["saves"] / m * 90, "dc90": tot["dc"] / m * 90, "yc90": tot["yc"] / m * 90,
