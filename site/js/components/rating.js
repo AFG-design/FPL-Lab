@@ -1,12 +1,29 @@
 // Squad rating: your 15 against the best squad for the same money and the average top-10k team.
 const RATE = { key: "", res: null };
+// The 0-100 scale, shared by Home's Squad rating and FPL School so the two always agree.
+// 50 = the top-10k average, 100 = the best 15 for the money. Below 50 the scale has its own floor: 0 = 30% fewer
+// projected points than the top-10k average (RATING_FLOOR). It used to fall at the same rate as the 50-100 half,
+// which is set by the (often small) gap between the field and the best squad, so a team a couple of points a week
+// behind the field could score close to 0.
+// Missing inputs: no top-10k figure (crowd file not saved) -> 100 = the best squad, 0 = no points (as before); no best
+// squad yet (FPL School still solving) and ahead of the field -> 50 x your points / the field's (as before).
+const RATING_FLOOR = 0.7;
+function ratingScore(mine, field, best) {
+  let s = null;
+  if (field != null && field > 0 && mine <= field) s = 50 * (mine - RATING_FLOOR * field) / ((1 - RATING_FLOOR) * field);
+  else if (field != null && best != null && best > field) s = 50 + 50 * (mine - field) / (best - field);
+  else if (best) s = 100 * mine / best;
+  else if (field) s = 50 * mine / field;
+  return s == null ? null : Math.max(0, Math.min(100, Math.round(s)));
+}
+function ratingWord(s) { return s >= 85 ? "Excellent" : s >= 65 ? "Strong" : s >= 50 ? "Above average" : s >= 35 ? "Below average" : "Needs work"; }
 function squadRatingData() {
   const R = D.rating; if (!R || !D.squad.length) return null;
   const key = D.meta.built + "|" + S.mode + "|" + mvKey(SB.moves); if (RATE.key === key) return RATE.res;
   const ids = D.squad.map(s => s.id), gws = R.gws.filter(g => GWS.includes(g));
   const pts = sq => gws.reduce((a, g) => a + bestXI(sq, g, null).pts, 0);
   const mine = pts(ids), best = R.best.weeks.reduce((a, b) => a + b, 0), field = R.field ? R.field.reduce((a, b) => a + b, 0) : null;
-  const toScore = v => Math.max(0, Math.min(100, Math.round(field != null && best > field ? 50 + 50 * (v - field) / (best - field) : 100 * v / best)));
+  const toScore = v => ratingScore(v, field, best);
   const score = toScore(mine);
   // Uplift (K1): the same squad after Your plan's moves, scored the same way (best XI + captain each week, no lineup
   // choices of yours, so it compares like with like), minus 4 a hit. Hits follow FPL's free-transfer rule from your
@@ -42,7 +59,7 @@ function squadRatingData() {
 }
 function squadRatingPanel() {
   const r = squadRatingData(); if (!r) return "";
-  const word = r.score >= 85 ? "Excellent" : r.score >= 65 ? "Strong" : r.score >= 50 ? "Above average" : r.score >= 35 ? "Below average" : "Needs work";
+  const word = ratingWord(r.score);
   const n = i => esc(P[i]?.name || "?");
   return `<div class="panel rating"><div class="bar"><h3>${term("rating", "Squad rating")}</h3><span class="muted">GW${r.gws[0]}–${r.gws[r.gws.length - 1]}, no transfers</span></div>
     <div class="rate-top">
@@ -59,5 +76,5 @@ function squadRatingPanel() {
     ${r.plan.moves.length ? `<p class="rate-uplift"><span class="lbl">${r.score} → ${r.plan.score} with ${esc(r.plan.name)}</span> ${r.plan.moves.map(m => `<span class="rl-move">GW${m.gw}: <button data-p="${m.out}" class="linkish">${n(m.out)}</button> <span class="muted">→</span> <button data-p="${m.in}" class="linkish">${n(m.in)}</button></span>`).join(" · ")}</p>` : ""}
     <div class="rate-pos">${r.pos.map(p => `<div><span class="grade g-${p.grade}">${p.grade}</span><span><b>${p.name}</b><small>${Math.round(p.pct * 100)}% of the best</small></span></div>`).join("")}</div>
     ${r.links.length ? `<span class="lbl">Weakest links</span><ul class="rate-links">${r.links.map(l => `<li><span class="rl-move"><button data-p="${l.out}" class="pname linkish">${n(l.out)}</button> <span class="muted">→</span> <button data-p="${l.in}" class="linkish">${n(l.in)}</button> <span class="muted">${money(P[l.in].price)}</span></span><span class="rl-gain up">+${f1(l.gain)}<small> over ${r.gws.length} GWs</small></span><button class="btn sm" data-rateplan="${l.out}:${l.in}">Add to plan</button></li>`).join("")}</ul>` : ""}
-    <p class="note">50 = the average top-10k team (from their last published teams), 100 = the best 15 you could buy for the same money and hold for these weeks. Best XI and captain each week. "With ${esc(r.plan.name)}" scores the squad after its moves the same way, minus 4 a hit.${r.tmpl != null ? ` Your XI's average top-10k ownership is ${r.tmpl.toFixed(0)}%${r.tmpl > 55 ? ": quite template" : r.tmpl < 30 ? ": lots of differentials" : ""}.` : ""}</p></div>`;
+    <p class="note">50 = the average top-10k team (from their last published teams), 100 = the best 15 you could buy for the same money and hold for these weeks, 0 = 30% fewer projected points than the top-10k average. Best XI and captain each week. "With ${esc(r.plan.name)}" scores the squad after its moves the same way, minus 4 a hit.${r.tmpl != null ? ` Your XI's average top-10k ownership is ${r.tmpl.toFixed(0)}%${r.tmpl > 55 ? ": quite template" : r.tmpl < 30 ? ": lots of differentials" : ""}.` : ""}</p></div>`;
 }

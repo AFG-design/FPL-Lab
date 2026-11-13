@@ -3,7 +3,8 @@
 // FPL's API doesn't answer other websites' pages, so the team and its picks come through the relay in fpl_school.json
 // (a Cloudflare Worker, docs/fpl-school-relay.md), shipped as D.school.relay. Everything else is this build's data.
 // Scored like the Squad rating on Home (rating.js): best XI + captain each rating gameweek from the team's 15, no
-// transfers, between the top-10k average (50) and the best 15 for the team's own money (100), the best 15 worked out
+// transfers, on rating.js's ratingScore scale: 30% under the top-10k average (0), the top-10k average (50) and the
+// best 15 for the team's own money (100), the best 15 worked out
 // by the browser optimiser (plan-solver.js, rebuild in week 1 then hold, as build.py's rating solve). One move: the
 // single transfer (same position, affordable, at most 3 from a club) that adds most to that best XI + captain.
 // Missing / late / ambiguous (each said in the tab, never filled in):
@@ -72,9 +73,8 @@ function schoolReview(teamId, entry, picks) {
     budget, bank, move, notProjected: ids.filter(i => !info[i].projected).map(i => info[i].name) };
 }
 function schoolScore(r) {
-  const s = r.field != null && r.best != null && r.best > r.field ? 50 + 50 * (r.mine - r.field) / (r.best - r.field)
-    : r.best ? 100 * r.mine / r.best : r.field ? 50 * r.mine / r.field : null;
-  return s == null ? null : Math.max(0, Math.min(100, Math.round(s)));
+  // the same scale as Home's Squad rating (ratingScore in rating.js)
+  return ratingScore(r.mine, r.field, r.best);
 }
 async function schoolBest(r) {
   try {
@@ -115,7 +115,7 @@ function vSchool() {
   if (SCHOOL.err) body = `<p class="verdict bad" role="alert">${esc(SCHOOL.err)}</p>`;
   else if (SCHOOL.res) {
     const r = SCHOOL.res, score = r.bestNote === "working" ? null : schoolScore(r);
-    const word = score == null ? "" : score >= 85 ? "Excellent" : score >= 65 ? "Strong" : score >= 50 ? "Above average" : score >= 35 ? "Below average" : "Needs work";
+    const word = score == null ? "" : ratingWord(score);
     const m = r.move;
     const notes = [`Money: ${money(r.budget)} (${money(r.bank)} in the bank), with players at their current prices: their real selling prices are private and can be lower (assumed).`];
     if (r.bestNote && r.bestNote !== "working") notes.push(r.bestNote.charAt(0).toUpperCase() + r.bestNote.slice(1) + ".");
