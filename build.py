@@ -1353,7 +1353,8 @@ for tid, t in teams.items():
         for (gg, opp, home, f) in ctx["team_fix"][tid]:
             if gg == g and f["team_h_score"] is not None:
                 trend.append({"gw": g, "opp": opp, "home": home,
-                              "xgf": round(ctx["team_gw_xg"][tid][g], 2), "xga": round(ctx["team_gw_xg"][opp][g], 2),
+                              # FL-065: a player's xG counts for the club he played for that week (clubs_then)
+                              "xgf": round(ctx["team_gw_xg_then"][tid][g], 2), "xga": round(ctx["team_gw_xg_then"][opp][g], 2),
                               "gf": f["team_h_score"] if home else f["team_a_score"],
                               "ga": f["team_a_score"] if home else f["team_h_score"]})
     usT = US.get("teams", {}).get(str(tid))
@@ -1607,6 +1608,8 @@ _msrc = Counter(r["min_src"] for pid, r in (res["players"] if res else {}).items
                 if elements[pid]["team"] in _fx_next)
 out = {
     "meta": {"built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "team_id": TEAM_ID,
+             # FL-065: player-weeks whose club then couldn't be told (their xG goes to no club; no opponent adjustment)
+             "club_ambiguous": [list(x) for x in ctx["club_ambiguous"]],
              "minutes_model": {"xmins_on": bool(DEFAULTS["xmins"]), "xmins": _msrc.get("xmins", 0),
                                "counts": _msrc.get("counts", 0), "xmins_sell_on": bool(DEFAULTS["xmins_sell"]),
                                "fixture_players": sum(_msrc.values()),
