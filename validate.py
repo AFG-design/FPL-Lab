@@ -132,6 +132,23 @@ def check_arrivals(D, errors):
                           f"start_assumed and no prior in priors.json")
 
 
+def check_model_track(D, errors, warnings):
+    """FL-145: the Model page's track record. Not built -> warning (the panel says it's unavailable); a Brier outside
+    0-1 or more big misses than players -> error. Data from before FL-145 has no model_track and is not checked."""
+    mt = D.get("model_track")
+    if mt is None:
+        return
+    if mt.get("error"):
+        warnings.append(f"Model track record not built ({mt['error']}): the Model page leaves it out")
+        return
+    for r in mt.get("brier") or []:
+        if is_bad(r.get("brier")) or not 0 <= r["brier"] <= 1:
+            errors.append(f"Model track record GW{r.get('gw')}: start-chance Brier {r.get('brier')} isn't 0-1")
+    for r in mt.get("misses") or []:
+        if not 0 <= r.get("big", -1) <= r.get("n", 0):
+            errors.append(f"Model track record GW{r.get('gw')}: {r.get('big')} big misses of {r.get('n')} players")
+
+
 def check_school(D, warnings):
     """FL-147: the FPL School relay address (fpl_school.json) must be an https:// address; anything else is ignored by
     the build (the tab then says the relay isn't set up), so say why on Health. No school block (older data): skipped."""
@@ -1000,6 +1017,7 @@ def main(path):
     check_model_inputs(D["meta"], errors, warnings)
     check_club_then(D["meta"], warnings)
     check_school(D, warnings)
+    check_model_track(D, errors, warnings)
     check_season_end(D["meta"], errors, warnings)
     check_setpieces(D, errors, warnings)
     check_picks_sections(D, warnings)
