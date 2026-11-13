@@ -4,6 +4,24 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — FL-080: defensive contributions per fixture, no 60-minute gate (Adopt as Marginal, check carefully)
+
+- Known error (traced, backlog FL-080: fplmodel L644-650, L702): the DefCon chance was learned from gameweeks where he
+  played 60+ (a double summed into one "week") and applied only to 60+ minute appearances. FPL's rules have no minutes
+  gate, and a double is two chances. Now (dc_fixture; False = old): chance per START from his own starts fixture by
+  fixture (any length), blended with the rate model; per SUB appearance from the rate model at his bench minutes.
+- Backtest vs main (GW3-10): with status log MAE 1.7653 → 1.7665, corr 0.4437 → 0.4442; without 1.8245 → 1.8259,
+  0.4277 → 0.4283. Raw DefCon part real/projected 1.30 → 1.26 (mse −0.001); DEF MAE +0.004. No segment past the limits.
+- Per kind of appearance (raw DefCon points per player-week, projected v real): this season starts 0.240 → 0.244 v
+  0.362, subs 0.045 → 0.050 v 0.003; 2025/26 doubles 0.326 → 0.328 v 0.366 (n=186). Subs almost never earn it (real
+  0.3-0.6% of sub appearances), so the rule fix adds little; starts remain under-projected before calibration.
+  2024/25 had no DefCon scoring (0 everywhere).
+- bench.py (new − old): 5-GW picks this season −0.13 [−0.38, 0.00] (4 origins), 2025/26 +0.00 [−0.05, +0.04],
+  2024/25 +0.00 (no DefCon); 1-GW picks this season −0.01 [−0.03, 0.00]; 2025/26 captain +0.03 (1 of 35 weeks changed).
+- Live build: 135 players' 5-GW xP move (mean 0.03; Sangaré +1.17, Mendy −0.86); plans make the same moves. dc_rate
+  (shown on the site) is now per start, and the player sheet says so.
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal. Check carefully: this season's
+  5-GW point estimate is −0.13 (CI touches 0); re-check at GW20.
 ## 14 Nov 2026 — FL-030: new signings (Adopt as Marginal, check carefully)
 
 - What was wrong (backlog FL-030 and FL-082's "new-signing minutes defaults", recorded before the fix): a player new to

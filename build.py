@@ -425,6 +425,7 @@ for pid, e in elements.items():
         "a_xa": round(e["assists"] - float(e["expected_assists"]), 2),
         "xgi90": round(r["xg90"] + r["xa90"], 2), "xg90": round(r["xg90"], 2), "xa90": round(r["xa90"], 2),
         "xgi90_4": round(xgi4, 2), "xgi90_6": round(xgi6, 2), "pts4": pts4, "pts6": pts6, "mins4": m4,
+        # FL-080: dc_rate is the chance per start (was: per 60+ minute game)
         "dc90": round(r["dc90"], 1), "dc_rate": round(r["p_dc"], 2), "p_start": round(r["p_start"], 2),
         # FL-030: new to the Premier League: share of his start chance that is our price-band guess (0-1); the site
         # marks his start chance assumed while it is above 0 (start_assumed below)
