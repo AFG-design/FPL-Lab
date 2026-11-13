@@ -62,8 +62,10 @@ DEFAULTS = {
                            # forecast week. The live odds file holds the next round only, so a forecast made at GW k
                            # never had GW k+1's odds; the archive does (pre-match or closing prices), which leaked.
     "use_out": True,       # skip weeks a player was injured, suspended or away when judging his minutes
-    "late_abs": True,      # injury news around a gameweek, or a 'd' <=75% flag at its deadline, explains a regular's
-                           # non-start that week (late_news_absences, doubtful_absences); False = old behaviour
+    "late_abs": True,      # injury news around a gameweek explains a regular's non-start that week (late_news_absences);
+                           # False = old behaviour
+    "doubt_abs": True,     # a 'd' <=75% flag at a gameweek's deadline explains a regular's non-start that week
+                           # (doubtful_absences); False = old behaviour. Split from late_abs for FL-031's one-at-a-time test
     "news_abs": True,      # count a cleared-news 0-minute week as an absence (news_absences); False = old behaviour
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
     "xmins": True,         # start chance / minutes from the external XGBoost model in xmins.py instead of the weighted
@@ -758,7 +760,9 @@ def project(ctx, as_of, horizon=6, params=None):
             if not P["news_abs"] and pid in ko_.get("out_news", {}):
                 outw = outw - ko_["out_news"][pid]   # for checking the cleared-news rule against the old behaviour
             if not P["late_abs"]:
-                outw = outw - ko_.get("out_late", {}).get(pid, set()) - ko_.get("out_doubt", {}).get(pid, set())
+                outw = outw - ko_.get("out_late", {}).get(pid, set())
+            if not P["doubt_abs"]:
+                outw = outw - ko_.get("out_doubt", {}).get(pid, set())
             recent = [g for g in hist_gws if g in gs and g in played and g not in outw][-P["min_window"]:]
             # back (or coming back) from injury or a ban: he missed his club's most recent game
             club_recent = [g for g in hist_gws if g in played]
