@@ -117,6 +117,15 @@ def check_arrivals(D, errors):
                           f"start_assumed and no prior in priors.json")
 
 
+def check_school(D, warnings):
+    """FL-147: the FPL School relay address (fpl_school.json) must be an https:// address; anything else is ignored by
+    the build (the tab then says the relay isn't set up), so say why on Health. No school block (older data): skipped."""
+    sc = D.get("school")
+    if sc and sc.get("relay_raw") and not sc.get("relay"):
+        warnings.append(f"fpl_school.json relay {sc['relay_raw']!r} isn't an https:// address, so the FPL School tab "
+                        f"can't use it (docs/fpl-school-relay.md)")
+
+
 def check_club_then(meta, warnings):
     """FL-065: a player who has changed clubs has each past week credited to the club he played for then
     (fplmodel.clubs_then). A week that can't be told (one game at a club he has since left) is credited to no club: warn
@@ -974,6 +983,7 @@ def main(path):
     check_logs(D, warnings)
     check_model_inputs(D["meta"], errors, warnings)
     check_club_then(D["meta"], warnings)
+    check_school(D, warnings)
     check_season_end(D["meta"], errors, warnings)
     check_setpieces(D, errors, warnings)
     check_picks_sections(D, warnings)

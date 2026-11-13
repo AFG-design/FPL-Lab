@@ -28,6 +28,7 @@
               locked:[ids], banned:[ids], captains:{gw:id}, maxHits: 0|1|2|null(any), eo:{id:frac}|null, lam,
               haulW, hitMargin, nailW (strategy extras), decay, benchW, ftValue, maxMovesWeek, week1Moves (fixes the
               number of moves in the first gameweek, as optimise.py's week1_moves), poolExtra:[ids],
+              freezeAfter: no moves from this week index on (optimise.py freeze_after; FL-147's best 15 for the money),
               floor: minimum plan value (plain xP over the plan, minus 4 per hit, plus ftValue per FT banked at the end),
               the same measure as optimise.py's VALUE; the strategies use it as their points budget } */
   function buildLP(inp) {
@@ -122,6 +123,7 @@
       const nw = ids.map(i => ` + ${ti(i, w)}`).join("");
       con(nw, "<=", inp.maxMovesWeek);
       if (w === 0 && inp.week1Moves != null) con(nw, "=", inp.week1Moves);   // e.g. 0: roll this week (FL-110)
+      if (inp.freezeAfter != null && w >= inp.freezeAfter) con(nw, "=", 0);   // FL-147: rebuild, then hold (optimise.py freeze_after)
       con(` h_${w} + f_${w}` + ids.map(i => ` - ${ti(i, w)}`).join(""), ">=", 0);
       con(` f_${w + 1} - f_${w} + ${ids.map(i => ti(i, w)).join(" + ")} - h_${w}`, "<=", 1);
       if (inp.maxHits != null) con(` h_${w}`, "<=", inp.maxHits);

@@ -55,10 +55,10 @@ function header() {
 const NAV = [
   ["Matchday", [["week", "This week"], ["planner", "Planner"], ["rivals", "Rivals"], ["deadlines", "Deadlines"]]],
   ["AFG", [["afg", "AFG suggestion"]]],
-  ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"]]],
+  ["Analysis", [["players", "Players"], ["fixtures", "Fixtures"], ["school", "FPL School"]]],
   ["Season", [["chips", "Chips"], ["review", "Review"], ["vsmodel", "You vs the model"], ["model", "Model"]]],
 ];
-const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["vsmodel", "You vs the model", "Your points against the model's target each week"], ["model", "Model", "How accurate the projections are, and data health"], ["afg", "AFG suggestion", "A fan's-eye punt on top of the model"]];
+const MORE = [["deadlines", "Deadlines", "Deadline countdown, price changes, kick-offs"], ["fixtures", "Fixtures", "Fixture difficulty for every team"], ["chips", "Chips", "When to play each chip"], ["review", "Review", "Your gameweeks and season so far"], ["vsmodel", "You vs the model", "Your points against the model's target each week"], ["model", "Model", "How accurate the projections are, and data health"], ["afg", "AFG suggestion", "A fan's-eye punt on top of the model"], ["school", "FPL School", "Rate any team by its ID, with one suggested move"]];
 const BOTTOM = [["week", "Home"], ["planner", "Plan"], ["rivals", "Rivals"], ["players", "Players"], ["more", "More"]];
 // Pages reached from a sibling's tabs rather than their own nav entry: Stats and the xP table sit with Players, Data health with Model.
 const SUBNAV = [[["players", "Players"], ["stats", "Stats"], ["xptable", "xP table"]], [["model", "Model"], ["health", "Data health"]]];
@@ -91,7 +91,7 @@ function setView(v, { push = true } = {}) {
 // back/forward buttons and links like #fixtures
 addEventListener("hashchange", () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) setView(v, { push: false }); });
 
-const VIEW_FN = () => ({ health: vHealth, deadlines: vDeadlines, week: vWeek, afg: vAfg, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, xptable: vXpTable, chips: vChips, season: vReview, model: vModel, vsmodel: vVsModel });
+const VIEW_FN = () => ({ health: vHealth, deadlines: vDeadlines, week: vWeek, afg: vAfg, planner: vPlanner, rivals: vRivals, review: vReview, fixtures: vFixtures, players: vPlayers, stats: vStats, xptable: vXpTable, chips: vChips, season: vReview, model: vModel, vsmodel: vVsModel, school: vSchool });
 function render() {
   const navV = PARENT[S.view] || S.view, inMore = MORE.some(m => m[0] === navV);
   document.querySelectorAll("#sidenav [data-v], #bottomnav [data-v]").forEach(b => {

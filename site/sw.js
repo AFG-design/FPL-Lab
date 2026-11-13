@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v40";
+const CACHE = "fpl-lab-v41";
 const SHELL = [
   "./",
   "index.html",
@@ -42,6 +42,7 @@ const SHELL = [
   "js/views/vsmodel.js",
   "js/views/model.js",
   "js/views/health.js",
+  "js/views/school.js",
   "js/components/shotmap.js",
   "js/components/player-sheet.js",
   "js/components/team-sheet.js",
