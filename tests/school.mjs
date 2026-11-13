@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const src = fs.readFileSync(new URL('../site/js/views/school.js', import.meta.url), 'utf8');
+const src = fs.readFileSync(new URL('../site/js/components/rating.js', import.meta.url), 'utf8') + '\n'
+  + fs.readFileSync(new URL('../site/js/views/school.js', import.meta.url), 'utf8');
 const GWS = [11, 12];
 const pl = (id, pos, team, price, x) => ({ id, name: 'P' + id, pos, team, price, xp: Object.fromEntries(GWS.map(g => [g, x])) });
 const squad = [pl(1, 'GKP', 1, 4.5, 3), pl(2, 'GKP', 2, 4.0, 1),
@@ -29,7 +30,27 @@ test('review: the move, the money (assumed prices) and a player with no projecti
   assert.equal(r.budget.toFixed(1), (0.5 + squad.reduce((a, p) => a + p.price, 0) - 4.5 + 4.0).toFixed(1));
   assert.deepEqual([...r.notProjected], ['Newbie']);
   r.best = 300; r.bestNote = null;
-  assert.equal(c.schoolScore(r), Math.round(50 + 50 * (r.mine - 120) / (300 - 120)));
+  assert.ok(r.mine < 120);   // behind the field: scored against the floor (0 = 70% of the field's 120)
+  assert.equal(c.schoolScore(r), Math.max(0, Math.round(50 * (r.mine - 84) / 36)));
+  r.mine = 150;              // ahead of the field: between the field (50) and the best (100)
+  assert.equal(c.schoolScore(r), Math.round(50 + 50 * (150 - 120) / (300 - 120)));
+});
+
+test('rating scale: 0 at 30% under the field, 50 at the field, 100 at the best, same for Home and FPL School', () => {
+  const c = setup(D);
+  // field 280, best 300: the old scale put 20 behind at 0; now 0 is 196 (70% of 280)
+  assert.equal(c.ratingScore(280, 280, 300), 50);
+  assert.equal(c.ratingScore(300, 280, 300), 100);
+  assert.equal(c.ratingScore(290, 280, 300), 75);
+  assert.equal(c.ratingScore(260, 280, 300), Math.round(50 * (260 - 196) / 84));   // 38, was 0
+  assert.equal(c.ratingScore(196, 280, 300), 0);
+  assert.equal(c.ratingScore(150, 280, 300), 0);
+  assert.equal(c.ratingScore(320, 280, 300), 100);
+  // missing inputs keep their old fallbacks
+  assert.equal(c.ratingScore(150, null, 300), 50);         // no top-10k figure: share of the best
+  assert.equal(c.ratingScore(140, 120, null), 58);         // no best yet, ahead of the field
+  assert.equal(c.ratingScore(100, null, null), null);
+  assert.equal(c.ratingWord(38), 'Below average');
 });
 
 test('no relay, errors and results are all said', () => {
