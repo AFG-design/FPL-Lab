@@ -233,7 +233,10 @@ function drawShareCard(cv, d) {
       const cx = PW / 2 + (j - (line.length - 1) / 2) * (cw + 10) - cw / 2;
       x.fillStyle = "#ffffff"; rr(cx, cy, cw, 70, 10); x.fill();
       x.fillStyle = "#14181c"; x.textAlign = "center"; x.textBaseline = "alphabetic";
-      x.fillText(fit(p.name, cw - 12, `600 17px ${body}`), cx + cw / 2, cy + 28);
+      // long names step down to 13px before they're cut short
+      let fs = 17; x.font = `600 ${fs}px ${body}`;
+      while (fs > 13 && x.measureText(p.name).width > cw - 12) { fs--; x.font = `600 ${fs}px ${body}`; }
+      x.fillText(fit(p.name, cw - 12, `600 ${fs}px ${body}`), cx + cw / 2, cy + 28);
       x.font = `700 26px ${disp}`; x.fillStyle = "#14181c";
       x.fillText(p.xp == null ? "–" : f1(p.xp), cx + cw / 2, cy + 58);
       if (p.cap) { x.fillStyle = "#f5c518"; x.beginPath(); x.arc(cx + cw - 12, cy + 12, 12, 0, 2 * Math.PI); x.fill(); x.fillStyle = "#14181c"; x.font = `700 15px ${body}`; x.fillText("C", cx + cw - 12, cy + 17); }
