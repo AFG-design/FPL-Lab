@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const src = readFileSync(new URL('../site/js/views/rivals.js', import.meta.url), 'utf8');
+const CHIPS_PRE = 'const CHIP_SHORT = { wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" }; const CHIP_NAME = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain" };\n';  // core/plan.js
+const src = CHIPS_PRE + readFileSync(new URL('../site/js/views/rivals.js', import.meta.url), 'utf8');
 const ctx = vm.createContext({});
 vm.runInContext(src, ctx);
 const txt = F => vm.runInContext(`fieldHitsTxt(${JSON.stringify(F)})`, ctx);

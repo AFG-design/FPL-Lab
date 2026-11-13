@@ -241,7 +241,7 @@ function plannerEditor() {
   const t = wk.team;
   const fresh = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
   const problems = sum.weeks.filter(w => w.bank < 0 || w.over.length);
-  const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
+  const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}${w.chip ? ` <span class="tag">${CHIP_SHORT[w.chip]}</span>` : ""}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
   const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
   const delta = sum.gain;
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
@@ -267,8 +267,8 @@ function plannerEditor() {
       ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, act: "sbp", sel: SB.sel, fresh, run: 3, price: true })}
       <p class="note">Tap a player to make him captain, bench or start him, lock him, or replace him. Or drag: a starter onto a sub to swap them, a sub onto another sub to change the bench order, or a replacement from the list onto the player he replaces. On a phone, press and hold to drag. Anything you don't set is picked automatically for the best projected score.</p>
       <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FT</th><th class="n">Moves</th><th class="n">Hits</th><th class="n">Bank</th><th>Captain</th><th class="n">xP</th><th class="n">vs none</th></tr></thead>
-        <tbody>${sum.weeks.map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.ft}</td><td class="n">${w.n}</td><td class="n ${w.hits ? "down" : ""}">${w.hits ? "−" + 4 * w.hits : "0"}</td><td class="n ${w.bank < 0 ? "down" : ""}">${w.bank.toFixed(1)}</td><td>${esc(P[w.team.cap]?.name)}</td><td class="n">${f1(w.team.pts)}</td><td class="n ${w.team.pts - 4 * w.hits - w.base > 0.05 ? "up" : ""}">${sgn(w.team.pts - 4 * w.hits - w.base)}</td></tr>`).join("")}</tbody></table></div>
-        <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.</p></div>
+        <tbody>${sum.weeks.map(w => `<tr><td>GW${w.gw}${w.chip ? ` <span class="tag" title="${CHIP_NAME[w.chip]}">${CHIP_SHORT[w.chip]}</span>` : ""}</td><td class="n">${w.ft}</td><td class="n">${w.n}</td><td class="n ${w.hits ? "down" : ""}">${w.hits ? "−" + 4 * w.hits : "0"}</td><td class="n ${w.bank < 0 ? "down" : ""}">${w.bank.toFixed(1)}</td><td>${esc(P[w.team.cap]?.name)}</td><td class="n">${f1(w.team.pts)}</td><td class="n ${w.team.pts - 4 * w.hits - w.base > 0.05 ? "up" : ""}">${sgn(w.team.pts - 4 * w.hits - w.base)}</td></tr>`).join("")}</tbody></table></div>
+        <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.${Object.keys(SB.chips || {}).length ? " Chips: WC Wildcard and FH Free Hit weeks' moves are free and keep your banked transfers (a Free Hit's last that week only); BB Bench Boost adds the bench to xP; TC Triple Captain counts the captain three times." : ""}</p></div>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
       ${SB.sel ? "" : `<div class="seg ptabs" role="group" aria-label="Planner tools">${tabs.map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`}
@@ -305,10 +305,35 @@ function replanPanel(inner) {
       <span class="lbl">Keep</span><div>${chips(R.locked, "locked")}</div>
       <span class="lbl">Never pick</span><div>${chips(R.banned, "banned")} <span class="note">Ban a player from his info panel.</span></div>
       <span class="lbl">Captains</span><div>${caps || '<span class="muted">chosen by the optimiser</span>'}</div>
+      <span class="lbl">Chips</span><div>${chipPinsHTML()}</div>
       <span class="lbl">Hits</span><div>${S.mode === "chase" ? `<select id="hitsSel" aria-label="Hits allowed" class="sel">${[["", "At most 1 a week, when it pays"], ["0", "No hits"]].map(([v, l]) => `<option value="${v}" ${String(R.maxHits ?? "") === v ? "selected" : ""}>${l}</option>`).join("")}</select>` : `<span class="muted">None: ${MODES[S.mode]} never takes a hit</span>`}</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="btn primary" data-replan="1" ${SOLVE.busy ? "disabled" : ""}>${SOLVE.busy ? "Planning…" : "Re-plan"}</button><span class="note" id="replanMsg">${esc(SOLVE.msg)}</span></div>
     ${vsCurrentTeam()}${inner ? "" : "</div>"}`;
+}
+// FL-005: pin a chip to a gameweek. Each chip you can still play in one of the plan's weeks gets a picker of the weeks
+// in its window; a chip already used, or with no week of its window in the plan, is listed as not available and why
+function chipPinsHTML() {
+  const pins = SB.chips || {}, rows = [];
+  Object.keys(CHIP_NAME).forEach(k => {
+    const weeks = PG.filter(g => chipWindow(k, g));
+    if (!weeks.length) {
+      const next = (D.chips || []).find(c => c.key === k && c.available && c.from > PG[PG.length - 1]);
+      rows.push(`<span class="muted chip-na">${CHIP_NAME[k]}: ${next ? `from GW${next.from}` : "used"}</span>`);
+      return;
+    }
+    const taken = new Set(Object.entries(pins).filter(([c]) => c !== k).map(([, g]) => g));
+    rows.push(`<label class="chip-pin"><span>${CHIP_NAME[k]}</span><select class="sel" data-chippin="${k}" aria-label="${CHIP_NAME[k]} gameweek">
+      <option value="">Not in this plan</option>${weeks.map(g => `<option value="${g}" ${pins[k] === g ? "selected" : ""} ${taken.has(g) ? "disabled" : ""}>GW${g}${taken.has(g) ? " (another chip)" : ""}</option>`).join("")}</select></label>`);
+  });
+  return `<div class="chip-pins">${rows.join("")}</div><p class="note" style="margin:4px 0 0">Re-plan builds around these. Wildcard and Free Hit weeks' moves are free and keep your banked transfers; a Free Hit's moves last that week only.</p>`;
+}
+function setChipPin(k, g) {
+  rememberPlan();
+  const c = { ...(SB.chips || {}) };
+  if (g) c[k] = +g; else delete c[k];
+  SB.chips = cleanChips(c); SB.solved = null; SB.source = SB.moves.length ? "custom" : SB.source;
+  sanitize(); saveSandbox();
 }
 // how much the plan adds over keeping the team you have, week by week, after hits
 function vsCurrentTeam() {
@@ -356,7 +381,7 @@ async function getHighs() {
 // over PG for one strategy from your confirmed squad, with the rules given: locks and bans (rules.locked/banned), a
 // stricter hit limit (rules.maxHits) and any captains you fixed (ov[gw].cap). Returns { moves, solved, none } or throws
 // with a reason you can act on. status(msg) reports progress.
-async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], status = () => {} } = {}) {
+async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], status = () => {}, chips = {} } = {}) {
   const highs = await getHighs();
   status("Planning…");
   await new Promise(r => setTimeout(r, 30));
@@ -378,7 +403,10 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   if (mode !== "balanced" && !eoFrac) throw new Error(`${MODES[mode]} needs the field-ownership data, which isn't in this build`);
   const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
     ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: rules.locked, banned: rules.banned, captains,
-    maxHits: 0, poolExtra, ...settings };
+    maxHits: 0, poolExtra, ...settings, chips };
+  // FL-005: keeping the squad still plays a pinned Bench Boost or Triple Captain (not transfers); a Wildcard or Free
+  // Hit needs moves, so the no-transfers yardstick goes without them, as baseScore does
+  const holdChips = Object.fromEntries(Object.entries(chips).filter(([k]) => k === "bboost" || k === "3xc"));
   // hits: Balanced and Play safe never take one; Chase rank at most plan_rules.max_hits.chase a week, or your own
   // "Hits" choice if that is stricter
   const chaseCap = Math.min(R.max_hits?.chase ?? 1, rules.maxHits ?? 99);
@@ -400,7 +428,7 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   const forced = [...common.banned.filter(i => owned.has(i)), ...common.locked.filter(i => !owned.has(i))];
   // Captain overrides belong to the real plan: a planned signing is absent from this baseline squad.
   // With no override, the baseline chooses its best projected captain each week (also when no captain was set).
-  const none = await solveP({ ...common, locked: [], banned: [], captains: {}, maxMovesWeek: 0 });
+  const none = await solveP({ ...common, locked: [], banned: [], captains: {}, maxMovesWeek: 0, chips: holdChips });
   let bal;
   try { bal = await solveP(common); } catch (e) {
     // no plan meets your locks and bans: say which ones force it rather than quietly handing back an unchanged squad
@@ -424,7 +452,9 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   // against keeping the squad, as before.
   // The roll plan is worked out as the server's is: Balanced with no moves this week, then for Play safe / Chase rank
   // their own terms held to the same budget against Balanced's roll plan (falling back to it).
-  if (!forced.length && res.moves.some(m => m.gw === PG[0])) {
+  // a Wildcard or Free Hit pinned to this week is a choice to move now, so there's no rolling it to compare against
+  const chipNow = chips.wildcard === PG[0] || chips.freehit === PG[0];
+  if (!forced.length && !chipNow && res.moves.some(m => m.gw === PG[0])) {
     status("Checking against rolling the transfer…"); await new Promise(r => setTimeout(r, 30));
     let roll = null;
     try { roll = await solveP({ ...common, week1Moves: 0 }); } catch (e) { roll = null; }
@@ -438,10 +468,20 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   if (!forced.length && res.moves.length && res.value < none.value + R.min_profit) res = { ...none, moves: [] };
   // keep the optimiser's own lineup and captain with its moves, so what's shown (and the gain) is the plan that
   // passed the points budget, not one re-picked by the browser's milder rules
+  // a Free Hit week's squad comes back from the solver as that week's squad, not as transfers: turn it into that
+  // week's moves (same position out and in), which the plan keeps for that week only (plan.js movesFor)
+  const fhg = chips.freehit;
+  const fhw = res.weeks?.find(w => w.gw === fhg && w.chip === "freehit");
+  if (fhw) {
+    const held = squadAt(fhg, res.moves, chips), outs = held.filter(i => !fhw.squad.includes(i));
+    fhw.squad.filter(i => !held.includes(i)).forEach(i => {
+      const k = outs.findIndex(o => P[o]?.pos === P[i]?.pos);
+      if (k >= 0) res.moves = [...res.moves, { gw: fhg, out: outs.splice(k, 1)[0], in: i }];
+    });
+  }
   const solved = {};
-  let sq = common.squad.slice();
   PG.forEach((g, w) => {
-    res.moves.filter(m => m.gw === g).forEach(m => { sq = sq.map(i => i === m.out ? m.in : i); });
+    const sq = squadAt(g, res.moves, chips);
     const wk = res.weeks?.[w];
     if (wk && wk.gw === g && wk.xi?.length === 11) {
       solved[g] = { sq: sq.slice(), xi: wk.xi.slice(), cap: wk.captain };
@@ -458,7 +498,7 @@ async function runReplan() {
   try {
     const t0 = performance.now();
     const scope = sbKey();
-    const res = await optimiseMoves(S.mode, { ov: SB.ov, rules: SB.rules, poolExtra: SB.moves.map(m => m.in), status: m => { SOLVE.msg = m; render(); } });
+    const res = await optimiseMoves(S.mode, { ov: SB.ov, rules: SB.rules, poolExtra: SB.moves.map(m => m.in), chips: SB.chips || {}, status: m => { SOLVE.msg = m; render(); } });
     if (scope !== sbKey()) throw new Error("Your starting squad changed during Re-plan");
     const before = scoreMoves(SB.moves).tot;
     setPlan(res.moves, "replan:" + S.mode, res.solved);

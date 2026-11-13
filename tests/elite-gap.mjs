@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const src = readFileSync(new URL('../site/js/views/rivals.js', import.meta.url), 'utf8');
+const CHIPS_PRE = 'const CHIP_SHORT = { wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" }; const CHIP_NAME = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain" };\n';  // core/plan.js
+const src = CHIPS_PRE + readFileSync(new URL('../site/js/views/rivals.js', import.meta.url), 'utf8');
 const P = { 1: { name: 'Haaland', own: 60, team: 1 }, 2: { name: 'Salah', own: 40, team: 2 }, 3: { name: 'Cheap', own: 30, team: 3 },
   4: { name: 'Rotated', own: 8, team: 4 } };
 const ctx = vm.createContext({ P, T: { 1: { short: 'MCI' }, 2: { short: 'LIV' }, 3: { short: 'BOU' }, 4: { short: 'ARS' } },

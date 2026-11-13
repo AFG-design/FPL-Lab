@@ -53,7 +53,7 @@ function loadSandbox() {
   const scope = sbKey(), sameSquad = SB?.scope === scope;
   if (!sameSquad) TP.undo = null;
   const saved = store.get(scope);
-  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", scope, prev: sameSquad ? SB.prev : null, ov: {}, solved: null, rules: { locked: [], banned: [], maxHits: null } };
+  SB = { moves: [], source: "", gw: keepGw, sel: keepSel, q: SB?.q || "", scope, prev: sameSquad ? SB.prev : null, ov: {}, solved: null, chips: {}, rules: { locked: [], banned: [], maxHits: null } };
   if (saved && Array.isArray(saved.moves)) {
     SB.updated = saved.updated || 0;
     applyExtras(saved); SB.sel = keepSel;
@@ -68,10 +68,11 @@ function loadSandbox() {
 // selection, missing overrides mean none, and a missing strategy keeps the device's choice.
 function completePlan(src = SB) {
   return JSON.parse(JSON.stringify({ moves: src.moves || [], ov: src.ov || {},
-    solved: src.solved || null, mode: MODES[src.mode] ? src.mode : S.mode }));
+    solved: src.solved || null, mode: MODES[src.mode] ? src.mode : S.mode, chips: src.chips || {} }));
 }
 function applyPlan(src, source) {
   const plan = completePlan(src);
+  SB.chips = cleanChips(plan.chips);
   SB.moves = cleanMoves(plan.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
   SB.ov = Object.fromEntries(Object.entries(plan.ov).filter(([g]) => GWS.includes(+g)));
   SB.solved = plan.solved; SB.source = source || "custom"; SB.sel = null;
@@ -99,7 +100,7 @@ function activatePlan(plan, source, editing = null) {
   rememberPlan(); applyPlan(plan, source); tpEditing(editing); saveSandbox();
 }
 function setPlan(moves, source, solved = null) {
-  activatePlan({ moves, solved, ov: SB.ov }, source, tpEditing());
+  activatePlan({ moves, solved, ov: SB.ov, chips: SB.chips }, source, tpEditing());
 }
 function editPlan(fn) { rememberPlan(); fn(); SB.source = "custom"; SB.solved = null; sanitize(); saveSandbox(); }
 function planName() {
@@ -107,9 +108,33 @@ function planName() {
   if (SB.source.startsWith("plan:")) { const k = SB.source.slice(5); if (D.plans[k] && sameMoves(planMoves(D.plans[k]), SB.moves)) return planLabel(k) + " plan"; }
   return SB.moves.length ? "Your plan" : "No transfers";
 }
-function squadAt(gw, moves = SB.moves) {
+/* ---------- chips pinned to a gameweek (FL-005) ---------- */
+// SB.chips: {wildcard|freehit|bboost|3xc: gw}, saved with the plan. Scored by FPL's rules, the same as the browser
+// optimiser (plan-solver.js): a Wildcard or Free Hit week's transfers are free and your banked free transfers are kept
+// (FPL since 2024/25); a Free Hit week's moves last that week only, then the squad and bank go back; Bench Boost adds
+// the bench's points; Triple Captain counts the captain three times. Missing or ambiguous: a pin for a chip you've
+// already used, outside its window (D.chips from/to) or outside the plan's weeks, or a second chip on the same week,
+// is dropped when the plan loads (cleanChips) and the Re-plan panel says why; nothing is pinned for you. Server plans
+// (D.plans) carry no chips.
+const CHIP_NAME = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain" };
+const CHIP_SHORT = { wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" };
+// the chip you can still play in gameweek g ({key, from, to} from D.chips), or null
+const chipWindow = (key, g) => (D.chips || []).find(c => c.key === key && c.available && c.from <= g && c.to >= g) || null;
+function cleanChips(chips) {
+  const out = {}, used = new Set();
+  Object.entries(chips || {}).forEach(([k, g]) => {
+    g = +g; if (!CHIP_NAME[k] || !PG.includes(g) || !chipWindow(k, g) || used.has(g)) return;
+    out[k] = g; used.add(g);
+  });
+  return out;
+}
+const chipAt = (g, chips = SB.chips) => Object.keys(chips || {}).find(k => chips[k] === g) || null;
+// a move that counts in gameweek gw: all earlier moves, except a Free Hit week's (those last that week only)
+const movesFor = (gw, moves, chips) => moves.filter(m => m.gw <= gw && !(chips?.freehit === m.gw && gw > m.gw));
+const chipsFor = moves => (moves === SB?.moves ? SB.chips : {}) || {};
+function squadAt(gw, moves = SB.moves, chips = chipsFor(moves)) {
   const s = D.squad.map(x => x.id);
-  moves.filter(m => m.gw <= gw).forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
+  movesFor(gw, moves, chips).forEach(m => { const k = s.indexOf(m.out); if (k >= 0) s[k] = m.in; });
   return s;
 }
 function sellPrice(id) { const s = D.squad.find(x => x.id === id); return s ? s.sell : P[id].price; }
@@ -150,50 +175,59 @@ function priceMove(pr) {
   const dir = pr >= 0 ? "rise" : "fall";
   return priceTonight(pr) ? `may ${dir} in price tonight` : `${dir === "rise" ? "rising" : "falling"} in price (${Math.abs(pr).toFixed(0)}% of the way), not likely tonight`;
 }
-function bankAt(gw, moves = SB.moves) {
+function bankAt(gw, moves = SB.moves, chips = chipsFor(moves)) {
   let b = D.manager.bank;
   const base = new Set(D.squad.map(x => x.id)), bought = new Set();
-  moves.filter(m => m.gw <= gw).forEach(m => {
+  movesFor(gw, moves, chips).forEach(m => {
     b += (base.has(m.out) && !bought.has(m.out)) ? sellPrice(m.out) : P[m.out].price;
     b -= P[m.in].price; bought.add(m.in);
   });
   return Math.round(b * 10) / 10;
 }
-function cleanMoves(moves) {
+function cleanMoves(moves, chips = SB?.chips || {}) {
   const ok = [], s = D.squad.map(x => x.id);
+  let fh = null;   // the Free Hit week's squad, which later weeks don't keep
   moves.slice().sort((a, b) => a.gw - b.gw).forEach(m => {
-    if (s.includes(m.out) && !s.includes(m.in)) { ok.push(m); s[s.indexOf(m.out)] = m.in; }
+    const temp = chips.freehit === m.gw, sq = temp ? (fh = fh || s.slice()) : s;
+    if (sq.includes(m.out) && !sq.includes(m.in)) { ok.push(m); sq[sq.indexOf(m.out)] = m.in; }
   });
   return ok;
 }
 function sanitize() { SB.moves = cleanMoves(SB.moves); }
-function ftTable(moves = SB.moves, weeks = PG) {
+function ftTable(moves = SB.moves, weeks = PG, chips = chipsFor(moves)) {
   let ft = Math.min(5, D.manager.free_transfers);
   return weeks.map(g => {
-    const n = moves.filter(m => m.gw === g).length, hits = Math.max(0, n - ft);
-    const row = { gw: g, ft, n, hits };
-    ft = n > ft ? 1 : Math.min(5, ft - n + 1);
+    const chip = chipAt(g, chips), free = chip === "wildcard" || chip === "freehit";
+    const n = moves.filter(m => m.gw === g).length, hits = free ? 0 : Math.max(0, n - ft);
+    const row = { gw: g, ft, n, hits, chip };
+    ft = free ? Math.min(5, ft + 1) : n > ft ? 1 : Math.min(5, ft - n + 1);
     row.next = ft;
     return row;
   });
 }
 function clubCounts(ids) { const c = {}; ids.forEach(i => c[P[i].team] = (c[P[i].team] || 0) + 1); return c; }
 // the single scorer used by This week, Planner and Rivals
-function scoreMoves(moves, solved = moves === SB.moves ? SB.solved : null) {
+function scoreMoves(moves, solved = moves === SB.moves ? SB.solved : null, chips = chipsFor(moves)) {
   let tot = 0;
-  const weeks = ftTable(moves).map(r => {
-    const sq = squadAt(r.gw, moves), team = bestXI(sq, r.gw, undefined, solved);
+  const weeks = ftTable(moves, PG, chips).map(r => {
+    const sq = squadAt(r.gw, moves, chips), team = { ...bestXI(sq, r.gw, undefined, solved) };
+    // Bench Boost: the bench scores too; Triple Captain: the armband counts once more (team.pts already has x2)
+    team.chipPts = r.chip === "bboost" ? team.bench.reduce((a, i) => a + xpg(i, r.gw), 0) : r.chip === "3xc" && team.cap ? xpg(team.cap, r.gw) : 0;
+    team.pts += team.chipPts;
     tot += team.pts - 4 * r.hits;
     // more than 3 from a club is only a problem in a week with a transfer: a squad that already holds 4 (a real move
     // between Premier League clubs) can keep them until it next transfers, and then must be back to 3 (FL-074)
     const held = clubCounts(D.squad.map(s => s.id));
     const over = Object.entries(clubCounts(sq)).filter(([t, v]) => v > 3 && (r.n > 0 || v > (held[t] || 0))).map(([t]) => T[t].short);
-    return { ...r, team, sq, bank: bankAt(r.gw, moves), over };
+    return { ...r, team, sq, bank: bankAt(r.gw, moves, chips), over };
   });
   return { weeks, tot, ftLeft: weeks.length ? weeks[weeks.length - 1].next : 0 };
 }
 let _base = null;
-const baseScore = () => _base || (_base = scoreMoves([]));
+// keeping the squad still plays the Bench Boost and Triple Captain you pinned (they aren't transfers), so "vs no
+// transfers" measures the moves alone; a Wildcard or Free Hit with no moves changes nothing
+const baseChips = () => Object.fromEntries(Object.entries(SB?.chips || {}).filter(([k]) => k === "bboost" || k === "3xc"));
+const baseScore = () => _base || (_base = scoreMoves([], null, baseChips()));
 // FL-125: the one "vs no transfers" figure on the Planner, the same measure as data.json's plans[*].vs_none
 // (optimise.strategy_plans): projected points over the plan after hits, plus ft_value for each free transfer banked at
 // the end, against keeping the squad and picking the best XI each week. Points alone would overstate a plan that
@@ -210,6 +244,6 @@ function sandboxSummary() {
 }
 function myTeam() {
   const g = D.meta.next_gw, sc = scoreMoves(SB.moves), w = sc.weeks[0];
-  const mult = {}; w.team.xi.forEach(i => mult[i] = 1); mult[w.team.cap] = 2;
+  const mult = {}; (w.chip === "bboost" ? [...w.team.xi, ...w.team.bench] : w.team.xi).forEach(i => mult[i] = 1); mult[w.team.cap] = w.chip === "3xc" ? 3 : 2;
   return { ...w.team, g, mult, week: w, moves0: SB.moves.filter(m => m.gw === g), later: SB.moves.filter(m => m.gw !== g), score: sc };
 }
