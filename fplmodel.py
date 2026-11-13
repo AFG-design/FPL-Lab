@@ -78,6 +78,8 @@ DEFAULTS = {
                            # then weighted by their chances; False = old behaviour (one Poisson on expected minutes)
     "new_signings": True,  # FL-030: a mover keeps his minutes from his old club; a player new to the PL gets a price-band
                            # start chance fading over 5 games (ARRIVAL_START). False = old behaviour
+    "dc_fixture": True,    # FL-080: DefCon chance per start (his own starts, fixture by fixture) and per sub appearance,
+                           # with no 60-minute gate (FPL has none); False = old behaviour (per GW, 60+ minutes only)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -385,6 +387,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
     pending = unfinished_team_weeks(fixtures)
     pstats = defaultdict(dict)
     dc_hit = defaultdict(dict)
+    dc_fx = defaultdict(dict)
     pts_gw = defaultdict(dict)
     for g, data in live.items():
         for x in data["elements"]:
@@ -394,6 +397,15 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
             pts_gw[x["id"]][g] = x["stats"]["total_points"]
             dc_hit[x["id"]][g] = any(s["identifier"] == "defensive_contribution" and s["points"] > 0
                                      for ex in x["explain"] for s in ex["stats"])
+            # FL-080: each fixture on its own: [minutes, DC points earned, started]. FPL's explain gives minutes and DC
+            # points per fixture but starts only per gameweek, so in a double the `starts` fixtures with the most
+            # minutes count as the starts. A fixture with no minutes row (not listed) counts as 0 minutes.
+            fx_ = [[next((s["value"] for s in ex["stats"] if s["identifier"] == "minutes"), 0),
+                    any(s["identifier"] == "defensive_contribution" and s["points"] > 0 for s in ex["stats"]), False]
+                   for ex in x["explain"]]
+            for r_ in sorted(fx_, key=lambda r: -r[0])[:x["stats"].get("starts", 0)]:
+                r_[2] = True
+            dc_fx[x["id"]][g] = fx_
     team_fix = defaultdict(list)
     for f in fixtures:
         if f["event"]:
@@ -439,7 +451,7 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         out[pid] |= g
     return {
         "boot": boot, "fixtures": fixtures, "elements": elements, "teams": teams,
-        "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
+        "pstats": pstats, "dc_hit": dc_hit, "dc_fx": dc_fx, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "pending_team_gws": pending,
         # backtests (FL-068): each week's xG credited to the club he played for that week (clubs_then)
         "team_gw_xg_then": team_gw_xg_then, "club_ambiguous": club_ambiguous,
@@ -570,7 +582,12 @@ def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90
         saves3 = rng.poisson(sv_rate * f) // 3
         pts = pts + saves3 * scoring["saves"]
     if pos != "GKP":
-        pts = pts + (full & (rng.random(N) < p_dc)) * scoring["defensive_contribution"][pos]
+        if isinstance(p_dc, tuple):   # FL-080: (per start, per sub appearance), no 60-minute gate
+            r_ = rng.random(N)
+            hit = (start & (r_ < p_dc[0])) | (sub & (r_ < p_dc[1]))
+        else:
+            hit = full & (rng.random(N) < p_dc)
+        pts = pts + hit * scoring["defensive_contribution"][pos]
     # bonus: goes to the players with returns; scaled so its average matches the projection
     proxy = np.where(appeared, 0.3 + 3 * goals + 2 * assists + (2 * cs if pos in ("GKP", "DEF") else 0) + 0.5 * saves3, 0.0)
     if proxy.mean() > 0 and b_exp > 0:
@@ -809,6 +826,15 @@ def project(ctx, as_of, horizon=6, params=None):
                 hits += ctx["dc_hit"][pid].get(g, False)
         p_dc_model = p_at_least(dc90 * min(90, m_start) / 90, thr) if pos != "GKP" else 0.0
         p_dc = (hits + p_dc_model * P["dc_blend"]) / (n60 + P["dc_blend"]) if pos != "GKP" else 0.0
+        p_dc_sub = 0.0
+        if P["dc_fixture"] and pos != "GKP":
+            # FL-080: FPL has no minutes gate on defensive contributions, and a double is two chances, not one. The
+            # chance per START comes from his own starts, one fixture at a time (any length, so an early withdrawal
+            # counts), blended with the rate model at his minutes when starting; per SUB appearance, the rate model at
+            # his minutes off the bench. Missing per-fixture data (no explain rows): no history, so the model alone.
+            st_fx = [r for g in hist_gws for r in ctx.get("dc_fx", {}).get(pid, {}).get(g, ()) if r[2]]
+            p_dc = (sum(r[1] for r in st_fx) + p_dc_model * P["dc_blend"]) / (len(st_fx) + P["dc_blend"])
+            p_dc_sub = p_at_least(dc90 * min(90, m_sub) / 90, thr)
 
         tid = e["team"]
         ch_now = e.get("chance_of_playing_next_round")
@@ -877,7 +903,10 @@ def project(ctx, as_of, horizon=6, params=None):
                             * scoring["saves"]
                     else:
                         comp["saves"] += saves_pts(sv_rate * m) * scoring["saves"]
-                comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
+                if P["dc_fixture"]:   # FL-080: every start and sub appearance in this fixture, no 60-minute gate
+                    comp["dc"] += (ps * p_dc + pb * p_dc_sub) * scoring["defensive_contribution"][pos]
+                else:
+                    comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
                 comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
                 comp["cards"] -= yc90 * m / 90
                 if P["sim"] and (ps + pb) > 0.01:
@@ -890,7 +919,8 @@ def project(ctx, as_of, horizon=6, params=None):
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
                                             p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
                                             P["assist_mult"] * xa90 * atk, mu_f, mu_a,
-                                            sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0, p_dc, bexp, yc90)
+                                            sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0,
+                                            (p_dc, p_dc_sub) if P["dc_fixture"] else p_dc, bexp, yc90)
                     sim_pts = sp_ if sim_pts is None else sim_pts + sp_
                     sim_app = sa_.astype(float) if sim_app is None else sim_app + sa_
             raw = sum(comp.values())

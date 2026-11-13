@@ -123,7 +123,8 @@ def load_season(season, scoring_from):
         st = {k: _num(r.get(k), int) for k in INT}
         st.update({k: _num(r.get(k)) for k in FLT})
         dcp = 2 if pos in DC_THR and st["defensive_contribution"] >= DC_THR[pos] else 0
-        ex = {"fixture": int(r["fixture"]), "stats": [{"identifier": "defensive_contribution", "points": dcp}]}
+        ex = {"fixture": int(r["fixture"]), "stats": [{"identifier": "minutes", "points": 0, "value": st["minutes"]},
+                                                      {"identifier": "defensive_contribution", "points": dcp}]}
         cur = live[g].get(pid)
         if cur is None:
             live[g][pid] = {"id": pid, "stats": st, "explain": [ex]}
