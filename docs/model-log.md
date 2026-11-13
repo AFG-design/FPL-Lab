@@ -4,6 +4,22 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — FL-065: past xG and opponents follow the club he played for that week (Adopt as Marginal)
+
+- Known error (traced 5 Nov, backlog FL-065: fplmodel L265-270, L564-565): the live model credited every past week's xG
+  to a player's current club and judged his past form against his current club's opponents. 17 summer movers carried
+  0.98 xG of GW1-2 into their new clubs' attack ratings. FL-068 fixed this for backtests only; now the live model uses
+  the same clubs_then (xg_club_then; False = old). Ambiguous club (one game at a club he has since left): his xG goes to
+  no club and his opponent adjustment is off that week; build.py lists them in meta.club_ambiguous and validate warns
+  (none today). The Fixtures team trend uses the same per-week club.
+- Backtest vs main (honest, GW3-10): identical with and without the status log (MAE 1.7653 / 1.8245): the backtest
+  already credited xG to the club then (FL-068), and the opponent part moves nothing measurable for 17 players.
+- bench.py (xg_club_then off = the live model's old behaviour, club at each forecast's deadline): 5-GW picks new − old
+  2024/25 +0.01 [0.00, +0.01], 2025/26 +0.00, this season +0.00; 1-GW picks ±0.00; captain unchanged in every week.
+- Live build: 459 of 472 players move through the team ratings, mean |Δ 5-GW xP| 0.002, largest +0.04 (Muharemović);
+  plans make the same moves and captains.
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
+
 ## 13 Nov 2026 — FL-079: goalkeeper saves for a start and a sub appearance separately (Adopt as Marginal)
 
 - Known error (reproduced, backlog FL-079): save points (1 per 3 saves) were one Poisson on his expected minutes, which
