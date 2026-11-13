@@ -54,9 +54,9 @@ test('rating scale: 0 at 30% under the field, 50 at the field, 100 at the best, 
 });
 
 test('no relay, errors and results are all said', () => {
-  let c = setup({ ...D, school: { relay: null, others: [] } });
+  let c = setupPitch({ ...D, school: { relay: null, others: [] } });
   assert.match(c.vSchool(), /relay isn't set up yet/);
-  c = setup(D);
+  c = setupPitch(D);
   vm.runInContext('SCHOOL.err = "FPL has no team 5."', c);
   assert.match(c.vSchool(), /role="alert">FPL has no team 5\./);
   vm.runInContext('SCHOOL.err = ""; SCHOOL.res = schoolReview(123, ' + JSON.stringify(entry) + ', ' + JSON.stringify(picks(squad.map(p => p.id))) + '); SCHOOL.res.bestNote = "x failed"', c);
@@ -64,6 +64,10 @@ test('no relay, errors and results are all said', () => {
   assert.match(html, /private and can be lower \(assumed\)/);
   assert.match(html, /X failed\./);
   assert.match(html, /One move/);
+  assert.match(html, /pitch isn't drawn/);   // these picks carry no positions
+  vm.runInContext('SCHOOL.res = schoolReview(123, ' + JSON.stringify(fullEntry) + ', ' + JSON.stringify(fullPicks(order)) + '); SCHOOL.res.bestNote = null', c);
+  const full = c.vSchool();
+  assert.ok(full.indexOf('Manager card') < full.indexOf('class="pitch"') && full.indexOf('class="pitch"') < full.indexOf('class="kpis"'));
   assert.throws(() => setup({ ...D, rating: {} }).schoolReview(1, entry, picks([1])), /no rating gameweeks/);
 });
 
@@ -77,4 +81,78 @@ test('plan-solver: freezeAfter holds the squad from that week', () => {
   const a = S.buildLP(base).lp, b = S.buildLP({ ...base, freezeAfter: 1 }).lp;
   const eq = lp => (lp.match(/ = 0$/gm) || []).length;
   assert.ok(eq(b) > eq(a));
+});
+
+// Squad view: the manager card and their team on the pitch (components/pitch.js), from the same relay answers.
+const pitchSrc = fs.readFileSync(new URL('../site/js/components/pitch.js', import.meta.url), 'utf8');
+function setupPitch(D, lineup = 'cards') {
+  const P = {}; D.players.forEach(p => { P[p.id] = p; });
+  const T = {}; for (let t = 1; t <= 20; t++) T[t] = { id: t, short: 'T' + t, name: 'Club ' + t, fx: {} };
+  const ctx = { D: { meta: {}, squad: [], ...D }, P, T, GWS, esc: s => String(s), f1: x => (+x).toFixed(1), money: x => '£' + (+x).toFixed(1) + 'm',
+    sgn: x => (x > 0 ? '+' : '') + (+x).toFixed(1), render: () => {}, S: {}, store: { get: () => lineup },
+    fxFor: (t, g) => T[t].fx[g] || [], fdrChip: () => '<i class="fdr"></i>', fdrKey: () => '', isAsm: () => false,
+    xpg: (id, g) => P[id]?.xp[g] || 0, clubCol: () => 'red', flag: () => '', fplChance: c => c + '%', sellPrice: () => 0 };
+  vm.createContext(ctx); vm.runInContext(pitchSrc + '\n' + src, ctx); return ctx;
+}
+const fullPicks = (ids, extra = {}) => ({ picks: ids.map((element, k) => ({ element, position: k + 1, is_captain: element === 13, is_vice_captain: element === 8 })),
+  entry_history: { event: 10, bank: 5, value: 1003, event_transfers: 1, event_transfers_cost: 4, points_on_bench: 7 }, active_chip: null, ...extra });
+const fullEntry = { ...entry, player_region_name: 'England', favourite_team: 3, summary_overall_points: 612, summary_overall_rank: 123456,
+  summary_event_points: 58, summary_event_rank: null };
+// FPL's order: GK, 10 outfield starters, then bench GK, outfield subs
+const order = [1, 3, 4, 5, 8, 9, 10, 11, 13, 14, 15, 2, 6, 7, 12];
+
+test('manager card: shows what FPL sent and leaves out what it did not', () => {
+  const c = setupPitch(D);
+  const r = c.schoolReview(123, fullEntry, fullPicks(order, { active_chip: 'bboost' }));
+  assert.equal(r.card.club, 'Club 3');
+  assert.equal(r.card.value, 100.3);
+  assert.equal(r.card.chip, 'Bench Boost');
+  assert.ok(!('gwRank' in r.card));   // null from FPL
+  const html = c.schoolCardHtml(r);
+  assert.match(html, /Overall rank<\/dt><dd>123,456/);
+  assert.match(html, /GW10 hits<\/dt><dd>−4 pts/);
+  assert.match(html, /GW10 chip<\/dt><dd>Bench Boost/);
+  assert.match(html, /GW10 bench points<\/dt><dd>7/);
+  assert.doesNotMatch(html, /GW10 rank/);
+  // nothing sent: no card, nothing pretending to be 0
+  const bare = c.schoolReview(123, { ...entry, favourite_team: 99 }, { picks: fullPicks(order).picks, entry_history: { event: 10 } });
+  assert.deepEqual({ ...bare.card }, {});
+  assert.equal(c.schoolCardHtml(bare), '');
+  // a zero is real data and is shown
+  const zero = c.schoolReview(123, entry, fullPicks(order, { entry_history: { event: 10, event_transfers_cost: 0, bank: 0 } }));
+  assert.match(c.schoolCardHtml(zero), /GW10 hits<\/dt><dd>None/);
+});
+
+test('pitch: 11 on the pitch, 4 on the bench in order, captain and vice marked, move-out outlined', () => {
+  for (const style of ['cards', 'kits']) {
+    const c = setupPitch(D, style);
+    const r = c.schoolReview(123, fullEntry, fullPicks(order));
+    assert.deepEqual([...r.squad.bench], [2, 6, 7, 12]);
+    const html = c.schoolPitch(r);
+    const [pitchPart, benchPart] = html.split('lu-bench');
+    assert.equal((pitchPart.match(/data-p="/g) || []).length, 11, style);
+    assert.deepEqual([...benchPart.matchAll(/data-p="(\d+)"/g)].map(m => +m[1]), [2, 6, 7, 12], style);
+    assert.match(html, /data-p="13"[^>]*aria-label="[^"]*captain/);
+    assert.match(html, /data-p="8"[^>]*aria-label="[^"]*vice-captain/);
+    assert.ok(r.move, 'a move is suggested');
+    const out = new RegExp(`class="[^"]*\\bsel\\b[^"]*" data-p="${r.move.out}"`);
+    assert.match(html, out, style);
+    assert.equal((html.match(/\bsel\b/g) || []).length, 1, style);
+    assert.match(html, /sch-out/);
+  }
+});
+
+test('pitch: a player outside the projections still gets a card; bad picks draw no pitch', () => {
+  const c = setupPitch(D);
+  const ids = [...order]; ids[1] = 200;   // a starting defender with no projection
+  const r = c.schoolReview(123, fullEntry, fullPicks(ids));
+  const html = c.schoolPitch(r);
+  assert.match(html, /<span class="[^"]*lu-np" role="group"[^>]*aria-label="Newbie, DEF, not in the projections">/);
+  assert.match(html, /No projection/);   // Cards say it in full; Kits (narrow nameplate) say "No xP"
+  assert.equal((html.split('lu-bench')[0].match(/class="pc /g) || []).length, 11);
+  // Home and the Planner never pass o.np: an id missing from P still draws nothing
+  assert.equal(c.luCard({ id: 4242, label: 'x' }), '');
+  const broken = c.schoolReview(123, fullEntry, { ...fullPicks(order), picks: fullPicks(order).picks.slice(0, 14) });
+  assert.equal(broken.squad, null);
+  assert.match(c.schoolPitch(broken), /pitch isn't drawn/);
 });

@@ -15,6 +15,9 @@
 // missing from the data isn't drawn; projections resting on assumptions keep their dotted "assumed" mark (Cards also
 // say "Assumed" in words). A footer line is only drawn when its data exists: no run past the last gameweek in the data,
 // no price without o.price, no note when nothing applies. Nothing is filled in.
+// A player outside the projections (FPL School's D.school.others) is drawn only when the item says who he is
+// (o.np: { name, pos, team }): a plain card with no shirt and no number, saying "No projection", not tappable (the player
+// panel needs the projections). Every other screen passes ids from P and never sets o.np, so nothing changes there.
 S.lineup = store.get("fpl.lineup") === "kits" ? "kits" : "cards";
 function lineupToggle() {
   return `<div class="seg lu-toggle" role="group" aria-label="Lineup style">${[["cards", "Cards"], ["kits", "Kits"]].map(([k, l]) =>
@@ -29,21 +32,27 @@ function fxShort(p, g) {
 }
 // one card. o: { id, big (the number, HTML), bigCls, sub (text under the name) or subHtml, ex (an extra line, HTML),
 // role ("cap" | "vice" | "capvice"), act (data attribute, default "p"), sel, fresh, cls, label, bench (its bench slot) }
+// the card's outer tag: a button that opens the player panel, or a plain box for a player with no projection
+const luTag = (o, p, cls) => p.np
+  ? `<span class="${cls} lu-np" role="group" style="--club:${clubCol(p)}" aria-label="${esc(o.label)}">`
+  : `<button type="button" class="${cls}" data-${o.act || "p"}="${o.id}" style="--club:${clubCol(p)}" aria-label="${esc(o.label)}">`;
+const luShirt = p => p.np ? "" : `<img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">`;
 function luCard(o) {
-  const p = P[o.id]; if (!p) return "";
-  if (S.lineup !== "kits") return luCardC(o, p);
+  const p = P[o.id] || (o.np ? { ...o.np, status: "a", np: true } : null); if (!p) return "";
+  const end = p.np ? "</span>" : "</button>";
+  if (S.lineup !== "kits") return luCardC(o, p, end);
   const role = o.role === "cap" || o.role === "capvice" ? '<span class="lu-role" aria-hidden="true">C</span>' : o.role === "vice" ? '<span class="lu-role v" aria-hidden="true">V</span>' : "";
   // long names get a slightly smaller face where cards are narrow, instead of breaking mid-word
   const cls = ["pc", "lu-pc", o.sel ? "sel" : "", o.fresh ? "newin" : "", p.name.length >= 10 ? "lu-long" : "", o.cls || ""].join(" ").trim();
-  return `<button type="button" class="${cls}" data-${o.act || "p"}="${o.id}" style="--club:${clubCol(p)}" aria-label="${esc(o.label)}">
+  return `${luTag(o, p, cls)}
     <span class="lu-box">${o.bench ? `<span class="lu-slot" aria-hidden="true">${o.bench}</span>` : ""}
-    <span class="lu-kit">${flag(p)}<img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()">${role}</span>
+    <span class="lu-kit">${flag(p)}${luShirt(p)}${role}</span>
     <span class="lu-txt"><span class="nm">${esc(p.name)}${o.fresh ? '<span class="lu-in" aria-hidden="true">IN</span>' : ""}</span>
-      <span class="lu-line"><span class="xp${o.bigCls ? " " + o.bigCls : ""}">${o.big}</span><span class="lu-sub">${o.subHtml ?? esc(o.sub)}</span></span>${o.ex ? `<span class="lu-ex">${o.ex}</span>` : ""}</span></span></button>`;
+      <span class="lu-line"><span class="xp${o.bigCls ? " " + o.bigCls : ""}">${o.big}</span><span class="lu-sub">${o.subHtml ?? esc(o.sub)}</span></span>${o.ex ? `<span class="lu-ex">${o.ex}</span>` : ""}</span></span>${end}`;
 }
 // Cards: the same item as three stacked parts. o.c holds what only this layout shows in words:
 // { big (number without the inline ×2), unit ("xP" | "pts"), x2 (multiplier beside the number), asm, sub, foot: [HTML] }
-function luCardC(o, p) {
+function luCardC(o, p, end) {
   const c = o.c || {};
   const role = o.role === "cap" || o.role === "capvice" ? '<span class="lu-role" aria-hidden="true">C</span>' : o.role === "vice" ? '<span class="lu-role v" aria-hidden="true">V</span>' : "";
   const inB = o.fresh ? '<span class="lu-in" aria-hidden="true">IN</span>' : "";
@@ -54,20 +63,21 @@ function luCardC(o, p) {
   const len = p.name.length, size = len >= 13 ? "lu-xlong" : len >= 10 ? "lu-long" : "";
   const big = c.big ?? o.big;
   const cls = ["pc", "lu-pc", "luc", o.sel ? "sel" : "", o.fresh ? "newin" : "", size, o.cls || ""].join(" ").replace(/\s+/g, " ").trim();
-  return `<button type="button" class="${cls}" data-${o.act || "p"}="${o.id}" style="--club:${clubCol(p)}" aria-label="${esc(o.label)}">
+  return `${luTag(o, p, cls)}
     <span class="lu-box">
-    <span class="lu-id">${left ? `<span class="lu-bdg l">${left}</span>` : ""}${right ? `<span class="lu-bdg r">${right}</span>` : ""}<span class="lu-kit"><img class="shirt" src="${shirtURL(p)}" srcset="${shirtSet(p)}" sizes="30px" alt="" loading="lazy" onerror="this.remove()"></span>
+    <span class="lu-id">${left ? `<span class="lu-bdg l">${left}</span>` : ""}${right ? `<span class="lu-bdg r">${right}</span>` : ""}<span class="lu-kit">${luShirt(p)}</span>
       <span class="nm">${esc(p.name)}</span></span>
     <span class="lu-pts"><span class="xp${o.bigCls ? " " + o.bigCls : ""}">${big}</span>${c.unit && big !== "–" ? `<span class="lu-unit">${c.unit}</span>` : ""}${c.x2 ? `<span class="lu-mult">${c.x2}</span>` : ""}</span>
     ${c.asm ? '<span class="lu-asm">Assumed</span>' : ""}<span class="lu-sub">${o.subHtml ?? esc(c.sub ?? o.sub)}</span>
-    ${c.foot?.length ? `<span class="lu-foot">${c.foot.map(f => `<span class="lu-fl">${f}</span>`).join("")}</span>` : ""}</span></button>`;
+    ${c.foot?.length ? `<span class="lu-foot">${c.foot.map(f => `<span class="lu-fl">${f}</span>`).join("")}</span>` : ""}</span>${end}`;
 }
-// bench slots in FPL's order: the keeper, then outfield subs 1, 2, 3
-const benchSlots = ids => { let n = 0; return ids.map(i => P[i]?.pos === "GKP" ? "GK" : String(++n)); };
+// bench slots in FPL's order: the keeper, then outfield subs 1, 2, 3 (an item's own o.np.pos when he isn't in P)
+const luPos = x => P[x.id]?.pos ?? x.np?.pos;
+const benchSlots = items => { let n = 0; return items.map(x => luPos(x) === "GKP" ? "GK" : String(++n)); };
 function luPitch(xi, bench, { key = "", note = "", label = "Starting XI" } = {}) {
-  const lines = ["GKP", "DEF", "MID", "FWD"].map(pos => xi.filter(x => P[x.id]?.pos === pos));
+  const lines = ["GKP", "DEF", "MID", "FWD"].map(pos => xi.filter(x => luPos(x) === pos));
   const rows = lines.map(l => `<div class="row">${l.map(luCard).join("")}</div>`).join("");
-  const slots = benchSlots(bench.map(x => x.id));
+  const slots = benchSlots(bench);
   // the busiest row decides when the whole lineup switches to the stacked card layout, so one lineup never mixes them
   const most = Math.min(5, Math.max(3, ...lines.map(l => l.length)));
   return `<div class="pitchwrap lu lu-${S.lineup} lu-r${most}"><div class="pitch" role="group" aria-label="${label}">${rows}</div>
