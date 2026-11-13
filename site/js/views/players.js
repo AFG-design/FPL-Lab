@@ -4,7 +4,98 @@
 const COLS = [["team", "Team", 0, 1], ["pos", "Pos", 0, 1], ["price", "£m", 1, 1], ["form", "Form", 1, 1], ["pts", "Pts", 1, 1],
   ["xg", "xG", 1, 1], ["xa", "xA", 1, 1], ["xgi90_4", "xGI/90 L4", 1, 1], ["own", "Own %", 1, 1], ["t10k", "Top 10k", 1, 0],
   ["nailed", "Nailed", 1, 1], ["xmin", "xMins", 1, 0], ["xp1", "xP next", 1, 1], ["xp5", "xP 5", 1, 1], ["val", "xP5/£m", 1, 0], ["pc", "Price change", 1, 1]];
-const colsOn = () => { const v = store.get("fpl.cols"); return Array.isArray(v) ? v : COLS.filter(c => c[3]).map(c => c[0]); };
+// the columns shown, in the order shown (FL-156: you can reorder them). "fpl.cols" was always a list of keys, so the
+// columns you'd picked before carry forward (in the order they were saved); a key no longer in COLS is ignored.
+const colsDefault = () => COLS.filter(c => c[3]).map(c => c[0]);
+function cleanCols(list) { const known = new Set(COLS.map(c => c[0])); return [...new Set((Array.isArray(list) ? list : []).filter(k => known.has(k)))]; }
+const colsOn = () => { const v = store.get("fpl.cols"); return Array.isArray(v) ? cleanCols(v) : colsDefault(); };
+
+/* ---------- saved table views (FL-156 idea 1) and density (idea 10) ----------
+   A view keeps the columns and their order, the search, the filters, the sort and the forecast period (S.xh, which never
+   touches the Planner). Saved on this device only (Ade, 13 Nov): "fpl.playerviews" = [{name, state}], with the one in
+   use in "fpl.playerview". Missing or ambiguous, never guessed: an unreadable list loads as no views; a view naming a
+   column or sort that no longer exists drops it (sort falls back to the default); a filter value the menus don't offer
+   is kept, as the price menus already add a value set from elsewhere; a view saved before periods existed keeps the
+   current period. "Default" is every filter cleared, the default columns and xP sorted high to low; it leaves the
+   forecast period as it is (a preference of its own). */
+const PV_DEFAULT = { q: "", pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", sort: "xp5", dir: -1 };
+const PV_KEYS = Object.keys(PV_DEFAULT);
+const PV_NAME_MAX = 40;
+function pvList() {
+  const v = store.get("fpl.playerviews");
+  return Array.isArray(v) ? v.filter(x => x && typeof x.name === "string" && x.name.trim() && x.state && typeof x.state === "object") : [];
+}
+function pvState() {
+  const st = { cols: colsOn(), xh: S.xh };
+  PV_KEYS.forEach(k => { st[k] = S[k] ?? PV_DEFAULT[k]; });
+  return st;
+}
+function pvApply(st) {
+  store.set("fpl.cols", Array.isArray(st.cols) && cleanCols(st.cols).length ? cleanCols(st.cols) : null);
+  PV_KEYS.forEach(k => { S[k] = st[k] ?? PV_DEFAULT[k]; });
+  S.pos = ["ALL", "GKP", "DEF", "MID", "FWD"].includes(S.pos) ? S.pos : "ALL";
+  if (S.sort !== "name" && !COLS.some(c => c[0] === S.sort)) { S.sort = PV_DEFAULT.sort; S.dir = PV_DEFAULT.dir; }
+  S.dir = S.dir === 1 ? 1 : -1;
+  if (st.xh != null) setForecast(+st.xh);
+}
+const pvActive = () => { const n = store.get("fpl.playerview"); return pvList().find(v => v.name === n) || null; };
+const pvSame = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// a view's state as it would be applied, so "changed" compares like with like
+function pvNorm(st) { const o = { cols: cleanCols(st.cols).length ? cleanCols(st.cols) : colsDefault(), xh: st.xh ?? S.xh }; PV_KEYS.forEach(k => { o[k] = st[k] ?? PV_DEFAULT[k]; }); return o; }
+function pvChanged() { const a = pvActive(); return a ? !pvSame(pvNorm(a.state), pvNorm(pvState())) : !pvSame(pvNorm({ ...PV_DEFAULT, cols: colsDefault(), xh: S.xh }), pvNorm(pvState())); }
+S.pvEdit = null; S.pvMsg = "";
+function pvSaveAs(name, mode) {
+  name = String(name || "").trim().slice(0, PV_NAME_MAX);
+  if (!name) { S.pvMsg = "Give the view a name."; return false; }
+  const list = pvList(), cur = list.find(v => v.name === store.get("fpl.playerview")) || null;   // edit the list that gets saved
+  const clash = list.find(v => v.name.toLowerCase() === name.toLowerCase() && !(mode === "rename" && cur && v.name === cur.name));
+  if (clash) { S.pvMsg = `There's already a view called "${clash.name}".`; return false; }
+  if (mode === "rename" && cur) { cur.name = name; store.set("fpl.playerviews", list); }
+  else { list.push({ name, state: pvState() }); store.set("fpl.playerviews", list); }
+  store.set("fpl.playerview", name); S.pvEdit = null; S.pvMsg = mode === "rename" ? `Renamed to "${name}".` : `Saved "${name}".`;
+  return true;
+}
+function pvUpdate() { const list = pvList(), cur = list.find(v => v.name === store.get("fpl.playerview")); if (!cur) return; cur.state = pvState(); store.set("fpl.playerviews", list); S.pvMsg = `Updated "${cur.name}".`; }
+function pvDelete() { const n = store.get("fpl.playerview"); store.set("fpl.playerviews", pvList().filter(v => v.name !== n)); store.set("fpl.playerview", null); S.pvMsg = `Deleted "${n}". The table stays as it is.`; }
+function pvSelect(name) {
+  const v = pvList().find(x => x.name === name);
+  if (v) { pvApply(v.state); store.set("fpl.playerview", v.name); S.pvMsg = ""; }
+  else { pvApply({ ...PV_DEFAULT, cols: null }); store.set("fpl.playerview", null); S.pvMsg = ""; }
+  S.pvEdit = null;
+}
+S.pdens = store.get("fpl.pdensity") === "comfy" ? "comfy" : "compact";
+function pvBar() {
+  const list = pvList(), cur = pvActive(), changed = pvChanged();
+  const opts = `<option value="">Default (all players)</option>${list.map(v => `<option value="${esc(v.name)}" ${cur && cur.name === v.name ? "selected" : ""}>${esc(v.name)}</option>`).join("")}`;
+  const edit = S.pvEdit === "delete" && cur ? `<span class="pv-form" role="group" aria-label="Confirm delete"><span>Delete "${esc(cur.name)}"?</span>
+      <button class="btn" type="button" data-pvact="confirm-delete">Delete</button><button class="btn" type="button" data-pvact="cancel">Cancel</button></span>`
+    : S.pvEdit ? `<form class="pv-form" id="pvForm"><input id="pvName" maxlength="${PV_NAME_MAX}" aria-label="${S.pvEdit === "rename" ? "New name for this view" : "Name for the new view"}" placeholder="View name" value="${S.pvEdit === "rename" && cur ? esc(cur.name) : ""}">
+      <button class="btn primary" type="submit">${S.pvEdit === "rename" ? "Rename" : "Save"}</button><button class="btn" type="button" data-pvact="cancel">Cancel</button></form>` : "";
+  // Update sits out in the open when it applies; the rest of a saved view's actions wait in Manage, so on a phone the
+  // players are still near the top
+  const acts = S.pvEdit ? "" : `${cur && changed ? `<button class="btn" type="button" data-pvact="update">Update view</button>` : ""}
+      ${cur ? `<details class="pv-manage"><summary>Manage</summary><div class="pv-menu" role="group" aria-label="Manage ${esc(cur.name)}">
+        <button class="btn" type="button" data-pvact="new">Save as new view</button><button class="btn" type="button" data-pvact="rename">Rename</button><button class="btn" type="button" data-pvact="delete">Delete</button></div></details>`
+        : `<button class="btn" type="button" data-pvact="new">Save view</button>`}`;
+  return `<div class="filters pv-bar">
+      <label class="pv-lbl" for="pvSel">My views</label><select id="pvSel">${opts}</select>
+      ${changed ? `<span class="pill mut" title="The table differs from ${cur ? `"${esc(cur.name)}" as saved` : "the default"}">Changed</span>` : ""}
+      ${acts}${edit}
+      <div class="seg pv-dens" role="group" aria-label="Table density">${[["compact", "Compact"], ["comfy", "Comfortable"]].map(([k, l]) => `<button type="button" data-dens="${k}" aria-pressed="${S.pdens === k}">${l}</button>`).join("")}</div>
+    </div>${S.pvMsg ? `<p class="note pv-msg" role="status">${esc(S.pvMsg)}</p>` : ""}`;
+}
+// Columns picker rows: shown columns first, in their order, each with move left / right; then the hidden ones
+function colPickRows(on) {
+  const shown = colsOn(), lab = k => colLabel(k, COLS.find(c => c[0] === k)[1]);
+  const row = (k, i) => `<div class="cp-row"><label><input type="checkbox" data-col="${k}" checked> ${lab(k)}</label>
+      <span class="cp-mv"><button type="button" class="btn sm icon-only" data-colmove="${k}:-1" aria-label="Move ${esc(lab(k))} left" ${i === 0 ? "disabled" : ""}>↑</button><button type="button" class="btn sm icon-only" data-colmove="${k}:1" aria-label="Move ${esc(lab(k))} right" ${i === shown.length - 1 ? "disabled" : ""}>↓</button></span></div>`;
+  return shown.map(row).join("") + COLS.filter(c => !on.has(c[0])).map(([k]) => `<div class="cp-row"><label><input type="checkbox" data-col="${k}"> ${lab(k)}</label></div>`).join("");
+}
+function colMove(k, d) {
+  const c = colsOn(), i = c.indexOf(k), j = i + d;
+  if (i < 0 || j < 0 || j >= c.length) return;
+  [c[i], c[j]] = [c[j], c[i]]; store.set("fpl.cols", c);
+}
 function nailedPill(p) {
   const n = p.nailed ?? 0, c = n >= 85 ? "good" : n >= 60 ? "warn" : "bad";
   return `<span class="pill ${c}" title="${esc(p.mflag || (n >= 85 ? "Nailed on" : n >= 60 ? "Usually starts" : "Rotation or bench risk"))}">${n}</span>`;
@@ -33,7 +124,7 @@ function vPlayers() {
   const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? fcTot(p).sum / p.price : S.sort === "xp5" ? fcTot(p).sum : S.sort === "team" ? T[p.team].short
     : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : ["name", "pos"].includes(S.sort) ? p[S.sort] : +p[S.sort] || 0;
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
-  const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = COLS.filter(c => on.has(c[0]));
+  const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = colsOn().map(k => COLS.find(c => c[0] === k));
   const cell = {
     team: p => T[p.team].short, pos: p => p.pos, price: p => p.price.toFixed(1), form: p => f1(p.form), pts: p => p.pts,
     xg: p => (p.xg ?? 0).toFixed(1), xa: p => (p.xa ?? 0).toFixed(1), xgi90_4: p => p.xgi90_4.toFixed(2), own: p => p.own.toFixed(1),
@@ -51,8 +142,9 @@ function vPlayers() {
       <td class="sticky-col"><span class="pcell"><label class="cmp-hit"><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}"></label>
         <button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${fplChance(p.chance)}</span>` : ""}${playerTags(p, 2)}</span></td>
       ${cols.map(([k, , n]) => `<td class="${n ? "n" : ""}">${cell[k](p)}</td>`).join("")}</tr>`).join("");
-  return `<div class="panel explorer">
+  return `<div class="panel explorer${S.pdens === "comfy" ? " dens-comfy" : ""}">
     <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
+    ${pvBar()}
     <div class="filters">
       <input type="search" id="q" placeholder="Search players" value="${esc(S.q)}" aria-label="Search players">
       <div class="seg" role="group" aria-label="Forecast period">${fcButtons()}</div>
@@ -65,7 +157,7 @@ function vPlayers() {
       <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
       ${active ? `<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button>` : ""}
       <details class="colpick"><summary>Columns</summary><div class="colpick-body" role="group" aria-label="Columns to show">
-        ${COLS.map(([k, l]) => `<label><input type="checkbox" data-col="${k}" ${on.has(k) ? "checked" : ""}> ${colLabel(k, l)}</label>`).join("")}
+        ${colPickRows(on)}
         <button class="btn ghost sm" data-colreset="1">Reset columns</button></div></details>
     </div>
     ${compareHTML()}

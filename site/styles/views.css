@@ -99,13 +99,37 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 .colpick { position: relative; margin: 0 0 0 auto; }
 .colpick summary { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); }
 .colpick-body {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: 220px;
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 10; width: 270px;
   display: grid; gap: 2px; padding: 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: var(--shadow);
 }
 .colpick-body label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: var(--fs-sm); cursor: pointer; }
 .colpick-body label:hover { background: var(--sunk); }
 .colpick-body input { accent-color: var(--accent); }
 .colpick-body .btn { justify-self: start; margin-top: 6px; }
+
+/* FL-156: column order (move buttons beside each shown column), saved views and table density */
+.cp-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.cp-row label { flex: 1; min-width: 0; }
+.cp-mv { display: inline-flex; gap: 2px; }
+.cp-mv .btn { margin: 0; padding: 2px 8px; min-width: 30px; }
+.pv-bar { align-items: center; }
+.pv-lbl { font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.pv-form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pv-form input { width: 180px; max-width: 100%; }
+.pv-dens { margin-left: auto; display: none; }
+.pv-msg { margin: 0 0 6px; }
+.pv-manage { position: relative; }
+.pv-manage summary { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); cursor: pointer; }
+.pv-menu {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 10; display: grid; gap: 6px; padding: 10px; min-width: 180px;
+  background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: var(--shadow);
+}
+
+@media (min-width: 768px) {
+  .pv-dens { display: inline-flex; }
+  .explorer.dens-comfy th, .explorer.dens-comfy td { padding-top: 13px; padding-bottom: 13px; }
+  .explorer.dens-comfy table { font-size: var(--fs-md); }
+}
 
 @media (max-width: 640px) {
   .explorer .filters select { flex: 1 1 140px; }
@@ -114,7 +138,7 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
      off the right edge and made the whole page scroll sideways. Hang it off the filter row instead, full width. */
   .explorer .filters { position: relative; }
   .colpick { position: static; margin-left: 0; }
-  .colpick-body { left: 0; right: 0; top: calc(100% + 6px); width: auto; grid-template-columns: 1fr 1fr; }
+  .colpick-body { left: 0; right: 0; top: calc(100% + 6px); width: auto; grid-template-columns: 1fr; }   /* one column: room for the move buttons (FL-156) */
   .colpick-body .btn { grid-column: 1 / -1; }
   .explorer { padding: 14px; }
 }
@@ -241,7 +265,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .xptable .xstar[aria-pressed="true"] { color: var(--hi-text); }
 .xptable td.xc { padding: 5px 8px; text-align: center; min-width: 66px; }
 .xptable td.xc .xfx { display: flex; gap: 2px; justify-content: center; align-items: center; }
-.xptable td.xc .xv { display: block; font-size: var(--fs-md, 15px); font-variant-numeric: tabular-nums; margin-top: 3px; color: var(--fg); }
+.xptable td.xc .xv { display: block; font-size: var(--fs-md); font-variant-numeric: tabular-nums; margin-top: 3px; color: var(--fg); }
 .xptable td.xc .xv.asm { color: var(--fg); font-style: italic; text-decoration: underline dotted; text-underline-offset: 3px; } /* muted grey fails AA on the darker heat steps */
 .xptable .xdgw { font-size: 11px; font-weight: 700; color: var(--hi-text); }
 .xptable td.h0 { background: var(--heat-0); }
