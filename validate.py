@@ -104,6 +104,21 @@ def check_logs(D, warnings):
                             f"until the file is fixed or restored from Git history")
 
 
+def check_rival_subs(D, errors):
+    """FL-153: each auto-sub on a mini-league row takes a starter (picks 1-11) off for a bench player (picks 12-15) of
+    the same manager, and no player comes on twice. Data from before FL-153 has no live_subs and is not checked."""
+    for lg in ((D.get("crowd") or {}).get("leagues") or []):
+        for r in lg.get("rows") or []:
+            subs, p = r.get("live_subs"), r.get("picks")
+            if not subs or not p:
+                continue
+            xi, bench = {el for el, _ in p[:11]}, {el for el, _ in p[11:]}
+            ins = [s[1] for s in subs]
+            if any(s[0] not in xi or s[1] not in bench for s in subs) or len(set(ins)) != len(ins):
+                errors.append(f"Mini-league {lg.get('name')}: {r.get('player')}'s live auto-subs {subs} don't match "
+                              f"his picks (starter off, bench player on, each once)")
+
+
 def check_arrivals(D, errors):
     """FL-030: the arrival guess (new to the PL) only for a player with no prior in priors.json, as a weight in (0, 1],
     with his start chance marked assumed for the site."""
@@ -963,6 +978,7 @@ def main(path):
             errors.append(f"{pl.get('name')} ({pl.get('id')}): kept as returning '{why}' but status {pl.get('status')}, "
                           f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
     check_arrivals(D, errors)
+    check_rival_subs(D, errors)
     # FL-082: make_priors.py writes start_rate; a prior without it uses fplmodel's minutes guess (inert while start_prior
     # is 0). Warn rather than fail: priors.json built before FL-082 has none until the Monday Priors run.
     _pp = ((load(os.path.join(HERE, "priors.json")) or {}).get("players") or {})

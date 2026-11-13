@@ -57,8 +57,8 @@ function vRivals() {
   const lg = L.find(l => l.id === S.league);
   const me = lg?.rows.find(r => r.me);
   const live = C.in_play;
-  // Only our complete live squad has the bench order and match states needed for confirmed auto-subs.
-  // A missing/mismatched live payload keeps the existing sampled scores and the note says subs are excluded.
+  // Your row: liveState (your live squad). Rivals' rows: the build applies the same auto-sub rules to their sampled
+  // picks (FL-153, fpl_score.live_team_points). A missing/mismatched live payload keeps the sampled scores.
   const ls = live && D.live?.gw === C.gw ? liveState() : null;
   // FL-078: one basis for every row, live or not: points before hits (FPL's event_total is before hits too), with
   // provisional bonus while it's unconfirmed; the hit is in the cell's tooltip.
@@ -97,7 +97,7 @@ function vRivals() {
   </div>
   <div class="grid2">
     <div class="panel"><div class="bar"><h2>Mini-leagues</h2><select id="leagueSel" class="sel" aria-label="League">${L.map(l => `<option value="${l.id}" ${l.id === S.league ? "selected" : ""}>${esc(l.name)} (${l.my_rank ?? "–"}/${l.size})</option>`).join("")}</select></div>
-      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek. Gameweek points are before hits, as FPL shows them${live ? ", with provisional bonus" : ""}${lg && lg.rows.some(r => hitOf(r) > 0) ? "; a small −4 or −8 beside a score is that manager's hit, not taken off" : ""}.${live ? (ls ? " Your live points include confirmed auto-subs; rivals' live points exclude automatic substitutions." : " Live points are summed from the latest match data, without automatic substitutions.") : ""}</p></div>
+      ${lgTable || stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." })}<p class="note">Tap a manager to compare teams. Arrows show places moved since last gameweek; the highlighted score is the best this gameweek. Gameweek points are before hits, as FPL shows them${live ? ", with provisional bonus" : ""}${lg && lg.rows.some(r => hitOf(r) > 0) ? "; a small −4 or −8 beside a score is that manager's hit, not taken off" : ""}.${live ? ` Live points include automatic substitutions once a starter's matches are over and his replacement has played (the same rule for every row).${(C.vice_unknown || []).some(e => lg?.rows.some(r => r.entry === e)) ? " For managers sampled before the vice-captain was saved, the armband isn't passed to the vice if the captain doesn't play." : ""}` : ""}</p></div>
     <div style="min-width:0">${cmp || `<div class="panel"><h3>Compare with a rival</h3><p class="muted">Pick someone from the league table to see where your teams differ and who the differences favour next gameweek.</p></div>`}</div>
   </div>
   ${watchPanel()}`;

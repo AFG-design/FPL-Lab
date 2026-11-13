@@ -325,3 +325,47 @@ def streak(results, season_from_gw1=False):
                           + [{"n": 38, "name": "Invincibles", "reached": False, "best": False,
                               "locked": not season_from_gw1}],
             "invincible": bool(season_from_gw1 and rec["W"] == 38)}
+
+
+def live_team_points(p, pts, mins, state, pos, chip=None, vice=None):
+    """FL-153: a rival's live points with FPL's automatic substitutions, by the same rules as your own squad's live
+    total (live.js liveState), so every row in a mini-league is on one basis.
+
+    p: [[element, multiplier], ...] in pick order (1-11 the XI, 12-15 the bench in its order, as FPL lists picks);
+    pts: {element: live points, provisional bonus included}; mins: {element: minutes so far};
+    state: {element: "done" | "blank" | "playing" | "to play"} (his club's matches this gameweek); pos: {element: GKP/DEF/MID/FWD};
+    vice: the vice-captain's element, if known.
+    Rules (as liveState): a starter with 0 minutes is replaced only once his matches are over (done or blank); the
+    first bench player in order who keeps a legal formation (keeper for keeper) and has played or still can; a bench
+    player still to play holds that place but adds no points until he has played. Bench Boost: all 15 count, no subs.
+    The armband passes to the vice only when the captain's matches are over with 0 minutes and the vice has played.
+    Missing / ambiguous: fewer than 15 picks -> no subs (the XI as picked); a player with no state -> treated as still
+    to play (never assumed finished); no vice known -> the armband never moves (said in the result).
+    Returns {"total", "subs": [[out, in, sure]], "vice_known"}."""
+    els = [el for el, _ in p]
+    mult = {el: m for el, m in p}
+    st = lambda el: state.get(el, "to play")
+    over = lambda el: mins.get(el, 0) <= 0 and st(el) in ("done", "blank")
+    cap = next((el for el, m in p if m >= 2), None)
+    cmult = max((m for _, m in p), default=2) if cap else 2
+    if chip == "bboost" or len(els) < 15:
+        counted, subs = (els if chip == "bboost" else els[:11]), []
+    else:
+        xi, bench, subs = list(els[:11]), list(els[11:]), []
+        for out in [el for el in xi if over(el)]:
+            for cand in bench:
+                if any(s[1] == cand for s in subs) or (pos.get(out) == "GKP") != (pos.get(cand) == "GKP"):
+                    continue
+                if not (mins.get(cand, 0) > 0 or st(cand) in ("playing", "to play")):
+                    continue
+                trial = [cand if el == out else el for el in xi]
+                if not _legal(trial, pos):
+                    continue
+                xi = trial
+                subs.append([out, cand, mins.get(cand, 0) > 0])
+                break
+        counted = [el for el in xi if not any(s[1] == el and not s[2] for s in subs)]
+    cap_out = cap is not None and over(cap)
+    holder = cap if not cap_out else (vice if vice is not None and vice in counted and mins.get(vice, 0) > 0 else None)
+    total = sum(pts.get(el, 0) * (cmult if el == holder else 1) for el in counted)
+    return {"total": total, "subs": subs, "vice_known": vice is not None}

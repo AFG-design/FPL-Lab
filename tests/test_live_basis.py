@@ -36,6 +36,16 @@ def unconfirm_bonus(api):
     return removed, confirmed
 
 
+def counted(r):
+    """FL-153: the players whose points count, with their multipliers: the XI after the row's confirmed auto-subs."""
+    m = {el: k for el, k in r["picks"]}
+    out = dict(m)
+    for o, i, sure in r.get("live_subs") or []:
+        out[o] = 0
+        out[i] = 1 if sure else 0
+    return out.items()
+
+
 class RivalLiveBasis(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -59,14 +69,18 @@ class RivalLiveBasis(unittest.TestCase):
     def test_rival_live_is_before_hits_with_provisional_bonus(self):
         pts = self.D["live"]["pts_all"]
         for r in self.rows:
-            self.assertEqual(r["live"], sum(pts.get(str(el), 0) * m for el, m in r["picks"]), r["entry"])
+            self.assertEqual(r["live"], sum(pts.get(str(el), 0) * m for el, m in counted(r)), r["entry"])
 
     def test_equals_the_score_fpl_later_confirmed(self):
         # provisional bonus (top 3 BPS) gives back what FPL confirmed for this week, so each rival's live total is
         # their real gross score: the same number FPL's standings show (event_total, before hits) once bonus is in.
         # On main it was confirmed points only, minus the hit.
         for r in self.rows:
-            self.assertEqual(r["live"], sum(self.confirmed.get(el, 0) * m for el, m in r["picks"]), r["entry"])
+            self.assertEqual(r["live"], sum(self.confirmed.get(el, 0) * m for el, m in counted(r)), r["entry"])
+
+    def test_some_rival_got_an_auto_sub(self):
+        # FL-153: the replay's last gameweek has finished matches with starters who didn't play
+        self.assertTrue(any(r.get("live_subs") for r in self.rows))
 
 
 if __name__ == "__main__":

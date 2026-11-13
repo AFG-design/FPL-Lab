@@ -70,10 +70,11 @@ test('normal XI and Bench Boost scoring are unchanged', () => {
   f.D.live.chip = 'bboost'; assert.equal(f.state().total, 31); assert.equal(f.state().subs.length, 0);
 });
 
-test('Rivals uses shared own live total and labels opponents without auto-subs', () => {
+test('Rivals uses shared own live total and says every row includes auto-subs (FL-153)', () => {
   const f = setup();
   f.D.crowd = { gw: 11, in_play: true, top10k: { eo: {}, own: {}, cap: {}, n: 1 }, leagues: [{ id: 1, size: 1, rows: [{ me: true, player: 'Me', team: 'Team', live: 999 }] }] };
   const html = f.run('vRivals()');
   assert.match(html, /lg-best" title="Before the −4 hit: 18 after it">22 <small class="muted">−4<\/small><\/td>/);   // FL-078: before hits assert.doesNotMatch(html, />999</);
-  assert.match(html, /Your live points include confirmed auto-subs/);
+  assert.match(html, /Live points include automatic substitutions once a starter's matches are over/);
+  assert.doesNotMatch(html, /rivals' live points exclude/);
 });
