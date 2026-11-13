@@ -515,6 +515,9 @@ if __name__ == "__main__":
     flag_path = args.status_log or "history/status.json"
     flag_log = status_log if status_log is not None else (json.load(open(flag_path)) if os.path.exists(flag_path) else None)
     ctx = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    # FL-115: the European weeks the live build cuts (europe.json), so the backtest scores the model as it runs
+    from fplmodel import europe_dates, euro_weeks
+    ctx["congestion"] = euro_weeks(fixtures, europe_dates(os.path.join(os.path.dirname(os.path.abspath(__file__)), "europe.json"), boot["teams"]))
     # FL-068: with the status log, FPL's notes as they stood at each deadline (history/news.json) too, so the minutes
     # history skips only weeks known to be absences then (fplmodel.known_out). Missing: said, and the status log alone
     # is used. Without --status-log the model knows of no injuries at all (no flags, no weeks out).

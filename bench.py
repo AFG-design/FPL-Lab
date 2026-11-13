@@ -25,7 +25,7 @@ that helps or hurts them is visible. It is reported only; the decision metrics a
 import json, math, os, random, sys
 from collections import defaultdict
 
-from fplmodel import prepare, project, POS
+from fplmodel import prepare, project, POS, europe_dates, euro_weeks
 import archive, selling
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -177,6 +177,8 @@ def current_ctx():
     except Exception:
         status_log = None
     _CUR["ctx"] = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    # FL-115: the European weeks the live build cuts (europe.json), so the bench tests the model as it runs
+    _CUR["ctx"]["congestion"] = euro_weeks(fixtures, europe_dates(os.path.join(HERE, "europe.json"), boot["teams"]))
     try:   # FPL's notes as they stood at each deadline, for the honest weeks-out rebuild (fplmodel.known_out, FL-068)
         _CUR["ctx"]["news_log"] = json.load(open(os.path.join(HERE, "history", "news.json")))
     except FileNotFoundError:
@@ -217,6 +219,9 @@ def _season(season):
             print(f"[{season}] with betting odds for {len(market['matches'])} of {market['fixtures']} fixtures")
         ctx = prepare(boot, fixtures, live, priors, market)
         ctx["sell"] = selling.from_archive(season)   # pre-deadline transfer counts for xmins_sell
+        # FL-115: past European weeks (europe_hist.json, openfootball). A season or club with no dates gets no cut.
+        ctx["congestion"] = euro_weeks(fixtures, europe_dates(os.path.join(HERE, "europe_hist.json"), boot["teams"], season))
+        print(f"[{season}] European weeks: {len(ctx['congestion'])} club-gameweeks")
         # credit each gameweek's xG to the club the player was at then
         tgx = defaultdict(lambda: defaultdict(float))
         for pid, gs in ctx["pstats"].items():

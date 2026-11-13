@@ -67,6 +67,10 @@ DEFAULTS = {
     "doubt_abs": True,     # a 'd' <=75% flag at a gameweek's deadline explains a regular's non-start that week
                            # (doubtful_absences); False = old behaviour. Split from late_abs for FL-031's one-at-a-time test
     "news_abs": True,      # count a cleared-news 0-minute week as an absence (news_absences); False = old behaviour
+    "eu_cut": 0.93,        # FL-115: a starter's start chance in a league game within the European window (euro_window:
+                           # 2 days before to 3 after a European match, not the same day); 70% of the rested starts come
+                           # off the bench. 1.0 = no cut. The weeks come from ctx["congestion"] (build.py: europe.json;
+                           # bench/backtest: europe_hist.json and europe.json). No European data = no cut, said in meta.
     "start_prior": 0.0,    # pseudo-games of last season's start rate (priors.json), for players with little history
     "xmins": True,         # start chance / minutes from the external XGBoost model in xmins.py instead of the weighted
                            # counts below; availability, Europe and the return ramp still apply on top. bench.py vs counts:
@@ -86,6 +90,53 @@ DEFAULTS = {
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
 
+
+
+def euro_window(kickoff_date, euro_dates):
+    """FL-115: a league fixture counts as a European week when it is from 2 days before to 3 days after a European match,
+    but not on the same day. One rule for build.py (europe.json), backtest.py and bench.py (europe_hist.json)."""
+    return [d for d in euro_dates if -2 <= (kickoff_date - d).days <= 3 and (kickoff_date - d).days != 0]
+
+
+def europe_dates(path, teams, season=None):
+    """FL-115: {team id: [dates]} for the European window, for backtests and the bench.
+    season None: this season from europe.json as build.py reads it (a competition marked "confirmed": false skipped).
+    season "2024-25" etc.: europe_hist.json (tools/europe_hist.py, openfootball, every stage as played).
+    teams: [{"id", "short_name"}]. Missing file -> {} (no cut, and the caller says so); a club short name the season's
+    teams don't have is skipped (promoted/relegated sides). Unreadable file raises."""
+    import datetime as _dt, json as _json, os as _os
+    if not _os.path.exists(path):
+        return {}
+    short = {t["short_name"]: t["id"] for t in teams}
+    d = _json.load(open(path))
+    out = {}
+    if season is None:
+        for comp, c in d["competitions"].items():
+            if c.get("confirmed") is False:
+                continue
+            for s in c["teams"]:
+                if s in short:
+                    out.setdefault(short[s], []).extend(_dt.date.fromisoformat(x) for x in c["dates"])
+    else:
+        for s, comps in d["seasons"].get(season, {}).items():
+            if s in short:
+                out[short[s]] = [_dt.date.fromisoformat(x) for v in comps.values() for x in v]
+    return out
+
+
+def euro_weeks(fixtures, team_dates):
+    """{(team id, gameweek)} for every fixture in a European window. team_dates: {team id: [datetime.date]}.
+    A fixture with no gameweek or kick-off time is skipped (it can't be placed)."""
+    import datetime as _dt
+    out = set()
+    for f in fixtures:
+        if not f.get("event") or not f.get("kickoff_time"):
+            continue
+        kd = _dt.date.fromisoformat(f["kickoff_time"][:10])
+        for t in (f["team_h"], f["team_a"]):
+            if team_dates.get(t) and euro_window(kd, team_dates[t]):
+                out.add((t, f["event"]))
+    return out
 
 def poisson(k, mu):
     return math.exp(-mu) * mu ** k / math.factorial(k)
@@ -870,7 +921,7 @@ def project(ctx, as_of, horizon=6, params=None):
                 av = 0.0 if k == 0 else availability_info({"status": st, "chance_of_playing_next_round": ch}, k, ko, "unknown", today)[0]
             comp = defaultdict(float)
             sim_pts = sim_app = None
-            cong = ctx.get("congestion", {}).get((tid, g), 1.0)
+            cong = P["eu_cut"] if (tid, g) in ctx.get("congestion", ()) else 1.0
             if returning:  # managers ease players back in: fewer starts, more bench appearances
                 ramp = P["return_ramp"]
                 j = k - (1 if still_out else 0)

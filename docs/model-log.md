@@ -4,6 +4,25 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-115: European rotation cut tested; kept at 0.93 (no model change; Don't adopt the alternatives)
+
+- The cut (a starter's start chance x0.93 in a league game from 2 days before to 3 after a European match; 70% of the
+  rested starts come off the bench) had never been tested: backtest.py and bench.py never built the European weeks,
+  so every past figure ran without it. Now both do (europe.json this season; europe_hist.json, from openfootball's
+  public-domain fixture lists, for 2024/25 all three competitions and 2025/26 the Champions League only: its Europa
+  and Conference League files aren't published). It is a setting, eu_cut (0.93 = live, unchanged: the same GW11
+  projection to 0.0 xP for all 672 players).
+- Measured (tools/europe_check.py): regulars' start rate in the window / outside it 0.980 [0.901, 1.055] (2024/25),
+  1.034 [0.969, 1.102] (2025/26), 0.969 [0.890, 1.042] (this season to GW10). Barely any fewer starts.
+- Bench, candidate v 0.93, 5-GW picks (deciding) and anything else with its CI wholly below zero:
+  - 1.0 (no cut): 2024/25 -0.10 [-0.17, -0.03]; 2025/26 +0.03 [-0.06, +0.14] with top-5 -0.21 [-0.42, -0.05].
+  - 0.98 (the measured rate): 2024/25 -0.09 [-0.16, -0.03]; 2025/26 +0.01 [-0.07, +0.10] with top-5 -0.14 [-0.30, -0.00].
+  - 0.85: 2024/25 -0.01 [-0.12, +0.10]; 2025/26 +0.01 [-0.07, +0.09]; this season -0.28 [-0.57, -0.03] (4 origins).
+- So the cut earns its place on picks although starts barely fall: it marks down players at European clubs in weeks
+  they disappoint for other reasons (tired legs, early subs), which the start rate doesn't see. Weaker is worse,
+  stronger no better. Decision: keep 0.93; removing or retuning → Don't adopt. Bench figures from now on include
+  the cut, so they differ slightly from older entries. Re-run tools/europe_check.py and the bench at season end.
+
 ## 13 Nov 2026 — FL-053: double gameweeks diagnosed (no model change; Don't adopt)
 
 - The 1 Nov check found double-gameweek players under-projected (xP 4.64 v 4.84 real in 2025/26, 4.44 v 5.00 in
