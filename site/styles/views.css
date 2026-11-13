@@ -131,6 +131,30 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
   .more-f { display: none; }
   .more-f.open { display: contents; }
 }
+
+/* FL-156: player details beside the table, from 1280px wide (players.js SIDE_MIN) */
+.pl-split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.pl-side { position: sticky; top: 108px; max-height: calc(100vh - 124px); overflow: auto; padding: 16px; }
+.pl-side .bar { margin-bottom: 4px; }
+.pl-side h3 { font-size: var(--fs-lg); }
+.pls-stats { grid-template-columns: 1fr 1fr; }
+.pls-h { margin: 14px 0 6px; font-size: var(--fs-sm); color: var(--muted); font-weight: 600; }
+.pls-fx { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pls-fx li { display: flex; align-items: center; gap: 8px; }
+.pls-fx li b { margin-left: auto; }
+.pls-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 0; }
+.pls-kv div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 3px 0; }
+.pls-kv dt { color: var(--muted); font-size: var(--fs-sm); }
+.pls-kv dd { margin: 0; font-weight: 600; }
+.pls-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+tr.sel td { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+tr.sel td.sticky-col { background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+
+@media (max-width: 1279px) {
+  .pl-split { display: block; }
+  .pl-side { display: none; }
+}
+
 .pv-manage { position: relative; }
 .pv-manage summary { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); cursor: pointer; }
 .pv-menu {

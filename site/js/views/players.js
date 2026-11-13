@@ -140,6 +140,50 @@ function presetApply(key) {
   S.presetAsk = null;
 }
 S.presetAsk = null;
+/* ---------- player details beside the table (FL-156 idea 26) ----------
+   From the Players table only, on screens at least SIDE_MIN px wide (room for the sidebar, a practical table and the
+   panel); narrower screens and every other screen keep the full player sheet (openPlayer) as before. Everything here
+   comes from the main data file, so it opens at once; "Full details" opens the sheet, which loads the detail file with
+   its own loading and retry. Missing or ambiguous: a player who has left the data closes the panel; no fixture in a
+   gameweek shows the blank chip; no start chance shows "–"; flags show FPL's chance ("!" when none is given). */
+const SIDE_MIN = 1280;
+const sideWide = () => typeof matchMedia === "function" && matchMedia(`(min-width: ${SIDE_MIN}px)`).matches;
+S.side = null;
+// his place among his position by xP over the forecast period, said in full so the number can't be misread
+function sideRank(p) {
+  const same = D.players.filter(x => x.pos === p.pos && x.ok !== false), mine = fcTot(p).sum;
+  return { n: same.filter(x => fcTot(x).sum > mine).length + 1, of: same.length };
+}
+function playerSide(id) {
+  const p = P[id]; if (!p) return "";
+  const g = D.meta.next_gw, gws = fcGws(), sq = D.squad.find(s => s.id === id), rk = sideRank(p);
+  const flagTxt = p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${fplChance(p.chance)}</span> <span class="note">${esc(p.news || "Flagged, no news given")}</span>` : '<span class="note">Available</span>';
+  const fx = gws.map(x => { const f = fxFor(p.team, x);
+    return `<li><span class="muted">GW${x}</span>${f.length ? f.map(y => fdrChip(y, { gw: x, size: "xs" })).join("") : blankChip(x)}<b>${xpCell(id, x)}</b></li>`; }).join("");
+  const ps = p.p_start != null ? `${Math.round(p.p_start * 100)}%` : "–";
+  const row = (l, v, t) => `<div><dt>${t ? term(t, l) : l}</dt><dd>${v}</dd></div>`;
+  return `<aside class="panel pl-side" aria-labelledby="sideTitle" id="plSide">
+    <div class="bar"><h3 id="sideTitle" tabindex="-1">${esc(p.full || p.name)}</h3><button type="button" class="btn icon-only" data-side-close="1" aria-label="Close player details">×</button></div>
+    <p class="note" style="margin-top:0">${esc(T[p.team]?.name || "")} · ${p.pos} · ${money(p.price)}${sq ? ` · you sell at ${money(sq.sell)}` : ""}${MINE.has(id) ? ' · <span class="tag">In your squad</span>' : ""}</p>
+    <p style="margin:4px 0 10px">${flagTxt}</p>
+    <dl class="ph-stats pls-stats">
+      ${statBadge(`xP ${fcLabel()}`, fcTxt(p), { sub: `#${rk.n} of ${rk.of} ${p.pos}s on this`, tone: "accent" })}
+      ${statBadge(`xP GW${g}`, xpCell(id, g), { sub: fxText(p, g) })}
+      ${statBadge("Nailed", String(p.nailed ?? "–"), { sub: "0–100: sure to start and play most of it" })}
+      ${statBadge("Expected minutes", String(p.xmin ?? "–"), { sub: `GW${g} · start chance ${ps}` })}
+    </dl>
+    <h4 class="pls-h">Fixtures, ${fcLabel()}</h4><ol class="pls-fx">${fx}</ol>
+    <h4 class="pls-h">Season</h4>
+    <dl class="pls-kv">${row("Form", f1(p.form))}${row("Points", p.pts)}${row("xG, xA", `${(p.xg ?? 0).toFixed(1)}, ${(p.xa ?? 0).toFixed(1)}`)}${row("xGI/90 L4", (p.xgi90_4 ?? 0).toFixed(2), "xgi")}${row("Owned", `${(p.own ?? 0).toFixed(1)}%`)}${p.price_proj?.[0] != null ? row("Price change", `${p.price_proj[0] < 0 ? "fall" : "rise"}, ${Math.abs(p.price_proj[0]).toFixed(0)}% of the way`) : ""}</dl>
+    <div class="pls-acts">
+      <button type="button" class="btn ${isStarred(id) ? "primary" : ""}" data-side-star="${id}" aria-pressed="${isStarred(id)}">${isStarred(id) ? "★ Watchlist" : "☆ Watchlist"}</button>
+      <button type="button" class="btn" data-side-cmp="${id}">${S.cmp.includes(id) ? "Comparing ✓" : "Compare"}</button>
+      ${MINE.has(id) ? `<button type="button" class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}
+      <button type="button" class="btn" data-p="${id}">Full details</button>
+    </div>
+    <p class="note">xP ${fcLabel()} follows the forecast period above the table. Full details has the projection breakdown, shot map, points history and news.</p>
+  </aside>`;
+}
 // Columns picker rows: shown columns first, in their order, each with move left / right; then the hidden ones
 function colPickRows(on) {
   const shown = colsOn(), lab = k => colLabel(k, COLS.find(c => c[0] === k)[1]);
@@ -197,11 +241,13 @@ function vPlayers() {
   const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.minnail, S.minxmin, S.fxtop, S.q].filter(Boolean).length;
   const head = `<th class="sort sticky-col" data-sort="name" ${S.sort === "name" ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>Player${S.sort === "name" ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>` +
     cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], colLabel(k, l)) : colLabel(k, l)}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
-  const body = shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
+  if (S.side && !P[S.side]) S.side = null;
+  const side = S.side && sideWide();
+  const body = shown.map(p => `<tr class="${[MINE.has(p.id) ? "mine" : "", side && S.side === p.id ? "sel" : ""].join(" ").trim()}">
       <td class="sticky-col"><span class="pcell"><label class="cmp-hit"><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}"></label>
-        <button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${fplChance(p.chance)}</span>` : ""}${playerTags(p, 2)}</span></td>
+        <button data-pside="${p.id}" ${S.side === p.id && side ? 'aria-expanded="true" ' : ""}class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${fplChance(p.chance)}</span>` : ""}${playerTags(p, 2)}</span></td>
       ${cols.map(([k, , n]) => `<td class="${n ? "n" : ""}">${cell[k](p)}</td>`).join("")}</tr>`).join("");
-  return `<div class="panel explorer${S.pdens === "comfy" ? " dens-comfy" : ""}">
+  const main = `<div class="panel explorer${S.pdens === "comfy" ? " dens-comfy" : ""}">
     <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
     ${pvBar()}
     <div class="filters presets" role="group" aria-label="Quick presets"><span class="pv-lbl">Presets</span>${Object.entries(PRESETS).map(([k, p]) => `<button class="btn preset-btn" type="button" data-preset="${k}" aria-pressed="${S.presetAsk === k}">${p.name}</button>`).join("")}
@@ -230,6 +276,7 @@ function vPlayers() {
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
       : stateView({ title: "No players match", body: "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-fclear="1">Clear filters</button>` })}
     <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. xP ${fcLabel()} = projected points over the forecast period you pick above (blank gameweeks count 0; * = some gameweeks have no projection yet, left out); xP next = GW${D.meta.next_gw} only. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${nextPriceUpdate() ? ` (${priceUpdateTxt(nextPriceUpdate())})` : ""}.</p></div>`;
+  return side ? `<div class="pl-split">${main}${playerSide(S.side)}</div>` : main;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";
