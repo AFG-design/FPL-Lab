@@ -17,10 +17,13 @@ class SchoolRelay(unittest.TestCase):
             validate.check_school({"school": sc} if sc is not None else {}, w)
             self.assertEqual(w, [])
 
-    def test_config_file_ships_empty(self):
+    def test_config_file_is_unset_or_https(self):
+        # the file ships empty and Ade fills in his Worker's address (docs/fpl-school-relay.md); either way it must be
+        # an https:// address or nothing, or the tab ignores it
         import json
         from pathlib import Path
-        self.assertEqual(json.load(open(Path(__file__).resolve().parent.parent / "fpl_school.json")), {"relay": ""})
+        relay = json.load(open(Path(__file__).resolve().parent.parent / "fpl_school.json")).get("relay")
+        self.assertTrue(relay == "" or relay.startswith("https://"), relay)
 
 
 if __name__ == "__main__":
