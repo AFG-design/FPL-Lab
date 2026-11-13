@@ -27,7 +27,7 @@ function schoolInfo(id) {
   return o ? { name: o[1], pos: o[2], team: o[3], price: o[4], xp: {}, projected: false } : null;
 }
 // best XI + captain for one gameweek from these players, by FPL's formation rules (as tools' and rating.js's best XI)
-function schoolBestPts(ids, g, info) {
+function schoolXI(ids, g, info) {
   const xp = i => info[i]?.xp[g] || 0, pos = i => info[i].pos;
   const order = ids.filter(i => info[i]).sort((a, b) => xp(b) - xp(a));
   const xi = [], cnt = { GKP: 0, DEF: 0, MID: 0, FWD: 0 };
@@ -39,8 +39,10 @@ function schoolBestPts(ids, g, info) {
   };
   Object.keys(SCHOOL_MIN).forEach(p => order.filter(i => pos(i) === p).forEach(i => { if (cnt[p] < SCHOOL_MIN[p]) add(i); }));
   order.forEach(add);
-  return xi.reduce((a, i) => a + xp(i), 0) + (xi.length ? Math.max(...xi.map(xp)) : 0);
+  const cap = xi.length ? xi.reduce((a, i) => (xp(i) > xp(a) ? i : a), xi[0]) : null;
+  return { xi, cap, bench: ids.filter(i => info[i] && !xi.includes(i)), pts: xi.reduce((a, i) => a + xp(i), 0) + (cap != null ? xp(cap) : 0) };
 }
+const schoolBestPts = (ids, g, info) => schoolXI(ids, g, info).pts;
 async function schoolGet(path) {
   let r;
   try { r = await fetch(D.school.relay.replace(/\/$/, "") + path, { cache: "no-store" }); }
@@ -78,7 +80,8 @@ function schoolReview(teamId, entry, picks) {
     gw: picks.entry_history?.event || entry.current_event, gws, mine, field, best: null, bestNote: "working",
     budget, bank, move, notProjected: ids.filter(i => !info[i].projected).map(i => info[i].name),
     card: schoolCard(entry, picks), squad: schoolSquad(picks),
-    unprojected: Object.fromEntries(ids.filter(i => !info[i].projected).map(i => [i, { name: info[i].name, pos: info[i].pos, team: info[i].team }])) };
+    unprojected: Object.fromEntries(ids.filter(i => !info[i].projected).map(i => [i, { name: info[i].name, pos: info[i].pos, team: info[i].team }])),
+    lineup: schoolLineup(ids, gws[0], info, schoolSquad(picks)) };
 }
 const SCHOOL_CHIP = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain", manager: "Assistant Manager" };
 // the manager card's facts, each only when FPL sent it (finite numbers, non-empty text)
@@ -125,7 +128,7 @@ async function schoolBest(r) {
   }
 }
 async function schoolRun(id) {
-  SCHOOL.id = String(id); SCHOOL.err = ""; SCHOOL.res = null; SCHOOL.busy = true; SCHOOL.msg = "Fetching the team…"; render();
+  SCHOOL.id = String(id); SCHOOL.err = ""; SCHOOL.res = null; SHARE.msg = ""; SCHOOL.busy = true; SCHOOL.msg = "Fetching the team…"; render();
   try {
     const entry = await schoolGet(`/entry/${id}/`);
     if (!entry) throw new Error(`FPL has no team ${id}.`);
@@ -178,6 +181,116 @@ function schoolPitch(r) {
   });
 }
 
+/* ---------- share card (FL-014): the review as a PNG, for a thumbnail, post or chat ---------- */
+// Drawn on a canvas from the review itself (no screenshot of the page): FPL's shirt images come from another site and
+// would block saving, so the card uses names, positions and numbers only. Same figures as the tab, never re-worked:
+// their team as picked with the first rating week's xP (the tab's pitch), or the best XI from their 15 when the picks
+// are malformed, the rating once the best 15 is known,
+// the squad's projected points, the top-10k average and the one move. Missing pieces are left off the card, never
+// filled in: no rating yet (best 15 still working) -> no buttons; no top-10k figure -> no line for it; no move ->
+// "Keep the squad"; a player with no projection -> shown with "–" (counted as 0, as the tab says).
+// their XI, captain and bench as they picked them (schoolSquad, the same team the tab's pitch shows); when FPL's
+// picks don't list positions 1-15 (no pitch on the tab either), the best XI from their 15 by xP instead, and the card
+// says which it is
+function schoolLineup(ids, g, info, squad = null) {
+  const t = squad ? { xi: squad.xi, bench: squad.bench, cap: squad.cap } : schoolXI(ids, g, info);
+  const row = i => ({ name: info[i].name, pos: info[i].pos, xp: info[i].projected ? (info[i].xp[g] || 0) : null, cap: i === t.cap });
+  return { gw: g, picked: !!squad, xi: t.xi.filter(i => info[i]).map(row), bench: t.bench.filter(i => info[i]).map(row) };
+}
+function shareCardData(r) {
+  const score = schoolScore(r);
+  if (score == null || r.bestNote === "working") return null;
+  const m = r.move, span = `GW${r.gws[0]}–${r.gws[r.gws.length - 1]}`;
+  const lines = { GKP: [], DEF: [], MID: [], FWD: [] };
+  (r.lineup?.xi || []).forEach(p => lines[p.pos]?.push(p));
+  return {
+    title: r.team || `Team ${r.teamId}`, manager: r.manager || "", gw: r.lineup?.gw ?? r.gws[0], span, pickedGw: r.gw,
+    picked: !!r.lineup?.picked,
+    score, word: ratingWord(score), mine: f1(r.mine),
+    field: r.field != null ? `${f1(Math.abs(r.mine - r.field))} ${r.mine >= r.field ? "ahead of" : "behind"} the top-10k average (${f1(r.field)})` : null,
+    best: r.best != null ? `Best 15 for ${money(r.budget)}: ${f1(r.best)}` : null,
+    move: m ? { out: m.outInfo.name, in: m.inInfo.name, gain: sgn(m.gain) } : null,
+    rows: ["GKP", "DEF", "MID", "FWD"].map(k => lines[k]), bench: (r.lineup?.bench || []).map(p => p.name),
+  };
+}
+const SC_W = 1200, SC_H = 675;
+function drawShareCard(cv, d) {
+  cv.width = SC_W; cv.height = SC_H;
+  const x = cv.getContext("2d"), disp = '"Barlow Condensed", "Arial Narrow", sans-serif', body = 'Inter, system-ui, sans-serif';
+  const fit = (txt, max, font) => { x.font = font; let t = String(txt); while (t.length > 1 && x.measureText(t).width > max) t = t.slice(0, -2) + "…"; return t; };
+  const rr = (X, Y, w, h, r) => { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); };
+  // pitch, left
+  const PW = 700;
+  const g = x.createLinearGradient(0, 0, 0, SC_H); g.addColorStop(0, "#1f7a46"); g.addColorStop(1, "#155c34");
+  x.fillStyle = g; x.fillRect(0, 0, PW, SC_H);
+  x.strokeStyle = "rgba(255,255,255,.22)"; x.lineWidth = 3; x.strokeRect(24, 24, PW - 48, SC_H - 118);
+  x.beginPath(); x.moveTo(24, (SC_H - 94) / 2 + 12); x.lineTo(PW - 24, (SC_H - 94) / 2 + 12); x.stroke();
+  x.beginPath(); x.arc(PW / 2, (SC_H - 94) / 2 + 12, 58, 0, 2 * Math.PI); x.stroke();
+  const top = 44, rowH = (SC_H - 160) / 4;
+  d.rows.forEach((line, k) => {
+    const cw = Math.min(124, (PW - 60) / Math.max(line.length, 1) - 10), cy = top + k * rowH;
+    line.forEach((p, j) => {
+      const cx = PW / 2 + (j - (line.length - 1) / 2) * (cw + 10) - cw / 2;
+      x.fillStyle = "#ffffff"; rr(cx, cy, cw, 70, 10); x.fill();
+      x.fillStyle = "#14181c"; x.textAlign = "center"; x.textBaseline = "alphabetic";
+      x.fillText(fit(p.name, cw - 12, `600 17px ${body}`), cx + cw / 2, cy + 28);
+      x.font = `700 26px ${disp}`; x.fillStyle = "#14181c";
+      x.fillText(p.xp == null ? "–" : f1(p.xp), cx + cw / 2, cy + 58);
+      if (p.cap) { x.fillStyle = "#f5c518"; x.beginPath(); x.arc(cx + cw - 12, cy + 12, 12, 0, 2 * Math.PI); x.fill(); x.fillStyle = "#14181c"; x.font = `700 15px ${body}`; x.fillText("C", cx + cw - 12, cy + 17); }
+    });
+  });
+  x.textAlign = "left"; x.fillStyle = "rgba(255,255,255,.92)";
+  x.fillText(fit(`Bench: ${d.bench.join(", ")}`, PW - 48, `500 16px ${body}`), 24, SC_H - 46);
+  x.fillStyle = "rgba(255,255,255,.75)";
+  x.fillText(d.picked ? `Their GW${d.pickedGw} team as picked · GW${d.gw} projected points (xP) · C captain`
+    : `GW${d.gw} best XI from their 15 · projected points (xP) · C captain`, 24, SC_H - 20);
+  // panel, right
+  const X0 = PW + 40, MW = SC_W - X0 - 40;
+  x.fillStyle = "#11161b"; x.fillRect(PW, 0, SC_W - PW, SC_H);
+  x.fillStyle = "#8fd3a8"; x.font = `700 22px ${disp}`; x.fillText("FPL SCHOOL · TEAM REVIEW", X0, 58);
+  x.fillStyle = "#ffffff"; x.fillText(fit(d.title.toUpperCase(), MW, `700 44px ${disp}`), X0, 106);
+  x.fillStyle = "#b9c2cb"; x.fillText(fit(d.manager, MW, `500 18px ${body}`), X0, 134);
+  x.fillStyle = "#ffffff"; x.font = `700 120px ${disp}`; x.fillText(String(d.score), X0, 260);
+  const sw = x.measureText(String(d.score)).width;
+  x.fillStyle = "#b9c2cb"; x.font = `700 34px ${disp}`; x.fillText("/100", X0 + sw + 8, 260);
+  x.fillStyle = "#ffffff"; x.font = `700 30px ${disp}`; x.fillText(d.word.toUpperCase(), X0, 300);
+  x.fillStyle = "#d7dde3";
+  let y = 346;
+  [`Their squad: ${d.mine} xP over ${d.span}, no transfers`, d.field, d.best].filter(Boolean).forEach(t => { x.fillText(fit(t, MW, `500 18px ${body}`), X0, y); y += 28; });
+  y += 16;
+  x.fillStyle = "#8fd3a8"; x.font = `700 22px ${disp}`; x.fillText("ONE MOVE", X0, y); y += 36;
+  x.fillStyle = "#ffffff";
+  if (d.move) {
+    x.fillText(fit(`${d.move.out} → ${d.move.in}`, MW, `700 26px ${body}`), X0, y); y += 32;
+    x.fillStyle = "#8fd3a8"; x.fillText(`${d.move.gain} xP over ${d.span}`, X0, y);
+  } else x.fillText("Keep the squad", X0, y, MW);
+  x.fillStyle = "#7f8b96"; x.font = `500 14px ${body}`;
+  x.fillText("FPL LAB · projections, not guarantees", X0, SC_H - 24);
+  return cv;
+}
+const SHARE = { msg: "" };
+async function schoolShare(kind) {
+  const d = SCHOOL.res && shareCardData(SCHOOL.res);
+  if (!d) return;
+  try { await document.fonts?.ready; } catch (e) { /* fonts not ready: the system fallback is drawn */ }
+  const cv = drawShareCard(document.createElement("canvas"), d);
+  const blob = await new Promise(res => cv.toBlob(res, "image/png"));
+  if (!blob) { SHARE.msg = "The image couldn't be made in this browser."; render(); return; }
+  const name = `fpl-school-${SCHOOL.res.teamId}-gw${d.gw}.png`;
+  if (kind === "copy") {
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") throw new Error("no image clipboard");
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      SHARE.msg = "Image copied.";
+    } catch (e) { SHARE.msg = "This browser won't copy images; use Download image instead."; }
+  } else {
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    SHARE.msg = `Saved ${name}.`;
+  }
+  render();
+}
+
 function vSchool() {
   const relay = D.school?.relay;
   const form = `<form class="filters" id="schoolForm" style="margin:8px 0"><input id="schoolId" inputmode="numeric" pattern="[0-9]*" placeholder="FPL team ID" aria-label="FPL team ID" value="${esc(SCHOOL.id)}" style="max-width:180px" ${relay ? "" : "disabled"}><button class="btn primary" type="submit" ${relay && !SCHOOL.busy ? "" : "disabled"}>${SCHOOL.busy ? "Reviewing…" : "Review"}</button></form>`;
@@ -205,7 +318,9 @@ function vSchool() {
       </div>
       <h3>One move</h3>
       <p class="verdict">${m ? `${esc(m.outInfo.name)} (${money(m.outInfo.price)}) → <b>${esc(m.inInfo.name)}</b> (${money(m.inInfo.price)}): <b class="up">${sgn(m.gain)}</b> projected points over those weeks.` : "No single transfer adds points: keep the squad."}</p>
-      <p class="note">${notes.join("<br>")}</p>`;
+      <p class="note">${notes.join("<br>")}</p>
+      ${score == null ? "" : `<div class="share-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px"><button class="btn" type="button" data-share="download">Download image</button><button class="btn" type="button" data-share="copy">Copy image</button><span class="note" aria-live="polite">${esc(SHARE.msg)}</span></div>
+      <p class="note">A 1200×675 card of this review: ${r.lineup?.picked ? `their GW${r.gw} team as picked, with GW${r.lineup.gw} xP` : `their GW${r.lineup?.gw ?? r.gws[0]} best XI`}, the rating and the one move.</p>`}`;
   }
   return `<div class="panel"><h2>FPL School</h2>${intro}${form}<p class="st-msg" aria-live="polite">${esc(SCHOOL.msg)}</p>${body}</div>`;
 }
