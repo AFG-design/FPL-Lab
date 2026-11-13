@@ -180,11 +180,16 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
              - hit * pulp.lpSum(hits[w] for w in W) + ft_value * ft[len(gws)])
     if floor is not None:
         m += value >= floor
+    LAST_FAIL[0] = None
     status = m.solve(pulp.PULP_CBC_CMD(msg=False, timeLimit=time_limit))
     # CBC can stop at the time limit with or without a plan, and PuLP doesn't always tell the two apart,
     # so anything short of "no solution exists" is read back and re-checked against the rules below.
     if m.sol_status in (pulp.LpSolutionInfeasible, pulp.LpSolutionUnbounded) or m.objective is None:
         print(f"optimise.solve: no usable plan ({pulp.LpStatus[status]}, {pulp.LpSolution.get(m.sol_status)})")
+        # FL-140: why, for strategy_plans' notes. "infeasible": the rules allow no plan (e.g. n moves with no hit);
+        # anything else is the solver failing (no plan found in the time limit)
+        LAST_FAIL[0] = "infeasible" if m.sol_status == pulp.LpSolutionInfeasible else \
+            f"solver found no plan ({pulp.LpSolution.get(m.sol_status, m.sol_status)})"
         return None
     v = lambda x: round(x.value() or 0)
 
@@ -196,6 +201,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
         cap = next((i for i in pool if v(cp[i][w])), None)
         if cap is None:
             print("optimise.solve: no usable plan (no captain in the solution)")
+            LAST_FAIL[0] = "solver returned a plan with no captain"
             return None
         sqd = [i for i in pool if v(sq[i][w])]
         bench = sorted([i for i in sqd if i not in lineup], key=lambda i: (players[i]["pos"] != "GKP", -xp[i, w]))
@@ -208,6 +214,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
     problem = _check(weeks, players, squad, sp, buy, bank, init, locked, banned)
     if problem:
         print(f"optimise.solve: rejected plan ({problem})")
+        LAST_FAIL[0] = f"solver's plan broke a rule ({problem})"
         return None
     optimal = m.sol_status == pulp.LpSolutionOptimal
     if not optimal:
@@ -240,6 +247,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
 # the squad, or it is dropped.
 # Budgets and profit are in VALUE points (plain projected points over the plan, minus hits, plus banked FTs).
 SAFE_BUDGET = 0.0
+LAST_FAIL = [None]   # FL-140: why the last solve() returned None ("infeasible" or what went wrong), for the notes
 SKIPPED = []   # week-1 move counts of the solver runs strategy_plans skipped as repeats (FL-118), for the build log
 CHASE_BUDGET = 2.0
 MIN_PROFIT = 1.0
@@ -356,10 +364,19 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
         notes.append(f"{label}: {r['value'] - v0:+.1f} vs no transfers, below the {MIN_PROFIT:g} profit rule: keep-squad plan used")
         return copy.deepcopy(none)
 
+    def fallback(mode, key):
+        """FL-140: Play safe / Chase rank found no plan of their own: Balanced's plan stands in, said in a note (Health)
+        and on the plan (fallback), never passed off as the strategy's own."""
+        notes.append(f"{mode} {key}: {LAST_FAIL[0] or 'no plan'}; Balanced's plan shown instead")
+        return dict(bal, fallback="balanced")
+
     for key, n in options:
         bal = run(week1_moves=n, max_hits=MAX_HITS["balanced"])
         if not bal:
-            notes.append(f"balanced {key}: needs a hit, and Balanced never takes one: dropped")
+            if LAST_FAIL[0] == "infeasible":
+                notes.append(f"balanced {key}: needs a hit, and Balanced never takes one: dropped")
+            else:   # FL-140: a solver failure isn't a rule; said as one (a warning on Health, not a normal drop)
+                notes.append(f"balanced {key}: {LAST_FAIL[0] or 'no plan'}; option left out")
             continue
         if key == "roll":   # Play safe and Chase rank are then held to their budgets against the plan Balanced shows
             bal = keep_squad(bal, "balanced roll")
@@ -372,10 +389,11 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
                     floor = max(floor, v0 + MIN_PROFIT)   # still a clear profit on doing nothing
                 st = dict(week1_moves=n, eo=eo, eo_weeks=EO_WEEKS or len(gws), floor=floor, **STRATEGY[mode])
                 if MAX_HITS[mode]:
-                    r = hit_rule(run(**st, max_hits=MAX_HITS[mode]) or bal,
-                                 lambda: run(**st, max_hits=0), f"{mode} {key}") or bal
+                    r = run(**st, max_hits=MAX_HITS[mode])
+                    r = hit_rule(r, lambda: run(**st, max_hits=0), f"{mode} {key}") if r else None
                 else:
-                    r = run(**st, max_hits=0) or bal
+                    r = run(**st, max_hits=0)
+                r = r or fallback(mode, key)
             if key == "roll" and mode != "balanced":
                 r = keep_squad(r, f"{mode} roll")
             moves = sum(len(w["in"]) for w in r["weeks"])
@@ -402,6 +420,11 @@ def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes
         if gain < MIN_PROFIT:
             notes.append(f"{k}: {gain:+.1f} vs rolling this week, below the {MIN_PROFIT:g} profit rule: dropped")
             del plans[k]
+    # FL-140: a plan from a solve that stopped at its time limit (CBC "Not Solved" with a plan in hand) is kept, but
+    # said: it is the best found, not proven the best
+    for k, pl in plans.items():
+        if not pl.get("optimal", True):
+            notes.append(f"{k}: the solver stopped at its time limit, so this is the best plan it found, not proven best")
     return plans, notes
 
 
