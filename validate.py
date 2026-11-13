@@ -185,6 +185,12 @@ def check_sources(D, warnings):
         elif cur and cr.get("gw") != cur:
             warnings.append(f"Ownership sample is for GW{cr.get('gw')}, not the current GW{cur}: Play safe, Chase rank, "
                             f"EO and live rank use last week's teams until crowd.py samples this week's")
+        if cr and cr.get("complete") is False:   # FL-082 (None: a sample from before the field existed)
+            warnings.append(f"Ownership sample incomplete: {cr.get('failed')} FPL requests failed, so the top-10k, rank-band "
+                            f"and mini-league samples are smaller than planned; crowd.py retries on its next run")
+        if cr and cr.get("rank_assumed"):
+            warnings.append("Ownership sample: FPL gave no overall rank, so 'managers near your rank' is centred on an "
+                            "assumed 100,000")
 
 
 def is_bad(x):
@@ -890,6 +896,13 @@ def main(path):
         if not ok:
             errors.append(f"{pl.get('name')} ({pl.get('id')}): kept as returning '{why}' but status {pl.get('status')}, "
                           f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
+    # FL-082: make_priors.py writes start_rate; a prior without it uses fplmodel's minutes guess (inert while start_prior
+    # is 0). Warn rather than fail: priors.json built before FL-082 has none until the Monday Priors run.
+    _pp = ((load(os.path.join(HERE, "priors.json")) or {}).get("players") or {})
+    _no_sr = sum(1 for v in _pp.values() if "start_rate" not in v)
+    if _pp and _no_sr:
+        warnings.append(f"priors.json: {_no_sr} of {len(_pp)} priors have no start_rate (built before FL-082, or a season "
+                        f"with no starts); the model's start prior would guess it from minutes (start_prior is off)")
     # FL-113: priors only from the seasons make_priors.py lists in priors.json "seasons" (the two calendar seasons
     # before this one). A file written before that field existed is not checked.
     pri = load(os.path.join(HERE, "priors.json")) or {}

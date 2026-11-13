@@ -46,7 +46,8 @@ function vRivals() {
   const xiOwn = F && t ? t.xi.reduce((a, i) => a + (F.own[i] || 0), 0) / t.xi.length : null;
   const capTop = Object.entries(F?.cap || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const chipTxt = Object.entries(F?.chips || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${({ "3xc": "Triple Captain", bboost: "Bench Boost", freehit: "Free Hit", wildcard: "Wildcard" })[k] || k} ${v.toFixed(0)}%`).join(" · ") || "none";
-  const label = S.field === "near" ? `managers near your rank (${rankFmt(F?.rank_from)}–${rankFmt(F?.rank_to)})` : "the top 10k";
+  // FL-082: FPL gave no overall rank (before your first finished GW), so the band is centred on an assumed 100,000
+  const label = S.field === "near" ? `managers near ${F?.rank_assumed ? "an assumed rank of 100,000 (FPL gave no overall rank)" : "your rank"} (${rankFmt(F?.rank_from)}–${rankFmt(F?.rank_to)})` : "the top 10k";
   const multTxt = m => m === 2 ? `<span class="pill warn">C</span>` : m === 1 ? "XI" : `<span class="muted">—</span>`;
   const tbl = (list, head) => `<div class="tablebox"><table><thead><tr><th>${head}</th><th class="n">${term("xp", "xP")}</th><th class="n">${term("eo", "EO")}</th><th class="n">You</th><th class="n">${term("swing", "Swing")}</th></tr></thead><tbody>${list.map(r => `<tr class="${MINE.has(r.id) ? "mine" : ""}"><td><button data-p="${r.id}" class="pname linkish">${esc(P[r.id].name)}</button> <span class="muted">${T[P[r.id].team].short}</span></td><td class="n">${f1(r.x)}</td><td class="n">${Math.round(r.eo * 100)}%</td><td class="n">${multTxt(r.mine)}</td><td class="n ${r.impact > 0 ? "up" : "down"}">${sgn(r.impact)}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">None</td></tr>`}</tbody></table></div>`;
 

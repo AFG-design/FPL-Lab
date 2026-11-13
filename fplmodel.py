@@ -620,7 +620,9 @@ def project(ctx, as_of, horizon=6, params=None):
                 msub += w * s["minutes"]
         if wsum:
             sp_ = P["start_prior"]
-            # last season's share of the 38 games he'd have started, judged from his minutes
+            # last seasons' share of the 38 games he started (make_priors.py start_rate). A prior without it (built
+            # before FL-082, or a season with no starts field) falls back to a guess from minutes (38 x 85 = 3230);
+            # validate.py warns how many priors lack it. start_prior is 0 (off) by default, so this is inert live.
             prs = (pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230)) if pr else None) if sp_ else None
             p_start = (st + sp_ * prs) / (wsum + sp_) if prs is not None else st / wsum
             p_sub = sub / wsum
