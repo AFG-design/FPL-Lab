@@ -791,7 +791,9 @@ def project(ctx, as_of, horizon=6, params=None):
             # The price-band guess replaces it at first and fades out over his first 5 registered club games.
             # Price is today's (FPL keeps no price history here); marked assumed for the site while it applies.
             n_reg = sum(1 for g in hist_gws if g in gs)
-            if n_reg < ARRIVAL_GAMES:
+            # only until he first plays: once he has minutes, his own games say more than his price (applied to
+            # players with minutes too, it dragged down promoted clubs' regulars: pool corr 0.444 -> 0.434)
+            if n_reg < ARRIVAL_GAMES and not any(gs[g]["minutes"] for g in hist_gws if g in gs):
                 start_guess = 1 - n_reg / ARRIVAL_GAMES
                 c_ = e["now_cost"]
                 guess = next(v for lim, v in ARRIVAL_START if c_ <= lim)

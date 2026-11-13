@@ -1,7 +1,7 @@
 """FL-030: new signings.
 
 - A player new to the Premier League (no prior: no PL minutes in the last two seasons) gets a start chance from his
-  price band (ARRIVAL_START, fitted on 2022/23-2023/24 arrivals) that fades out over his first 5 registered club games.
+  price band (ARRIVAL_START, fitted on 2022/23-2023/24 arrivals) that fades out over his first 5 registered club games, and only until he first plays.
   With no history the minutes model gave every arrival about 30%, while cheap ones start 7% of their first 5 games.
   The guess is marked assumed for the site (arrival, start_assumed); validate.py checks it.
 - A player who moved within the Premier League keeps his minutes from his old club (weeks his old club played count,
@@ -29,9 +29,12 @@ def ctx_with_arrival(cost):
     e = next(x for x in boot["elements"] if x["element_type"] == 4 and str(x["id"]) in pri["players"] and x["status"] == "a")
     e["now_cost"] = cost
     pri = dict(pri, players={k: v for k, v in pri["players"].items() if k != str(e["id"])})
-    # registered only from GW9: blank his earlier rows
+    # registered only from GW9 and not played yet: blank his earlier rows, zero his GW9-10 minutes
     for g in range(1, 9):
         live[g] = dict(live[g], elements=[x for x in live[g]["elements"] if x["id"] != e["id"]])
+    for g in (9, 10):
+        live[g] = dict(live[g], elements=[dict(x, stats=dict(x["stats"], minutes=0, starts=0)) if x["id"] == e["id"] else x
+                                          for x in live[g]["elements"]])
     nxt = next(ev["id"] for ev in boot["events"] if ev["is_next"])
     return prepare(boot, API["/fixtures/"], live, pri), e["id"], nxt
 
@@ -48,6 +51,11 @@ class Arrival(unittest.TestCase):
         self.assertAlmostEqual(new["start_guess"], 0.6, 6)
         self.assertAlmostEqual(new["p_start"], 0.6 * 0.07 + 0.4 * old["p_start"], 6)
         self.assertEqual(old["start_guess"], 0.0)
+
+    def test_no_guess_once_he_has_played(self):
+        ctx, pid, nxt = ctx_with_arrival(40)
+        ctx["pstats"][pid][10] = dict(ctx["pstats"][pid][10], minutes=90, starts=1)
+        self.assertEqual(project(ctx, nxt, 1, {"sim": 0})["players"][pid]["start_guess"], 0.0)
 
     def test_player_with_a_prior_is_untouched(self):
         boot = API["/bootstrap-static/"]
