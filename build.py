@@ -1749,6 +1749,21 @@ po_ = _load("odds/players.json") or {}
 fo_ = _load("odds/upcoming.json") or {}
 cr_ = _load("crowd/latest.json") or {}
 st_ = _load("history/status.json") or {}
+# ---------------------------------------------------------------- FPL School tab (FL-147)
+# The tab rates any team ID through the relay in fpl_school.json (a Cloudflare Worker, docs/fpl-school-relay.md): FPL
+# doesn't answer other websites' pages, so the site can't fetch a team itself. "others": every player not in
+# data.json's projected list, [id, name, position, club, price], so the tab can name and price a player it has no
+# projection for (counted as 0 xP, and said). Missing / ambiguous: no file, no "relay", or not an https:// address ->
+# relay None, and the tab says it isn't set up (validate.py warns about a value that isn't an https:// address).
+try:
+    _rel = (json.load(open(os.path.join(HERE, "fpl_school.json"))).get("relay") or "").strip()
+except (OSError, ValueError, AttributeError):
+    _rel = ""
+_listed = {p_["id"] for p_ in out["players"]}
+out["school"] = {"relay": _rel if _rel.startswith("https://") else None, "relay_raw": _rel or None,
+                 "others": [[e["id"], e["web_name"], POS[e["element_type"]], e["team"], e["now_cost"] / 10]
+                            for e in elements.values() if e["id"] not in _listed]}
+
 out["sources"] = {
     "fpl": {"built": out["meta"]["built"], "gw": cur_gw, "players": len(elements)},
     "understat": US.get("meta") or None,

@@ -92,6 +92,8 @@ function bind() {
   on("[data-cmpteam]", b => { const v = +b.dataset.cmpteam; S.cmpTeam = S.cmpTeam === v ? null : v; WATCH.msg = ""; render(); });
   on("[data-watchadd]", b => watchEdit(+b.dataset.watchadd, true));
   on("[data-unwatch]", b => { watchEdit(+b.dataset.unwatch, false); S.cmpTeam = null; });
+  // FL-147: FPL School review
+  const scf = $("#schoolForm"); if (scf) scf.onsubmit = e => { e.preventDefault(); const v = $("#schoolId").value.trim(); if (/^\d{1,10}$/.test(v) && !SCHOOL.busy) schoolRun(+v); else if (!SCHOOL.busy) { SCHOOL.err = "A team ID is a number."; SCHOOL.res = null; render(); } };
   const cf = $("#cmpForm"); if (cf) cf.onsubmit = e => { e.preventDefault(); const v = +$("#cmpId").value.trim(); if (v > 0) { S.cmpTeam = v; WATCH.msg = ""; render(); } };
   const ls = $("#leagueSel"); if (ls) ls.onchange = e => { S.league = +e.target.value; S.rival = null; render(); };
   on("[data-plan]", b => { const k = b.dataset.plan; useModelPlan(k, k.includes("_") ? k.split("_")[0] : "balanced"); render(); });
