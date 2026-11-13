@@ -178,7 +178,7 @@ function playerSide(id) {
     <div class="pls-acts">
       <button type="button" class="btn ${isStarred(id) ? "primary" : ""}" data-side-star="${id}" aria-pressed="${isStarred(id)}">${isStarred(id) ? "★ Watchlist" : "☆ Watchlist"}</button>
       <button type="button" class="btn" data-side-cmp="${id}">${S.cmp.includes(id) ? "Comparing ✓" : "Compare"}</button>
-      ${MINE.has(id) ? `<button type="button" class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}
+      ${MINE.has(id) ? `<button type="button" class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : `<button type="button" class="btn primary" data-try="${id}">Try in my plan</button>`}
       <button type="button" class="btn" data-p="${id}">Full details</button>
     </div>
     <p class="note">xP ${fcLabel()} follows the forecast period above the table. Full details has the projection breakdown, shot map, points history and news.</p>

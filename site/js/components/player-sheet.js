@@ -144,7 +144,7 @@ function openPlayer(id) {
         ${tile("Top-3 BPS L6", `${p.bf6.top3}/${p.bf6.apps}`)}</div></details>` : ""}
     </section>
 
-    <div class="ph-acts"><button class="btn ${isStarred(id) ? "primary" : ""}" id="dlgStar" aria-pressed="${isStarred(id)}">${isStarred(id) ? "★ On your watchlist" : "☆ Add to watchlist"}</button>${MINE.has(id) ? `<button class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : ""}
+    <div class="ph-acts"><button class="btn ${isStarred(id) ? "primary" : ""}" id="dlgStar" aria-pressed="${isStarred(id)}">${isStarred(id) ? "★ On your watchlist" : "☆ Add to watchlist"}</button>${MINE.has(id) ? `<button class="btn primary" data-plan-replace="${id}">Plan a replacement</button>` : `<button class="btn primary" data-try="${id}">Try in my plan</button>`}
       <button class="btn" id="dlgCmp">${S.cmp.includes(id) ? "In comparison ✓" : "Compare"}</button>
       <button class="btn" id="dlgLock">${SB.rules.locked.includes(id) ? "Unlock in plans" : "Lock in plans"}</button>
       <button class="btn" id="dlgBan">${SB.rules.banned.includes(id) ? "Allow in plans" : "Never pick in plans"}</button></div>`;
@@ -158,6 +158,95 @@ function openPlayer(id) {
   $("#dlgLock").onclick = () => { SB.rules.locked = SB.rules.locked.includes(id) ? SB.rules.locked.filter(x => x !== id) : [...SB.rules.locked, id]; SB.rules.banned = SB.rules.banned.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
   $("#dlgBan").onclick = () => { SB.rules.banned = SB.rules.banned.includes(id) ? SB.rules.banned.filter(x => x !== id) : [...SB.rules.banned, id]; SB.rules.locked = SB.rules.locked.filter(x => x !== id); saveSandbox(); dlg.close(); render(); };
   const pr = $("[data-plan-replace]"); if (pr) pr.onclick = () => { dlg.close(); SB.sel = id; SB.gw = PG[0]; SB.q = ""; S.pview = "edit"; setView("planner"); };
+  const tb = $("#dlgBody [data-try]"); if (tb) tb.onclick = () => openTry(id);
+}
+
+/* ---------- Try in my plan (FL-156 idea 7) ----------
+   For a player you don't own: a preview of signing him in your current plan (the one the Planner shows, a saved path
+   you're editing included), then Apply through the Planner's own edit and undo. The preview works on a copy of the
+   plan and never changes it; Cancel or closing leaves the plan, saved paths and undo as they were. Scored with the
+   Planner's own functions on that copy (scoreMoves, ftTable, bankAt, squadAt, cleanMoves), with your chip pins, so the
+   figures are the ones the Planner shows after Apply. Choices: the gameweek (the plan's weeks) and who goes out (same
+   position, in that week's squad with its planned moves, affordable: bank that week plus his selling price, and at
+   most 3 from a club). Missing or ambiguous, said rather than guessed: he's already in that week's squad; no one in the
+   position can afford him or the club limit blocks it (says which); a later planned move that the new one makes
+   impossible (e.g. it sells the same player) is listed and dropped on Apply; FPL lists him as unavailable (said, but
+   allowed, as in the Planner). */
+const TRY = { id: null, gw: null, out: null };
+function tryOptions(id, g) {
+  const ch = SB.chips || {}, sq = squadAt(g, SB.moves, ch), bank = bankAt(g, SB.moves, ch), p = P[id];
+  const bought = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
+  const sellOf = o => (D.squad.some(s => s.id === o) && !bought.has(o) ? sellPrice(o) : P[o].price);
+  const clubs = {}; sq.forEach(i => { clubs[P[i].team] = (clubs[P[i].team] || 0) + 1; });
+  const all = sq.filter(o => P[o].pos === p.pos).map(o => {
+    const sell = sellOf(o), afford = bank + sell >= p.price - 1e-9, club = (clubs[p.team] || 0) - (P[o].team === p.team ? 1 : 0) < 3;
+    return { id: o, sell, ok: afford && club, why: !afford ? `short by ${money(p.price - bank - sell)}` : !club ? `3 from ${T[p.team].short} already` : "" };
+  });
+  return { inSquad: sq.includes(id), bank, all, ok: all.filter(o => o.ok) };
+}
+function tryPreview(id, g, out) {
+  const ch = SB.chips || {}, cand = cleanMoves([...SB.moves, { gw: g, out, in: id }], ch);
+  const added = cand.some(m => m.gw === g && m.out === out && m.in === id);
+  const dropped = SB.moves.filter(m => !cand.some(c => c.gw === m.gw && c.out === m.out && c.in === m.in));
+  const before = scoreMoves(SB.moves), after = scoreMoves(cand, null, ch);
+  const ftB = before.weeks.find(w => w.gw === g), ftA = after.weeks.find(w => w.gw === g);
+  const hitsB = before.weeks.reduce((a, w) => a + w.hits, 0), hitsA = after.weeks.reduce((a, w) => a + w.hits, 0);
+  const span = PG.filter(x => x >= g), xp = i => span.reduce((a, x) => a + xpg(i, x), 0);
+  const opt = tryOptions(id, g).all.find(o => o.id === out);
+  return { cand, added, dropped, sell: opt ? opt.sell : null, buy: P[id].price, bankBefore: bankAt(g, SB.moves, ch), bankAfter: bankAt(g, cand, ch),
+    ftBefore: ftB.ft, movesBefore: ftB.n, movesAfter: ftA.n, chip: ftA.chip, extraHits: hitsA - hitsB, hereHits: ftA.hits - ftB.hits,
+    playerDiff: xp(id) - xp(out), span, planBefore: before.tot + ftValue() * before.ftLeft, planAfter: after.tot + ftValue() * after.ftLeft, after };
+}
+function openTry(id) {
+  const p = P[id]; if (!p) return;
+  if (TRY.id !== id) { TRY.id = id; TRY.gw = PG[0]; TRY.out = null; }
+  if (!PG.includes(TRY.gw)) TRY.gw = PG[0];
+  const g = TRY.gw, opt = tryOptions(id, g);
+  // the default player out: one whose sale leaves your later planned moves possible, then the lowest xP that week
+  const breaks = o => cleanMoves([...SB.moves, { gw: g, out: o, in: id }], SB.chips || {}).length < SB.moves.length + 1;
+  if (!opt.ok.some(o => o.id === TRY.out)) TRY.out = opt.ok.length ? opt.ok.slice().sort((a, b) => breaks(a.id) - breaks(b.id) || xpg(a.id, g) - xpg(b.id, g))[0].id : null;
+  const edit = typeof tpEditInfo === "function" ? tpEditInfo() : null;
+  const head = `<button class="x" aria-label="Close" id="dlgX">×</button><h2 id="dlgTitle">Try ${esc(p.name)} in my plan</h2>
+    <p class="note" style="margin-top:0">${edit ? `In saved path “${esc(edit.d.name)}”, which you're editing` : `In your plan (${esc(planName())})`}. A preview: nothing changes until you press Apply.${p.ok === false ? ` <span class="pill bad">FPL lists him as unavailable</span>` : ""}</p>
+    <div class="filters"><label class="pv-lbl" for="tryGw">Transfer in</label><select id="tryGw">${PG.map(x => `<option value="${x}" ${x === g ? "selected" : ""}>GW${x}${chipAt(x, SB.chips || {}) ? ` (${CHIP_NAME[chipAt(x, SB.chips)]})` : ""}</option>`).join("")}</select>
+      <label class="pv-lbl" for="tryOut">Sell</label><select id="tryOut" ${opt.ok.length ? "" : "disabled"}>${opt.all.map(o => `<option value="${o.id}" ${o.id === TRY.out ? "selected" : ""} ${o.ok ? "" : "disabled"}>${esc(P[o.id].name)} · sell ${money(o.sell)}${o.ok ? "" : ` (${o.why})`}</option>`).join("")}</select></div>`;
+  let body;
+  if (opt.inSquad) body = `<p class="verdict">${esc(p.name)} is already in your plan's GW${g} squad.</p>`;
+  else if (!TRY.out) body = `<p class="verdict">No ${p.pos} in your GW${g} squad can go out for him: ${opt.all.map(o => `${esc(P[o.id].name)} (${o.why})`).join(", ") || "none in that position"}. Bank that week: ${money(opt.bank)}.</p>`;
+  else {
+    const r = tryPreview(id, g, TRY.out), o = P[TRY.out], span = `GW${r.span[0]}${r.span.length > 1 ? `–${r.span[r.span.length - 1]}` : ""}`;
+    const free = r.chip === "wildcard" || r.chip === "freehit";
+    const ftUse = free ? `free (${CHIP_NAME[r.chip]})` : r.movesAfter <= r.ftBefore ? `uses 1 of ${r.ftBefore - r.movesBefore} free transfer${r.ftBefore - r.movesBefore === 1 ? "" : "s"} left` : "no free transfer left";
+    body = `<div class="kpis try-kpis">
+        <div class="kpi"><span class="lbl">Out → in, GW${g}</span><b style="font-size:var(--fs-lg)">${esc(o.name)} → ${esc(p.name)}</b><span class="delta muted">sell ${money(r.sell)} · buy ${money(r.buy)}</span></div>
+        <div class="kpi"><span class="lbl">GW${g} bank</span><b>${money(r.bankBefore)} → ${money(r.bankAfter)}</b><span class="delta muted">after that week's moves</span></div>
+        <div class="kpi"><span class="lbl">Extra hits, whole plan</span><b class="${r.extraHits ? "down" : ""}">${r.extraHits ? `−${4 * r.extraHits} pts` : "None"}</b><span class="delta muted">GW${g}: ${r.hereHits ? `a −${4 * r.hereHits} hit (no free transfer left)` : ftUse}${r.extraHits > r.hereHits ? `; ${r.extraHits - r.hereHits === 1 ? "a −4" : `${r.extraHits - r.hereHits} hits`} later, as fewer free transfers are left for your planned moves` : ""}</span></div>
+      </div>
+      <div class="kpis try-kpis">
+        <div class="kpi"><span class="lbl">The two players, ${span}</span><b class="${r.playerDiff >= 0 ? "up" : "down"}">${sgn(r.playerDiff)}</b><span class="delta muted">${esc(p.name)}'s xP minus ${esc(o.name)}'s</span></div>
+        <div class="kpi"><span class="lbl">Your whole plan, ${PG.length} GWs</span><b class="${r.planAfter - r.planBefore >= 0 ? "up" : "down"}">${sgn(r.planAfter - r.planBefore)}</b><span class="delta muted">${f1(r.planBefore)} → ${f1(r.planAfter)}: best XI and captain, minus hits, banked FTs at ${f1(ftValue())}</span></div>
+      </div>
+      ${r.dropped.length ? `<p class="verdict bad" role="alert">This makes ${r.dropped.length === 1 ? "a later planned move" : `${r.dropped.length} later planned moves`} impossible, so ${r.dropped.length === 1 ? "it is" : "they are"} dropped on Apply: ${r.dropped.map(m => `GW${m.gw} ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join("; ")}.</p>` : ""}
+      ${r.chip === "freehit" ? `<p class="note">GW${g} is your Free Hit week: this move lasts that week only.</p>` : ""}`;
+  }
+  const can = !opt.inSquad && TRY.out;
+  $("#dlgBody").innerHTML = `${head}${body}
+    <div class="ph-acts"><button class="btn primary" id="tryApply" ${can ? "" : "disabled"}>Apply to plan</button><button class="btn" id="tryBack">Back to ${esc(p.name)}</button><button class="btn" id="tryCancel">Cancel</button></div>
+    <p class="note">Apply adds the move to ${edit ? `the path you're editing; press Save changes to path in the Planner to keep it there` : "your plan"}, and Undo in the Planner takes it back.</p>`;
+  const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "dlgTitle"); if (!dlg.open) dlg.showModal();
+  $("#dlgX").onclick = () => dlg.close();
+  $("#tryCancel").onclick = () => dlg.close();
+  $("#tryBack").onclick = () => openPlayer(id);
+  $("#tryGw").onchange = e => { TRY.gw = +e.target.value; TRY.out = null; openTry(id); $("#tryGw")?.focus(); };
+  const ts = $("#tryOut"); if (ts) ts.onchange = e => { TRY.out = +e.target.value; openTry(id); $("#tryOut")?.focus(); };
+  $("#tryApply").onclick = () => {
+    if (!can) return;
+    const r = tryPreview(id, g, TRY.out);
+    editPlan(() => { SB.moves = r.cand; });
+    dlg.close(); TRY.id = null;
+    toast(`${P[r.cand.find(m => m.gw === g && m.in === id)?.out]?.name || "Move"} → ${p.name} added to GW${g}${edit ? `; save it to “${edit.d.name}” in the Planner` : ""}. Undo is in the Planner.`);
+    render();
+  };
 }
 $("#dlg").addEventListener("click", e => { if (e.target.id === "dlg") e.target.close(); });
 $("#dlg").addEventListener("close", () => $("#dlg").removeAttribute("aria-labelledby"));
