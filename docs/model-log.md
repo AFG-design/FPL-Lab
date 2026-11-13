@@ -4,6 +4,29 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-068: backtests without hindsight (test only; live model unchanged)
+
+- Known error (model log 23 Oct, "possible leak left: use_out"; FL-068 traced fplmodel L663, L587, L265): the backtest
+  judged past forecasts with today's knowledge in three places. Fixed behind `hist_honest` (backtests only, on):
+  - weeks out in the minutes history came from today's FPL notes (ctx["out"]): `known_out` rebuilds them from the
+    status log and history/news.json as they stood at each deadline. By GW10 today's notes excused 39 past player-weeks
+    the logs couldn't back at the time (1 the other way);
+  - a player 'unavailable' today was zeroed in every past week; now only a flag saved at that deadline rules him out;
+  - past xG went to today's club (17 summer movers, 0.98 xG in GW1-2); `clubs_then` credits it to the club he played
+    for that week (from the live data's fixture ids; 0 ambiguous player-weeks).
+- Penalty order can't be rebuilt: FPL keeps only the current order and history/setpieces.json starts 12 Nov with no
+  changes. Measured instead: with no penalty bonus at all the backtest moves MAE −0.002 (status log) / −0.002 (none),
+  so today's order flatters it by no more than that. Understat: 11 of this season's 15 penalties were taken by today's
+  #1, 4 not (Le Fée ×3, Flemming, McGinn), so the order did change.
+- How much hindsight flattered it (GW3-10, n=3050, honest − old):
+  - no status log: MAE 1.812 → 1.824 (+0.012), corr 0.430 → 0.428; flagged players MAE +0.165 (n=202): the old
+    run, meant to know no injuries, still knew today's;
+  - status log (as live): MAE 1.763 → 1.765 (+0.002), corr 0.4440 → 0.4437; returning players' xMin MAE
+    13.1 → 10.3 (n=120); no segment past the limits.
+  - bench.py: this season MAE 1.763 → 1.765, picks 4.35 both, 5-GW picks 18.11 both; 2025/26 and 2024/25
+    identical (no flags or news in the archive; club per week already from the archive). Every paired CI [0, 0].
+- From now on model changes are judged on the honest backtest (FL-031, FL-067, FL-079 branch from this).
+
 ## 12 Nov 2026 — FL-074: plans with four from one club (planner; Adopt as Marginal)
 
 - Known error (code review, reproduced 5 Nov): optimise.py and plan-solver.js capped every club at 3 in every plan

@@ -515,6 +515,16 @@ if __name__ == "__main__":
     flag_path = args.status_log or "history/status.json"
     flag_log = status_log if status_log is not None else (json.load(open(flag_path)) if os.path.exists(flag_path) else None)
     ctx = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    # FL-068: with the status log, FPL's notes as they stood at each deadline (history/news.json) too, so the minutes
+    # history skips only weeks known to be absences then (fplmodel.known_out). Missing: said, and the status log alone
+    # is used. Without --status-log the model knows of no injuries at all (no flags, no weeks out).
+    if status_log is not None:
+        try:
+            ctx["news_log"] = json.load(open("history/news.json"))
+        except FileNotFoundError:
+            print("history/news.json missing: weeks out come from the status log only")
+    if ctx["club_ambiguous"]:
+        print(f"Club at the time unclear for {len(ctx['club_ambiguous'])} player-weeks with xG: credited to no club")
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
     params = json.loads(args.params)
@@ -537,6 +547,8 @@ if __name__ == "__main__":
                         f"(model status log: {args.status_log or 'none'}; bias = projected - actual)")
     if flag_log is None:
         print("  Flag at deadline: skipped, no status log found")
+    print("  Penalty order is today's: FPL keeps no history of it and history/setpieces.json only logs changes from 12 Nov "
+          "2026 (FL-068 measured the bound: the backtest with no penalty bonus at all is within 0.002 MAE).")
     print("  Price is today's price, not the price at each deadline. 'Assumed' values can't be split out: "
           "backtests run with use_flags off, so project() never marks a value assumed.")
     if args.json:

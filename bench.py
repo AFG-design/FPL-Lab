@@ -177,6 +177,10 @@ def current_ctx():
     except Exception:
         status_log = None
     _CUR["ctx"] = prepare(boot, fixtures, live, priors, market, status_log=status_log)
+    try:   # FPL's notes as they stood at each deadline, for the honest weeks-out rebuild (fplmodel.known_out, FL-068)
+        _CUR["ctx"]["news_log"] = json.load(open(os.path.join(HERE, "history", "news.json")))
+    except FileNotFoundError:
+        print("history/news.json missing: weeks out come from the status log only")
     _CUR["cur"] = cur
     return _CUR["ctx"]
 
@@ -214,7 +218,7 @@ def _season(season):
             for g, s in gs.items():
                 t = team_at(pid, g + 1) or ctx["elements"][pid]["team"]
                 tgx[t][g] += float(s["expected_goals"])
-        ctx["team_gw_xg"] = tgx
+        ctx["team_gw_xg"] = ctx["team_gw_xg_then"] = tgx   # the archive's own club per week (same as clubs_then)
         _SEASON[season] = (ctx, team_at)
     return _SEASON[season]
 
