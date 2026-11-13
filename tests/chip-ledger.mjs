@@ -29,8 +29,8 @@ test('ledger shows actual earned figures, explains a missing one, and the GW20 d
   const html = setup(D).chipLedger();
   assert.match(html, /what they earned \(actual\)/);
   assert.match(html, /<b>\+14<\/b>/);
-  assert.match(html, /<b>-3<\/b>.*that squad: 63/s);
-  assert.match(html, /no fair single number/);
+  assert.match(html, /v your squad before it \(63\)<\/small><\/td><td class="n">GW8<\/td><td class="n">60<\/td><td class="n"><b>-3<\/b>/);
+  assert.match(html, /title="a Wildcard changes every later week too, so there's no fair single number">–/);
   assert.match(html, /Pending: GW22 not finished/);
   assert.match(html, /Chips renew at GW20/);
 });
@@ -38,7 +38,7 @@ test('ledger shows actual earned figures, explains a missing one, and the GW20 d
 test('use-now card is projected, picks the best week, and says Free Hit is not projected', () => {
   const html = setup(D).chipNowVsBest(11);
   assert.match(html, /\(projected\)/);
-  assert.match(html, /Triple Captain<\/td><td class="n">7\.1 \(Haaland\)<\/td><td class="n">GW12: 9\.3 \(Haaland\)/);
+  assert.match(html, /Triple Captain<\/td><td class="n">7\.1<br><small class="muted">Haaland<\/small><\/td><td class="n">9\.3 in GW12<br><small class="muted">Haaland/);
   assert.match(html, /Free Hit<\/td><td colspan="2" class="muted">Not projected here/);
   assert.doesNotMatch(html, /<td>Bench Boost<\/td>/);   // used this half; the second-half one isn't open yet
 });

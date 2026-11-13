@@ -38,21 +38,24 @@ function chipNowVsBest(g) {
     if (!val) return `<tr><td>${c.name}</td><td colspan="2" class="muted">Not projected here: it needs a whole new team worked out.</td></tr>`;
     if (!inHalf.length) return `<tr><td>${c.name}</td><td colspan="2" class="muted">No projection: no plan weeks before it expires.</td></tr>`;
     const now = inHalf.find(w => w.gw === g), best = inHalf.reduce((a, w) => val(w) > val(a) ? w : a);
-    const who = w => c.key === "3xc" ? ` (${esc(P[w.tc_player]?.name || "–")})` : "";
-    return `<tr><td>${c.name}</td><td class="n">${now ? `${f1(val(now))}${who(now)}` : "–"}</td><td class="n">GW${best.gw}: ${f1(val(best))}${who(best)}</td></tr>`;
+    const who = w => c.key === "3xc" ? `<br><small class="muted">${esc(P[w.tc_player]?.name || "–")}</small>` : "";
+    return `<tr><td>${c.name}</td><td class="n">${now ? `${f1(val(now))}${who(now)}` : "–"}</td><td class="n">${f1(val(best))} in GW${best.gw}${who(best)}</td></tr>`;
   }).join("");
-  return `<div class="panel"><h3>Use now or wait? (projected)</h3><div class="tablebox"><table><thead><tr><th>Chip</th><th class="n">GW${g} xP gain</th><th class="n">Best week in view</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="note">Projected points the chip adds: Bench Boost = your bench's xP; Triple Captain = one more helping of your captain's xP. Only the ${W.length} gameweeks the plan covers are compared.</p></div>`;
+  return `<div class="panel"><h3>Use now or wait? (projected)</h3><div class="tablebox"><table><thead><tr><th>Chip</th><th class="n">GW${g}</th><th class="n">Best week</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Projected points (xP) the chip adds: Bench Boost = your bench's xP; Triple Captain = one more helping of your captain's xP. Only the ${W.length} gameweeks the plan covers are compared.</p></div>`;
 }
 
 /* FL-143: what each chip you've played actually earned (actual points, finished gameweeks; build.py chip_ledger). */
 function chipLedger() {
   const L = D.chip_ledger || [];
   if (!L.length) return "";
-  const earned = r => r.earned != null ? `<b>${r.earned > 0 ? "+" : ""}${r.earned}</b>` : r.why === "pending" ? `<span class="muted">Pending: GW${r.gw} not finished</span>` : `<span class="muted">${esc(r.why || "–")}</span>`;
-  const how = { bboost: "your bench's points", "3xc": "the third helping of your captain's points", freehit: "points v the squad you had before it", wildcard: "" };
-  const row = r => `<tr><td>${r.name}</td><td class="n">GW${r.gw}</td><td class="n">${r.pts ?? "–"}</td><td class="n">${earned(r)}</td><td class="muted">${how[r.key] || ""}${r.key === "freehit" && r.without != null ? ` (that squad: ${r.without})` : ""}</td></tr>`;
+  // phone width: four short columns; a missing figure is "–" with its reason in the cell's title (the Wildcard's is also
+  // in the note below), so Earned never gets pushed off-screen
+  const earned = r => r.earned != null ? `<b>${r.earned > 0 ? "+" : ""}${r.earned}</b>` : r.why === "pending" ? `<span class="muted">Pending: GW${r.gw} not finished</span>` : `<span class="muted" title="${esc(r.why || "")}">–</span>`;
+  const how = { bboost: "bench points", "3xc": "captain's 3rd helping", freehit: "v your squad before it", wildcard: "" };
+  const why = r => r.why && r.why !== "pending" && r.key !== "wildcard" ? esc(r.why) : "";
+  const row = r => `<tr><td>${r.name}${how[r.key] || why(r) ? `<br><small class="muted">${how[r.key] || ""}${r.key === "freehit" && r.without != null ? ` (${r.without})` : ""}${why(r)}</small>` : ""}</td><td class="n">GW${r.gw}</td><td class="n">${r.pts ?? "–"}</td><td class="n">${earned(r)}</td></tr>`;
   const h1 = L.filter(r => r.half === 1), h2 = L.filter(r => r.half === 2);
-  return `<div class="panel"><h3>Chips played: what they earned (actual)</h3><div class="tablebox"><table><thead><tr><th>Chip</th><th class="n">GW</th><th class="n">GW points</th><th class="n">Earned</th><th>Measured as</th></tr></thead><tbody>${h1.map(row).join("")}${h1.length && h2.length ? `<tr class="divider"><td colspan="5">Chips renew at GW20</td></tr>` : ""}${h2.map(row).join("")}</tbody></table></div>
+  return `<div class="panel"><h3>Chips played: what they earned (actual)</h3><div class="tablebox"><table><thead><tr><th>Chip</th><th class="n">GW</th><th class="n">Points</th><th class="n">Earned</th></tr></thead><tbody>${h1.map(row).join("")}${h1.length && h2.length ? `<tr class="divider"><td colspan="4">Chips renew at GW20</td></tr>` : ""}${h2.map(row).join("")}</tbody></table></div>
     <p class="note">Actual points from finished gameweeks. A Wildcard has no single "earned" figure, because it changes every week after it.</p></div>`;
 }
