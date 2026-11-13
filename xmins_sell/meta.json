@@ -1,0 +1,261 @@
+{
+ "features": [
+  "round",
+  "was_home",
+  "history_gws",
+  "gap_prev_gw",
+  "days_since_last_pl_fixture",
+  "position_GK",
+  "position_DEF",
+  "position_MID",
+  "position_FWD",
+  "last_minutes",
+  "last_starts",
+  "last_played",
+  "minutes_avg_3",
+  "starts_avg_3",
+  "played_avg_3",
+  "minutes_avg_5",
+  "starts_avg_5",
+  "played_avg_5",
+  "minutes_avg_10",
+  "starts_avg_10",
+  "played_avg_10",
+  "sell_share",
+  "sell_spike",
+  "log_own"
+ ],
+ "train_seasons": [
+  "2022-23",
+  "2023-24"
+ ],
+ "rounds": 320,
+ "params": {
+  "eta": 0.05,
+  "max_depth": 4,
+  "min_child_weight": 5,
+  "subsample": 0.8,
+  "colsample_bytree": 0.8,
+  "lambda": 1.0,
+  "seed": 0,
+  "nthread": 4,
+  "tree_method": "hist"
+ },
+ "xgboost": "3.4.1",
+ "targets": "per fixture: started; minutes if started; bench appearance (unconditional); minutes if bench appearance",
+ "script": "tools/train_xmins_sell.py",
+ "test": {
+  "2024-25": {
+   "all (one-fixture weeks)": {
+    "S": {
+     "n": 26555,
+     "brier_start": 0.09905493827037137,
+     "brier_cameo": 0.09367891255843144,
+     "xmin_rmse": 24.720766477019446,
+     "xmin_mae": 14.606757420588181,
+     "xmin_bias": 2.1371015623960985
+    },
+    "A": {
+     "n": 26555,
+     "brier_start": 0.08884573969999886,
+     "brier_cameo": 0.09224781980991502,
+     "xmin_rmse": 23.12259495875514,
+     "xmin_mae": 13.895653484396691,
+     "xmin_bias": 0.995871242034056
+    },
+    "B": {
+     "n": 26555,
+     "brier_start": 0.08468215623269414,
+     "brier_cameo": 0.08838086231022171,
+     "xmin_rmse": 22.3757307495147,
+     "xmin_mae": 13.237302342758376,
+     "xmin_bias": 1.013079332011643
+    }
+   },
+   "played in his last 3 rows": {
+    "S": {
+     "n": 13504,
+     "brier_start": 0.14637213036993857,
+     "brier_cameo": 0.20169305791575454,
+     "xmin_rmse": 29.421042075620512,
+     "xmin_mae": 22.410323774980565,
+     "xmin_bias": 1.2077381177077078
+    },
+    "A": {
+     "n": 13504,
+     "brier_start": 0.14765513202729846,
+     "brier_cameo": 0.2026047775866344,
+     "xmin_rmse": 29.49217771283428,
+     "xmin_mae": 22.33451875220649,
+     "xmin_bias": 1.6512518835064218
+    },
+    "B": {
+     "n": 13504,
+     "brier_start": 0.14195030823071259,
+     "brier_cameo": 0.19470098546271777,
+     "xmin_rmse": 28.747088027699345,
+     "xmin_mae": 21.53680844747095,
+     "xmin_bias": 1.475493315704414
+    }
+   },
+   "likely starters (S >= 60%)": {
+    "S": {
+     "n": 7854,
+     "brier_start": 0.17120255440104037,
+     "brier_cameo": 0.21482401035668375,
+     "xmin_rmse": 33.43309353725852,
+     "xmin_mae": 23.561524881003983,
+     "xmin_bias": 6.785243751014921
+    },
+    "A": {
+     "n": 7854,
+     "brier_start": 0.13452842614129312,
+     "brier_cameo": 0.19581880043623018,
+     "xmin_rmse": 29.25755419992039,
+     "xmin_mae": 21.076029563211197,
+     "xmin_bias": 2.4723897231636016
+    },
+    "B": {
+     "n": 7854,
+     "brier_start": 0.12429882469624881,
+     "brier_cameo": 0.18063362879850936,
+     "xmin_rmse": 27.80845950038138,
+     "xmin_mae": 19.67095588588945,
+     "xmin_bias": 2.213717364782227
+    }
+   },
+   "likely starters, 8%+ sold": {
+    "S": {
+     "n": 749,
+     "brier_start": 0.22317022588862376,
+     "brier_cameo": 0.20757868396265783,
+     "xmin_rmse": 38.324091976298924,
+     "xmin_mae": 28.132991031906474,
+     "xmin_bias": 13.359572478066458
+    },
+    "A": {
+     "n": 749,
+     "brier_start": 0.2239378123477392,
+     "brier_cameo": 0.20387202618797684,
+     "xmin_rmse": 38.38446045363977,
+     "xmin_mae": 28.012989538215667,
+     "xmin_bias": 13.63723962679406
+    },
+    "B": {
+     "n": 749,
+     "brier_start": 0.17867602360817017,
+     "brier_cameo": 0.16439895542798733,
+     "xmin_rmse": 33.31864175768456,
+     "xmin_mae": 27.482463382751504,
+     "xmin_bias": 1.8144835388071547
+    }
+   }
+  },
+  "2025-26": {
+   "all (one-fixture weeks)": {
+    "S": {
+     "n": 28919,
+     "brier_start": 0.09076435589966625,
+     "brier_cameo": 0.08215606975965435,
+     "xmin_rmse": 23.64616683657262,
+     "xmin_mae": 13.339620458516137,
+     "xmin_bias": 2.1162405452292683
+    },
+    "A": {
+     "n": 28919,
+     "brier_start": 0.07963936725109669,
+     "brier_cameo": 0.08083697007803743,
+     "xmin_rmse": 21.919271182731435,
+     "xmin_mae": 12.605214698121069,
+     "xmin_bias": 1.0087599039831088
+    },
+    "B": {
+     "n": 28919,
+     "brier_start": 0.07504971307475489,
+     "brier_cameo": 0.0772035545970413,
+     "xmin_rmse": 21.042290111611155,
+     "xmin_mae": 11.931795011578108,
+     "xmin_bias": 1.126355281364205
+    }
+   },
+   "played in his last 3 rows": {
+    "S": {
+     "n": 13334,
+     "brier_start": 0.14434411573588302,
+     "brier_cameo": 0.20882268112786395,
+     "xmin_rmse": 29.164582410280023,
+     "xmin_mae": 22.174110494651266,
+     "xmin_bias": 1.1447651442584559
+    },
+    "A": {
+     "n": 13334,
+     "brier_start": 0.14510470423249044,
+     "brier_cameo": 0.20965694354271447,
+     "xmin_rmse": 29.17331486923898,
+     "xmin_mae": 22.040778766565992,
+     "xmin_bias": 1.6263676977093222
+    },
+    "B": {
+     "n": 13334,
+     "brier_start": 0.13793965268908634,
+     "brier_cameo": 0.20060058016371882,
+     "xmin_rmse": 28.278505616002118,
+     "xmin_mae": 21.120460664133486,
+     "xmin_bias": 1.6160372613126126
+    }
+   },
+   "likely starters (S >= 60%)": {
+    "S": {
+     "n": 7924,
+     "brier_start": 0.17135334092460247,
+     "brier_cameo": 0.21740190804189094,
+     "xmin_rmse": 33.51330972437528,
+     "xmin_mae": 23.48658216727737,
+     "xmin_bias": 6.563221666200302
+    },
+    "A": {
+     "n": 7924,
+     "brier_start": 0.12932251971701827,
+     "brier_cameo": 0.19981604510251347,
+     "xmin_rmse": 28.902802741978903,
+     "xmin_mae": 20.774698639445567,
+     "xmin_bias": 2.086979135005899
+    },
+    "B": {
+     "n": 7924,
+     "brier_start": 0.11935105991350976,
+     "brier_cameo": 0.1823296931841554,
+     "xmin_rmse": 27.352637765161283,
+     "xmin_mae": 19.173420041949985,
+     "xmin_bias": 2.009090489732804
+    }
+   },
+   "likely starters, 8%+ sold": {
+    "S": {
+     "n": 675,
+     "brier_start": 0.22135430760921634,
+     "brier_cameo": 0.19885091888421613,
+     "xmin_rmse": 38.425104565591894,
+     "xmin_mae": 28.065447122079355,
+     "xmin_bias": 13.8705103386773
+    },
+    "A": {
+     "n": 675,
+     "brier_start": 0.22236913822244905,
+     "brier_cameo": 0.19289949410850696,
+     "xmin_rmse": 38.40608400192829,
+     "xmin_mae": 27.875876990424263,
+     "xmin_bias": 14.08190012048792
+    },
+    "B": {
+     "n": 675,
+     "brier_start": 0.17705360416843116,
+     "brier_cameo": 0.1640453245203024,
+     "xmin_rmse": 33.07450622398898,
+     "xmin_mae": 26.921915644186516,
+     "xmin_bias": 2.078650092372188
+    }
+   }
+  }
+ }
+}

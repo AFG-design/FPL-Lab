@@ -525,6 +525,9 @@ if __name__ == "__main__":
             print("history/news.json missing: weeks out come from the status log only")
     if ctx["club_ambiguous"]:
         print(f"Club at the time unclear for {len(ctx['club_ambiguous'])} player-weeks with xG: credited to no club")
+    if os.path.exists("history/sell_hist.json"):   # selling counts for xmins_sell (selling.py); absent: it raises
+        import selling
+        ctx["sell"] = selling.from_rounds(json.load(open("history/sell_hist.json"))["rounds"])
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
     params = json.loads(args.params)
