@@ -1215,7 +1215,9 @@ for x in [t["element_in"] for t in transfers] + [t["element_out"] for t in trans
 #   - a snapshot saved before FL-109 has no bench: it is rebuilt in the optimiser's order and marked
 #     target.bench_src = "derived"; if the squad can't be rebuilt, the XI is scored without auto-subs and marked
 #     "missing" (the tab says so);
-#   - no saved forecast at all -> no head-to-head for that week, never a re-run with today's model (record starts GW8);
+#   - weeks before fpl_score.RECORD_FROM_GW (GW10, the first saved suggestion) aren't scored at all: GW8 and GW9 were
+#     draws by construction (the model's pick from your 15 was your own XI), so the record starts at GW10;
+#   - no saved forecast at all -> no head-to-head for that week, never a re-run with today's model;
 #   - a gameweek not finished yet -> not scored (players still to play would look like non-starters);
 #   - picks or live data that couldn't be fetched -> that week is skipped and counted in "skipped".
 # The suggestion's projected score (target.exp) is kept for information, labelled as projected. Your side is checked
@@ -1225,6 +1227,8 @@ try:
     pos_all = {pid: POS[e["element_type"]] for pid, e in elements.items()}
     vm_weeks, vm_skipped = [], []
     for g, pk in sorted(past.items()):
+        if not fpl_score.counts_for_record(g):   # the record starts at GW10 (fpl_score.RECORD_FROM_GW)
+            continue
         f_ = os.path.join(HERE, "history", f"proj_gw{g}.json")
         if not os.path.exists(f_):
             continue
