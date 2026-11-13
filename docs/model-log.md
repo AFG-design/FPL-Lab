@@ -61,6 +61,25 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   plans make the same moves and captains.
 - Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
 
+## 13 Nov 2026 — FL-031: injury adjustments tested one at a time (no change; Don't adopt)
+
+- On the honest backtest (FL-068, status log, GW3-10, n=3050), each rule switched off on its own. `doubt_abs` split
+  from `late_abs` so the doubtful-flag rule can be tested apart from the late-news rule (both stay on).
+  | switched off | MAE | corr | flagged MAE | returning players xMin MAE |
+  |---|---|---|---|---|
+  | none (FL-068) | 1.7649 | 0.4437 | – | 10.26 (n=120) |
+  | return_ramp (1.0, 1.0) | 1.7654 | 0.4437 | +0.013 | 10.58 (n=120) |
+  | late_abs | 1.7649 | 0.4440 | −0.001 | 9.19 (n=97) |
+  | doubt_abs | 1.7658 | 0.4432 | +0.011 | 6.89 (n=97; a different, smaller set) |
+  No segment past the limits in any run.
+- bench.py: this season no pick, top-5 or captain changes in any week (every paired CI [0, 0], 5-GW picks 18.11 in all
+  four). 2025/26 and 2024/25 identical: the archive has no flags or news, so none of the three rules can fire there. The
+  past-season test the decision table needs can't be run until the status log covers a full season.
+- No double count shows: switching one rule off never improves the total by more than noise (late_abs corr +0.0003,
+  MAE ±0). return_ramp and doubt_abs each still earn a little; late_abs is neutral.
+- Decision: removing late_abs would only be a tweak (no rule broken) with CI [0, 0] → Don't adopt. All three kept.
+  Re-test at about GW20 with twice the weeks, and next season on 2026/27 with its full status log.
+
 ## 13 Nov 2026 — FL-079: goalkeeper saves for a start and a sub appearance separately (Adopt as Marginal)
 
 - Known error (reproduced, backlog FL-079): save points (1 per 3 saves) were one Poisson on his expected minutes, which
