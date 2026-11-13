@@ -87,6 +87,15 @@ function pvRule(mode) {
   if (mode === "chase") return `Gives up at most ${n(R.chase_budget ?? 4)} projected points against Balanced over the plan, to back differentials and players with a high chance of a big haul.${profit}${hits}`;
   return `Goes for the most projected points.${profit}${hits}`;
 }
+// FL-140: say when the optimiser's plan isn't what it looks like: the strategy found no plan of its own (Balanced's
+// stands in), or the solve stopped at its time limit (the best plan found, not proven best)
+function pvSolveNote(pl) {
+  if (!pl) return "";
+  const t = [];
+  if (pl.fallback === "balanced") t.push(`This strategy's optimiser run found no plan of its own, so Balanced's plan is shown in its place.`);
+  if (pl.optimal === false) t.push("The optimiser stopped at its time limit: this is the best plan it found, not proven the best.");
+  return t.length ? `<p class="note">${t.join(" ")}</p>` : "";
+}
 // one strategy's plan, against the My team baseline
 function pvStrat(mode) {
   pvBase();
@@ -230,6 +239,7 @@ function pvStrategy(mode) {
     <div class="kpi"><span class="lbl">GW${g} ${term("ft", "transfers")}</span><b>${wk.n}/${wk.ft}</b><span class="delta muted">${wk.hits ? `${wk.hits} hit (−${4 * wk.hits})` : "no hits"} · bank ${money(wk.bank)}</span></div>
   </div>
   ${r.filled.length ? `<p class="note">${r.filled.map(x => "GW" + x).join(", ")} ${r.filled.length === 1 ? "is" : "are"} beyond the optimiser's ${D.plans[r.key].weeks.length}-GW plan: shown with no transfers and the best XI.</p>` : ""}
+  ${pvSolveNote(D.plans[r.key])}
   ${r.dropped > 0 ? `<p class="verdict" style="border-color:var(--warn)">${r.dropped} move${r.dropped === 1 ? "" : "s"} in this plan named a player who is no longer in the data, so ${r.dropped === 1 ? "it was" : "they were"} left out. The numbers above are without ${r.dropped === 1 ? "it" : "them"}.</p>` : ""}
   <div class="grid2 lu-cols">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
