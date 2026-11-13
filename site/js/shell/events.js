@@ -8,6 +8,16 @@ function flashMove(g, inId) {
 function bind() {
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
   on("[data-p]", b => openPlayer(+b.dataset.p));
+  // FL-156: a name in the Players table opens details beside the table on wide screens (the sheet otherwise); the
+  // table keeps its scroll position and the row stays selected; closing returns focus to the name
+  const keepBox = fn => { const bx = $(".explorer .tablebox"), at = bx ? [bx.scrollTop, bx.scrollLeft] : null, y = scrollY; fn(); const nb = $(".explorer .tablebox"); if (nb && at) { nb.scrollTop = at[0]; nb.scrollLeft = at[1]; } scrollTo(0, y); };
+  on("[data-pside]", b => { const id = +b.dataset.pside; if (!sideWide()) { openPlayer(id); return; } keepBox(() => { S.side = S.side === id ? null : id; render(); }); (S.side ? $("#sideTitle") : $(`[data-pside="${id}"]`))?.focus(); });
+  const sideClose = () => { const id = S.side; keepBox(() => { S.side = null; render(); }); $(`[data-pside="${id}"]`)?.focus(); };
+  on("[data-side-close]", sideClose);
+  const ps = $("#plSide"); if (ps) ps.onkeydown = e => { if (e.key === "Escape") sideClose(); };
+  on("[data-side-star]", b => { const id = +b.dataset.sideStar; keepBox(() => { toggleStar(id); render(); }); $(`[data-side-star="${id}"]`)?.focus(); });
+  on("[data-plan-replace]", b => { const d = $("#dlg"); if (d?.open) d.close(); SB.sel = +b.dataset.planReplace; SB.gw = PG[0]; SB.q = ""; S.pview = "edit"; S.side = null; setView("planner"); });
+  on("[data-side-cmp]", b => { const id = +b.dataset.sideCmp; if (!S.cmp.includes(id)) { if (S.cmp.length >= 4) S.cmp.shift(); S.cmp.push(id); } render(); $("#cmpPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }); });
   // lineup style (components/pitch.js): a display preference only; keeps the toggle where it was on screen
   on("[data-lineup]", b => {
     const v = b.dataset.lineup; if (v === S.lineup) return;
