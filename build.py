@@ -553,8 +553,12 @@ if next_ev and dt.datetime.now(dt.timezone.utc) < dt.datetime.fromisoformat(next
               open(os.path.join(HIST, f"proj_gw{next_gw}.json"), "w"), separators=(",", ":"))
     # the rest of what we knew before the deadline: plan-horizon xP, minutes, outcome chances, odds and the strategy
     # plans (deadline_snapshot.py says what each part holds and what it does when an input is missing)
-    deadline_snapshot.write(HIST, deadline_snapshot.build(next_gw, proj_gws[:PLAN_GWS], players, squad_ids, bank, ft,
-                                                          plans, market, fixtures, recommended=recommended))
+    _dsnap = deadline_snapshot.build(next_gw, proj_gws[:PLAN_GWS], players, squad_ids, bank, ft,
+                                     plans, market, fixtures, recommended=recommended)
+    # FL-145: the code version that made this forecast (the workflow's commit); a local build has none -> None, said
+    # as "not recorded" on the Model page
+    _dsnap["code"] = (os.environ.get("GITHUB_SHA") or "")[:7] or None
+    deadline_snapshot.write(HIST, _dsnap)
 
 
 def corr_mae(pairs):
@@ -1818,6 +1822,26 @@ po_ = _load("odds/players.json") or {}
 fo_ = _load("odds/upcoming.json") or {}
 cr_ = _load("crowd/latest.json") or {}
 st_ = _load("history/status.json") or {}
+# ---------------------------------------------------------------- the model's track record (FL-145)
+# model_track.py: start-chance Brier (deadline snapshots, GW10 on), big misses (projection snapshots, GW8 on), links
+# to every saved pre-deadline file, and the model changes live for each GW (docs/model-log.md). Only saved files are
+# used, never today's model. A failure here is reported on Health and leaves the rest of the build alone.
+model_track_out = None
+try:
+    import model_track
+    _teams = {pid: e["team"] for pid, e in elements.items()}
+    _dl = [(e["id"], e["deadline_time"]) for e in events if e.get("deadline_time")]
+    model_track_out = {"brier": model_track.start_brier(HIST, finished_gws, live, fixtures, _teams),
+                       "misses": model_track.misses(HIST, finished_gws, live), "big": model_track.BIG,
+                       "downloads": model_track.downloads(HIST),
+                       "versions": [dict(v, code=(model_track._load(os.path.join(HIST, f"deadline_gw{v['gw']}.json")) or {}).get("code"))
+                                    for v in model_track.versions(open(os.path.join(HERE, "docs", "model-log.md")).read(), _dl)
+                                    if v["gw"] <= (next_gw or cur_gw or 0)]}
+except Exception as ex:
+    print("model track record not built:", ex)
+    model_track_out = {"error": str(ex)}
+out["model_track"] = model_track_out
+
 # ---------------------------------------------------------------- FPL School tab (FL-147)
 # The tab rates any team ID through the relay in fpl_school.json (a Cloudflare Worker, docs/fpl-school-relay.md): FPL
 # doesn't answer other websites' pages, so the site can't fetch a team itself. "others": every player not in

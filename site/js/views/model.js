@@ -28,7 +28,7 @@ function vModel() {
       <div class="tablebox" style="margin-top:10px"><table><thead><tr><th>GW</th><th class="n">Players</th><th class="n">Correlation</th><th class="n">Avg miss</th><th class="n">Top 30: projected → actual</th><th class="n">Live corr</th><th class="n">FPL's corr</th><th class="n">Live miss / FPL's</th></tr></thead>
       <tbody>${A.weeks.slice().reverse().map(w => `<tr><td>GW${w.gw}</td><td class="n">${w.n}</td><td class="n"><b>${w.corr.toFixed(2)}</b></td><td class="n">${w.mae.toFixed(2)}</td><td class="n">${w.top_pred.toFixed(1)} → ${w.top_act.toFixed(1)}</td><td class="n">${w.live?.corr != null ? w.live.corr.toFixed(2) : "–"}</td><td class="n">${w.live?.fpl_corr != null ? w.live.fpl_corr.toFixed(2) : "–"}</td><td class="n">${w.live?.mae != null ? `${w.live.mae.toFixed(2)} / ${w.live.fpl_mae.toFixed(2)}` : "–"}</td></tr>`).join("")}</tbody></table></div>
       <p class="note">Live figures start from GW8, the first week the snapshot was saved before the deadline.</p></div>` : ""}` : "";
-  return `${h2hPanel()}${missesPanel()}${acc}${comparePanel()}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
+  return `${h2hPanel()}${trackPanel()}${missesPanel()}${acc}${comparePanel()}<div class="panel" style="max-width:800px"><h2 style="margin-bottom:10px">How the projections work</h2>
   <ul>
     <li><b>Team strength.</b> Attack and defence ratings from expected goals for and against in every match (70%) plus real goals (30%). They're adjusted for the opponents each team has faced and for home advantage, and pulled towards average while the sample is small.</li>
     <li><b>Betting markets.</b> Team ratings blend 70% from betting-market odds on every match so far with 30% from xG. When a fixture's own odds are published (usually a few days before), its projected goals come 85% from those odds. Odds are from football-data.co.uk${D.meta.odds ? ` (${D.meta.odds.matches} matches, ${D.meta.odds.upcoming} upcoming)` : ""}. In a one-off backtest on 22 Oct 2026 (this season's GW3–7), adding the odds lifted the correlation with real points from 0.40 to 0.42; that test has not been re-run since.</li>
@@ -133,4 +133,27 @@ function h2hPanel() {
       <div class="tablebox"><table><thead><tr><th>Outcome</th><th class="n">FPL Lab</th><th class="n">FPL's own</th><th class="n">Player-weeks</th></tr></thead><tbody>${bandRows}</tbody></table></div></div></div>
     <p class="note">Lower miss is better, higher correlation is better; green marks where FPL Lab is ahead. Players: anyone who played in the previous 3 gameweeks.
       <a href="${H.csv}" target="_blank" rel="noopener">Every player, every week (CSV)</a>: both projections, points, minutes and the injury flag at the deadline. In Google Sheets, <code style="overflow-wrap:anywhere">=IMPORTDATA("${H.csv}")</code> keeps a sheet up to date on its own.</p></div>`;
+}
+
+/* FL-145: the model's track record per gameweek, from what was saved before each deadline (build.py model_track):
+   start-chance Brier (GW10 on), big misses (GW8 on), the model changes live for each GW, and links to every saved
+   file. Each number is labelled: next-GW forecasts (1-GW), scored on actual results. Missing: no model_track (an older
+   build or a failure) -> no panel, or a one-line note; a part with no rows -> says from which GW it starts. */
+function trackPanel() {
+  const T = D.model_track;
+  if (!T) return "";
+  if (T.error) return `<div class="panel"><h2>Track record</h2><p class="note">The track record couldn't be worked out this update (${esc(T.error)}).</p></div>`;
+  const B = Object.fromEntries((T.brier || []).map(r => [r.gw, r])), M = Object.fromEntries((T.misses || []).map(r => [r.gw, r]));
+  const V = Object.fromEntries((T.versions || []).map(r => [r.gw, r]));
+  const gws = [...new Set([...Object.keys(B), ...Object.keys(M)].map(Number))].sort((a, b) => b - a);
+  const rows = gws.map(g => { const b = B[g], m = M[g], v = V[g];
+    return `<tr><td>GW${g}</td><td class="n">${b ? b.brier.toFixed(3) : "–"}</td><td class="n">${b ? `${Math.round(b.chance * 100)}% v ${Math.round(b.started * 100)}%` : "–"}</td><td class="n">${m ? `${m.big} of ${m.n}` : "–"}</td><td class="n">${m ? m.mae.toFixed(2) : "–"}</td><td>${v && v.changes.length ? `${v.changes.length} change${v.changes.length > 1 ? "s" : ""}${v.assumed ? " (assumed)" : ""}` : v ? "none" : "–"}</td></tr>`; }).join("");
+  const vlist = (T.versions || []).filter(v => v.changes.length).slice(-3).reverse().map(v => `<li><b>GW${v.gw}</b>${v.code ? ` <span class="muted">(code ${esc(v.code)})</span>` : ""}: ${v.changes.map(esc).join("; ")}${v.assumed ? ` <span class="muted">(a change logged on the previous deadline's day is counted here: assumed)</span>` : ""}</li>`).join("");
+  const dl = (T.downloads || []).slice().reverse().map(d => `<a href="${esc(d.proj || d.deadline)}" target="_blank" rel="noopener">GW${d.gw}</a>${d.proj && d.deadline ? ` (<a href="${esc(d.deadline)}" target="_blank" rel="noopener">full</a>)` : ""}`).join(" · ");
+  return `<div class="panel"><h2 style="margin-bottom:10px">Track record</h2>
+    <p class="note" style="margin-top:0">Each gameweek's next-GW forecast (1-GW), exactly as it was saved before the deadline, scored on what actually happened. Start chance from GW10, points from GW8: earlier forecasts weren't saved.</p>
+    ${rows ? `<div class="tablebox"><table><thead><tr><th>GW</th><th class="n">Start Brier</th><th class="n">Start chance v started</th><th class="n">Misses of ${T.big}+ pts</th><th class="n">Mean miss (pts)</th><th>Model changes</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note">Brier: the average squared gap between the start chance and whether he started (0 = perfect, lower is better). Misses: players projected above 0 or who played.</p>` : `<p class="note">No finished gameweek has a saved forecast yet.</p>`}
+    ${vlist ? `<h3 style="margin:14px 0 6px">Model changes behind each gameweek</h3><ul class="alerts">${vlist}</ul>` : ""}
+    ${dl ? `<p class="note">Download the saved forecasts (next-GW xP; "full" adds 5-GW xP, minutes and plans): ${dl}</p>` : ""}</div>`;
 }
