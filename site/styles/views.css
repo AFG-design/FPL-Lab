@@ -931,3 +931,12 @@ tr.is-rival td { background: var(--accent-soft); }
   .pcell { gap: 12px; }
   .cmp-hit { display: grid; flex: none; place-items: center; width: 40px; height: 40px; margin: -10px -2px -10px -10px; cursor: pointer; }
 }
+
+/* FPL School: the reviewed manager's card and the One move's player out on their pitch */
+.sch-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 10px 0; }
+.sch-card > div { min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.sch-card dt { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.sch-card dd { margin: 2px 0 0; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sch-out { font-weight: 700; color: var(--bad); }
+.lu-kits .pitch .sch-out { color: var(--on-turf-bad); }
+.lu-np .lu-kit { min-height: 30px; }
