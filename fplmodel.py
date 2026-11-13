@@ -932,7 +932,12 @@ def availability_info(e, k, kickoff=None, ret=None, today=None):
     flagged_out = e["status"] in ("i", "s", "n") and not c
     if flagged_out and k == 0:
         if c is None and ret != "unknown":
-            return 0.5, True          # flagged with no chance given: our default, not FPL's
+            # FL-067: flagged with no chance given. FPL's own return date comes first: a kick-off before it is out
+            # ('Suspended until 21 Nov' for a 20 Nov game was projected at 50%). A date that has passed while he is
+            # still flagged, no date, or no kick-off (blank week) leaves our 50% default, marked assumed.
+            if isinstance(ret, dt.date) and kickoff is not None and kickoff < ret and (today is None or ret > today):
+                return 0.0, False
+            return 0.5, True          # our default, not FPL's
         return 0.0, False
     if flagged_out:
         if isinstance(ret, dt.date) and today is not None and ret <= today:

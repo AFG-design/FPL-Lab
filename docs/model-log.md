@@ -4,6 +4,18 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-067: return date checked before the 50% no-chance default (Adopt as Marginal)
+
+- Known error (reproduced, backlog FL-067): a flagged player with no chance given got our 50% default for next GW even
+  when FPL's own return date was after the kick-off ('Suspended until 21 Nov', game 20 Nov: 50%, should be 0).
+  Fixed in availability_info: kick-off before the date -> 0 (FPL's date, not assumed). No date, a date that has passed,
+  or no kick-off keep the 50% default, marked assumed.
+- Projections unchanged today and in every backtest week: this season FPL gave a chance (0) with every i/s/n flag
+  (status log: 0 rows with no chance; news log: 0), and the backtest path rules a flagged player out at his deadline
+  anyway (hist_flags). Backtest vs FL-068: identical with and without the status log (MAE 1.7649 / 1.8239). bench.py:
+  identical on all three seasons (5-GW picks 18.11 / 19.13 / 19.01; every CI [0, 0]).
+- Decision: CI includes zero, fixes a known error, no segment worse -> Adopt as Marginal.
+
 ## 13 Nov 2026 — FL-131: xmins_sell shadow re-landed (shadow only; no live change)
 
 - PR #29 (31 Oct) was closed unmerged on 12 Nov, so no shadow had been saved before any deadline. Re-landed on current
