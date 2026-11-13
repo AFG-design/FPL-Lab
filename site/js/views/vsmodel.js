@@ -176,6 +176,7 @@ function journalPanel(gw, isNext) {
   const yc = e.you.captain, mc = e.model?.captain, oc = e.outcome, cp = oc?.captain;
   return `<div class="panel j-panel">${head}
     ${e.chip === "freehit" ? '<p class="vm-assumed"><b>Free Hit:</b> these moves were for this week only.</p>' : ""}
+    ${e.chip === "wildcard" ? '<p class="vm-assumed"><b>Wildcard:</b> these moves were free (no hits), a whole-squad rebuild rather than one-off calls; each is still judged over the five weeks.</p>' : ""}
     <div class="j-cap"><span>Captain</span><span>You: <b>${vmNm(yc)}</b> ${f1(r(yc).xp1)} xP</span>${e.model ? `<span>Model: <b>${vmNm(mc)}</b> ${f1(r(mc).xp1)} xP${mc === yc ? ' <span class="pill good">Same</span>' : ""}</span>` : ""}${cp ? `<span class="j-capres">Scored: you ${cp.you_pts}${e.model && cp.model_pts != null && mc !== yc ? `, model ${cp.model_pts}` : ""} <span class="muted">(before the armband)</span></span>` : ""}</div>
     ${e.model ? `<p class="note">The model's suggestion: ${esc(vmPlan(e.model.plan))}${e.model.hits ? `, ${e.model.hits} hit${e.model.hits > 1 ? "s" : ""}` : ", no hits"}. Your hits: ${e.hits ? "−" + e.hits : "none"}.</p>` : '<p class="note">No saved plan for this week, so there is nothing to compare your moves with.</p>'}
     ${grp("You and the model", e.both, "No move in common.", "why")}
