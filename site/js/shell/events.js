@@ -143,7 +143,18 @@ function bind() {
   [["#fteam", "team"], ["#fmin", "minp"], ["#fmax", "maxp"], ["#fform", "minform"], ["#fown", "own"]].forEach(([id, k]) => { const el = $(id); if (el) el.onchange = () => { S[k] = el.value; render(); }; });
   on("[data-fclear]", () => { Object.assign(S, { pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", q: "" }); render(); });
   const keepCols = () => { const d = $(".colpick"); return d && d.open; };
-  on("[data-col]", c => { const cur = new Set(colsOn()); c.checked ? cur.add(c.dataset.col) : cur.delete(c.dataset.col); store.set("fpl.cols", COLS.map(x => x[0]).filter(k => cur.has(k))); const open = keepCols(); render(); if (open) { $(".colpick").open = true; $(`[data-col="${c.dataset.col}"]`)?.focus(); } }, "onchange");
+  // FL-156: a column you switch on goes at the end; switching one off keeps the others' order
+  on("[data-col]", c => { const k = c.dataset.col, cur = colsOn().filter(x => x !== k); store.set("fpl.cols", c.checked ? [...cur, k] : cur); const open = keepCols(); render(); if (open) { $(".colpick").open = true; $(`[data-col="${k}"]`)?.focus(); } }, "onchange");
+  on("[data-colmove]", b => { const [k, d] = b.dataset.colmove.split(":"); colMove(k, +d); render(); $(".colpick").open = true; const n = $(`[data-colmove="${b.dataset.colmove}"]`); (n && !n.disabled ? n : $(`[data-col="${k}"]`))?.focus(); });
+  // FL-156: saved views and density on Players
+  const pvs = $("#pvSel"); if (pvs) pvs.onchange = () => { pvSelect(pvs.value); render(); $("#pvSel")?.focus(); };
+  on("[data-pvact]", b => { const a = b.dataset.pvact;
+    if (a === "new" || a === "rename") { S.pvEdit = a; S.pvMsg = ""; render(); $("#pvName")?.focus(); return; }
+    if (a === "delete") { S.pvEdit = "delete"; S.pvMsg = ""; render(); $('[data-pvact="cancel"]')?.focus(); return; }
+    if (a === "cancel") S.pvEdit = null; else if (a === "update") pvUpdate(); else if (a === "confirm-delete") { pvDelete(); S.pvEdit = null; }
+    render(); $("#pvSel")?.focus(); });
+  const pvf = $("#pvForm"); if (pvf) pvf.onsubmit = e => { e.preventDefault(); pvSaveAs($("#pvName").value, S.pvEdit); render(); (S.pvEdit ? $("#pvName") : $("#pvSel"))?.focus(); };
+  on("[data-dens]", b => { S.pdens = b.dataset.dens === "comfy" ? "comfy" : "compact"; store.set("fpl.pdensity", S.pdens); render(); });
   on("[data-colreset]", () => { store.set("fpl.cols", null); render(); });
   bindHome();   // homepage view switch and shortcuts (views/home.js)
   bindXp();   // xP table controls (views/xptable.js)
