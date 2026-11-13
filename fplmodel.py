@@ -54,8 +54,10 @@ DEFAULTS = {
     "hist_flags": True,    # backtests only (use_flags off): rule a player out if he was flagged at that deadline
     "hist_honest": True,   # backtests only (use_flags off), FL-068: judge each forecast on what was known at its deadline:
                            # weeks out from the status and news logs as they stood then (known_out), not today's notes;
-                           # no zero for being unavailable today; past xG credited to the club he played for that week
-                           # (ctx["team_gw_xg_then"]). False = the old, hindsight backtest, for comparisons.
+                           # no zero for being unavailable today. False = the old, hindsight backtest, for comparisons.
+    "xg_club_then": True,  # FL-065: a player's past xG counts for the club he played for that week, and his past
+                           # opponents are that club's (clubs_then), in the live model as in backtests. False = old
+                           # behaviour: today's club (in a backtest: his club at the forecast deadline).
     "hist_odds_ahead": 0,  # backtests only (use_flags off): a fixture's own odds count only this many GWs past the
                            # forecast week. The live odds file holds the next round only, so a forecast made at GW k
                            # never had GW k+1's odds; the archive does (pre-match or closing prices), which leaked.
@@ -318,13 +320,14 @@ def unfinished_team_weeks(fixtures):
             for t in (f["team_h"], f["team_a"])}
 
 
-def clubs_then(elements, fixtures, live, pending=()):
+def clubs_then(elements, fixtures, live, pending=(), clubs=None):
     """Team xG per gameweek with each player's xG credited to the club he played for that week (FL-068), not today's.
 
     The live data lists, per player, the fixtures he was registered for (explain[].fixture). His club in a fixture is
     the side that is today's club; for a player who has since moved, the side that is in every one of his other
     fixtures at clubs he has left. Ambiguous (a single such fixture, so either side could be his): his xG that week
     (if any) is credited to neither club and the (pid, gw) is returned in the second value, so callers can count it.
+    clubs: optional dict, filled with {(pid, gw): his club that week, or None when ambiguous} (FL-065: his opponents).
     Returns ({team: {gw: xG}}, [(pid, gw), ...])."""
     fxd = {f["id"]: f for f in fixtures}
     xg = defaultdict(lambda: defaultdict(float))
@@ -344,10 +347,15 @@ def clubs_then(elements, fixtures, live, pending=()):
         t = elements[pid]["team"]
         if not sides or any(t in s for s in sides):
             xg[t][g] += v
+            if clubs is not None:
+                clubs[(pid, g)] = t
             continue
         common = set.intersection(*away[pid]) if len(away[pid]) > 1 else set()
-        if len(common) == 1:
-            xg[common.pop()][g] += v
+        club = common.pop() if len(common) == 1 else None
+        if clubs is not None:
+            clubs[(pid, g)] = club
+        if club is not None:
+            xg[club][g] += v
         elif v > 0:   # no xG to place otherwise
             ambiguous.append((pid, g))
     return xg, ambiguous
@@ -386,7 +394,8 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         if t:
             for g, s in gws.items():
                 team_gw_xg[t][g] += float(s["expected_goals"])
-    team_gw_xg_then, club_ambiguous = clubs_then(elements, fixtures, live, pending)
+    club_then = {}
+    team_gw_xg_then, club_ambiguous = clubs_then(elements, fixtures, live, pending, club_then)
     # DC thresholds from FPL's rules. The data is only a check: the smallest count that earned points should
     # equal the rule (a single forward hit at 16 once set FWD to 16 when this was read from the data).
     thr = dict(DC_THR)
@@ -417,7 +426,9 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
         "pstats": pstats, "dc_hit": dc_hit, "pts_gw": pts_gw, "team_fix": team_fix,
         "team_gw_xg": team_gw_xg, "pending_team_gws": pending,
         # backtests (FL-068): each week's xG credited to the club he played for that week (clubs_then)
-        "team_gw_xg_then": team_gw_xg_then, "club_ambiguous": club_ambiguous, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
+        "team_gw_xg_then": team_gw_xg_then, "club_ambiguous": club_ambiguous,
+        # FL-065: {(pid, gw): the club he played for that week} (None: ambiguous), for his past opponents
+        "club_then": club_then, "opp_of": opp_of, "scoring": boot["game_config"]["scoring"],
         "priors": (priors or {}).get("players", {}), "dc_thr": thr, "out": out, "out_log": out_log, "out_news": news_out,
         "out_late": out_late, "out_doubt": out_doubt,
         # status and chance saved before each deadline: {gw: {pid: (status, chance)}} (empty with no status log)
@@ -433,8 +444,8 @@ def prepare(boot, fixtures, live, priors=None, market=None, sp=None, status_log=
 
 def team_ratings(ctx, as_of, P):
     fixtures, team_fix, team_gw_xg, teams = ctx["fixtures"], ctx["team_fix"], ctx["team_gw_xg"], ctx["teams"]
-    if not P["use_flags"] and P["hist_honest"] and "team_gw_xg_then" in ctx:
-        team_gw_xg = ctx["team_gw_xg_then"]   # backtests (FL-068): each week's xG to the club he played for then
+    if P["xg_club_then"] and "team_gw_xg_then" in ctx:
+        team_gw_xg = ctx["team_gw_xg_then"]   # FL-065: each week's xG to the club he played for then (live and backtests)
     H, A = P["home"], 1 / P["home"]
     games = defaultdict(list)
     for f in fixtures:
@@ -669,7 +680,10 @@ def project(ctx, as_of, horizon=6, params=None):
             w = P["recency"] ** (as_of - 1 - g)
             den += w * s["minutes"]
             if P["opp_adj"]:
-                opps = opp_of.get((e["team"], g)) or []
+                # FL-065: the opponents of the club he played for that week (a player who has moved faced his old
+                # club's opponents). Ambiguous club (clubs_then): no opponent adjustment that week (of = 1)
+                club = ctx.get("club_then", {}).get((pid, g), e["team"]) if P["xg_club_then"] else e["team"]
+                opps = opp_of.get((club, g)) or [] if club is not None else []
                 of = (sum(rating[o]["def"] for o in opps) / len(opps)) ** P["opp_adj"] if opps else 1.0
             else:
                 of = 1.0

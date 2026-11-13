@@ -223,9 +223,24 @@ def _season(season):
             for g, s in gs.items():
                 t = team_at(pid, g + 1) or ctx["elements"][pid]["team"]
                 tgx[t][g] += float(s["expected_goals"])
-        ctx["team_gw_xg"] = ctx["team_gw_xg_then"] = tgx   # the archive's own club per week (same as clubs_then)
+        ctx["team_gw_xg_then"] = tgx   # the archive's own club per week (same as clubs_then)
+        # FL-065: his club each week from the archive, for his past opponents (fplmodel reads ctx["club_then"])
+        ctx["club_then"] = {(pid, g): team_at(pid, g + 1) or ctx["elements"][pid]["team"]
+                            for pid, gs in ctx["pstats"].items() for g in gs}
         _SEASON[season] = (ctx, team_at)
     return _SEASON[season]
+
+
+def _xg_at(ctx, team_at, k):
+    """Old behaviour (xg_club_then off), as the live model then ran at GW k's deadline: every past week's xG credited
+    to the club each player was at by GW k."""
+    t = defaultdict(lambda: defaultdict(float))
+    for pid, gs in ctx["pstats"].items():
+        c = team_at(pid, k) or ctx["elements"][pid]["team"]
+        for g, s in gs.items():
+            if g < k:
+                t[c][g] += float(s["expected_goals"])
+    return t
 
 
 def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None):
@@ -234,6 +249,7 @@ def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None):
     for k in gws:
         cx = dict(ctx)
         cx["elements"] = {pid: dict(e, team=team_at(pid, k) or e["team"]) for pid, e in ctx["elements"].items()}
+        cx["team_gw_xg"] = _xg_at(ctx, team_at, k)
         res = project(cx, k, 1, dict(params, use_flags=False))["players"]
         pred = {pid: r["xp"].get(k, 0.0) for pid, r in res.items()}
         out[k] = pool_rows(cx, k, pred)
@@ -259,6 +275,7 @@ def run_horizon(params, season, H):
         if team_at:
             cx = dict(ctx)
             cx["elements"] = {pid: dict(e, team=team_at(pid, k) or e["team"]) for pid, e in ctx["elements"].items()}
+            cx["team_gw_xg"] = _xg_at(ctx, team_at, k)
         res = project(cx, k, H, dict(params, use_flags=False))["players"]
         rows = []
         for pid, r in res.items():

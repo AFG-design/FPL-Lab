@@ -104,6 +104,16 @@ def check_logs(D, warnings):
                             f"until the file is fixed or restored from Git history")
 
 
+def check_club_then(meta, warnings):
+    """FL-065: a player who has changed clubs has each past week credited to the club he played for then
+    (fplmodel.clubs_then). A week that can't be told (one game at a club he has since left) is credited to no club: warn
+    with the players and gameweeks. Data from before FL-065 has no meta.club_ambiguous and is not checked."""
+    amb = meta.get("club_ambiguous")
+    if amb:
+        warnings.append(f"Club at the time unclear for {len(amb)} player-week(s) with xG ({', '.join(f'player {p} GW{g}' for p, g in amb[:5])}"
+                        f"{'…' if len(amb) > 5 else ''}): that xG counts for no team and his opponent adjustment is off")
+
+
 def check_model_inputs(meta, errors, warnings):
     """The status log and europe.json (FL-072): build.py runs on without either, so these are the only sign.
 
@@ -949,6 +959,7 @@ def main(path):
     check_sources(D, warnings)
     check_logs(D, warnings)
     check_model_inputs(D["meta"], errors, warnings)
+    check_club_then(D["meta"], warnings)
     check_season_end(D["meta"], errors, warnings)
     check_setpieces(D, errors, warnings)
     check_picks_sections(D, warnings)
