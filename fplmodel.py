@@ -72,6 +72,8 @@ DEFAULTS = {
     "xmins_sell": False,   # next GW only: start chance / minutes from the selling-informed xMins model (xmins.predict_sell,
                            # + net selling before the deadline, selling.py); later GWs keep the plain model. Off: shadow only
                            # (build.py saves it beside the live numbers). Needs ctx["sell"], else project() raises.
+    "save_split": True,    # FL-079: goalkeeper save points worked out for a start and a sub appearance separately,
+                           # then weighted by their chances; False = old behaviour (one Poisson on expected minutes)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
 }
@@ -815,8 +817,15 @@ def project(ctx, as_of, horizon=6, params=None):
                 if scoring["goals_conceded"][pos]:
                     comp["gc"] += scoring["goals_conceded"][pos] * exp_floor_div(P["cs_k"] * mu_a, 2) * m / 90
                 if pos == "GKP":
-                    sv = sv90 * (mu_a / league) ** 0.6 * m / 90
-                    comp["saves"] += sum((j // 3) * poisson(j, sv) for j in range(20)) * scoring["saves"]
+                    sv_rate = sv90 * (mu_a / league) ** 0.6 / 90   # saves per minute against this opponent
+                    if P["save_split"]:
+                        # FL-079: a save point needs 3 saves in the minutes he actually plays, so work out a start and
+                        # a sub appearance separately and weight by their chances. Spreading his expected minutes
+                        # over every case understated it (50% to start: 0.20 v 0.33 points).
+                        comp["saves"] += (ps * saves_pts(sv_rate * m_start) + pb * saves_pts(sv_rate * m_sub)) \
+                            * scoring["saves"]
+                    else:
+                        comp["saves"] += saves_pts(sv_rate * m) * scoring["saves"]
                 comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
                 comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
                 comp["cards"] -= yc90 * m / 90
@@ -916,6 +925,11 @@ def returning(e, hist, today, window_end):
 
 
 RETURN_WEEK_AV = 0.5   # injured player in his first week after an 'Expected back' date: possible, not certain
+
+
+def saves_pts(lam):
+    """Expected save points' multiplier: E[floor(saves / 3)] for Poisson(lam) saves (one point per 3 saves)."""
+    return sum((j // 3) * poisson(j, lam) for j in range(20))
 
 
 def availability_info(e, k, kickoff=None, ret=None, today=None):

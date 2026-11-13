@@ -4,6 +4,19 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-079: goalkeeper saves for a start and a sub appearance separately (Adopt as Marginal)
+
+- Known error (reproduced, backlog FL-079): save points (1 per 3 saves) were one Poisson on his expected minutes, which
+  spreads the minutes over the cases where he doesn't play. A save point needs 3 saves in the minutes he does play, so
+  below 100% it was understated: 50% to start, about 3 saves a game, 0.20 v 0.33. Now start and sub appearance are
+  worked out separately and weighted by their chances (save_split; False = old).
+- Backtest vs FL-068 (GW3-10): with status log MAE 1.7649 → 1.7653, corr 0.4437 both; without 1.8239 → 1.8245. Raw
+  saves part real/projected 1.13 → 1.08 (was under-projected; mse −0.004). GKP MAE +0.008 / +0.010 (n=172, under the
+  limit) after calibration; top 30 MAE −0.012. No segment past the limits.
+- bench.py (new − old): 5-GW picks 2024/25 +0.02 [0.00, +0.06], 2025/26 +0.00 [0.00, 0.00], this season +0.00; 1-GW
+  picks 2024/25 +0.01 [0.00, +0.02]; captain unchanged in every week; GKP corr ±0.001.
+- Decision: CI includes zero, fixes a known error, no segment worse → Adopt as Marginal.
+
 ## 13 Nov 2026 — FL-067: return date checked before the 50% no-chance default (Adopt as Marginal)
 
 - Known error (reproduced, backlog FL-067): a flagged player with no chance given got our 50% default for next GW even
