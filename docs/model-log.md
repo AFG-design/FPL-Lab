@@ -4,6 +4,22 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-053: double gameweeks diagnosed (no model change; Don't adopt)
+
+- The 1 Nov check found double-gameweek players under-projected (xP 4.64 v 4.84 real in 2025/26, 4.44 v 5.00 in
+  2024/25). FL-053 asked which part. tools/dgw_check.py (honest 1-GW forecasts, pool players):
+  - by part, real/projected (raw), singles v doubles: appearance 0.95 v 0.96 / 0.95 v 0.94 (no extra rotation across
+    the two games), bonus 1.19 v 1.27 / 1.22 v 1.35, goals 1.02 v 1.05 / 1.03 v 1.55, assists 1.14 v 1.08 /
+    1.09 v 1.54 (2025/26 / 2024/25). The calibration adds its intercept per match, so it treats doubles as two singles.
+  - the same clubs' single-match weeks within 4 GWs of their double: gap (real - xP per player-week) +0.04 [-0.17,
+    +0.23] in 2025/26 and +0.30 [+0.11, +0.48] in 2024/25; the doubles +0.20 [-0.10, +0.63] (+0.10 a match) and
+    +0.56 [-0.21, +1.17] (+0.28 a match). In 2024/25 the clubs were under-projected by the same amount a match
+    whether they played once or twice: the clubs that get doubles (cup runs), not the double.
+- No part is off in a way that is specific to doubles and holds in both seasons; 3-4 double gameweeks a season (190
+  player-weeks) can't separate a few tenths of a point from noise. No fix made, so nothing to backtest or bench (the
+  model is unchanged). The club effect overlaps FL-129 (top-end under-projection, on hold).
+- Decision: no change → Don't adopt. Re-run tools/dgw_check.py once this season has double gameweeks, adding them.
+
 ## 13 Nov 2026 — FL-080: defensive contributions per fixture, no 60-minute gate (Adopt as Marginal, check carefully)
 
 - Known error (traced, backlog FL-080: fplmodel L644-650, L702): the DefCon chance was learned from gameweeks where he
