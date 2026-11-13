@@ -9,7 +9,6 @@
      existing snapshot (xp_cur_absent) was projected 0 (the snapshot keeps only players above 0): 0.0, saying so. */
 S.xsort = store.get("fpl.xsort") || "sum";
 S.xdir = store.get("fpl.xdir") === 1 ? 1 : -1;
-S.xh = [3, 5, 6].includes(store.get("fpl.xh")) ? store.get("fpl.xh") : 5;
 S.xquick = ["all", "mine", "star"].includes(store.get("fpl.xquick")) ? store.get("fpl.xquick") : "all";
 const xLiveShown = () => { const v = store.get("fpl.xlive"); return v == null ? !matchMedia("(max-width: 560px)").matches : !!v; };
 
@@ -17,15 +16,7 @@ const xLiveGW = () => {
   const m = D.meta;
   return m.cur_gw && !m.cur_finished && D.live && D.live.gw === m.cur_gw ? m.cur_gw : null;
 };
-// one player's numbers over the chosen horizon: {sum, n (gameweeks with a number), of (gameweeks in horizon)}
-function xTotals(p, gws) {
-  let sum = 0, n = 0;
-  gws.forEach(g => {
-    const v = p.xp[g];
-    if (v != null) { sum += v; n++; } else if (!fxFor(p.team, g).length) n++;   // blank: 0, and it is known
-  });
-  return { sum, n, of: gws.length };
-}
+// xTotals (one player's numbers over the chosen gameweeks) and the period S.xh live in core (FL-156), shared with Players
 function xLiveCell(p, lg) {
   const meta = D.meta.xp_cur;
   const started = (D.live.fixtures || []).some(f => (f.h === p.team || f.a === p.team) && f.started);
@@ -117,7 +108,7 @@ function vXpTable() {
     <div class="filters">
       <select id="fteam" aria-label="Team"><option value="ALL">All teams</option>${teamOpts}</select>
       <select id="fmax" aria-label="Max price"><option value="">Max price</option>${prices.map(x => `<option ${+S.maxp === x ? "selected" : ""} value="${x}">Up to £${x.toFixed(1)}m</option>`).join("")}</select>
-      <div class="seg" role="group" aria-label="Gameweeks counted">${[3, 5, 6].filter(h => h <= gws.length).map(h => `<button data-xh="${h}" aria-pressed="${S.xh === h}">${h} GWs</button>`).join("")}</div>
+      <div class="seg" role="group" aria-label="Gameweeks counted">${fcButtons(gws)}</div>
       ${active ? `<button class="btn ghost sm" data-xclear="1">Clear filters (${active})</button>` : ""}
     </div>
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
@@ -137,7 +128,6 @@ function bindXp() {
     if (S.xsort === k) S.xdir *= -1; else { S.xsort = k; S.xdir = k === "name" || k === "price" ? 1 : -1; }
     store.set("fpl.xsort", S.xsort); store.set("fpl.xdir", S.xdir); render();
   });
-  document.querySelectorAll("[data-xh]").forEach(b => b.onclick = () => set("xh", +b.dataset.xh, "fpl.xh"));
   document.querySelectorAll("[data-xquick]").forEach(b => b.onclick = () => set("xquick", b.dataset.xquick, "fpl.xquick"));
   document.querySelectorAll("[data-xlive]").forEach(b => b.onclick = () => { store.set("fpl.xlive", b.dataset.xlive === "1"); render(); });
   document.querySelectorAll("[data-xstar]").forEach(b => b.onclick = () => { toggleStar(+b.dataset.xstar); render(); });

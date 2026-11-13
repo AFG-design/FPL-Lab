@@ -115,7 +115,7 @@ function openPlayer(id) {
       ${statBadge("Price", money(p.price), { sub: sq ? `you sell at ${money(sq.sell)}` : `${p.own.toFixed(1)}% owned` })}
       ${statBadge("Form", f1(p.form), { sub: "points per game, last 30 days" })}
       ${statBadge(`xP GW${g}`, f1(p.xp1), { sub: fxText(p, g), tone: "accent" })}
-      ${statBadge(`xP next ${Math.min(5, GWS.length)}`, f1(p.xp5), { sub: `${p.xmin} expected mins` })}
+      ${S.xh > 1 ? statBadge(`xP ${fcLabel()}`, fcTxt(p), { sub: `${p.xmin} expected mins` }) : statBadge("Expected minutes", String(p.xmin), { sub: `GW${g}` })}
     </dl>
 
     ${whyXP(p, g)}

@@ -10,6 +10,9 @@ function nailedPill(p) {
   return `<span class="pill ${c}" title="${esc(p.mflag || (n >= 85 ? "Nailed on" : n >= 60 ? "Usually starts" : "Rotation or bench risk"))}">${n}</span>`;
 }
 const COLTERM = { xgi90_4: "xgi", nailed: "nailed", xmin: "xmins", xp1: "xp", xp5: "xp" };
+// FL-156: the "xp5" and "val" columns follow the forecast period (S.xh); their keys stay the same so saved column
+// choices (fpl.cols) and sort keep working. "xP next" stays the next gameweek, whatever the period.
+const colLabel = (k, l) => k === "xp5" ? `xP ${fcLabel()}` : k === "val" ? `xP ${fcLabel()}/£m` : l;
 function priceCell(p) {
   const v = p.price_proj?.[0]; if (v == null) return "–";
   const w = Math.min(100, Math.abs(v)) * 0.5;
@@ -27,7 +30,7 @@ function vPlayers() {
   else if (S.own === "mid") rows = rows.filter(p => p.own >= 5 && p.own < 20);
   else if (S.own === "template") rows = rows.filter(p => p.own >= 20);
   if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(p => (p.name + " " + p.full).toLowerCase().includes(q)); }
-  const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? p.xp5 / p.price : S.sort === "team" ? T[p.team].short
+  const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? fcTot(p).sum / p.price : S.sort === "xp5" ? fcTot(p).sum : S.sort === "team" ? T[p.team].short
     : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : ["name", "pos"].includes(S.sort) ? p[S.sort] : +p[S.sort] || 0;
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
   const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = COLS.filter(c => on.has(c[0]));
@@ -35,7 +38,7 @@ function vPlayers() {
     team: p => T[p.team].short, pos: p => p.pos, price: p => p.price.toFixed(1), form: p => f1(p.form), pts: p => p.pts,
     xg: p => (p.xg ?? 0).toFixed(1), xa: p => (p.xa ?? 0).toFixed(1), xgi90_4: p => p.xgi90_4.toFixed(2), own: p => p.own.toFixed(1),
     t10k: p => D.crowd ? t10(p).toFixed(0) + "%" : "–", nailed: p => nailedPill(p), xmin: p => p.xmin, xp1: p => xpCell(p.id, D.meta.next_gw),
-    xp5: p => `<b>${f1(p.xp5)}</b>`, val: p => (p.xp5 / p.price).toFixed(2), pc: p => priceCell(p),
+    xp5: p => fcTxt(p, true), val: p => (fcTot(p).sum / p.price).toFixed(2), pc: p => priceCell(p),
   };
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${String(S.team) === String(t.id) ? "selected" : ""}>${t.name}</option>`).join("");
   // a limit set elsewhere (the homepage's Budget options) is added to the list so the menu shows it
@@ -43,7 +46,7 @@ function vPlayers() {
   const priceSel = (id, cur, any, op) => `<select id="${id}" aria-label="${any}"><option value="">${any}</option>${prices.map(x => `<option ${+cur === x ? "selected" : ""} value="${x}">${op} £${x.toFixed(1)}m</option>`).join("")}</select>`;
   const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.q].filter(Boolean).length;
   const head = `<th class="sort sticky-col" data-sort="name" ${S.sort === "name" ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>Player${S.sort === "name" ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>` +
-    cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], l) : l}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+    cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], colLabel(k, l)) : colLabel(k, l)}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
   const body = shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
       <td class="sticky-col"><span class="pcell"><label class="cmp-hit"><input type="checkbox" data-cmp="${p.id}" ${S.cmp.includes(p.id) ? "checked" : ""} aria-label="Compare ${esc(p.name)}"></label>
         <button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news)}">${fplChance(p.chance)}</span>` : ""}${playerTags(p, 2)}</span></td>
@@ -52,6 +55,7 @@ function vPlayers() {
     <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
     <div class="filters">
       <input type="search" id="q" placeholder="Search players" value="${esc(S.q)}" aria-label="Search players">
+      <div class="seg" role="group" aria-label="Forecast period">${fcButtons()}</div>
       <div class="seg" role="group" aria-label="Position">${["ALL", "GKP", "DEF", "MID", "FWD"].map(x => `<button data-fpos="${x}" aria-pressed="${S.pos === x}">${x === "ALL" ? "All" : x}</button>`).join("")}</div>
     </div>
     <div class="filters">
@@ -61,22 +65,22 @@ function vPlayers() {
       <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
       ${active ? `<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button>` : ""}
       <details class="colpick"><summary>Columns</summary><div class="colpick-body" role="group" aria-label="Columns to show">
-        ${COLS.map(([k, l]) => `<label><input type="checkbox" data-col="${k}" ${on.has(k) ? "checked" : ""}> ${l}</label>`).join("")}
+        ${COLS.map(([k, l]) => `<label><input type="checkbox" data-col="${k}" ${on.has(k) ? "checked" : ""}> ${colLabel(k, l)}</label>`).join("")}
         <button class="btn ghost sm" data-colreset="1">Reset columns</button></div></details>
     </div>
     ${compareHTML()}
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
       : stateView({ title: "No players match", body: "Loosen a filter, or clear them all to see every player.", action: `<button class="btn" data-fclear="1">Clear filters</button>` })}
-    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${nextPriceUpdate() ? ` (${priceUpdateTxt(nextPriceUpdate())})` : ""}.</p></div>`;
+    <p class="note">Yellow edge = in your squad. Tick players to compare them side by side. Nailed = how sure a player is to start and play most of the game (0–100). xGI/90 L4 = expected goal involvement per 90 over the last 4 gameweeks. xP ${fcLabel()} = projected points over the forecast period you pick above (blank gameweeks count 0; * = some gameweeks have no projection yet, left out); xP next = GW${D.meta.next_gw} only. <span class="asm">Grey italic</span> xP = assumed (no official return date or chance from FPL). Price change = progress towards a change at the next update${nextPriceUpdate() ? ` (${priceUpdateTxt(nextPriceUpdate())})` : ""}.</p></div>`;
 }
 function compareHTML() {
   if (!S.cmp.length) return "";
-  const ps = S.cmp.map(i => P[i]).filter(Boolean), g = D.meta.next_gw, gws = GWS.slice(0, 5);
+  const ps = S.cmp.map(i => P[i]).filter(Boolean), g = D.meta.next_gw, gws = fcGws();
   const t10 = p => D.crowd?.top10k?.own?.[p.id] ?? null;
   const pct = x => x == null ? "–" : Math.round(x) + "%";
   // [label, value fn, better: 1 higher / -1 lower / 0 neither, format, glossary key]
   const groups = [
-    ["Projections", [["xP GW" + g, p => p.xp1, 1, f1, "xp"], [`xP next ${gws.length}`, p => p.xp5, 1, f1, "xp"],
+    ["Projections", [["xP GW" + g, p => p.xp1, 1, f1, "xp"], [`xP ${fcLabel()}`, p => fcTot(p).sum, 1, (x, p) => fcTxt(p), "xp"],
       ["Chance of 10+", p => (p.dist?.[g]?.[0] ?? 0) * 100, 1, pct], ["Chance of 2 or fewer", p => (p.dist?.[g]?.[2] ?? 0) * 100, -1, pct]]],
     ["Minutes", [["Nailed", p => p.nailed, 1, x => x, "nailed"], ["Expected minutes", p => p.xmin, 1, x => x, "xmins"], [`Mins ${"L4"}`, p => p.mins4, 1, x => x, "l4"]]],
     ["Attack", [["xGI/90 L4", p => p.xgi90_4, 1, x => x.toFixed(2), "xgi"], ["xGI/90 model", p => p.xgi90, 1, x => x.toFixed(2), "xgi"],
@@ -89,7 +93,7 @@ function compareHTML() {
   ];
   const cell = (fn, dir, fmt) => { const vals = ps.map(fn), best = dir === 1 ? Math.max(...vals) : dir === -1 ? Math.min(...vals) : null;
     return ps.map((p, k) => `<td class="n ${ps.length > 1 && dir && vals[k] === best && vals.some(v => v !== best) ? "best" : ""}">${fmt(vals[k], p)}</td>`).join(""); };
-  const fxRow = `<tr><th scope="row">Next ${gws.length} fixtures</th>${ps.map(p => `<td><div class="cmp-fx">${gws.map(x => { const f = fxFor(p.team, x);
+  const fxRow = `<tr><th scope="row">${gws.length === 1 ? `GW${gws[0]} fixture` : `Next ${gws.length} fixtures`}</th>${ps.map(p => `<td><div class="cmp-fx">${gws.map(x => { const f = fxFor(p.team, x);
       return `<span title="GW${x}">${f.length ? f.map(y => fdrChip(y, { gw: x })).join("") : blankChip(x)}<small>${xpCell(p.id, x)}</small></span>`; }).join("")}</div></td>`).join("")}</tr>`;
   const news = ps.some(p => p.status !== "a") ? `<tr><th scope="row">News</th>${ps.map(p => `<td>${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}">${esc(p.news || "Flagged")}</span>` : '<span class="muted">Fit</span>'}</td>`).join("")}</tr>` : "";
   return `<div class="panel cmp-table" id="cmpPanel"><div class="bar"><h3>Comparing ${ps.length} player${ps.length > 1 ? "s" : ""}</h3><span class="muted">${ps.length < 4 ? "Tick up to 4 in the list, or press Compare in any player's panel" : "Up to 4 at a time"}</span></div>
