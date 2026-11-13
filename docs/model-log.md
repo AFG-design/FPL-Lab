@@ -4,6 +4,24 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 13 Nov 2026 — FL-114 (first slice): five untested settings benched (no change; Don't adopt)
+
+- Settings with no result in this log (or only a ±20% sensitivity check), picked by how much they move points, plus
+  xmins_skip_out from FL-094. bench.py on all three seasons, candidate v main, 5-GW picks (deciding; this season
+  doesn't decide at 4 origins) and anything else with its CI wholly below zero:
+
+  | Candidate | 2024/25 | 2025/26 | This season | Result |
+  |---|---|---|---|---|
+  | home 1.12 (now 1.05) | +0.01 [-0.08, +0.11] | -0.07 [-0.17, +0.02] | +0.19 [+0.01, +0.37] | Don't adopt (tweak) |
+  | home 1.20 | +0.10 [-0.01, +0.21] | -0.07 [-0.26, +0.09] | +0.25 [+0.09, +0.43]; 1-GW picks -0.03 [-0.05, -0.01] | Don't adopt (tweak; trips no-harm) |
+  | xmins_skip_out on | 0 [0, 0] | 0 [0, 0] | -0.05 [-0.15, 0.00] | Don't adopt (archive has no injury flags) |
+  | goal_mult 1.0 (now 0.88) | +0.04 [-0.00, +0.09] | -0.04 [-0.19, +0.12] | +0.34 [+0.01, +0.64] | Don't adopt (tweak) |
+  | assist_mult 1.0 (now 1.2) | -0.03 [-0.11, +0.06] | -0.02 [-0.10, +0.06] | +0.02 [-0.25, +0.27] | Don't adopt |
+
+- 5-GW totals at main (bench without the European cut, as before FL-115): 17.98 (this season), 19.13 (2025/26), 19.03 (2024/25). home and goal_mult look better this season
+  only; re-check both about GW20, when this season has enough 5-week forecasts to count. The penalty bonus (pen_xg)
+  was left out: already tested (no clear effect, model log above). Still to do in FL-114: the league goal level, cs_k,
+  and the planner settings (bench weight, minimum profit, hit gain, Chase budget).
 ## 13 Nov 2026 — FL-094: a team-mate returning, diagnosed (no model change; Don't adopt)
 
 - The item: lower a stand-in's minutes when the regular he covered for comes back. Its example was wrong (Konsa is at

@@ -22,15 +22,19 @@ DEFAULTS = {
     "team_recency": 0.93,  # weight per gameweek back, team ratings
     "xg_weight": 0.7,      # team ratings: share from xG (rest from real goals)
     "prior_games": 4.0,    # team ratings: games of league-average prior
-    "home": 1.05,          # home goal multiplier (away = 1/home)
+    "home": 1.05,          # home goal multiplier (away = 1/home). FL-114 (13 Nov): 1.12 and 1.20 (nearer the ~1.20
+                           # measured) not adopted: 5-GW picks CI includes 0 in both past seasons; 1.20 also cut this
+                           # season's 1-GW picks (CI below 0). Better this season at 4 origins: re-check about GW20.
     "w_pos": 450.0,        # pseudo-minutes of positional average
     "w_last": 600.0,       # pseudo-minutes of last-season rate
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
     "bonus_scale": 0.8,
-    "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections)
-    "goal_mult": 0.88,
+    "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections). FL-114 (13 Nov): 1.0
+                           # not adopted (5-GW picks CI includes 0 in both past seasons)
+    "goal_mult": 0.88,     # scales goal expectation. FL-114 (13 Nov): 1.0 not adopted (5-GW picks CI includes 0 in
+                           # both past seasons); +0.34 this season at 4 origins, so re-check about GW20
     "cs_k": 0.9,           # P(clean sheet) = exp(-cs_k * mu); real CS rates beat a plain Poisson
     "cal_slope": 0.86,     # final calibration: xP = slope * raw + intercept * P(appears)
     "cal_int": 0.33,
@@ -76,7 +80,9 @@ DEFAULTS = {
                            # counts below; availability, Europe and the return ramp still apply on top. bench.py vs counts:
                            # corr +0.005 / +0.016 / +0.014 (2026/27, 2025/26, 2024/25); start-chance Brier -20%.
                            # Model files missing or xgboost not installed: project() raises (no silent fallback).
-    "xmins_skip_out": False,  # leave weeks he was out (ctx["out"]) out of the xMins history, as the counts do
+    "xmins_skip_out": False,  # leave weeks he was out (ctx["out"]) out of the xMins history, as the counts do. FL-114
+                              # (13 Nov): no effect on past seasons (the archive has no injury flags), this season
+                              # 5-GW picks -0.05 [-0.15, 0.00]; not adopted. FL-094's returners: 0.54 -> 0.58 start chance
     "xmins_sell": False,   # next GW only: start chance / minutes from the selling-informed xMins model (xmins.predict_sell,
                            # + net selling before the deadline, selling.py); later GWs keep the plain model. Off: shadow only
                            # (build.py saves it beside the live numbers). Needs ctx["sell"], else project() raises.
