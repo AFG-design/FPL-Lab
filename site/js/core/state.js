@@ -29,4 +29,9 @@ function setHorizon(h) {
   PG = GWS.slice(0, Math.min(h, GWS.length)); _base = null; _sugg = { key: "", list: [] }; _pairs = { key: "", list: [] };
   if (!PG.includes(SB.gw)) SB.gw = PG[0];
 }
+// FL-156: the forecast period for player analysis (Players, Compare, the xP table, the player sheet): next GW (1), or the
+// next 3, 5 or 6 gameweeks. One preference ("fpl.xh", the xP table's, carried forward) and separate from the Planner's
+// horizon (S.horizon / PG): changing it never moves the Planner's weeks or the gameweek you're editing there.
+S.xh = [1, 3, 5, 6].includes(store.get("fpl.xh")) ? store.get("fpl.xh") : 5;
+function setForecast(h) { if ([1, 3, 5, 6].includes(h)) { S.xh = h; store.set("fpl.xh", h); } }
 if (location.hash && VIEWS.includes(location.hash.slice(1))) S.view = location.hash.slice(1);

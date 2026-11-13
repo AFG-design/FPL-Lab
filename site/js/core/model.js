@@ -2,6 +2,30 @@
 /* ---------- helpers ---------- */
 function attClass(x) { return x >= 1.9 ? "d1" : x >= 1.5 ? "d2" : x >= 1.15 ? "d3" : x >= 0.85 ? "d4" : "d5"; }
 const fxFor = (tid, g) => T[tid].fx[g] || [];
+// the forecast period's gameweeks (S.xh, FL-156), cut to the gameweeks the data has
+const fcGws = () => GWS.slice(0, Math.min(S.xh, GWS.length));
+// "GW11" for one gameweek, "next 5" for more: the label every forecast figure carries
+const fcLabel = () => { const g = fcGws(); return g.length === 1 ? `GW${g[0]}` : `next ${g.length}`; };
+// one player's projected points over some gameweeks: {sum, n (gameweeks with a number), of}. Missing data is shown, not
+// filled in: a gameweek with a fixture but no xP is left out of the sum (n < of, and the figure is marked "*"); a blank
+// (no fixture) counts as 0 because he can't score; a double gameweek is one xP figure already, counted once.
+function xTotals(p, gws) {
+  let sum = 0, n = 0;
+  gws.forEach(g => {
+    const v = p.xp?.[g];
+    if (v != null) { sum += v; n++; } else if (!fxFor(p.team, g).length) n++;
+  });
+  return { sum, n, of: gws.length };
+}
+const fcTot = p => xTotals(p, fcGws());
+// the period switch, the same on Players and the xP table; 3, 5 and 6 only when the data has that many gameweeks
+const fcButtons = (gws = GWS) => [1, 3, 5, 6].filter(h => h === 1 || h <= gws.length)
+  .map(h => `<button type="button" data-xh="${h}" aria-pressed="${S.xh === h}">${h === 1 ? "Next GW" : `${h} GWs`}</button>`).join("");
+// the figure as shown: the total, with "*" and a tooltip when some gameweeks have no projection
+function fcTxt(p, bold = false) {
+  const t = fcTot(p), v = bold ? `<b>${f1(t.sum)}</b>` : f1(t.sum);
+  return t.n < t.of ? `${v}<span class="muted" title="Covers ${t.n} of ${t.of} gameweeks: no projection for the rest">*</span>` : v;
+}
 // The model settings the site restates, read from data.json (meta.model, written by build.py from
 // fplmodel.DEFAULTS): home = home goal multiplier (away = 1 / home), cs_k = clean-sheet constant.
 // Missing input: a data.json built before this field existed (only an offline copy cached before this change;
