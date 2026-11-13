@@ -291,6 +291,11 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
 .chip h3 { font-size: var(--fs-lg); }
 .chip.used { background: var(--sunk); border-style: dashed; }
 .chip.used h3 { color: var(--muted); }
+
+/* FL-143: the GW20 renewal between first- and second-half chips */
+.chip-divider { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: var(--fs-sm); }
+.chip-divider::before, .chip-divider::after { content: ""; flex: 1; border-top: 1px dashed var(--line); }
+tr.divider td { color: var(--muted); font-size: var(--fs-sm); text-align: center; border-top: 1px dashed var(--line); }
 .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
 .cmp { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; background: var(--sunk); }
 .cmp dl { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 8px 0 0; font-size: var(--fs-sm); }

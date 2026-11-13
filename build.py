@@ -1077,6 +1077,47 @@ for g, pk in sorted(past.items()):
         "proj_src": "snapshot" if sx is not None else "none",   # saved before the deadline, or no saved forecast
         "xi_actual": sum(pts_of(i, g) for i in xi_ids),
     })
+# ---------------------------------------------------------------- chip ledger (FL-143)
+# What each chip you've played actually earned, on finished gameweeks, from your picks and FPL's points:
+#   Bench Boost: your bench's points that week; Triple Captain: the third helping of your (effective) captain's points;
+#   Free Hit: the Free Hit team's points (before hits) minus what your squad before it (the previous gameweek's picks,
+#   with FPL's auto-sub and vice rules, fpl_score.score_team) would have scored that week.
+#   Wildcard: no fair yardstick (it reshapes every later week), so its gameweek points are shown and "earned" is None.
+# Missing / late: the chip's gameweek not finished yet -> "pending"; its picks (or, for Free Hit, the previous week's)
+# not fetched -> "earned" None with the reason; never estimated.
+chip_ledger = []
+_pos_all = {pid: POS[e["element_type"]] for pid, e in elements.items()}
+for c in sorted(history["chips"], key=lambda c: c["event"]):
+    g, name = c["event"], c["name"]
+    row = {"key": name, "name": chip_names.get(name, name), "gw": g, "earned": None, "pts": None, "why": None,
+           "half": 1 if g <= 19 else 2}
+    pk = past.get(g)
+    if g not in finished_gws:
+        row["why"] = "pending"
+    elif not pk:
+        row["why"] = "picks for that gameweek weren't fetched"
+    else:
+        row["pts"] = hist_by[g]["points"]
+        rows_ = sorted(pk["picks"], key=lambda p: p["position"])
+        if name == "bboost":
+            row["earned"] = sum(pts_of(p["element"], g) for p in rows_[11:])
+        elif name == "3xc":
+            cap_ = next(p["element"] for p in rows_ if p["is_captain"])
+            vic_ = next((p["element"] for p in rows_ if p["is_vice_captain"]), cap_)
+            row["earned"] = pts_of(cap_ if mins_of(cap_, g) > 0 else vic_, g)
+        elif name == "freehit":
+            prev = past.get(g - 1)
+            if not prev:
+                row["why"] = "the squad before the Free Hit (previous gameweek's picks) isn't available"
+            else:
+                played_ = fpl_score.played_from_live(live[g])
+                before = fpl_score.score_team(fpl_score.from_fpl_picks(prev, _pos_all), played_)["total"]
+                row["earned"] = row["pts"] - before
+                row["without"] = before
+        else:
+            row["why"] = "a Wildcard changes every later week too, so there's no fair single number"
+    chip_ledger.append(row)
+
 # decision score: judge each week's choices on the projections available before it (not on what happened)
 def best_xi_by(ids, val):
     ps = sorted(ids, key=lambda i: -val(i))
@@ -1702,7 +1743,7 @@ out = {
                    **optimise.planner_settings(len(proj_gws[:PLAN_GWS]))},
     "accuracy": accuracy,
     "crowd": crowd_out, "watch": watch_out, "prices": price_out, "rating": rating, "template": template, "news": news_feed, "review": review, "vs_model": vs_model, "journal": journal, "setpieces": setpieces,
-    "chips": chips, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
+    "chips": chips, "chip_ledger": chip_ledger, "gw_info": gw_info, "season_gws": season_gws, "live": live_gw, "teams": team_out, "afg": afg_out,
     "players": [players[i] for i in sorted(keep, key=lambda i: -players[i]["xp5"])],
 }
 # ---------------------------------------------------------------- club badges (downloaded once into site/badges/)
