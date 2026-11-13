@@ -9,7 +9,7 @@ Usage:  python3 build.py [TEAM_ID] [OUT_PATH]
 import json, os, sys, time, urllib.request, datetime as dt
 from collections import Counter, defaultdict
 
-from fplmodel import prepare, project, POS, DEFAULTS, unfinished_team_weeks, returning
+from fplmodel import prepare, project, POS, DEFAULTS, unfinished_team_weeks, returning, euro_window
 from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
@@ -171,9 +171,9 @@ try:
                 if not tid or not f["event"] or f["finished"] or not f["kickoff_time"] or tid not in (f["team_h"], f["team_a"]):
                     continue
                 kd = dt.date.fromisoformat(f["kickoff_time"][:10])
-                near = [d for d in edates if -2 <= (kd - d).days <= 3 and (kd - d).days != 0]
+                near = euro_window(kd, edates)   # fplmodel (FL-115): the same window the backtests use
                 if near:
-                    congestion[(tid, f["event"])] = 0.93
+                    congestion[(tid, f["event"])] = True   # the cut itself is the eu_cut setting (fplmodel DEFAULTS)
                     euro_flags[(tid, f["event"])] = f"{comp} {near[0].strftime('%a %d %b')}"
 except FileNotFoundError:
     euro_state = "missing"
