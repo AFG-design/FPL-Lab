@@ -118,6 +118,19 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 .pv-form input { width: 180px; max-width: 100%; }
 .pv-dens { margin-left: auto; display: none; }
 .pv-msg { margin: 0 0 6px; }
+
+/* presets: buttons from 641px, one menu on phones; the three newer filters fold behind "More filters" on phones */
+.preset-sel, .more-f-btn { display: none; }
+.more-f { display: contents; }
+.preset-ask { margin: 0 0 8px; }
+
+@media (max-width: 640px) {
+  .preset-btn { display: none; }
+  .preset-sel, .more-f-btn { display: inline-flex; }
+  .preset-sel { flex: 1 1 160px; }
+  .more-f { display: none; }
+  .more-f.open { display: contents; }
+}
 .pv-manage { position: relative; }
 .pv-manage summary { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); cursor: pointer; }
 .pv-menu {

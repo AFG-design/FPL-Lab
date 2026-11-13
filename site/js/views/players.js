@@ -18,7 +18,7 @@ const colsOn = () => { const v = store.get("fpl.cols"); return Array.isArray(v) 
    is kept, as the price menus already add a value set from elsewhere; a view saved before periods existed keeps the
    current period. "Default" is every filter cleared, the default columns and xP sorted high to low; it leaves the
    forecast period as it is (a preference of its own). */
-const PV_DEFAULT = { q: "", pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", sort: "xp5", dir: -1 };
+const PV_DEFAULT = { q: "", pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", minnail: "", minxmin: "", fxtop: "", sort: "xp5", dir: -1 };
 const PV_KEYS = Object.keys(PV_DEFAULT);
 const PV_NAME_MAX = 40;
 function pvList() {
@@ -84,6 +84,62 @@ function pvBar() {
       <div class="seg pv-dens" role="group" aria-label="Table density">${[["compact", "Compact"], ["comfy", "Comfortable"]].map(([k, l]) => `<button type="button" data-dens="${k}" aria-pressed="${S.pdens === k}">${l}</button>`).join("")}</div>
     </div>${S.pvMsg ? `<p class="note pv-msg" role="status">${esc(S.pvMsg)}</p>` : ""}`;
 }
+/* ---------- filter presets (FL-156 idea 13) ----------
+   A preset only fills in the normal filter bar (so you see its limits there, change them there, and Save view keeps the
+   result); it keeps your position, search, columns and forecast period and clears every other filter. Before it is
+   applied, the bar says what it will set and clear (S.presetAsk), with Apply and Cancel. Definitions reuse what the app
+   already does:
+     Budget starters  price cap for the position (GKP and DEF £4.5m, MID £5.5m, FWD £6.0m; £5.5m with All) and
+                      Nailed 70+, the rule Home's budget picks use (tags.js), sorted by xP per £m
+     Low-owned        the ownership filter's "Differentials (under 5%)" and xMins 60+ so they play, sorted by xP
+     Strong fixtures  clubs in the top 6 for fixtures over the forecast period (attack for MID/FWD, clean-sheet chance
+                      for GKP/DEF, as the Fixtures page ranks them, fixtures.js teamRun) and Nailed 60+, sorted by xP
+   Fixture ranks: a blank gameweek adds nothing and a double adds both games; a club with no fixture data ranks last. */
+const BUDGET_CAP = { GKP: 4.5, DEF: 4.5, MID: 5.5, FWD: 6, ALL: 5.5 };
+const PRESETS = {
+  budget: { name: "Budget starters", set: () => ({ maxp: String(BUDGET_CAP[S.pos] ?? 5.5), minnail: "70", sort: "val", dir: -1 }) },
+  lowown: { name: "Low-owned options", set: () => ({ own: "diff", minxmin: "60", sort: "xp5", dir: -1 }) },
+  fixtures: { name: "Strong fixtures", set: () => ({ fxtop: "6", minnail: "60", sort: "xp5", dir: -1 }) },
+};
+const PRESET_CLEARS = ["team", "minp", "maxp", "minform", "own", "minnail", "minxmin", "fxtop"];
+// each club's rank (1 = easiest) for attack and for defence over the forecast period
+function fixtureRanks() {
+  const gws = fcGws(), att = {}, def = {};
+  Object.values(T).forEach(t => {
+    const run = typeof teamRun === "function" && t.far ? teamRun(t) : {};
+    att[t.id] = gws.reduce((a, g) => a + (run[g] || []).reduce((b, x) => b + x.xgf, 0), 0);
+    def[t.id] = gws.reduce((a, g) => a + (run[g] || []).reduce((b, x) => b + x.cs, 0), 0);
+  });
+  const rank = o => Object.fromEntries(Object.keys(o).sort((a, b) => o[b] - o[a]).map((id, k) => [id, k + 1]));
+  return { att: rank(att), def: rank(def) };
+}
+const fxKind = p => (p.pos === "GKP" || p.pos === "DEF" ? "def" : "att");
+// what a preset would change, in words: [{label, from, to}], set and cleared
+function presetDiff(key) {
+  const set = { ...PRESET_CLEARS.reduce((o, k) => ({ ...o, [k]: PV_DEFAULT[k] }), {}), ...PRESETS[key].set() };
+  return Object.entries(set).filter(([k, v]) => String(S[k] ?? "") !== String(v) && !(k === "dir")).map(([k, v]) => ({ k, from: filterTxt(k, S[k]), to: filterTxt(k, v) }));
+}
+function filterTxt(k, v) {
+  if (v == null || v === "" || v === "ALL" || v === "any") return null;
+  const lab = { team: () => T[v]?.name, minp: () => `from £${(+v).toFixed(1)}m`, maxp: () => `up to £${(+v).toFixed(1)}m`, minform: () => `form ${v}+`,
+    own: () => ({ diff: "under 5% owned", mid: "5% to 20% owned", template: "20%+ owned" })[v], minnail: () => `Nailed ${v}+`, minxmin: () => `xMins ${v}+`,
+    fxtop: () => `fixtures: top ${v} clubs (${fcLabel()})`, sort: () => `sorted by ${colLabel(v, COLS.find(c => c[0] === v)?.[1] || v)}` };
+  return lab[k] ? lab[k]() : String(v);
+}
+function presetAsk() {
+  const key = S.presetAsk; if (!PRESETS[key]) return "";
+  const d = presetDiff(key), sets = d.filter(x => x.to).map(x => x.to), clears = d.filter(x => !x.to && x.from).map(x => x.from);
+  return `<div class="verdict preset-ask" role="group" aria-label="${PRESETS[key].name}">
+    <p style="margin:0"><b>${PRESETS[key].name}</b> ${sets.length ? `sets ${sets.join(", ")}` : "changes nothing you haven't already set"}${clears.length ? `, and clears ${clears.join(", ")}` : ""}. Your position, search, columns and forecast period stay.${key === "budget" && S.pos === "ALL" ? " Pick a position first for its own cap (GKP and DEF £4.5m, MID £5.5m, FWD £6.0m)." : ""}</p>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary" type="button" data-preset-apply="${key}">Apply</button><button class="btn" type="button" data-preset-cancel="1">Cancel</button></div></div>`;
+}
+function presetApply(key) {
+  if (!PRESETS[key]) return;
+  PRESET_CLEARS.forEach(k => { S[k] = PV_DEFAULT[k]; });
+  Object.assign(S, PRESETS[key].set());
+  S.presetAsk = null;
+}
+S.presetAsk = null;
 // Columns picker rows: shown columns first, in their order, each with move left / right; then the hidden ones
 function colPickRows(on) {
   const shown = colsOn(), lab = k => colLabel(k, COLS.find(c => c[0] === k)[1]);
@@ -120,6 +176,9 @@ function vPlayers() {
   if (S.own === "diff") rows = rows.filter(p => p.own < 5);
   else if (S.own === "mid") rows = rows.filter(p => p.own >= 5 && p.own < 20);
   else if (S.own === "template") rows = rows.filter(p => p.own >= 20);
+  if (S.minnail) rows = rows.filter(p => (p.nailed ?? 0) >= +S.minnail);
+  if (S.minxmin) rows = rows.filter(p => (p.xmin ?? 0) >= +S.minxmin);
+  if (S.fxtop) { const r = fixtureRanks(); rows = rows.filter(p => (r[fxKind(p)][p.team] ?? 99) <= +S.fxtop); }
   if (S.q) { const q = S.q.toLowerCase(); rows = rows.filter(p => (p.name + " " + p.full).toLowerCase().includes(q)); }
   const val = p => S.sort === "t10k" ? t10(p) : S.sort === "val" ? fcTot(p).sum / p.price : S.sort === "xp5" ? fcTot(p).sum : S.sort === "team" ? T[p.team].short
     : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : ["name", "pos"].includes(S.sort) ? p[S.sort] : +p[S.sort] || 0;
@@ -135,7 +194,7 @@ function vPlayers() {
   // a limit set elsewhere (the homepage's Budget options) is added to the list so the menu shows it
   const prices = [...new Set([4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12, 15, ...[S.minp, S.maxp].filter(Boolean).map(Number)])].sort((a, b) => a - b);
   const priceSel = (id, cur, any, op) => `<select id="${id}" aria-label="${any}"><option value="">${any}</option>${prices.map(x => `<option ${+cur === x ? "selected" : ""} value="${x}">${op} £${x.toFixed(1)}m</option>`).join("")}</select>`;
-  const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.q].filter(Boolean).length;
+  const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.minnail, S.minxmin, S.fxtop, S.q].filter(Boolean).length;
   const head = `<th class="sort sticky-col" data-sort="name" ${S.sort === "name" ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>Player${S.sort === "name" ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>` +
     cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], colLabel(k, l)) : colLabel(k, l)}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
   const body = shown.map(p => `<tr class="${MINE.has(p.id) ? "mine" : ""}">
@@ -145,6 +204,9 @@ function vPlayers() {
   return `<div class="panel explorer${S.pdens === "comfy" ? " dens-comfy" : ""}">
     <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
     ${pvBar()}
+    <div class="filters presets" role="group" aria-label="Quick presets"><span class="pv-lbl">Presets</span>${Object.entries(PRESETS).map(([k, p]) => `<button class="btn preset-btn" type="button" data-preset="${k}" aria-pressed="${S.presetAsk === k}">${p.name}</button>`).join("")}
+      <select id="presetSel" class="preset-sel" aria-label="Presets"><option value="">Choose a preset…</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}" ${S.presetAsk === k ? "selected" : ""}>${p.name}</option>`).join("")}</select></div>
+    ${presetAsk()}
     <div class="filters">
       <input type="search" id="q" placeholder="Search players" value="${esc(S.q)}" aria-label="Search players">
       <div class="seg" role="group" aria-label="Forecast period">${fcButtons()}</div>
@@ -155,6 +217,10 @@ function vPlayers() {
       ${priceSel("fmin", S.minp, "Min price", "From")}${priceSel("fmax", S.maxp, "Max price", "Up to")}
       <select id="fform" aria-label="Minimum form"><option value="">Any form</option>${[2, 3, 4, 5, 6, 8].map(x => `<option ${+S.minform === x ? "selected" : ""} value="${x}">Form ${x}+</option>`).join("")}</select>
       <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+      ${(() => { const n = [S.minnail, S.minxmin, S.fxtop].filter(Boolean).length; return `<button class="btn more-f-btn" type="button" data-morefilters="1" aria-expanded="${!!S.moreF}">More filters${n ? ` (${n})` : ""}</button>`; })()}
+      <span class="more-f${S.moreF ? " open" : ""}"><select id="fnail" aria-label="Minimum Nailed"><option value="">Any Nailed</option>${[60, 70, 80, 90].map(x => `<option ${+S.minnail === x ? "selected" : ""} value="${x}">Nailed ${x}+</option>`).join("")}</select>
+      <select id="fxmin" aria-label="Minimum expected minutes"><option value="">Any xMins</option>${[45, 60, 70, 80].map(x => `<option ${+S.minxmin === x ? "selected" : ""} value="${x}">xMins ${x}+</option>`).join("")}</select>
+      <select id="ffx" aria-label="Fixtures over the forecast period"><option value="">Any fixtures</option>${[4, 6, 8, 10].map(x => `<option ${+S.fxtop === x ? "selected" : ""} value="${x}">Fixtures: top ${x} clubs</option>`).join("")}</select></span>
       ${active ? `<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button>` : ""}
       <details class="colpick"><summary>Columns</summary><div class="colpick-body" role="group" aria-label="Columns to show">
         ${colPickRows(on)}

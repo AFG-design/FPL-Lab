@@ -140,8 +140,14 @@ function bind() {
   live("#q", "q", S); live("#candq", "q", SB);
   // player explorer filters and column toggles
   on("[data-fpos]", b => { S.pos = b.dataset.fpos; render(); });
-  [["#fteam", "team"], ["#fmin", "minp"], ["#fmax", "maxp"], ["#fform", "minform"], ["#fown", "own"]].forEach(([id, k]) => { const el = $(id); if (el) el.onchange = () => { S[k] = el.value; render(); }; });
-  on("[data-fclear]", () => { Object.assign(S, { pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", q: "" }); render(); });
+  [["#fteam", "team"], ["#fmin", "minp"], ["#fmax", "maxp"], ["#fform", "minform"], ["#fown", "own"], ["#fnail", "minnail"], ["#fxmin", "minxmin"], ["#ffx", "fxtop"]].forEach(([id, k]) => { const el = $(id); if (el) el.onchange = () => { S[k] = el.value; render(); }; });
+  on("[data-fclear]", () => { Object.assign(S, { pos: "ALL", team: "ALL", minp: "", maxp: "", minform: "", own: "any", minnail: "", minxmin: "", fxtop: "", q: "" }); render(); });
+  // FL-156: presets ask first (what they set and clear), then fill in the filter bar
+  on("[data-preset]", b => { S.presetAsk = S.presetAsk === b.dataset.preset ? null : b.dataset.preset; render(); $("[data-preset-apply]")?.focus(); });
+  const pss = $("#presetSel"); if (pss) pss.onchange = () => { S.presetAsk = pss.value || null; render(); $("[data-preset-apply]")?.focus(); };
+  on("[data-morefilters]", () => { S.moreF = !S.moreF; render(); $("[data-morefilters]")?.focus(); });
+  on("[data-preset-apply]", b => { presetApply(b.dataset.presetApply); render(); $(`[data-preset="${b.dataset.presetApply}"]`)?.focus(); });
+  on("[data-preset-cancel]", () => { const k = S.presetAsk; S.presetAsk = null; render(); $(`[data-preset="${k}"]`)?.focus(); });
   const keepCols = () => { const d = $(".colpick"); return d && d.open; };
   // FL-156: a column you switch on goes at the end; switching one off keeps the others' order
   on("[data-col]", c => { const k = c.dataset.col, cur = colsOn().filter(x => x !== k); store.set("fpl.cols", c.checked ? [...cur, k] : cur); const open = keepCols(); render(); if (open) { $(".colpick").open = true; $(`[data-col="${k}"]`)?.focus(); } }, "onchange");
