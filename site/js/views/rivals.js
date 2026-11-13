@@ -1,7 +1,6 @@
 // Rivals and mini-leagues.
 /* ---------- Rivals: the field and mini-leagues ---------- */
-const CHIP_SHORT = { wildcard: "WC", freehit: "FH", bboost: "BB", "3xc": "TC" };
-const CHIP_NAME = { wildcard: "Wildcard", freehit: "Free Hit", bboost: "Bench Boost", "3xc": "Triple Captain" };
+// chip names (CHIP_SHORT, CHIP_NAME) live in core/plan.js, shared with the Planner's chip pins (FL-005)
 function chipHalf() { const g = D.meta.next_gw || 1; return g <= 19 ? [1, 19] : [20, 38]; }
 function chipState(chips) {
   if (!chips) return null;

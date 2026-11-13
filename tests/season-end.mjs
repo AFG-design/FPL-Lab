@@ -10,7 +10,9 @@ const src = f => readFileSync(new URL(`../site/js/${f}`, import.meta.url), 'utf8
 function load(files, meta) {
   const ctx = vm.createContext({
     D: { meta, plans: {}, afg: { gw: null, p: { 1: { m: 3, n: 0 } } }, crowd: null, live: null },
-    S: {}, P: {}, GWS: [], PG: [], esc: String, icon: () => '', term: (_, t) => t, console,
+    S: {}, P: {}, GWS: [], PG: [], esc: String,
+    CHIP_SHORT: { wildcard: 'WC', freehit: 'FH', bboost: 'BB', '3xc': 'TC' },   // core/plan.js
+    CHIP_NAME: { wildcard: 'Wildcard', freehit: 'Free Hit', bboost: 'Bench Boost', '3xc': 'Triple Captain' }, icon: () => '', term: (_, t) => t, console,
     store: { get: () => 'next', set() {} },
     myTeam: () => { throw new TypeError('no forecast week: myTeam() called at season end'); },
   });

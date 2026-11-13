@@ -30,7 +30,25 @@
               number of moves in the first gameweek, as optimise.py's week1_moves), poolExtra:[ids],
               freezeAfter: no moves from this week index on (optimise.py freeze_after; FL-147's best 15 for the money),
               floor: minimum plan value (plain xP over the plan, minus 4 per hit, plus ftValue per FT banked at the end),
-              the same measure as optimise.py's VALUE; the strategies use it as their points budget } */
+              the same measure as optimise.py's VALUE; the strategies use it as their points budget,
+              chips: {wildcard|freehit|bboost|3xc: gw} the weeks you pinned a chip to (FL-005), by FPL's rules:
+                wildcard  that week's transfers are free (no hits, no weekly cap) and your banked free transfers are
+                          kept (FPL since 2024/25), so next week you have one more, up to 5
+                freehit   a squad for that week only, within the money the squad is worth then (bank plus its value:
+                          your selling price for players you own, the buying price for planned signings); the squad
+                          goes back the week after, transfers are free and banked ones kept, as for the wildcard
+                bboost    the bench's projected points count too
+                3xc       the captain's points count three times
+              One chip a gameweek; a pin outside the plan's weeks is ignored. Server plans (optimise.py) carry no
+              chips: pins are yours, applied here and in the Planner's scoring (plan.js) } */
+  const CHIPS = ["wildcard", "freehit", "bboost", "3xc"];
+  function chipWeeks(inp) {
+    const at = {};
+    CHIPS.forEach(c => { const g = inp.chips && inp.chips[c]; if (g != null && inp.gws.includes(+g)) {
+      if (at[+g]) throw new Error(`two chips pinned to GW${g} (${at[+g]} and ${c}); FPL allows one chip a gameweek`);
+      at[+g] = c; } });
+    return at;
+  }
   function buildLP(inp) {
     const missing = NEEDED.filter(k => inp[k] == null);
     if (missing.length) throw new Error(`planner settings missing from this data update (${missing.join(", ")}); try again after the next refresh`);
@@ -57,24 +75,32 @@
     const sq = (i, w) => `s_${i}_${w}`, xi = (i, w) => `x_${i}_${w}`, cp = (i, w) => `c_${i}_${w}`;
     const ti = (i, w) => `i_${i}_${w}`, to = (i, w) => `o_${i}_${w}`;
     const eoW = inp.eoWeeks;
+    const chipAt = chipWeeks(inp);
+    const fz = (i, w) => `z_${i}_${w}`;   // Free Hit squad (only in a Free Hit week)
+    // the squad's value at the start of week w as a linear expression (bank + value of the squad held after week w-1)
+    const val = i => (inSquad.has(i) ? sp(i) : P[i].price);
 
     for (const w of W) {
-      const g = gws[w], d = Math.pow(decay, w);
+      const g = gws[w], d = Math.pow(decay, w), chip = chipAt[g];
+      const fh = chip === "freehit", own = fh ? fz : sq;   // the squad the XI is picked from this week
       for (const i of ids) {
         [sq(i, w), xi(i, w), cp(i, w), ti(i, w), to(i, w)].forEach(v => bin.push(v));
+        if (fh) { bin.push(fz(i, w)); if (banned.has(i) || !P[i].ok) con(` ${fz(i, w)}`, "=", 0); }
         const prev = w === 0 ? null : sq(i, w - 1), init = inSquad.has(i) ? 1 : 0;
         // squad flow
         if (prev) con(` ${sq(i, w)} - ${prev} - ${ti(i, w)} + ${to(i, w)}`, "=", 0);
         else con(` ${sq(i, w)} - ${ti(i, w)} + ${to(i, w)}`, "=", init);
         if (prev) con(` ${to(i, w)} - ${prev}`, "<=", 0); else con(` ${to(i, w)}`, "<=", init);
         con(` ${ti(i, w)} + ${to(i, w)}`, "<=", 1);
-        con(` ${xi(i, w)} - ${sq(i, w)}`, "<=", 0);
+        con(` ${xi(i, w)} - ${own(i, w)}`, "<=", 0);
         con(` ${cp(i, w)} - ${xi(i, w)}`, "<=", 0);
         if (banned.has(i)) con(` ${sq(i, w)}`, "=", 0);
         if (locked.has(i)) con(` ${sq(i, w)}`, "=", 1);
         if (!P[i].ok) con(` ${ti(i, w)}`, "=", 0);
         const x = P[i].xp[g] || 0;
-        let cx = d * (x - benchW * x), cc = d * x, cs = d * benchW * x;
+        // bench boost: every squad player scores, so the whole squad counts in full and the XI adds nothing more;
+        // triple captain: the armband counts twice on top of the XI, not once
+        let cx = chip === "bboost" ? 0 : d * (x - benchW * x), cc = d * x * (chip === "3xc" ? 2 : 1), cs = d * (chip === "bboost" ? 1 : benchW) * x;
         if (inp.eo && inp.lam && w < eoW && x > 0) {
           const v = variance(inp, P[i].pos, x), e = inp.eo[i] || 0;
           const kx = 1 - 2 * e, kc = 3 - 2 * e;
@@ -88,11 +114,12 @@
         if (inp.nailW) cx -= d * inp.nailW * (1 - Math.min(100, P[i].nailed ?? 100) / 100) * x;
         if (cx) obj.push(term(cx, xi(i, w)));
         if (cc) obj.push(term(cc, cp(i, w)));
-        if (cs) obj.push(term(cs, sq(i, w)));
+        if (cs) obj.push(term(cs, own(i, w)));
       }
       for (const pos in SHAPE) {
         const ps = ids.filter(i => P[i].pos === pos);
         con(ps.map(i => ` + ${sq(i, w)}`).join(""), "=", SHAPE[pos]);
+        if (fh) con(ps.map(i => ` + ${fz(i, w)}`).join(""), "=", SHAPE[pos]);
         con(ps.map(i => ` + ${xi(i, w)}`).join(""), ">=", XI_MIN[pos]);
         con(ps.map(i => ` + ${xi(i, w)}`).join(""), "<=", XI_MAX[pos]);
       }
@@ -104,6 +131,15 @@
       // move between Premier League clubs) may keep them in a gameweek with no transfers; any gameweek with a
       // transfer (m_w = 1) must end with at most 3 from every club
       const teams = [...new Set(ids.map(i => P[i].team))];
+      if (fh) {
+        // Free Hit: the real squad holds (no transfers), the week's squad is z: 3 a club, and it can't cost more than
+        // the bank plus what the held squad is worth
+        con(ids.map(i => ` + ${ti(i, w)} + ${to(i, w)}`).join(""), "=", 0);
+        teams.forEach(t => con(ids.filter(i => P[i].team === t).map(i => ` + ${fz(i, w)}`).join(""), "<=", 3));
+        let budget = ids.map(i => term(P[i].price, fz(i, w))).join("");
+        if (w === 0) con(budget, "<=", inp.bank + inp.squad.reduce((a, i) => a + val(i), 0));
+        else con(budget + ` - b_${w - 1}` + ids.map(i => term(-val(i), sq(i, w - 1))).join(""), "<=", 0);
+      }
       const extra = clubOver(inp.squad, P);
       if (Object.keys(extra).length) {
         bin.push(`m_${w}`);
@@ -121,11 +157,15 @@
       con(lhs, "=", w === 0 ? inp.bank : 0);
       // free transfers and hits
       const nw = ids.map(i => ` + ${ti(i, w)}`).join("");
-      con(nw, "<=", inp.maxMovesWeek);
+      const free = chip === "wildcard" || fh;   // transfers cost nothing and banked FTs are kept
+      if (chip !== "wildcard") con(nw, "<=", inp.maxMovesWeek);
       if (w === 0 && inp.week1Moves != null) con(nw, "=", inp.week1Moves);   // e.g. 0: roll this week (FL-110)
       if (inp.freezeAfter != null && w >= inp.freezeAfter) con(nw, "=", 0);   // FL-147: rebuild, then hold (optimise.py freeze_after)
-      con(` h_${w} + f_${w}` + ids.map(i => ` - ${ti(i, w)}`).join(""), ">=", 0);
-      con(` f_${w + 1} - f_${w} + ${ids.map(i => ti(i, w)).join(" + ")} - h_${w}`, "<=", 1);
+      if (free) { con(` h_${w}`, "=", 0); con(` f_${w + 1} - f_${w}`, "<=", 1); }
+      else {
+        con(` h_${w} + f_${w}` + ids.map(i => ` - ${ti(i, w)}`).join(""), ">=", 0);
+        con(` f_${w + 1} - f_${w} + ${ids.map(i => ti(i, w)).join(" + ")} - h_${w}`, "<=", 1);
+      }
       if (inp.maxHits != null) con(` h_${w}`, "<=", inp.maxHits);
       obj.push(term(-d * (hit + (inp.hitMargin || 0)), `h_${w}`));
       gen.push(`h_${w}`);
@@ -133,7 +173,8 @@
     obj.push(term(ftValue, `f_${gws.length}`));
     if (inp.floor != null) {
       let val = "";
-      W.forEach(w => { const g = gws[w]; ids.forEach(i => { const x = P[i].xp[g] || 0; if (x) val += term(x, xi(i, w)) + term(x, cp(i, w)); }); val += term(-hit, `h_${w}`); });
+      W.forEach(w => { const g = gws[w], c = chipAt[g], own = c === "freehit" ? fz : sq; ids.forEach(i => { const x = P[i].xp[g] || 0;
+        if (x) val += (c === "bboost" ? term(x, own(i, w)) : term(x, xi(i, w))) + term(x * (c === "3xc" ? 2 : 1), cp(i, w)); }); val += term(-hit, `h_${w}`); });
       val += term(ftValue, `f_${gws.length}`);
       con(val, ">=", inp.floor);
     }
@@ -142,10 +183,10 @@
     for (let w = 1; w <= gws.length; w++) bounds.push(` 1 <= f_${w} <= 5`);
     W.forEach(w => bounds.push(` h_${w} >= 0`, ` b_${w} >= 0`));
     const lp = `Maximize\n obj:${obj.join("")}\nSubject To\n${cons.join("\n")}\nBounds\n${bounds.join("\n")}\nGeneral\n ${gen.join(" ")}\nBinary\n ${bin.join(" ")}\nEnd\n`;
-    return { lp, ids };
+    return { lp, ids, chipAt };
   }
 
-  function readSolution(inp, ids, sol) {
+  function readSolution(inp, ids, sol, chipAt = chipWeeks(inp)) {
     const v = name => Math.round((sol.Columns[name] && sol.Columns[name].Primal) || 0);
     const moves = [], weeks = [];
     inp.gws.forEach((g, w) => {
@@ -155,10 +196,13 @@
         const o = outs.find(x => !used.has(x) && inp.players[x].pos === inp.players[i].pos);
         if (o != null) { used.add(o); moves.push({ gw: g, out: o, in: i }); }
       });
-      weeks.push({ gw: g, xi: ids.filter(i => v(`x_${i}_${w}`)), captain: ids.find(i => v(`c_${i}_${w}`)), hits: v(`h_${w}`), ft: v(`f_${w}`) });
+      const chip = chipAt[g] || null, squad = ids.filter(i => v(`${chip === "freehit" ? "z" : "s"}_${i}_${w}`));
+      weeks.push({ gw: g, xi: ids.filter(i => v(`x_${i}_${w}`)), captain: ids.find(i => v(`c_${i}_${w}`)), hits: v(`h_${w}`), ft: v(`f_${w}`), chip, squad });
     });
     const ftEnd = v(`f_${inp.gws.length}`), ftValue = inp.ftValue;
-    const pts = weeks.reduce((a, w) => a + w.xi.reduce((b, i) => b + (inp.players[i].xp[w.gw] || 0), 0) + (inp.players[w.captain]?.xp[w.gw] || 0) - inp.hit * w.hits, 0);
+    const x = (i, g) => inp.players[i]?.xp[g] || 0;
+    const pts = weeks.reduce((a, w) => a + (w.chip === "bboost" ? w.squad : w.xi).reduce((b, i) => b + x(i, w.gw), 0)
+      + x(w.captain, w.gw) * (w.chip === "3xc" ? 2 : 1) - inp.hit * w.hits, 0);
     return { moves, weeks, objective: sol.ObjectiveValue, ftLeft: ftEnd, value: pts + ftValue * ftEnd };
   }
 
@@ -171,19 +215,19 @@
   ];
   const complete = r => r.weeks.length > 0 && r.weeks.every(w => w.xi.length === 11 && w.captain != null && w.xi.includes(w.captain));
   // Optimal, or out of time but still holding a full plan; anything else is a failure
-  function accept(inp, ids, sol) {
+  function accept(inp, ids, sol, chipAt) {
     if (!sol || !/^(Optimal|Time limit)/i.test(sol.Status)) throw new Error("No plan found (" + (sol && sol.Status) + ")");
-    const r = readSolution(inp, ids, sol);
+    const r = readSolution(inp, ids, sol, chipAt);
     if (!complete(r) || !Number.isFinite(r.objective)) throw new Error("No plan found (" + sol.Status + ", no full lineup)");
     return r;
   }
   async function solve(highs, inp, makeHighs) {
-    const { lp, ids } = buildLP(inp);
+    const { lp, ids, chipAt } = buildLP(inp);
     let err;
     for (let t = 0; t < TRIES.length; t++) {
       try {
         if (t && makeHighs) highs = await makeHighs();
-        const r = accept(inp, ids, highs.solve(lp, TRIES[t]));
+        const r = accept(inp, ids, highs.solve(lp, TRIES[t]), chipAt);
         r.attempts = t + 1;
         return r;
       } catch (e) {
@@ -194,6 +238,6 @@
     throw err;
   }
 
-  const api = { buildLP, readSolution, solve, settingsFrom };
+  const api = { buildLP, readSolution, solve, settingsFrom, chipWeeks, CHIPS };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.FPLSolver = api;
 })(typeof window !== "undefined" ? window : globalThis);

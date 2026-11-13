@@ -285,6 +285,12 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
 .rules { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; }
 .rules > div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
 
+/* FL-005: chip pins, one chip a line */
+.chip-pins { display: grid; gap: 6px; width: 100%; }
+.chip-pin { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.chip-pin .sel { min-width: 150px; }
+.chip-na { display: block; }
+
 /* chips, compare */
 .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .chip { border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; background: var(--surface); }

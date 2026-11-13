@@ -100,6 +100,7 @@ function bind() {
   on("[data-loadplan]", b => { const k = b.dataset.loadplan; useModelPlan(k, k.includes("_") ? k.split("_")[0] : "balanced"); render(); });
   on("[data-undoplan]", () => { undoPlan(); render(); });
   on("[data-v-go]", b => setView(b.dataset.vGo));
+  document.querySelectorAll("[data-chippin]").forEach(el => { el.onchange = e => { setChipPin(el.dataset.chippin, e.target.value); render(); }; });
   on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
   on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
   on("[data-missgw]", b => { S.missGw = +b.dataset.missgw; render(); });
