@@ -49,10 +49,13 @@ def _load():
     return _boosters
 
 
-def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, targets=None):
+def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, targets=None, moved=None):
     """{pid: feature vector} for every player whose club has a fixture in the horizon.
     skip: {pid: set of gameweeks} to leave out of his history (weeks he was injured / banned), or None.
-    feats: feature names (default: the shipped model's 21); targets: dict filled with {pid: target round}."""
+    feats: feature names (default: the shipped model's 21); targets: dict filled with {pid: target round}.
+    moved (FL-030): {pid: {gw: club}} for weeks he played for another club (fplmodel passes ctx["moved"] when
+    new_signings is on). Those weeks count in his history with that club's fixture count, so a player who moved within
+    the Premier League keeps his minutes from his old club even in a week his new club didn't play."""
     feats = feats or _load()[0]
     nfx = {}
     for tid, lst in ctx["team_fix"].items():
@@ -68,10 +71,12 @@ def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, target
         gs = ctx["pstats"].get(pid, {})
         sk = (skip or {}).get(pid, set())
         rows = []
-        for g in sorted(team_gws.get(tid, ())):
+        own = (moved or {}).get(pid, {})
+        weeks = set(team_gws.get(tid, ())) | {g for g, c in own.items() if g in team_gws.get(c, ())}
+        for g in sorted(weeks):
             if g >= as_of or g not in gs or g in sk:
                 continue
-            s, n = gs[g], max(1, nfx.get((tid, g), 1))
+            s, n = gs[g], max(1, nfx.get((own.get(g, tid), g), 1))
             rows.append((g, s["minutes"] / n, min(1.0, s["starts"] / n), 1.0 if s["minutes"] > 0 else 0.0))
         f = dict.fromkeys(feats, np.nan)
         f["round"] = target
@@ -99,11 +104,11 @@ def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, target
     return out
 
 
-def predict(ctx, as_of, team_gws, kick, upcoming, skip=None):
+def predict(ctx, as_of, team_gws, kick, upcoming, skip=None, moved=None):
     """{pid: (p_start, p_cameo, minutes if start, minutes if cameo)}, one batch for every player."""
     import xgboost as xgb
     feats, bs = _load()
-    fv = features(ctx, as_of, team_gws, kick, upcoming, skip)
+    fv = features(ctx, as_of, team_gws, kick, upcoming, skip, moved=moved)
     if not fv:
         return {}
     pids = list(fv)
@@ -133,7 +138,7 @@ def _load_sell():
     return _sell_boosters
 
 
-def predict_sell(ctx, as_of, team_gws, kick, upcoming, skip=None):
+def predict_sell(ctx, as_of, team_gws, kick, upcoming, skip=None, moved=None):
     """As predict(), from the selling-informed model, for players whose club plays in GW as_of (the window the
     selling counts belong to); others are left out and keep the plain model. Needs ctx["sell"] (selling.py sell
     table); a ctx without one raises, so the switch can't silently run on no data. Players with no selling data
@@ -144,7 +149,7 @@ def predict_sell(ctx, as_of, team_gws, kick, upcoming, skip=None):
         raise ValueError("xmins_sell is on but ctx has no 'sell' table (selling.py); refusing to guess")
     feats, bs = _load_sell()
     tg = {}
-    fv = features(ctx, as_of, team_gws, kick, upcoming, skip, feats=feats, targets=tg)
+    fv = features(ctx, as_of, team_gws, kick, upcoming, skip, feats=feats, targets=tg, moved=moved)
     pids = [p for p in fv if tg[p] == as_of]
     if not pids:
         return {}, 0
