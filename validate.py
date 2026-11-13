@@ -239,6 +239,13 @@ def check_sources(D, warnings):
         if cr and cr.get("complete") is False:   # FL-082 (None: a sample from before the field existed)
             warnings.append(f"Ownership sample incomplete: {cr.get('failed')} FPL requests failed, so the top-10k, rank-band "
                             f"and mini-league samples are smaller than planned; crowd.py retries on its next run")
+        if cr:   # FL-141: FPL's own all-manager figures, shown next to the top 10k on Rivals
+            tp, oc = cr.get("total_players"), cr.get("overall_chips")
+            if tp is not None and not (isinstance(tp, int) and tp > 0):
+                errors.append(f"crowd.total_players should be a positive whole number, got {tp!r}")
+            for k, v in (oc or {}).items():
+                if not (isinstance(v, (int, float)) and 0 <= v <= 100):
+                    errors.append(f"crowd.overall_chips[{k}] should be a % from 0 to 100, got {v!r}")
         if cr and cr.get("rank_assumed"):
             warnings.append("Ownership sample: FPL gave no overall rank, so 'managers near your rank' is centred on an "
                             "assumed 100,000")
