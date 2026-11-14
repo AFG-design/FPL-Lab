@@ -19,7 +19,7 @@ function setup({ hits = 4 } = {}) {
         { me: true, entry: 1, player: "Me", team: "Mine", live: 999, hits },
         { entry: 2, player: "Hit taker", team: "T2", live: 60, hits: 8, picks: [[1, 1]] },
         { entry: 3, player: "No hit", team: "T3", live: 50, hits: 0, picks: [[1, 1]] }] }] } };
-  const ctx = vm.createContext({ P, D, S: { field: "top10k" }, MINE: new Set(), esc: String, term: (_, label) => label, f1: n => n.toFixed(1),
+  const ctx = vm.createContext({ store: { get: () => null, set() {} }, POLL: {}, icon: () => '', planName: () => 'Your plan', P, D, S: { field: "top10k" }, MINE: new Set(), esc: String, term: (_, label) => label, f1: n => n.toFixed(1),
     rankFmt: String, xpg: () => 0, myTeam: () => ({ xi: [1], mult: {} }), seasonOver: () => false, watchPanel: () => '', stateView: () => '' });
   for (const name of ['live', 'review', 'rivals']) vm.runInContext(readFileSync(new URL(`../site/js/views/${name}.js`, import.meta.url), 'utf8'), ctx);
   return { D, run: expr => vm.runInContext(expr, ctx) };
@@ -45,11 +45,13 @@ test('no hit: no tooltip', () => {
   assert.doesNotMatch(html, /title="Before/);
 });
 test("Rivals: your row and theirs are before hits, each hit marked", () => {
+  // the redesign (Rivals handoff) gives the hit its own column; the score cell keeps the after-hit tooltip
   const html = setup().run('vRivals()');
-  assert.match(html, /title="Before the −4 hit: 23 after it">27 <small class="muted">−4<\/small><\/td>/);
-  assert.match(html, /title="Before the −8 hit: 52 after it">60 <small class="muted">−8<\/small><\/td>/);
-  assert.match(html, /<td class="n ">50<\/td>/);           // no hit: plain score, no tooltip
-  assert.match(html, /Gameweek points are before hits, as FPL shows them, with provisional bonus; a small −4 or −8 beside a score is that manager's hit/);
+  assert.match(html, /title="Before the −4 hit: 23 after it">27<\/td>\s*<td class="n rv-hit"><span class="down">−4<\/span><\/td>/);
+  assert.match(html, /title="Before the −8 hit: 52 after it">60<\/td>\s*<td class="n rv-hit"><span class="down">−8<\/span><\/td>/);
+  assert.match(html, /<td class="n">50<\/td>\s*<td class="n rv-hit"><span class="muted">0<\/span><\/td>/);   // no hit: plain score, a real 0
+  assert.doesNotMatch(html, />999</);                     // your row uses your live squad, not the sampled figure
+  assert.match(html, /Points are GW11 points before hits, as FPL shows them; Hit is that manager's transfer cost/);
 });
 test('Review live panel: before the hit, hit named', () => {
   assert.match(setup().run('vReview()'), /title="Before the −4 hit: 23 after it">27 live pts \(−4 hit\)/);

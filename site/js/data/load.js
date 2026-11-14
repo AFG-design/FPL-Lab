@@ -66,7 +66,7 @@ function ingest(d) {
 async function load() {
   render();                                   // highlights the current section in the nav
   if (!D) $("#app").innerHTML = skeleton();
-  try { ingest(await fetchData()); } catch (e) {
+  try { ingest(await fetchData()); POLL.ok = POLL.last = Date.now(); } catch (e) {
     if (D) return;                            // keep showing what we have
     $("#app").innerHTML = stateView({
       kind: "error", title: "The latest data didn't load",
@@ -79,6 +79,24 @@ async function load() {
   }
   header(); render();
 }
-setInterval(async () => {
-  try { const nd = await fetchData(); if (D && nd.meta.built !== D.meta.built) { ingest(nd); header(); render(); } } catch (e) {}
-}, 5 * 60 * 1000);
+/* Checking for new data: every 5 minutes while the page is visible, once on return to it (if the last check is over a
+   minute old), and on Rivals' "Refresh scores". One request at a time: a check asked for while one is running waits for
+   that one. A failed check keeps the data already shown (never cleared) and is recorded in POLL.err, which Rivals shows
+   as stale; the next successful check clears it. */
+const POLL = { busy: false, last: 0, ok: null, err: null, wait: null };
+function checkData() {
+  if (POLL.busy) return POLL.wait;
+  POLL.busy = true; POLL.last = Date.now();
+  POLL.wait = (async () => {
+    let changed = false;
+    try {
+      const nd = await fetchData(); POLL.ok = Date.now(); POLL.err = null;
+      if (D && nd.meta.built !== D.meta.built) { ingest(nd); changed = true; }
+    } catch (e) { POLL.err = Date.now(); }
+    POLL.busy = false;
+    if (changed) { header(); render(); } else if (D && S.view === "rivals") render();
+  })();
+  return POLL.wait;
+}
+setInterval(() => { if (!document.hidden) checkData(); }, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && D && Date.now() - POLL.last > 60 * 1000) checkData(); });

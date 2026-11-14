@@ -22,7 +22,8 @@ def revision(ref):
 
 def build(odds_key):
     team = os.environ.get("FPL_TEAM_ID", "8122679")
-    for script, args in [("crowd.py", [team]), ("understat.py", []),
+    # awards.py settles mini-league weekly honours once a gameweek is final; it reads crowd.py's league sample
+    for script, args in [("crowd.py", [team]), ("awards.py", [team]), ("understat.py", []),
                          ("odds.py", []), ("odds_players.py", [])]:
         # These sources are optional. The build can use the last committed sample.
         # odds.py (upcoming fixture odds, FL-092) and odds_players.py share the free Odds API key and its credits

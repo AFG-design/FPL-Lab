@@ -12,7 +12,8 @@
     "contrast": "python3 scripts/contrast_check.py",
     "taps": "python3 scripts/tap_check.py",
     "players": "python3 scripts/players_check.py",
-    "behaviour": "python3 scripts/behaviour_check.py"
+    "behaviour": "python3 scripts/behaviour_check.py",
+    "rivals": "python3 scripts/rivals_check.py"
   },
   "devDependencies": {
     "eslint": "^9.14.0",

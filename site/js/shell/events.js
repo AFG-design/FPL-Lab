@@ -101,7 +101,7 @@ function bind() {
     });
     render();
   });
-  on("[data-rival]", b => { S.rival = +b.dataset.rival || null; render(); if (S.rival && innerWidth < 900) document.querySelector(".grid2 > div:last-child")?.scrollIntoView({ behavior: "smooth" }); });
+  bindRivals();   // Rivals tabs, head-to-head, pins, honours week, refresh (below)
   on("[data-cmpteam]", b => { const v = +b.dataset.cmpteam; S.cmpTeam = S.cmpTeam === v ? null : v; WATCH.msg = ""; render(); });
   on("[data-watchadd]", b => watchEdit(+b.dataset.watchadd, true));
   on("[data-unwatch]", b => { watchEdit(+b.dataset.unwatch, false); S.cmpTeam = null; });
@@ -111,7 +111,6 @@ function bind() {
   on("[data-share]", b => schoolShare(b.dataset.share));
   const scf = $("#schoolForm"); if (scf) scf.onsubmit = e => { e.preventDefault(); const v = $("#schoolId").value.trim(); if (/^\d{1,10}$/.test(v) && !SCHOOL.busy) schoolRun(+v); else if (!SCHOOL.busy) { SCHOOL.err = "A team ID is a number."; SCHOOL.res = null; render(); } };
   const cf = $("#cmpForm"); if (cf) cf.onsubmit = e => { e.preventDefault(); const v = +$("#cmpId").value.trim(); if (v > 0) { S.cmpTeam = v; WATCH.msg = ""; render(); } };
-  const ls = $("#leagueSel"); if (ls) ls.onchange = e => { S.league = +e.target.value; S.rival = null; render(); };
   on("[data-plan]", b => { const k = b.dataset.plan; useModelPlan(k, k.includes("_") ? k.split("_")[0] : "balanced"); render(); });
   on("[data-loadplan]", b => { const k = b.dataset.loadplan; useModelPlan(k, k.includes("_") ? k.split("_")[0] : "balanced"); render(); });
   on("[data-undoplan]", () => { undoPlan(); render(); });
@@ -207,4 +206,38 @@ function bind() {
   // FL-122: strips that scroll sideways show it with a faded edge (components/ui.js), on Fixtures and Stats only
   if (S.view === "fixtures" || S.view === "stats") scrollStrips("#app .seg");
   if (S.view === "fixtures") bindFixtures();
+}
+
+/* Rivals: tabs (arrow keys move between them, as the Planner's and Home's), the remembered league, head-to-head with a
+   manager, pinning (one per league), the Weekly honours week and "Refresh scores". Focus returns to the control used. */
+function bindRivals() {
+  if (S.view !== "rivals") return;
+  const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el));
+  const refocus = sel => $(sel)?.focus({ preventScroll: true });
+  on("[data-rtab]", b => { S.rtab = b.dataset.rtab; render(); refocus(`[data-rtab="${S.rtab}"]`); });
+  on("[data-ltab]", b => { const was = S.ltab; S.ltab = b.dataset.ltab; render(); refocus(`[role="tab"][data-ltab="${S.ltab}"]`); if (was === "h2h") window.scrollTo({ top: 0 }); });
+  document.querySelectorAll('.rv-tabs [role="tab"]').forEach(t => t.onkeydown = e => {
+    const tabs = [...t.parentElement.querySelectorAll('[role="tab"]')], i = tabs.indexOf(t);
+    const j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    if (j == null) return;
+    e.preventDefault(); tabs[(j + tabs.length) % tabs.length].click();
+  });
+  const ls = $("#leagueSel"); if (ls) ls.onchange = e => { store.set("fpl.league", +e.target.value); S.rival = null; S.hgw = null; if (S.ltab === "h2h") S.ltab = "standings"; render(); refocus("#leagueSel"); };
+  on("[data-rvh2h]", b => { S.rival = +b.dataset.rvh2h || null; S.ltab = "h2h"; render(); window.scrollTo({ top: 0 }); refocus("#h2h-h"); });
+  on("[data-rvpin]", b => {
+    const lg = rvLeague(D.crowd?.leagues || []).lg; if (!lg) return;
+    const pins = rvPins(), v = +b.dataset.rvpin, was = pins[lg.id];
+    if (v) pins[lg.id] = v; else delete pins[lg.id];
+    store.set("fpl.rivalPins", pins); render(); refocus("[data-rvpin]");
+    const nm = id => lg.rows.find(r => r.entry === id)?.player || "that manager";
+    toast(v ? `${nm(v)} is your pinned rival in ${lg.name}${was && was !== v ? `, instead of ${nm(was)}` : ""}.` : `${nm(was)} is unpinned. The closest manager on points leads instead.`);
+  });
+  on("[data-rvrefresh]", () => { const p = checkData(); render(); refocus("[data-rvrefresh]"); p.then(() => refocus("[data-rvrefresh]")); });
+  on("[data-hgw]", b => {
+    if (!b.dataset.hgw) return;
+    const lbl = b.getAttribute("aria-label"); S.hgw = +b.dataset.hgw; render();
+    const nb = $(`[data-hgw][aria-label="${lbl}"]`); (nb && !nb.disabled ? nb : $("#hgwSel"))?.focus({ preventScroll: true });
+  });
+  const hs = $("#hgwSel"); if (hs) hs.onchange = () => { S.hgw = +hs.value; render(); refocus("#hgwSel"); };
+  on("[data-awretry]", () => { AW.err = null; loadAwards(); render(); });
 }

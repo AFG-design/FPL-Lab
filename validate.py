@@ -119,6 +119,32 @@ def check_rival_subs(D, errors):
                               f"his picks (starter off, bench player on, each once)")
 
 
+def check_awards(D, errors, warnings):
+    """Weekly honours (awards.py -> data.json "awards"): each league's latest settled week. Medals follow competition
+    ranking within an award: values best first, equal values share a rank, the next rank skips (1, 1, 3), only ranks 1-3
+    kept, and the medal names the rank. A settled week can't be later than the current gameweek, an award can't cover
+    more managers than the league has, and every medal holder must be a manager it covered. history/awards.json
+    unreadable (sources.awards.ok False): a warning, since nothing new is published until it's fixed."""
+    if (D.get("sources") or {}).get("awards", {}).get("ok") is False:
+        warnings.append("history/awards.json couldn't be read: weekly honours aren't published or updated (awards.py left it alone)")
+    cur, medal = D["meta"].get("cur_gw") or 0, {1: "gold", 2: "silver", 3: "bronze"}
+    for lid, A in (D.get("awards") or {}).items():
+        W, gws = A.get("latest") or {}, A.get("gws") or []
+        tag = f"Weekly honours, league {W.get('league') or lid} GW{W.get('gw')}"
+        if gws != sorted(set(gws)) or not gws or W.get("gw") != gws[-1] or gws[-1] > cur:
+            errors.append(f"{tag}: settled weeks {gws} don't end at the latest week shown, or run past GW{cur}")
+        size = (W.get("coverage") or {}).get("size") or W.get("size") or 0
+        for k, a in (W.get("awards") or {}).items():
+            pl = a.get("places") or []
+            if a.get("covered", 0) > size or len(pl) > a.get("qualified", 0):
+                errors.append(f"{tag} {k}: covers {a.get('covered')} of {size} managers with {len(pl)} medals for {a.get('qualified')} qualifiers")
+            for i, p in enumerate(pl):
+                want = pl[i - 1]["rank"] if i and pl[i - 1]["value"] == p["value"] else i + 1
+                if (i and p["value"] > pl[i - 1]["value"]) or p.get("rank") != want or want > 3 or p.get("medal") != medal.get(want):
+                    errors.append(f"{tag} {k}: {p.get('player')} has rank {p.get('rank')} ({p.get('medal')}), expected {want} by competition ranking")
+                    break
+
+
 def check_arrivals(D, errors):
     """FL-030: the arrival guess (new to the PL) only for a player with no prior in priors.json, as a weight in (0, 1],
     with his start chance marked assumed for the site."""
@@ -1007,6 +1033,7 @@ def main(path):
                           f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
     check_arrivals(D, errors)
     check_rival_subs(D, errors)
+    check_awards(D, errors, warnings)
     # FL-082: make_priors.py writes start_rate; a prior without it uses fplmodel's minutes guess (inert while start_prior
     # is 0). Warn rather than fail: priors.json built before FL-082 has none until the Monday Priors run.
     _pp = ((load(os.path.join(HERE, "priors.json")) or {}).get("players") or {})

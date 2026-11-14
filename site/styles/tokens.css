@@ -92,6 +92,11 @@
   --sidebar: 232px;
   --shadow: 0 10px 30px rgb(0 0 0 / 35%);
 
+  /* weekly-honours medals (Rivals): label text on a tinted chip; the word is always shown, colour only backs it up */
+  --gold-fg: #f0c46b; --gold-bg: rgb(240 196 107 / 16%);
+  --silver-fg: #cdd6dc; --silver-bg: rgb(205 214 220 / 14%);
+  --bronze-fg: #e7a77f; --bronze-bg: rgb(231 167 127 / 16%);
+
   /* motion */
   --ease: cubic-bezier(.2, .7, .2, 1);
   --t-fast: 150ms;
@@ -129,6 +134,9 @@
   --heat-4: color-mix(in srgb, var(--accent) 35%, var(--surface));
   --heat-5: color-mix(in srgb, var(--accent) 45%, var(--surface));
   --hatch: rgb(15 26 22 / 9%);
+  --gold-fg: #7a5600; --gold-bg: rgb(214 160 40 / 20%);
+  --silver-fg: #4a5560; --silver-bg: rgb(120 135 150 / 18%);
+  --bronze-fg: #8a4a22; --bronze-bg: rgb(190 110 60 / 18%);
 
   /* FL-123: was #1b6440 / #1f7049 with a 10% glow; the hero's muted text and yellow countdown fell to 3.7-3.9:1 */
   --turf: #155536;
