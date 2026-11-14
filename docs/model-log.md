@@ -4,6 +4,36 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — this-season cap lifted: `cred_recency` 0.9 / 0.95 / 1.0 (Don't adopt; setting left off)
+
+- The problem (logged 31 Oct, before this fix): a rate = this season (each game x0.8 per GW back) + 600 pseudo-minutes
+  of last season + 450 of the positional average. The weighted minutes never pass ~450, so this season is capped at
+  ~30% of a rate however much he plays. `cred_recency` (None = old) keeps 0.8 for WHICH games count and weights his
+  minutes by cred_recency per GW back for HOW MUCH this season counts (1.0: every minute, no cap).
+- Three variants, listed before running. bench.py, candidate − main, 5-GW picks:
+
+  | cred_recency | 2025/26 | 2024/25 | Pooled 5-GW | This season (4 origins) |
+  |---|---|---|---|---|
+  | 0.9 | -0.03 [-0.19, +0.13] | +0.01 [-0.11, +0.13] | -0.013 [-0.116, +0.093] | +0.07 [+0.00, +0.20] |
+  | 0.95 | -0.11 [-0.31, +0.09] | -0.02 [-0.18, +0.13] | -0.067 [-0.202, +0.067] | +0.10 [-0.02, +0.22] |
+  | 1.0 | -0.14 [-0.36, +0.09] | +0.03 [-0.19, +0.22] | -0.053 [-0.213, +0.098] | +0.10 [-0.02, +0.22] |
+
+  5-GW totals main 19.09 / 19.12 / 18.24 (2025/26, 2024/25, this season); 0.9: 19.06 / 19.13 / 18.31; 0.95: 18.98 /
+  19.10 / 18.34; 1.0: 18.96 / 19.16 / 18.34. 1-GW picks main 4.46 / 4.24 / 4.33; 0.9: 4.45 / 4.25 / 4.39 (this season
+  +0.06 [+0.01, +0.12]); 0.95: 4.44 / 4.24 / 4.43 (+0.10 [+0.06, +0.14]); 1.0: 4.40 / 4.22 / 4.42 (+0.09 [+0.05, +0.14];
+  2025/26 -0.06 [-0.12, +0.00]). No bench CI wholly below zero (no-harm passes, 1.0 only just).
+- Pooled part scores (negative = better): goals -0.0006 [-0.0011, -0.0002] better at 0.9, ~0 at 0.95 and 1.0;
+  DC better at all three; bonus worse at all three (+0.0009, +0.0020, +0.0040, each CI above 0); saves worse at all
+  three; assists worse at 1.0. Clean sheets and minutes unchanged (they don't use these rates).
+- backtest.py --compare, with and without the status log: no segment past the limits; headline corr +0.0005 to
+  +0.0009, MAE -0.0006 to -0.0012.
+- Read: the cap is real, but lifting it helps only the parts with a steady signal (xG, DC) and hurts the noisy ones
+  (bonus, saves), where last season and the positional average are better guides. Picks don't gain in past seasons.
+  This season looks better on 1-GW picks, but it has 8 weeks and doesn't decide.
+- Decision: pooled 5-GW CI includes zero (point estimate negative for all three) → Don't adopt under the current
+  rule. It wouldn't qualify as a targeted change under the FL-161 proposal either: it moves every rate, and three parts
+  get worse. Setting left in the model, off. Possible follow-up (not run): lift the cap for xG and DC only.
+
 ## 14 Nov 2026 — FL-161: past "Don't adopt" results re-run under the proposed pooled rule (tooling; no model change)
 
 - bench.py now prints a pooled 5-GW picks interval (2024/25 + 2025/26, GWs resampled within each season, then pooled)
