@@ -702,7 +702,7 @@ Bench now covers 2026/27 (GW3-8, with odds), 2025/26 and 2024/25 (GW4-38, no odd
   fdr_att 0.10 alone fails on captain (CI -2.00 to -0.20). Verdict: Marginal; code in the research
   worktree (tests/fixtures_research/), not merged.
 
-## 23 Oct 2026 — stress test (branch `stress-test`, tests only; `tests/stress/REPORT.md`)
+## 23 Oct 2026 — stress test (branch `stress-test`, tests only; report archived at `docs/archive/stress-test-report-2026-10-23.md`)
 - CRITICAL, live only: build.py feeds the in-progress GW's live data into the model. Players yet to play
   show 0 minutes that week, so start chance drops to 0.39 (min_recency 0.4). Local build mid-GW8:
   Haaland GW9 5.00 -> 1.96, Palmer 4.25 -> 1.67; top-100 -1.97 xP. Backtests can't see it. Fix: drop
