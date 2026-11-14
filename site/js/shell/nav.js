@@ -35,14 +35,20 @@ function header() {
       rn.textContent = rankFmt(from); requestAnimationFrame(step);
     }
   }
-  const built = new Date(meta.built), ageH = (Date.now() - built) / 36e5;
+  const built = new Date(meta.built);
   const when = built.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
-  $("#meta").innerHTML = `${typeof healthBanner === "function" ? healthBanner() : ""}
-    <span class="st-when" role="link" tabindex="0" data-gohealth="1" title="Open Data health">${ageH > 2 ? "" : '<span class="live-dot" aria-hidden="true"></span>'}Updated ${when}</span>
+  // FL-121: on phones the banner is hidden and the "Updated" link turns into a one-line warning ("Data 5 hours old"),
+  // which opens Data health for the reason; the full banner stays on wider screens. One refresh button either way.
+  const h = typeof healthInfo === "function" ? healthInfo() : null;
+  const rLabel = REFRESH.busy ? ["Refreshing", "Refreshing"] : h ? ["Refresh now", "Refresh"] : ["Refresh data", "Refresh"];
+  const sLabel = syncReady() ? ["Sync on", "Sync on"] : ["Sync plan", "Sync"];
+  const lbl = ([full, short]) => full === short ? full : `<span class="lbl-full">${full}</span><span class="lbl-short">${short}</span>`;
+  $("#meta").innerHTML = `${h ? healthBanner(h) : ""}
+    <span class="st-when${h ? ` stale ${h.bad ? "bad" : "warn"}` : ""}" role="link" tabindex="0" data-gohealth="1" title="Open Data health">${h ? `${icon("alert")}<span class="st-upd">Updated ${when}</span><span class="st-age">${h.short}</span>` : `<span class="live-dot" aria-hidden="true"></span>Updated ${when}`}</span>
     <span class="st-note">Your GW${meta.picks_gw} squad. Transfers made on the FPL site appear after the deadline.</span>
     <span class="st-acts">
-      <button class="btn ghost sm" data-refresh="1" ${REFRESH.busy ? "aria-busy=\"true\"" : ""}>${icon("refresh")}${REFRESH.busy ? "Refreshing" : "Refresh data"}</button>
-      <button class="btn ghost sm" data-sync="1">${icon("sync")}${syncReady() ? "Sync on" : "Sync plan"}</button>
+      <button class="btn ${h ? "" : "ghost "}sm" data-refresh="1" aria-label="${rLabel[0]}" ${REFRESH.busy ? "aria-busy=\"true\"" : ""}>${icon("refresh")}${lbl(rLabel)}</button>
+      <button class="btn ghost sm" data-sync="1" aria-label="${sLabel[0]}">${icon("sync")}${lbl(sLabel)}</button>
     </span>
     <span class="st-msg" id="refreshMsg">${esc(REFRESH.msg)}</span><span class="st-msg" id="syncMsg">${esc(SYNC.msg || "")}</span>`;
   const hl = $("#meta [data-gohealth]"); if (hl) { hl.onclick = () => setView("health"); hl.onkeydown = e => { if (e.key === "Enter") setView("health"); }; }
