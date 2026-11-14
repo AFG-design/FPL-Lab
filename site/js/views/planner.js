@@ -216,7 +216,9 @@ function draftSummary(d) {
   SB.ov = keep.ov; S.mode = keep.mode;
   return out;
 }
-// Saved plans (drafts): the active plan first, then up to 3 saved ones. A saved plan the active one matches (same moves,
+// Saved plans (drafts), one card each so they read without sideways scrolling in the tools column (a table there was
+// about 580px wide in a 300px column at every width): the active plan first (with Undo), then up to 3 drafts, each
+// with the same figures in the same order and the best figure among them in green (and "(best)" for screen readers). A saved plan the active one matches (same moves,
 // strategy, captain and bench choices and lineups, tpaths.js samePath) is marked Active. "Make active" replaces the
 // active plan with it and switches to the strategy it was saved with (activatePlan); Undo brings the old plan back.
 function draftIsActive(d) {
@@ -230,25 +232,30 @@ function draftsHTML() {
   const act = ds.map(draftIsActive);
   const cols = [cur, ...ds.map(draftSummary)];
   const best = (f, dir = 1) => Math.max(...cols.map(c => dir * f(c)));
-  const cell = (c, f, fmt, dir = 1) => `<td class="n ${cols.length > 1 && dir * f(c) === best(f, dir) ? "up" : ""}">${fmt(f(c))}</td>`;
   const rows = [
     ["Projected points", c => c.tot, f1], ["vs no transfers", c => c.gain, sgn], [`GW${PG[0]} points`, c => c.w0, f1],
     ["Hits", c => c.hits, x => x ? "−" + 4 * x : "0", -1], ["FT left at the end", c => c.ftLeft, x => x],
     [term("spread", "Spread vs field"), c => c.spread ?? 0, x => "±" + f1(x), -1],
   ];
-  const head = (c, k) => k ? `${esc(c.name)}<br><span class="dr-sub">${esc(MODES[c.mode] || "")}${act[k - 1] ? ' · <span class="pill good">Active</span>' : ""}</span>`
-    : `Active plan<br><span class="dr-sub">${esc(planName())} · ${MODES[S.mode]}</span>`;
   return `<div class="bar"><h3>Drafts</h3><span class="tag">${ds.length}/3 saved</span></div>
-    <p class="pe-active" style="margin:0 0 10px"><span><span class="lbl">Active plan</span> <b>${esc(planName())}</b> · ${MODES[S.mode]} · ${f1(cur.tot)} projected points${act.some(Boolean) ? ` · same as draft “${esc(ds[act.indexOf(true)].name)}”` : ""}</span>${SB.prev ? `<button class="btn sm" data-undoplan="1">Undo last change</button>` : ""}</p>
     <p class="note" style="margin-top:0">Save versions of your plan as drafts (say a template one, a differential one and a roll) and compare them over ${PG.length} GWs. Each keeps the strategy it was saved with. <b>Make active</b> makes a draft your active plan and switches to its strategy; This week and Rivals then follow it, and Undo brings the old plan back. Saving never changes your active plan.</p>
     <div class="filters" style="margin:0 0 10px"><input id="draftName" maxlength="24" placeholder="Name this version, e.g. Differential" aria-label="Draft name" style="flex:1 1 180px;min-width:0">
       <button class="btn primary" data-draftsave="1" ${ds.length >= 3 ? "disabled" : ""}>Save active plan</button></div>
     ${ds.length >= 3 ? '<p class="note">3 drafts saved: delete one to save another.</p>' : ""}
-    <div class="tablebox"><table><thead><tr><th></th>${cols.map((c, k) => `<th class="n">${head(c, k)}</th>`).join("")}</tr></thead>
-      <tbody>${rows.map(([l, f, fmt, dir]) => `<tr><td>${l}</td>${cols.map(c => cell(c, f, fmt, dir || 1)).join("")}</tr>`).join("")}
-      <tr><td>GW${PG[0]} captain</td>${cols.map(c => `<td class="n">${esc(P[c.cap]?.name || "–")}</td>`).join("")}</tr>
-      <tr><td>Moves</td>${cols.map(c => `<td class="n" style="white-space:normal;min-width:140px;font-size:12.5px">${c.moves.length ? c.moves.map(m => `GW${m.gw} ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join("<br>") : "None"}</td>`).join("")}</tr>
-      ${ds.length ? `<tr><td></td><td></td>${ds.map((d, k) => `<td class="n dr-acts">${act[k] ? '<span class="dr-on">Active plan</span>' : `<button class="btn primary sm" data-draftload="${k}" aria-label="Make ${esc(d.name || "this plan")} your active plan (switches to ${esc(MODES[d.mode] || MODES[S.mode])})">Make active</button>`} <button class="btn sm" data-draftdel="${k}" aria-label="Delete ${esc(d.name || "saved plan")}">Delete</button></td>`).join("")}</tr>` : ""}</tbody></table></div>`;
+    ${cols.length > 1 ? '<p class="note" style="margin:0 0 8px">Green marks the best figure among your plans.</p>' : ""}
+    <div class="drcards">${cols.map((c, k) => {
+      const d = k ? ds[k - 1] : null, on = k ? act[k - 1] : true;
+      const metrics = rows.map(([l, fn, fmt, dir]) => { const top = new Set(cols.map(fn)).size > 1 && (dir || 1) * fn(c) === best(fn, dir || 1);   // a tie everywhere marks nothing
+        return `<div><dt>${l}</dt><dd class="${top ? "up" : ""}">${fmt(fn(c))}${top ? '<span class="sr"> (best)</span>' : ""}</dd></div>`; }).join("");
+      return `<section class="drcard${k ? "" : " cur"}${on && k ? " on" : ""}" aria-labelledby="drh-${k}">
+        <div class="drcard-h"><h4 id="drh-${k}">${k ? esc(c.name) : `Active plan: ${esc(planName())}`}</h4>${k ? (on ? '<span class="pill good">Active</span>' : '<span class="pill mut">Saved</span>') : '<span class="pill good">In use</span>'}</div>
+        <p class="drcard-s">${esc(MODES[k ? c.mode : S.mode] || MODES[S.mode])} strategy${d?.from ? ` · from ${esc(d.from)}` : ""}${!k ? " · This week and Rivals use it" : ""}</p>
+        <dl class="drcard-m">${metrics}</dl>
+        <p class="drcard-mv"><b>GW${PG[0]} captain</b> ${esc(P[c.cap]?.name || "–")}</p>
+        <p class="drcard-mv"><b>Moves</b> ${c.moves.length ? c.moves.map(m => `GW${m.gw} ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join(" · ") : "None"}</p>
+        ${k ? `<div class="acts">${on ? '<span class="dr-on">This is your active plan</span>' : `<button class="btn primary" data-draftload="${k - 1}" aria-label="Make ${esc(d.name || "this draft")} your active plan (switches to ${esc(MODES[d.mode] || MODES[S.mode])})">Make active</button>`}<button class="btn" data-draftdel="${k - 1}" aria-label="Delete ${esc(d.name || "draft")}">Delete</button></div>` : SB.prev ? `<div class="acts"><button class="btn sm" data-undoplan="1">Undo last change</button></div>` : ""}
+      </section>`;
+    }).join("")}</div>`;
 }
 // "Your plan" tab: the full editor (pitch, suggestions, captains, Re-plan, drafts). The page shell and the view tabs
 // live in vPlanner (views/planner-views.js); in this tab the plan length sits with the strategy under Planning settings.
