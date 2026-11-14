@@ -1,5 +1,11 @@
 # FPL Lab model log
 
+## On probation (Adopt as Marginal): re-check list
+Re-run each with `bench.py` at the stated time, candidate = the old value against main. Revert if the gain has gone.
+- **cred_recency 0.9 for xG and DC** (adopted 14 Nov 2026, entry below). Re-check at GW20 (this season then has enough
+  5-GW origins to count) and at season end. Old value to test against: `{"cred_recency": null}`. Adopted at pooled 5-GW
+  +0.036 [-0.038, +0.114]; goals and DC part scores clearly better.
+
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
@@ -28,7 +34,8 @@ from odds/archive/ since PR #24, 31 Oct 2026).
 - Decision: 0.9 is the only variant with both past seasons positive and both target parts clearly better. Current rule:
   CI includes zero; Adopt as Marginal only if the cap counts as a known error (it was logged on 31 Oct before any fix;
   arguable). FL-161 proposal: qualifies as a targeted package (goals and DC clear, picks not wholly below zero) →
-  Adopt as Marginal. Size: +0.04 real points per pick over 5 GWs, small. Left off pending the owner's decision.
+  Adopt as Marginal. Size: +0.04 real points per pick over 5 GWs, small. Owner approved 14 Nov: switched on as
+  Marginal (on the re-check list at the top).
 
 ## 14 Nov 2026 — this-season cap lifted: `cred_recency` 0.9 / 0.95 / 1.0 (Don't adopt; setting left off)
 
