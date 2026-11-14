@@ -60,7 +60,7 @@ function liveState() {
 function hitTip(hits, gross) {
   return typeof hits === "number" && hits > 0 && typeof gross === "number" ? ` title="Before the −${hits} hit: ${gross - hits} after it"` : "";
 }
-function livePanel() {
+function livePanel({ showTeamScore = true } = {}) {
   const L = D.live; if (!L || L.finished || !L.in_play) return "";
   const s = liveState(); if (!s) return "";
   const stTxt = { done: "Finished", playing: "Playing", "to play": "Yet to play", blank: "No game" };
@@ -70,7 +70,7 @@ function livePanel() {
   const fx = L.fixtures.slice().sort((a, b) => (a.ko || "").localeCompare(b.ko || ""));
   return `<div class="panel live-panel"><div class="bar"><h2><span class="live-dot" aria-hidden="true"></span>GW${L.gw} live</h2><span class="muted">updated ${new Date(D.meta.built).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span></div>
     <div class="kpis" style="margin-bottom:12px">
-      <div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px"${hitTip(s.hits, s.gross)}>${s.gross}</b><span class="delta muted">${s.projGross != null ? `of ${f1(s.projGross)} projected · ` : ""}${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>
+      ${showTeamScore ? `<div class="kpi"><span class="lbl">Your live points</span><b style="font-size:32px"${hitTip(s.hits, s.gross)}>${s.gross}</b><span class="delta muted">${s.projGross != null ? `of ${f1(s.projGross)} projected · ` : ""}${s.left} yet to play · ${s.playing} playing${L.hits ? ` · −${L.hits} hit` : ""}</span></div>` : ""}
       ${s.rank ? (() => { const rr = s.rank.r, b = L.rank_before, mv = b ? b - rr : 0;
         const big = n => n >= 1e6 ? (n / 1e6).toFixed(1) + "m" : n >= 1e4 ? Math.round(n / 1e3) + "k" : rankFmt(n);
         return `<div class="kpi"><span class="lbl">${term("liverank", "Live rank")} (estimate)</span><b>${s.rank.edge === "above" ? "Top " : s.rank.edge === "below" ? "Below " : "~"}${big(rr)}</b><span class="delta ${mv > 0 ? "up" : mv < 0 ? "down" : "muted"}">${b ? `${mv > 0 ? "▲" : mv < 0 ? "▼" : ""} ${big(Math.abs(mv))} from ${big(b)}` : ""}</span></div>`; })() : ""}

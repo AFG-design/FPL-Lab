@@ -41,7 +41,7 @@ def main():
                     vice=page.locator(f'.mc-p[data-p="{ids["vice"]}"]')
                     assert vice.locator('b').inner_text()==str(expected)
                     assert ('(C)' in vice.inner_text()) == (case in ('out','tc'))
-                    home=page.locator('.gwtiles .dash-tile').nth(2).inner_text().lower()
+                    home=page.locator('.gwtiles .dash-tile').nth(1).inner_text().lower()
                     if case in ('out','tc'):
                         assert 'vice took over' in home and f'{expected} pts' in home,home
                     elif case=='plays':

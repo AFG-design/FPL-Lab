@@ -79,7 +79,7 @@ function planKind() {
 function vNext() {
   const c = weekCalls();
   if (!c) return stateView({ title: "No gameweek to plan", body: "The next deadline appears here once FPL publishes it." });
-  const { g, me, w0, ft, moves0 } = c, k = planKind(), n = moves0.length;
+  const { g, me, w0, moves0 } = c, k = planKind(), n = moves0.length;
   const intro = !WEEK_INTRO_DONE; WEEK_INTRO_DONE = true;   // entrance motion on the first draw only
   const why = k.kind === "model" ? `The ${MODES[S.mode]} strategy's plan (${esc(k.plan)}), as the optimiser made it. Any change you make turns it into your draft.`
     : k.kind === "replan" ? "The optimiser re-planned around your locks and rules. Any change you make turns it into your draft."
@@ -100,13 +100,26 @@ function vNext() {
     return `${esc(P[m.in].name)}: ${sgn(d)} xP over ${PG.length} GW${PG.length === 1 ? "" : "s"} vs ${esc(P[m.out].name)}${cash > 0 ? `, frees ${money(cash)}` : cash < 0 ? `, costs ${money(-cash)}` : ", same money"}`; };
   const mvList = n ? `<ul class="dc-moves">${moves0.map(m => `<li><span class="out"><span class="sr">Out: </span>${esc(P[m.out].name)}</span><span class="arr" aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)}</span><span class="muted mono">${money(P[m.in].price)}</span><small class="dc-why">${why1(m)}</small>${reasonBtn(m.gw, m.out, m.in, "why")}</li>`).join("")}</ul>`
     : `<p class="dc-do">Roll: no transfers planned</p>`;
-  const tBody = `${mvList}
-    <dl class="dc-nums">
-      <div><dt>Hits</dt><dd>${w0.hits ? `<span class="down">−${4 * w0.hits}</span>` : "None"}</dd></div>
-      <div><dt>Projected vs rolling</dt><dd class="${c.ptsVsRoll > 0.05 ? "up" : c.ptsVsRoll < -0.05 ? "down" : ""}">${sgn(c.ptsVsRoll)}</dd></div>
-      <div><dt>Banked FTs (assumed)</dt><dd>${sgn(c.ftValue)}</dd></div>
-    </dl>
-    <p class="dc-sub">${n ? `Projected points over ${horizon} (${PG.length} GWs), after hits. Banked free transfers are assumed to be worth 1.5 pts each; the verdict adds the two.` : `You'll have ${Math.min(5, ft + 1)} free transfers next week. Compare against the model's moves in the planner.`}</p>`;
+  // Compare whole plans over the same horizon. Only the transfer spend is specific to this deadline.
+  const gain = Number(f1(c.ptsVsRoll)), freeUsed = n - w0.hits;
+  const comparison = gain === 0 ? "projects the same points as rolling" :
+    `projects ${f1(Math.abs(gain))} ${gain > 0 ? "more" : "fewer"} points than rolling`;
+  const spend = w0.chip === "wildcard" || w0.chip === "freehit" ? `${CHIP_NAME[w0.chip]} covers the moves` :
+    `the plan uses ${freeUsed} free transfer${freeUsed === 1 ? "" : "s"}${w0.hits ? ` with a ${4 * w0.hits}-point hit` : ""}`;
+  const summary = n ? `This plan ${comparison} over ${PG.length} gameweek${PG.length === 1 ? "" : "s"} after hits. For GW${g}, ${spend}.` :
+    `Roll this week to start GW${g + 1} with ${w0.next} free transfer${w0.next === 1 ? "" : "s"}.`;
+  const tBody = `<p class="dc-do">${n || g < 38 ? summary : "No transfers planned for the final gameweek."}</p>
+    ${n ? `<ul class="dc-moves">${moves0.map(m => `<li><span class="out"><span class="sr">Out: </span>${esc(P[m.out].name)}</span>
+      <span class="arr" aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)}</span></li>`).join("")}</ul>` : ""}
+    <details><summary>How this was calculated</summary>
+      ${n ? mvList : ""}
+      <dl class="dc-nums">
+        <div><dt>Hits this week</dt><dd>${w0.hits ? `−${4 * w0.hits}` : "None"}</dd></div>
+        <div><dt>Projected vs rolling</dt><dd>${sgn(c.ptsVsRoll)} xP</dd></div>
+        <div><dt>Banked transfers (assumed)</dt><dd>${sgn(c.ftValue)}</dd></div>
+      </dl>
+      <p class="dc-sub">The ${horizon} projection includes lineup, captaincy and all transfer hits. The verdict also values each extra free transfer left at the end at ${ftValue()} points.</p>
+    </details>`;
   const tAct = `<button class="btn primary sm" data-plgo="edit:suggest">Compare transfers →</button>${n ? `<button class="btn sm" data-howto="${g}">Make these moves on FPL</button>` : ""}`;
 
   // captain: your captain and the best other starter, both as captain (xP × 2)
@@ -214,24 +227,23 @@ function vCurrent() {
   const ko1 = L.fixtures.filter(f => !f.started).map(f => f.ko).filter(Boolean).sort()[0];
 
   const phaseTxt = { final: "Completed", awaiting: "All matches played · provisional", live: "Live", pre: "Deadline passed" }[phase];
-  const head = phase === "final" ? `${gross} points. <span class="cap">GW${cg} complete.</span>`
-    : phase === "awaiting" ? `${gross} points. <span class="cap">All matches played.</span>`
-    : phase === "live" ? `${gross} points. <span class="cap">${left.length ? `${leftTxt}.` : "All your players have played."}</span>`
-    : `GW${cg} is locked. <span class="cap">${left.length} players to play.</span>`;
-  const why = phase === "final" ? `Final points from FPL${hits ? `, before the −${hits} hit` : ""}${chip ? `, with ${chip} played` : ""}.`
-    : phase === "pre" ? `No matches have started.${ko1 ? ` First kick-off ${ukTime(ko1)}.` : ""} Points appear as games kick off.`
-    : `Live points are provisional: bonus as it stands, auto-subs once a player's matches are over.${left.length ? ` ${myFxLeft} of your ${myFx.length} matches left.` : ""}`;
+  const avg = L.average;
+  const scoreContext = [
+    avg != null ? `${intSgn(gross - avg)} vs average (${avg})` : "Gameweek average not published yet",
+    hits ? `${gross - hits} after the −${hits} hit` : "",
+    chip ? `${chip} played` : "",
+  ].filter(Boolean).join(" · ");
+  const progress = phase === "final" ? "Final points from FPL." : phase === "pre" ?
+    `Deadline passed.${ko1 ? ` First kick-off ${ukTime(ko1)}.` : ""}` :
+    `${phase === "awaiting" ? "All matches played" : leftTxt || "All your players have played"}. Bonus and auto-subs are provisional.`;
   const acts = phase === "final"
     ? `<button class="btn primary" data-v-go="review">Open full review →</button><button class="btn" data-v-go="rivals">Compare with rivals</button>`
     : `<button class="btn primary" data-scrollto="gwScores">View live scores</button><button class="btn" data-v-go="rivals">Compare with rivals</button>`;
   const hero = `<section class="hero compact" aria-label="GW${cg} so far">
     <p class="eyebrow">GW${cg} · ${phase === "live" ? `<em><span class="live-dot" aria-hidden="true"></span>${phaseTxt}</em>` : phaseTxt} · Your submitted squad · updated ${hm(D.meta.built)}</p>
-    <h1>${head}</h1><p class="hero-why">${why}</p><div class="hero-acts">${acts}</div></section>`;
+    <h1><span class="gw-score">${gross}</span> ${provisional ? "provisional points" : "points"}</h1>
+    <p class="hero-why">${scoreContext}</p><p class="dc-sub">${progress}</p><div class="hero-acts">${acts}</div></section>`;
 
-  // gameweek points, rank, captain
-  const avg = L.average || null;
-  const ptsTile = `<div class="dash-tile"><h3>Gameweek points${provisional ? " · provisional" : ""}</h3><div class="dash-big"><b>${gross}</b><span>pts</span></div>
-    <p class="dash-sub">${avg != null ? `<span class="${gross >= avg ? "up" : "down"}">${intSgn(gross - avg)} vs average</span> (${avg}${provisional ? " so far" : ""})` : "Gameweek average not published yet"}${hits ? `. Net after −${hits} hit: <b>${gross - hits}</b>` : ""}.</p></div>`;
   const hc = D.history.find(h => h.gw === cg), hp = D.history.find(h => h.gw === cg - 1);
   let rankTile;
   if ((phase === "live" || phase === "awaiting") && s.rank) {
@@ -256,7 +268,7 @@ function vCurrent() {
     capTile = `<h3>Captain</h3><div class="dash-big"><b>${esc(P[s.cap?.id]?.name || "–")}</b></div>
       <p class="dash-sub">${s.capOut ? `Didn't play. The armband passes to ${esc(P[s.vice?.id]?.name || "your vice")} if he plays.` : `${capX === 3 ? "Triple Captain: points ×3" : "Points ×2"} once he plays.`}</p>`;
   }
-  const tiles = `<div class="dash gwtiles">${ptsTile}<div class="dash-tile">${rankTile}</div><div class="dash-tile">${capTile}</div></div>`;
+  const tiles = `<div class="dash gwtiles"><div class="dash-tile">${rankTile}</div><div class="dash-tile">${capTile}</div></div>`;
 
   // money and the saved forecast, above the pitch
   const tv = squadValue(s.rows.map(r => r.id));
@@ -282,18 +294,24 @@ function vCurrent() {
     : `Bench points don't count unless an auto-sub applies.${!provisional && L.bench_pts != null ? ` Your bench scored ${L.bench_pts}.` : ""}`;
   const key = `<span>Big number: actual points, ${capX === 3 ? "Triple Captain ×3" : "captain ×2"} already included (never doubled again)</span><span>${provisional ? "Provisional until FPL confirms" : "Final from FPL"}</span><span>Under it: match state; a double gameweek counts both matches</span>`;
   const pitchCol = `<div class="home-pitch">
-    <div class="bar"><h2>GW${cg} team · submitted squad</h2><span class="lu-head"><span class="tag">${gross} pts${provisional ? " so far" : ""}</span>${lineupToggle()}</span></div>
+    <div class="bar"><h2>GW${cg} team · submitted squad</h2><span class="lu-head">${lineupToggle()}</span></div>
     ${mrow}${livePitch(xi, bench, benchNote, key)}</div>`;
 
   // live matches with your players
   const order = f => f.started && !f.done ? 0 : !f.started ? 1 : 2;
   const fxs = myFx.slice().sort((a, b) => order(a) - order(b) || (a.ko || "").localeCompare(b.ko || "")).slice(0, 5);
   const fxLine = f => {
-    const stt = f.done ? "FT" : f.started ? `<span class="mc-live"><i aria-hidden="true"></i>${f.mins ? f.mins + "'" : "LIVE"}</span>` : `${new Date(f.ko).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" })} ${hm(f.ko)}`;
-    const mine = counted.filter(r => r.team === f.h || r.team === f.a).map(r => `${esc(P[r.id]?.name)} ${f.started ? r.live * s.mult(r) : "–"}`).join(", ");
-    return `<li><span class="lm-st">${stt}</span><span class="lm-sc">${T[f.h].short} ${f.started ? `${f.hs ?? 0}–${f.as ?? 0}` : "v"} ${T[f.a].short}</span><span class="lm-mine">${mine}</span></li>`;
+    const stt = f.done ? "FT" : f.started ? `<span class="mc-live"><i aria-hidden="true"></i>${f.mins ? f.mins + "'" : "LIVE"}</span>` : !f.ko ? "Time TBC" : `${new Date(f.ko).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" })} ${hm(f.ko)}`;
+    // Without a scoreline or kick-off time, keep the fixture and show only known details.
+    // Player scores span the whole GW in doubles. A pending auto-sub has no counted points yet.
+    const mine = s.xi.filter(r => r.team === f.h || r.team === f.a).map(r => {
+      const name = esc(P[r.id]?.name || r.id), m = s.mult(r);
+      if (!counted.includes(r)) return `${name} (pending auto-sub)`;
+      return `${name}${m > 1 ? " (C)" : ""}${f.started ? ` · ${r.live * m} GW pts` : ""}`;
+    }).join(", ");
+    return `<li><span class="lm-st">${stt}</span><span class="lm-sc">${T[f.h].short} ${f.started && f.hs != null && f.as != null ? `${f.hs}–${f.as}` : "v"} ${T[f.a].short}</span><span class="lm-mine">${mine}</span></li>`;
   };
-  const lm = sidePanel(phase === "final" ? "Your matches" : "Live matches", fxs.length ? `<ul class="lm">${fxs.map(fxLine).join("")}</ul>` : `<p class="muted side-empty">None of your players has a match this gameweek.</p>`,
+  const lm = sidePanel("Your matches", fxs.length ? `<ul class="lm">${fxs.map(fxLine).join("")}</ul>` : `<p class="muted side-empty">None of your players has a match this gameweek.</p>`,
     `<button class="btn sm" data-scrollto="gwScores">All scores →</button>`, `<span class="muted">${provisional ? "Provisional points" : "Final points"}</span>`);
 
   // rival differences: effective ownership around your rank against what you have, this gameweek's file only
@@ -308,13 +326,13 @@ function vCurrent() {
     const hurt = rows.filter(r => r.d < -0.3).sort((a, b) => started ? a.imp - b.imp : a.d - b.d).slice(0, 2);
     const help = rows.filter(r => r.d > 0.3).sort((a, b) => started ? b.imp - a.imp : b.d - a.d).slice(0, 2);
     const who = sample.label, avg = sample.key === "near" ? s.near : s.top10k;
-    const line = (r, cls) => `<li class="${cls}"><span><button class="linkish pname" data-p="${r.i}">${esc(P[r.i].name)}</button>: ${Math.round(r.eo * 100)}% owned by them, ${r.m ? `yours${r.m > 1 ? ` ×${r.m}` : ""}` : "not yours"}${started ? ` · ${r.pts} pts, ${sgn(r.imp)} for you` : ""}</span></li>`;
+    const line = (r, cls) => `<li class="${cls}"><span><button class="linkish pname" data-p="${r.i}">${esc(P[r.i].name)}</button>: ${Math.round(r.eo * 100)}% effective ownership, ${r.m ? `yours${r.m > 1 ? ` ×${r.m}` : ""}` : "not yours"}${started ? ` · ${r.pts} pts, ${sgn(r.imp)} for you` : ""}</span></li>`;
     const fCap = Object.entries(F.cap || {}).sort((a, b) => b[1] - a[1])[0];
-    rv = sidePanel("Your rival differences", `<ul class="alerts side-alerts">${hurt.map(r => line(r, "warn")).join("")}${help.map(r => line(r, "good")).join("")}</ul>
-      <p class="dc-sub">Effective ownership among ${who}${started ? "; points are live" : ""}.${fCap && P[fCap[0]] ? ` Their most-captained: ${esc(P[fCap[0]].name)} (${Math.round(fCap[1])}%).` : ""}${avg != null ? ` They average about ${f1(avg)} so far.` : ""}</p>`,
+    rv = sidePanel(`Against ${who}`, `<ul class="alerts side-alerts">${hurt.map(r => line(r, "warn")).join("")}${help.map(r => line(r, "good")).join("")}</ul>
+      <p class="dc-sub">Effective ownership among ${who} includes captaincy, so it can exceed 100%.${started && provisional ? " Points are provisional." : ""}${fCap && P[fCap[0]] ? ` Their most-captained: ${esc(P[fCap[0]].name)} (${Math.round(fCap[1])}%).` : ""}${avg != null ? ` They average about ${f1(avg)} so far.` : ""}</p>`,
       `<button class="btn sm" data-v-go="rivals">Open rivals →</button>`);
   } else {
-    rv = sidePanel("Your rival differences", `<p class="muted side-empty">Ownership sample unavailable for GW${cg}: neither managers near your rank nor the top 10k has a usable sample. It's sampled after each deadline.</p>`, `<button class="btn sm" data-v-go="rivals">Open rivals →</button>`);
+    rv = sidePanel("Field comparison", `<p class="muted side-empty">Ownership sample unavailable for GW${cg}: neither managers near your rank nor the top 10k has a usable sample. It's sampled after each deadline.</p>`, `<button class="btn sm" data-v-go="rivals">Open rivals →</button>`);
   }
 
   // next deadline: the saved plan
@@ -330,13 +348,12 @@ function vCurrent() {
   // outlook
   const fc = s.hasXp ? s.proj : null, net = gross - hits;
   const ol = sidePanel("Gameweek outlook", `<ul class="side-list">
-      <li>${provisional ? "Points so far" : "Final points"}: <b>${gross}</b>${hits ? ` (${net} after the hit)` : ""}</li>
       <li>${phase === "final" ? "All matches played" : `Starters: ${leftTxt || "none left to play"} · ${myFxLeft} of your ${myFx.length} matches left`}</li>
       <li>Pre-deadline forecast: ${fc != null ? `<b>${f1(fc)} xP</b> (after hits)${phase === "final" ? ` · <span class="${net >= fc ? "up" : "down"}">${sgn(net - fc)}</span> against it` : ""}` : '<span class="mr-na">Unavailable</span>'}</li></ul>
     <p class="dc-sub">The forecast is the estimate saved before the deadline, not a guaranteed final score.</p>`);
 
-  const scores = scoresStrip() + livePanel();
-  return `${hero}${tiles}<div class="home-main">${pitchCol}<div class="home-side">${lm}${rv}${nd}${ol}</div></div>
+  const scores = scoresStrip() + livePanel({ showTeamScore: false });
+  return `${hero}<div class="home-main">${lm}${rv}</div>${tiles}<div class="home-main">${pitchCol}<div class="home-side">${nd}${ol}</div></div>
     <div id="gwScores" tabindex="-1" class="gwscores">${scores || `<p class="note">Match cards for GW${cg} are shown until the GW${ng || ""} deadline.${phase === "final" ? ' Full breakdown in <button class="linkish" data-v-go="review">Review</button>.' : ""}</p>`}</div>
     ${seasonOver() ? "" : `<p class="prevgw"><span>GW${cg} squad is locked. Plan changes apply to the ${ng ? `GW${ng} ` : "next "}deadline.</span><span class="prevgw-go"><button class="linkish" data-plgo="edit">Continue planning →</button></span></p>`}`;
 }

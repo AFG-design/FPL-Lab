@@ -516,7 +516,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .prevgw .linkish, .side .linkish:not(.pname) { color: var(--accent-text); font-weight: 600; }
 
 /* Current GW */
-.gwtiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.gwtiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .gwtiles .dash-big b { font-size: 36px; }
 .gwtiles .dash-big { flex-wrap: wrap; }
 .lm { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: var(--fs-sm); }
