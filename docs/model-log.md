@@ -4,6 +4,38 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — FL-161: past "Don't adopt" results re-run under the proposed pooled rule (tooling; no model change)
+
+- bench.py now prints a pooled 5-GW picks interval (2024/25 + 2025/26, GWs resampled within each season, then pooled)
+  and a proper score per part (raw, before calibration) with paired intervals. All 14 past rejections still expressible
+  as a setting were re-run on main (5-GW picks per season and pooled, candidate − main; part score pooled, negative =
+  better):
+
+  | Candidate | Targets | 2025/26 | 2024/25 | Pooled 5-GW | Pooled part score | Proposed rule |
+  |---|---|---|---|---|---|---|
+  | cs_k 0.95 | clean sheets | +0.02 [-0.02, +0.07] | -0.06 [-0.12, -0.00] | -0.018 [-0.054, +0.017] | CS log-loss -0.0006 [-0.0016, +0.0005] | Don't adopt (same) |
+  | cs_k 1.0 | clean sheets | +0.03 [-0.04, +0.10] | -0.08 [-0.15, -0.00] | -0.024 [-0.073, +0.025] | CS log-loss -0.0004 [-0.0023, +0.0018] | Don't adopt (same) |
+  | home 1.12 | none | -0.05 [-0.16, +0.04] | +0.05 [-0.05, +0.15] | -0.003 [-0.077, +0.070] | – | Don't adopt (same) |
+  | home 1.20 | none | -0.07 [-0.25, +0.08] | +0.09 [-0.06, +0.26] | +0.008 [-0.117, +0.121] | – | Don't adopt (same) |
+  | goal_mult 1.0 | goals | +0.06 [-0.04, +0.17] | -0.03 [-0.10, +0.03] | +0.016 [-0.046, +0.075] | goals dev. +0.0007 [-0.0001, +0.0015] | Don't adopt (same) |
+  | assist_mult 1.0 | assists | -0.01 [-0.10, +0.07] | -0.02 [-0.11, +0.07] | -0.018 [-0.081, +0.043] | assists dev. +0.0041 [+0.0030, +0.0052] worse | Don't adopt (same) |
+  | eu_cut 1.0 | start chance | +0.03 [-0.06, +0.14] | -0.10 [-0.17, -0.03] | -0.032 [-0.091, +0.031] | start Brier +0.00004 [-0.00003, +0.00010] | Don't adopt (same) |
+  | eu_cut 0.98 | start chance | +0.01 [-0.07, +0.10] | -0.09 [-0.16, -0.03] | -0.042 [-0.091, +0.015] | start Brier 0.00000 [-0.00004, +0.00005] | Don't adopt (same) |
+  | eu_cut 0.85 | start chance | +0.01 [-0.07, +0.09] | -0.01 [-0.12, +0.10] | -0.003 [-0.070, +0.062] | start Brier +0.0002 [+0.0001, +0.0003] worse | Don't adopt (same) |
+  | team_recency 0.95 | none | +0.00 [-0.02, +0.03] | +0.01 [-0.04, +0.07] | +0.008 [-0.021, +0.040] | – | Don't adopt (same) |
+  | team_recency 0.97 | none | -0.00 [-0.04, +0.04] | -0.06 [-0.16, +0.04] | -0.029 [-0.087, +0.021] | – | Don't adopt (same) |
+  | pen_xg 0.15 | goals | -0.02 [-0.11, +0.07] | +0.03 [-0.11, +0.17] | +0.002 [-0.077, +0.077] | goals dev. +0.0006 [+0.0001, +0.0010] worse | Don't adopt (same) |
+  | start_prior 0.5 | start chance | 0 [0, 0] | 0 [0, 0] | 0 [0, 0] | 0 | Don't adopt (same; no effect with xMins on) |
+  | min_window 7 | start chance | +0.01 [-0.02, +0.05] | -0.01 [-0.03, +0.00] | -0.001 [-0.020, +0.020] | 0 | Don't adopt (same) |
+
+- None would be decided differently. Pooling narrows the 5-GW interval by about a third (cs_k 1.0: widths 0.14 and
+  0.15 per season, 0.10 pooled). The part scores are far more precise than picks: they show the current assist_mult,
+  eu_cut and pen_xg beat the alternatives on their own part, and that cs_k 1.0 fixes the clean-sheet level without
+  forecasting clean sheets any better (log-loss unchanged). home and goal_mult figures differ slightly from the
+  13 Nov entry, which ran before the European cut was in the bench. start_prior and min_window no longer do anything
+  with xMins on (left in the model; candidates for removal).
+- 2024/25 has no defensive contributions (DC score 0 on both sides), so read DC on 2025/26 only.
+
 ## 14 Nov 2026 — FL-127: Strong / Marginal / Coin flip cut-offs tested (labels only; one-week scale changed)
 
 - tools/verdict_check.py rebuilds Home's three calls out of sample on 2024/25 and 2025/26 (plus this season, GW3 to
