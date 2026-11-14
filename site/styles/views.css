@@ -1086,3 +1086,20 @@ tr.is-rival td { background: var(--accent-soft); }
 .dr-on { font-size: var(--fs-xs); font-weight: 650; color: var(--accent-text); }
 .dr-acts { white-space: nowrap; }
 .rp-warn { margin: 0; padding: 6px 10px; font-size: var(--fs-xs); color: var(--fg); background: var(--sunk); border-left: 3px solid var(--warn); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+
+/* drafts: one card a plan (the active plan first) */
+.drcards { display: grid; gap: 10px; }
+.drcard { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); }
+.drcard.cur { background: var(--sunk); }
+.drcard.on { border-color: var(--accent-text); }
+.drcard-h { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; }
+.drcard-h h4 { margin: 0; font-size: var(--fs-lg); overflow-wrap: anywhere; }
+.drcard-s, .drcard-mv { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.drcard-mv b { color: var(--fg); font-weight: 600; margin-right: 4px; }
+.drcard-m { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin: 4px 0; }
+.drcard-m > div { display: grid; gap: 1px; min-width: 0; }
+.drcard-m dt { font-size: var(--fs-xs); color: var(--muted); }
+.drcard-m dd { margin: 0; font-family: var(--display); font-size: 20px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.drcard-m dd.up { color: var(--good); }
+
+@media (max-width: 360px) { .drcard-m { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
