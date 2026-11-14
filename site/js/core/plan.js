@@ -51,6 +51,12 @@ function recommendedPlan(mode = S.mode) {
 }
 const mvKey = mv => mv.map(m => `${m.gw}:${m.out}>${m.in}`).sort().join(",");
 const sameMoves = (a, b) => mvKey(a) === mvKey(b);
+// The rest of the plan from gameweek g: how many of the plan's weeks are left (planLeft) and their span for labels
+// (planSpan, "GW12–GW15"). A player's xP for a move in gameweek g covers these weeks only. xpFrom(id, g, PG.length) used
+// to count PG.length weeks from g, so a GW12 move in a GW11–GW15 plan also counted GW16, past the plan, while its label
+// said "over 5 GWs". A g outside the plan's weeks has none left: planLeft is 0 and the figure is 0, never a guess.
+const planLeft = g => PG.filter(x => x >= g).length;
+const planSpan = g => { const w = PG.filter(x => x >= g); return w.length > 1 ? `GW${w[0]}–GW${w[w.length - 1]}` : w.length ? `GW${w[0]}` : "no weeks"; };
 
 /* ---------- your plan: one source of truth for every tab ---------- */
 function sbKey() { return `fpl.sb.${D.meta.team_id}.${D.meta.next_gw}.${D.squad.map(s => s.id).join("-")}`; }
