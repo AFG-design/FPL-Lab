@@ -21,12 +21,22 @@ top5 differences are only meaningful when the paired bootstrap 95% CI (over game
 Under each model line, "all players" scores the pool plus everyone outside it who played that GW (no minutes in
 the 3 GWs before: new signings, returners), with that outside-pool group on its own, so a change
 that helps or hurts them is visible. It is reported only; the decision metrics above still use the pool.
+
+FL-161 adds lines only (every earlier line prints exactly as before):
+- "part scores": a proper score for each scoring part on its raw projection, before the final calibration
+  (backtest.part_scores; lower is better): log-loss for clean sheets, Brier for start chance, 60+ and defensive
+  contributions, Poisson deviance for goals and assists, squared error for bonus and saves. Per season, with a paired
+  95% CI for the candidate. Pool players in one-fixture weeks only. 2024/25 had no defensive contributions, so its DC
+  score is 0 for both sides and only dilutes the pooled DC figure; read DC on 2025/26.
+- "pooled 2025-26 + 2024-25": one paired bootstrap 95% CI per candidate over both past seasons together, for 5-GW picks
+  and each part score. Gameweeks are resampled within each season, then pooled.
 """
 import json, math, os, random, sys
 from collections import defaultdict
 
 from fplmodel import prepare, project, POS, europe_dates, euro_weeks
 import archive, selling
+from backtest import part_scores, mean_scores, scores_ci, fmt_scores, fmt_scores_ci
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOPN = {"GKP": 5, "DEF": 15, "MID": 15, "FWD": 10}
@@ -191,8 +201,9 @@ def current_ctx():
     return _CUR["ctx"]
 
 
-def run_current(params, gws=None, everyone=None):
-    """everyone: optional dict, filled with all_rows per GW for the "all players" line (the pool is unchanged)."""
+def run_current(params, gws=None, everyone=None, scores=None):
+    """everyone: optional dict, filled with all_rows per GW for the "all players" line (the pool is unchanged).
+    scores: optional dict, filled with backtest.part_scores per GW (FL-161), from the same projections."""
     ctx = current_ctx()
     out = {}
     for k in (gws or range(3, _CUR["cur"] + 1)):
@@ -201,6 +212,8 @@ def run_current(params, gws=None, everyone=None):
         out[k] = pool_rows(ctx, k, pred)
         if everyone is not None:
             everyone[k] = all_rows(ctx, k, pred)
+        if scores is not None:
+            scores[k] = part_scores(ctx, k, res)
     return out
 
 
@@ -248,7 +261,7 @@ def _xg_at(ctx, team_at, k):
     return t
 
 
-def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None):
+def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None, scores=None):
     ctx, team_at = _season(season)
     out = {}
     for k in gws:
@@ -260,6 +273,8 @@ def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None):
         out[k] = pool_rows(cx, k, pred)
         if everyone is not None:
             everyone[k] = all_rows(cx, k, pred)
+        if scores is not None:
+            scores[k] = part_scores(cx, k, res)
     return out
 
 
@@ -341,21 +356,27 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
         if not quiet:
             print(f"--- {s} ---")
         for name, p in variants.items():
-            ev = {}
+            ev, sc = {}, {}
             if s == "current":
-                m = score(run_current(p, everyone=ev))
+                m = score(run_current(p, everyone=ev, scores=sc))
             else:
-                m = score(run_archive(p, s, everyone=ev))
+                m = score(run_archive(p, s, everyone=ev, scores=sc))
             res[s][name] = m
             m["_all"] = score_all(ev)
+            m["_scores"] = sc
             if not quiet:
                 print(fmt(name, m))
                 print(fmt_all(name, m["_all"]))
+                print(fmt_scores(name, mean_scores(sc)))
         names = list(variants)
         for name in names[1:]:
             ci = res[s].setdefault("_ci", {})[name] = paired_ci(res[s][names[0]], res[s][name])
             if not quiet:
                 print(fmt_ci(ci))
+                print(f"  part scores, paired 95% CI ({name} - {names[0]}, bootstrap over GWs; lower loss is better):")
+                for line in fmt_scores_ci(scores_ci({s: res[s][names[0]]["_scores"]}, {s: res[s][name]["_scores"]}),
+                                          indent="    "):
+                    print(line)
         if H5:
             hs = {name: score_h(run_horizon(p, s, H5)) for name, p in variants.items()}
             res[s]["_h5"] = hs
@@ -376,7 +397,57 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
                         line += (f" | vs current: corr {h['corr'] - hs[names[0]]['corr']:+.3f}, picks "
                                  f"{sum(d) / len(d):+.2f} [{lo:+.2f}, {hi:+.2f}]" + ("" if lo > 0 or hi < 0 else " ~0"))
                     print(line)
+    pooled(res, list(variants), quiet)
     return res
+
+
+POOL = ("2025-26", "2024-25")   # FL-161: the past seasons pooled for the deciding interval
+
+
+def pooled(res, names, quiet=False, n=2000, seed=1):
+    """FL-161: one paired bootstrap 95% interval per candidate over 2024/25 and 2025/26 together, for 5-GW picks and
+    for each part's proper score. Gameweeks (5-GW origins for picks) are resampled with replacement within each
+    season, keeping each season's count, then pooled: the statistic is the mean over all resampled weeks (picks; each
+    origin counts once) or total loss difference / total player-weeks (part scores). The per-season intervals above
+    are unchanged. Missing: if either past season wasn't run, or --no-h5 is on (no 5-GW picks), the line says so
+    instead of pooling one season and calling it pooled. Stored in res["_pooled"][name]."""
+    if len(names) < 2:
+        return
+    have = [s for s in POOL if s in res]
+    if len(have) < len(POOL):
+        if not quiet:
+            print(f"--- pooled {' + '.join(POOL)}: skipped, {', '.join(s for s in POOL if s not in res)} not run ---")
+        return
+    if not quiet:
+        print(f"--- pooled {' + '.join(POOL)} (paired bootstrap, GWs resampled within each season, then pooled) ---")
+    for name in names[1:]:
+        out = res.setdefault("_pooled", {})[name] = {}
+        if all("_h5" in res[s] for s in POOL):
+            per = []
+            for s in POOL:
+                b, c = res[s]["_h5"][names[0]]["_per"], res[s]["_h5"][name]["_per"]
+                per.append([c[k] - b[k] for k in sorted(set(b) & set(c))])
+            per = [d for d in per if d]
+            tot = [x for d in per for x in d]
+            rng = random.Random(seed)
+            ms = []
+            for _ in range(n):
+                draw = [d[rng.randrange(len(d))] for d in per for _ in d]
+                ms.append(sum(draw) / len(draw))
+            ms.sort()
+            lo, hi = ms[int(0.025 * n)], ms[int(0.975 * n) - 1]
+            out["h5_picks"] = (sum(tot) / len(tot), lo, hi, len(tot))
+            if not quiet:
+                print(f"  {H5}-GW picks     {name:<16} {sum(tot) / len(tot):+.3f} [{lo:+.3f}, {hi:+.3f}]"
+                      + ("" if lo > 0 or hi < 0 else " ~0") + f" ({len(tot)} origins)")
+        elif not quiet:
+            print(f"  {H5 or 5}-GW picks: not run (--no-h5), so no pooled deciding interval")
+        out["scores"] = scores_ci({s: res[s][names[0]]["_scores"] for s in POOL},
+                                  {s: res[s][name]["_scores"] for s in POOL})
+        if not quiet:
+            print(f"  part scores ({name} - {names[0]}; lower loss is better, so negative = better):")
+            for line in fmt_scores_ci(out["scores"], indent="    "):
+                print(line)
 
 
 if __name__ == "__main__":

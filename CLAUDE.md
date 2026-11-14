@@ -68,14 +68,24 @@ segment must be called out in the PR, with the numbers. Put the before/after tab
 
 **2. Bench.** Run `bench.py` on all three seasons (this season, 2025/26 and 2024/25) and put in the PR description the
 paired bootstrap 95% confidence intervals for the difference against main, plus the 5-GW and 1-GW totals for each
-season.
+season, the pooled 5-GW picks interval, and (for a targeted change) the pooled interval of the part it targets.
 
 **Decision.** "CI" is the paired bootstrap 95% interval from `bench.py` against main, on the deciding metric below;
 "segment worse" means `--compare` flagged a segment. Every model PR must say which row it falls into.
 
-- **Deciding metric: 5-GW picks** (what the planner optimises). "CI above zero" means above zero in at least one past
-  season (2025/26 or 2024/25), with a positive point estimate in the other. This season is reported but doesn't
-  decide: it has too few 5-week forecast points until about GW20.
+- **Deciding metric: 5-GW picks** (what the planner optimises), one paired-bootstrap 95% interval pooled over 2024/25
+  and 2025/26 (`bench.py`'s "pooled" line: gameweeks resampled within each season, then pooled). "CI above zero" means
+  that pooled interval is above zero. This season is reported but doesn't decide until about GW20.
+- **Targeted change:** a change aimed at one scoring part (clean sheets, start chance, goals, assists, bonus, defensive
+  contributions, saves) may instead be decided on that part's own score (`bench.py`'s pooled "part scores", raw,
+  before calibration; lower loss is better). It qualifies when the part's pooled interval is clear of zero in the right
+  direction AND the pooled 5-GW picks interval is not wholly below zero. That is Adopt as Marginal, re-checked at season
+  end. Retuning a weight with no named part is a tweak and still needs the deciding metric.
+- **Packages:** settings may be tested together only if the PR names the package and the reason they are linked before
+  any runs.
+- **Guard rails:** at most 3 variants per item, listed in the PR before running, all reported (not just the best). Every
+  Adopt as Marginal is re-checked at season end and reverted if its gain has gone. The `--compare` segment checks and
+  the no-harm rule are unchanged.
 - **No harm:** if any other bench metric (1-GW picks, top-5, captain, correlation) has its CI entirely below zero in
   any season, treat it as a segment that tripped `--compare`.
 - **Fixes a known error vs only a tweak:** a change fixes a known error when what was wrong can be stated without the
@@ -87,8 +97,9 @@ season.
 | Result | Decision |
 |---|---|
 | CI above zero and no segment worse | Adopt. |
-| CI includes zero, the change fixes a known error, and no segment worse | Adopt as Marginal: log it in `docs/model-log.md` and re-check later. |
-| CI includes zero and the change is only a tweak | Don't adopt. Log the result in `docs/model-log.md`. |
+| CI includes zero, the change fixes a known error, and no segment worse | Adopt as Marginal: log it in `docs/model-log.md`, re-check at season end and revert if its gain has gone. |
+| Targeted change: the targeted part's pooled interval is clear of zero in the right direction, the pooled 5-GW picks interval is not wholly below zero, and no segment worse | Adopt as Marginal: log it in `docs/model-log.md`, re-check at season end and revert if its gain has gone. |
+| CI includes zero and the change is only a tweak (and doesn't qualify as a targeted change) | Don't adopt. Log the result in `docs/model-log.md`. |
 | Any segment trips `--compare` | Don't adopt until it is fixed or explained. |
 
 ## UI wording

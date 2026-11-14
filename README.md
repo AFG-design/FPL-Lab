@@ -33,7 +33,7 @@ More: [light mode](docs/screenshots/dashboard-desktop-light.png), [player explor
 | `optimise.py` | Multi-gameweek transfer optimiser (integer programme, CBC via PuLP) |
 | `backtest.py` | Re-projects past gameweeks to measure the model. It also prints a segment breakdown; `--status-log`, `--json` and `--compare` are for before/after checks (see `CLAUDE.md`) |
 | `strategy_replay.py` | Replays Balanced, Play safe and Chase rank over past seasons (default 2025/26 and 2024/25, from GW5) with the same planning code the site uses, to check each behaves as its name says: real points, hits and how bumpy the ride was against the field |
-| `bench.py` | Test bench for model changes: re-projects every gameweek of this season and of 2025/26, and scores accuracy plus the picks and captains the app would make. `python3 bench.py '{"recency":0.85}'` compares a parameter set with the current model |
+| `bench.py` | Test bench for model changes: re-projects every gameweek of this season and of 2025/26, and scores accuracy plus the picks and captains the app would make. `python3 bench.py '{"recency":0.85}'` compares a parameter set with the current model. Also prints a proper score per scoring part and paired 95% intervals pooled over 2024/25 and 2025/26 |
 | `archive.py` | Rebuilds a past season (default 2025/26) in the live API's shape from the public vaastav/Fantasy-Premier-League archive, for `bench.py`. Cached in `archive/` (not committed) |
 | `crowd.py` | Samples 2,000 top-10k teams, 500 around your rank and your mini-league rivals once per gameweek into `crowd/latest.json` |
 | `europe.json` | European fixtures used to flag rotation risk. Edit if dates change |
