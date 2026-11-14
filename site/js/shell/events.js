@@ -6,7 +6,7 @@ function flashMove(g, inId) {
   row.classList.add("flash"); setTimeout(() => row.classList.remove("flash"), 1000);
 }
 function bind() {
-  document.querySelectorAll("[data-decision]").forEach(b => b.onclick = () => openDecision());
+  document.querySelectorAll("[data-decision]").forEach(b => b.onclick = () => openDecision(b.dataset.decision, +b.dataset.keep));
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
   on("[data-p]", b => openPlayer(+b.dataset.p));
   // FL-156: a name in the Players table opens details beside the table on wide screens (the sheet otherwise); the

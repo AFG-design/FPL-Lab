@@ -67,3 +67,11 @@ for (const mode of ['balanced', 'safe', 'chase']) {
     assert.equal(run('JSON.stringify(SB)'), before);
   });
 }
+
+test('keeping the suggested sale permits a different legal transfer', async () => {
+  const run = planner();
+  const result = await run('optimiseMoves("balanced", { rules: { locked: [9], banned: [], maxHits: 0 } })');
+  assert.ok(result.moves.some(m => m.in === 16));
+  assert.ok(result.moves.every(m => m.out !== 9));
+  assert.ok(Object.values(result.solved).every(w => w.sq.includes(9)));
+});
