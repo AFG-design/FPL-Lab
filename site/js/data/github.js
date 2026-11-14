@@ -158,16 +158,30 @@ async function checkHealth() {
     if (D) { header(); if (S.view === "health") render(); }
   } catch (e) { /* offline or rate-limited: the age check still works */ }
 }
-function healthBanner() {
+// FL-121: what's wrong with the data, if anything. null when it is fresh (built in the last 2 hours) and the last refresh
+// run didn't fail. Before GitHub answers (or offline) only the age is known, so a failed run can't be shown; the age
+// check still is. `short` is the one-line phone version; the full sentence stays on wider screens.
+function healthInfo() {
   const ageH = (Date.now() - new Date(D.meta.built)) / 36e5, L = HEALTH.last;
   const failed = L && L.conclusion && !["success", "cancelled", "skipped"].includes(L.conclusion) && new Date(L.updated_at) > new Date(D.meta.built);
-  if (ageH <= 2 && !failed) return "";
+  if (ageH <= 2 && !failed) return null;
   const t = iso => new Date(iso).toLocaleString("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
   const age = ageH >= 48 ? `${Math.floor(ageH / 24)} days` : ageH >= 1.5 ? `${Math.round(ageH)} hours` : `${Math.round(ageH * 60)} minutes`;
   const why = failed ? `The last refresh failed (${t(L.updated_at)}). <a href="${L.html_url}" target="_blank" rel="noopener">See what went wrong</a>.`
     : HEALTH.running ? "A refresh is running now; new data should arrive in a few minutes."
     : "GitHub hasn't run the refresh recently. Its schedule can be delayed at busy times.";
-  return `<div class="health ${failed || ageH > 6 ? "bad" : "warn"}" role="alert">${icon("alert")}<span><b>${ageH > 2 ? `Data is ${age} old.` : "Refresh problem."}</b> ${why}${ageH > 2 ? " Prices, injuries and projections may be out of date." : ""}</span>${HEALTH.running ? "" : `<button class="btn sm" data-refresh="1">${icon("refresh")}Refresh now</button>`}</div>`;
+  return {
+    bad: Boolean(failed || ageH > 6),
+    head: ageH > 2 ? `Data is ${age} old.` : "Refresh problem.",
+    short: ageH > 2 ? `Data ${age} old` : "Refresh failed",
+    why: why + (ageH > 2 ? " Prices, injuries and projections may be out of date." : ""),
+  };
+}
+// The full banner (tablet and desktop). It has no refresh button of its own: the status line's button sits right under
+// it, so there is one refresh button on every screen (FL-121; before, a stale page showed two).
+function healthBanner(h = healthInfo()) {
+  if (!h) return "";
+  return `<div class="health ${h.bad ? "bad" : "warn"}" role="alert">${icon("alert")}<span><b>${h.head}</b> ${h.why}</span></div>`;
 }
 checkHealth();
 setInterval(checkHealth, 10 * 60 * 1000);

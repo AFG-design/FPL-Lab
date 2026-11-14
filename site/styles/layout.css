@@ -104,7 +104,27 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
 
 @media (min-width: 900px) { .status { padding-left: 32px; padding-right: 32px; } }
 
-@media (max-width: 600px) { .st-note { display: none; } }
+.st-when.stale > .ic { width: 16px; height: 16px; flex: none; color: var(--warn); }
+.st-when.stale.bad > .ic { color: var(--bad); }
+.st-age, .lbl-short { display: none; }
+
+/* FL-121: on phones the status is one line. The stale banner gives way to a short warning in place of "Updated …"
+   (tap it for Data health and the reason), and the buttons take short labels; their aria-label keeps the full one. */
+@media (max-width: 600px) {
+  .st-note { display: none; }
+  .status { flex-wrap: nowrap; gap: 8px; padding-top: 8px; padding-bottom: 10px; }
+  .status .health { display: none; }
+  .st-when { min-width: 0; margin-right: auto; white-space: nowrap; }
+  .st-when.stale .st-upd { display: none; }
+  .st-when.stale .st-age { display: inline; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+  .st-acts { flex: none; }
+  .lbl-full { display: none; }
+  .lbl-short { display: inline; }
+  .status:has(.st-msg:not(:empty)) { flex-wrap: wrap; }
+}
+
+/* the narrowest phones: Sync drops to its icon (aria-label "Sync plan" / "Sync on") so the warning isn't cut off */
+@media (max-width: 360px) { .status [data-sync] .lbl-short { display: none; } }
 
 /* bottom navigation (phones) */
 .bottomnav { display: none; }
