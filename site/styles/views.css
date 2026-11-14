@@ -178,6 +178,14 @@ tr.sel td.sticky-col { background: color-mix(in srgb, var(--accent) 12%, var(--s
   .colpick-body { left: 0; right: 0; top: calc(100% + 6px); width: auto; grid-template-columns: 1fr; }   /* one column: room for the move buttons (FL-156) */
   .colpick-body .btn { grid-column: 1 / -1; }
   .explorer { padding: 14px; }
+
+  /* The fixed Player column must leave room for the stats beside it. Its tags (Pens, Hot, a flag) used to widen it to
+     the whole table box at 320px (257px in a 256px box), so scrolling sideways showed no stat at all and the column
+     couldn't stay pinned. Cap it at about half the screen and let the tags wrap under the name. */
+  .explorer td.sticky-col { white-space: normal; }
+  .explorer .pcell { flex-wrap: wrap; row-gap: 4px; max-width: min(200px, 52vw); }
+  .explorer .pcell .ptags { margin-left: 0; }
+  .explorer .pcell .cmp-hit { position: relative; z-index: 1; }   /* its 40px touch area overhangs the wrapped tags (not tappable) */
 }
 
 /* ---------- fixtures ---------- */

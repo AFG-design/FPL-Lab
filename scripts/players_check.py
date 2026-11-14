@@ -7,6 +7,7 @@ Opens Players with every column switched on (so the table must scroll sideways a
 768, 820, 1024, 1280, 1440 and 1920px, scrolls the table to its right-hand end and down, and fails if:
   - the whole page scrolls sideways (the table must scroll inside its own box);
   - the player column has moved off the left edge of the table box, or the header off its top (when the box scrolls);
+  - the player column takes more than 75% of the table box's width (no room for the stats; at 320px it once took 100%);
   - the top-left "Player" heading isn't on top where the fixed column and fixed header cross (with the page scrolled so
     the table's top sits just under the app's top bar, where you'd read it);
   - a player's compare tick box or name button is covered by another cell (it must be the element under its centre);
@@ -41,6 +42,8 @@ PROBE = """() => {
   const th = box.querySelector('thead th.sticky-col'), row = box.querySelector('tbody tr:nth-child(3)');
   const td = row.querySelector('td.sticky-col'), r = td.getBoundingClientRect(), h = th.getBoundingClientRect();
   if (Math.abs(r.left - b.left) > 1.5) out.push(`player column moved ${Math.round(r.left - b.left)}px from the box's left edge`);
+  // the fixed column must leave room for the stats: wider than the box, it can't stay pinned and hides every stat
+  if (r.width > 0.75 * box.clientWidth) out.push(`player column is ${Math.round(r.width)}px of a ${box.clientWidth}px box: no room for the stats beside it`);
   if (vert && Math.abs(h.top - b.top) > 1.5) out.push(`header moved ${Math.round(h.top - b.top)}px from the box's top`);
   const at = (x, y) => document.elementFromPoint(x, y);
   const hit = at(h.left + h.width / 2, h.top + h.height / 2);
