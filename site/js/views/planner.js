@@ -34,7 +34,7 @@ function transferSuggestions(g) {
     const budget = bank + (base.has(o) && !boughtInPlan.has(o) ? sellPrice(o) : po.price);
     const cc = clubCounts(sq.filter(i => i !== o));
     const ins = D.players.filter(p => p.pos === po.pos && !sq.includes(p.id) && p.ok !== false && !SB.rules.banned.includes(p.id)
-      && p.price <= budget + 1e-9 && (cc[p.team] || 0) < 3).sort((a, b) => xpFrom(b.id, g, PG.length) - xpFrom(a.id, g, PG.length)).slice(0, 10);
+      && p.price <= budget + 1e-9 && (cc[p.team] || 0) < 3).sort((a, b) => xpFrom(b.id, g, planLeft(g)) - xpFrom(a.id, g, planLeft(g))).slice(0, 10);
     const best = [];
     ins.forEach(n => {
       let mv = SB.moves.map(m => ({ ...m }));
@@ -136,11 +136,11 @@ function whyOut(o, g) {
   if (p.mflag) bits.push(esc(p.mflag.toLowerCase()));
   else if (p.nailed < 60) bits.push(`not nailed (${p.nailed})`);
   if (priceFalling(p.price_proj?.[0]) && fallCostsYou(o)) bits.push(priceMove(p.price_proj[0]));
-  bits.push(`${f1(xpFrom(o, g, PG.length))} xP over ${PG.length} GWs`);
+  bits.push(`${f1(xpFrom(o, g, planLeft(g)))} xP over ${planSpan(g)}`);
   return bits.join(" · ");
 }
 function whyIn(i, g) {
-  const p = P[i], bits = [`${f1(xpFrom(i, g, PG.length))} xP over ${PG.length} GWs`];
+  const p = P[i], bits = [`${f1(xpFrom(i, g, planLeft(g)))} xP over ${planSpan(g)}`];
   if (["MID", "FWD"].includes(p.pos)) bits.push(`${p.xgi90_4.toFixed(2)} ${term("xgi", "xGI")}/90 L4`);
   if (p.us && ["MID", "FWD"].includes(p.pos) && p.us.bc_4) bits.push(`${p.us.bc_4} ${term("bigchance", "big chances")} L4`);
   if (p.pos === "DEF" && p.dc_rate >= 0.3) bits.push(`${Math.round(p.dc_rate * 100)}% ${term("dc", "DC")} chance`);
@@ -278,7 +278,7 @@ function plannerEditor() {
   const fresh = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
   const problems = sum.weeks.filter(w => w.bank < 0 || w.over.length);
   const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}${w.chip ? ` <span class="tag">${CHIP_SHORT[w.chip]}</span>` : ""}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
-  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move ${esc(P[m.out].name)} to ${esc(P[m.in].name)}">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
+  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono" title="Player xP over ${planSpan(m.gw)}, in minus out">${sgn(xpFrom(m.in, m.gw, planLeft(m.gw)) - xpFrom(m.out, m.gw, planLeft(m.gw)))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move ${esc(P[m.out].name)} to ${esc(P[m.in].name)}">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
   const delta = sum.gain;
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
   const sp = spreadVsField(mult, g);
@@ -569,7 +569,7 @@ function replaceWith(g, out, inn) {
 }
 function replacePreview(g, out, inn) {
   const pi = P[inn], po = P[out], why = canBuy(g, out, inn);
-  const wks = PG.filter(x => x >= g), H = wks.length, span = H > 1 ? `GW${wks[0]}–GW${wks[H - 1]}` : `GW${wks[0]}`;
+  const H = planLeft(g), span = planSpan(g);
   const head = `<div class="rp-h"><b>${esc(po.name)} → ${esc(pi.name)}</b><span class="muted">from GW${g}</span></div>`;
   if (why) return `<div class="rp" role="region" aria-label="Preview: ${esc(pi.name)} for ${esc(po.name)}">${head}<p class="verdict" style="margin:0">${esc(why)}</p></div>`;
   const before = scoreMoves(SB.moves), mv = replaceWith(g, out, inn), after = scoreMoves(mv, null, SB.chips || {});

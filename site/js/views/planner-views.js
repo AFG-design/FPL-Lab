@@ -219,11 +219,11 @@ function pvStrategy(mode) {
   }).join("")}</div></div><p class="note" style="margin:0 0 8px">★ the pick: ${D.plan_rules?.recommend_margin != null ? `the fewest moves within ${D.plan_rules.recommend_margin} point${D.plan_rules.recommend_margin === 1 ? "" : "s"} of the best` : "the build’s recommended plan"}.</p>` : "";
   // phones read top to bottom: strategy, gameweek, this week's moves with what they cost and leave you, the actions,
   // then the squad they produce. From 1001px the squad goes back on the left and the moves on the right (CSS .pv-sugg).
-  const xin = m => xpFrom(m.in, g, PG.length) - xpFrom(m.out, g, PG.length);
+  const xin = m => xpFrom(m.in, g, planLeft(g)) - xpFrom(m.out, g, planLeft(g));
   const movesHTML = now.length ? now.map(m => `<div class="sugg">
       <div class="sg-top"><div class="move"><span class="out">▼ ${esc(P[m.out].name)}</span><span class="in">▲ <button data-p="${m.in}" class="linkish">${esc(P[m.in].name)}</button></span><span class="muted mono">${money(P[m.in].price)} · <span class="club-dot" style="--club:${clubCol(P[m.in])}" aria-hidden="true"></span>${T[P[m.in].team].short}</span></div>
-        <span class="sg-gain ${xin(m) > 0.05 ? "up" : "down"}" title="Player xP over ${PG.length} GWs from GW${g}, in minus out">${sgn(xin(m))}</span></div>
-      <div class="sg-meta"><span class="fx sgfx">${fxChips(P[m.in], g, 4)}</span><span class="muted" style="font-size:var(--fs-xs)">player xP, in minus out</span></div>
+        <span class="sg-gain ${xin(m) > 0.05 ? "up" : "down"}" title="Player xP over ${planSpan(g)}, in minus out">${sgn(xin(m))}</span></div>
+      <div class="sg-meta"><span class="fx sgfx">${fxChips(P[m.in], g, 4)}</span><span class="muted" style="font-size:var(--fs-xs)">player xP over ${planSpan(g)}, in minus out</span></div>
       <details class="sg-whyd"><summary>Why this move?</summary><div class="sg-why"><b>Out:</b> ${whyOut(m.out, g)}<br><b>In:</b> ${whyIn(m.in, g)}</div></details></div>`).join("")
     : "";
   const words = ["No", "One", "Two", "Three", "Four", "Five"];

@@ -915,7 +915,7 @@ def check_reasons(page):
 def check_journal_summary(page):
     """D5d: with no results the summary says when it starts; with results it adds each group and each reason exactly,
     with "+" meaning the call paid off (a skipped suggestion that lost points counts as + for you)."""
-    r = page.evaluate("""() => {
+    r = page.evaluate(r"""() => {
       const out = [], J = D.journal, V = D.vs_model;
       if (!J) return out;
       const keepW = J.weeks, keepR = JSON.stringify(REASONS);
