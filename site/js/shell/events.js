@@ -62,6 +62,8 @@ function bind() {
   on("[data-draftload]", b => {
     const d = getDrafts()[+b.dataset.draftload]; if (!d) return;
     activatePlan(d, "custom", d.id || "i" + b.dataset.draftload); render();
+    // the toast reads the name as text (textContent), so a saved name can't inject markup
+    toast(`“${d.name || "Saved plan"}” is now your active plan, with its ${MODES[S.mode]} strategy. Undo is next to Active plan.`);
   });
   on("[data-draftdel]", b => { const ds = getDrafts(); ds.splice(+b.dataset.draftdel, 1); setDrafts(ds); render(); });
   on("[data-ptab]", b => { S.ptab = b.dataset.ptab; store.set("fpl.ptab", S.ptab); render(); });
@@ -115,8 +117,19 @@ function bind() {
   on("[data-undoplan]", () => { undoPlan(); render(); });
   on("[data-v-go]", b => setView(b.dataset.vGo));
   document.querySelectorAll("[data-chippin]").forEach(el => { el.onchange = e => { setChipPin(el.dataset.chippin, e.target.value); render(); }; });
-  on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; render(); });
-  on("[data-sbp]", b => { const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; render(); if (SB.sel && innerWidth < 900) $("#candPanel")?.scrollIntoView({ behavior: "smooth" }); });
+  on("[data-sbgw]", b => { SB.gw = +b.dataset.sbgw; SB.sel = null; SB.pick = null; render(); });
+  // selecting a player: his actions open in the tools panel. Where that panel is out of sight (one column up to 1000px,
+  // or a short landscape screen) it's scrolled into view, and focus moves to its heading so keyboard and screen-reader
+  // users land on the actions. Tapping him again closes them and focus returns to his card.
+  on("[data-sbp]", b => {
+    const id = +b.dataset.sbp; SB.sel = SB.sel === id ? null : id; SB.q = ""; SB.pick = null; render();
+    if (!SB.sel) { $(`[data-sbp="${id}"]`)?.focus(); return; }
+    const head = $("#selHead"), r = head?.getBoundingClientRect();
+    if (r && (r.top < 60 || r.bottom > innerHeight - (innerWidth < 900 ? 80 : 0))) $("#candPanel")?.scrollIntoView({ behavior: calm() ? "auto" : "smooth", block: "start" });
+    head?.focus({ preventScroll: true });
+  });
+  on("[data-pecap]", () => { SB.sel = null; S.ptab = "captains"; store.set("fpl.ptab", "captains"); render(); $("#candPanel")?.scrollIntoView({ block: "start" }); $("#candPanel h3")?.setAttribute("tabindex", "-1"); $("#candPanel h3")?.focus({ preventScroll: true }); });
+  document.querySelectorAll("[data-pefold]").forEach(d => { d.ontoggle = () => { PE[d.dataset.pefold] = d.open; }; });
   on("[data-missgw]", b => { S.missGw = +b.dataset.missgw; render(); });
   on("[data-rateplan]", b => { const [o, i] = b.dataset.rateplan.split(":").map(Number); makeTransfer(D.meta.next_gw, o, i); toast(`${P[o].name} → ${P[i].name} added to your GW${D.meta.next_gw} plan.`); render(); });
   on("[data-revgw]", b => { S.revGw = +b.dataset.revgw; render(); });
@@ -125,8 +138,20 @@ function bind() {
   on("[data-ics]", () => deadlinesICS());
   on("[data-statlabels]", b => openStatLabels(b.dataset.statlabels));
   on("[data-howto]", b => openMovesSummary(+b.dataset.howto));
-  on("[data-cancel]", () => { SB.sel = null; render(); });
-  on("[data-pick]", b => { makeTransfer(SB.gw, SB.sel, +b.dataset.pick); render(); });
+  on("[data-cancel]", () => { const id = SB.sel; SB.sel = null; SB.pick = null; render(); $(`[data-sbp="${id}"]`)?.focus(); });
+  // a candidate opens its preview (planner.js replacePreview); a second tap closes it. Nothing changes until Add.
+  on("[data-pick]", b => {
+    const id = +b.dataset.pick; SB.pick = SB.pick === id ? null : id; render();
+    const nb = $(`[data-pick="${id}"]`);
+    if (SB.pick) { $(".rp")?.scrollIntoView({ block: "nearest" }); ($("[data-pickadd]") || nb)?.focus({ preventScroll: true }); } else nb?.focus();
+  });
+  on("[data-pickclose]", () => { const id = SB.pick; SB.pick = null; render(); $(`[data-pick="${id}"]`)?.focus(); });
+  on("[data-pickadd]", b => {
+    const inn = +b.dataset.pickadd, out = SB.sel, g = SB.gw, why = canBuy(g, out, inn); if (why) return toast(why);
+    makeTransfer(g, out, inn); SB.pick = null; render(); flashMove(g, inn);
+    $(`[data-sbp="${inn}"]`)?.focus();
+    toast(`${P[inn].name} is in for ${P[out].name} from GW${g}. Undo is in Your moves.`);
+  });
   on("[data-undo]", b => { editPlan(() => SB.moves.splice(+b.dataset.undo, 1)); render(); });
   on("[data-reset]", () => { setPlan([], "custom"); render(); });
   on("th[data-sort]", th => { const k = th.dataset.sort; if (S.sort === k) S.dir *= -1; else { S.sort = k; S.dir = ["name", "team", "pos"].includes(k) ? 1 : -1; } render(); });

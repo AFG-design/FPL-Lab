@@ -169,29 +169,34 @@ function suggestionsHTML(g) {
     ${pairsHTML(g)}`;
 }
 /* ---------- captain planner ---------- */
+// One card a gameweek (every week of the plan length): the captain, who picked him (you, Re-plan or automatic), how
+// clear the pick is (the confidence scale on the gap to the next best), his fixtures, xP and field share, then the two
+// best alternatives with Make captain, and Back to auto when the week has your own pick. A choice is saved for that
+// gameweek only (SB.ov[gw].cap). No captaincy sample: the field share is left out and the note says why.
 function captainsHTML() {
   const sc = scoreMoves(SB.moves);
   const sample = fieldSample(), F = sample?.data;
   const tc = D.chips.find(c => c.key === "3xc" && c.available && c.from <= PG[0] && c.to >= PG[0]);
   let bestTc = null;
-  const rows = sc.weeks.map(w => {
+  const cards = sc.weeks.map(w => {
     const g = w.gw, t = w.team;
     const opts = t.xi.slice().sort((a, b) => adjCap(b, g) - adjCap(a, g)).slice(0, 3);
     if (!opts.includes(t.cap)) opts.unshift(t.cap);
     const capX = xpg(t.cap, g);
     if (tc && g <= tc.to && (!bestTc || capX > bestTc.x)) bestTc = { g, id: t.cap, x: capX };
     const gap = opts.length > 1 ? capX - Math.max(...opts.filter(i => i !== t.cap).map(i => xpg(i, g))) : 0;
-    // whose pick it is (yours / Re-plan's) stays as its own label; otherwise the confidence scale, with the field tag
-    const v = t.capMine ? { t: "Your pick", c: "mut" } : t.fromPlan ? { t: "Re-plan's pick", c: "mut" }
-      : { ...verdict(gap, 1, 0.4), tag: F && (F.cap[t.cap] || 0) >= 50 ? "Field's pick" : null };
-    return `<tr><td><b>GW${g}</b></td>
-      <td><span class="pname">${esc(P[t.cap].name)}</span> ${vPill(v)}<br><span class="muted" style="font-size:12.5px">${fxText(P[t.cap], g)} · ${f1(capX)} xP${F ? ` · ${(F.cap[t.cap] || 0).toFixed(0)}% field C` : ""}</span></td>
-      <td>${opts.filter(i => i !== t.cap).slice(0, 2).map(i => `<div class="capalt"><span>${esc(P[i].name)} <span class="muted">${f1(xpg(i, g))}${F ? ` · ${(F.cap[i] || 0).toFixed(0)}%` : ""}</span></span><button class="btn" data-setcap="${g}:${i}">Make C</button></div>`).join("")}
-        ${t.capMine ? `<button class="btn" data-setcap="${g}:0">Back to auto</button>` : ""}</td></tr>`;
+    const src = t.capMine ? "Your pick" : t.fromPlan ? "Re-plan's pick" : "Auto pick";
+    const conf = { ...verdict(gap, 1, 0.4), tag: F && (F.cap[t.cap] || 0) >= 50 ? "Field's pick" : null };
+    const alts = opts.filter(i => i !== t.cap).slice(0, 2).map(i => `<div class="capalt"><span><b>${esc(P[i].name)}</b><span class="muted"> ${fxText(P[i], g)} · ${f1(xpg(i, g))} xP${F ? ` · ${(F.cap[i] || 0).toFixed(0)}% field C` : ""}</span></span><button class="btn" data-setcap="${g}:${i}" aria-label="Make ${esc(P[i].name)} captain in GW${g} only">Make captain</button></div>`).join("");
+    return `<section class="capwk${t.capMine ? " mine" : ""}" aria-labelledby="capwk-${g}"><div class="capwk-h"><h4 id="capwk-${g}">GW${g}${w.chip ? ` <span class="tag" title="${CHIP_NAME[w.chip]}">${CHIP_SHORT[w.chip]}</span>` : ""}</h4><span class="pill mut">${src}</span></div>
+      <div class="capwk-c"><span>Captain: <b class="pname">${esc(P[t.cap].name)}</b> ${vPill(conf)}</span><b class="mono">${f1(capX)} xP</b></div>
+      <p class="capwk-m">${fxText(P[t.cap], g)}${F ? ` · ${(F.cap[t.cap] || 0).toFixed(0)}% field C` : ""} · vice ${esc(P[t.vice]?.name || "–")}</p>
+      ${alts ? `<div class="capwk-alts"><span class="lbl">Alternatives</span>${alts}</div>` : ""}
+      ${t.capMine ? `<button class="btn" data-setcap="${g}:0" aria-label="Back to the automatic captain in GW${g}">Back to auto</button>` : ""}</section>`;
   }).join("");
   return `<div class="bar"><h3>Captain planner</h3><span class="tag">${MODES[S.mode]}</span></div>
-    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. ${sample ? `"Field C" = share of ${sample.label} who captained him in GW${sample.gw}.` : "Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."} Tap Make C to override any week; This week and Re-plan follow your choice.</p>
-    <div class="tablebox"><table><thead><tr><th>GW</th><th>Captain</th><th>Alternatives</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. A choice applies to that gameweek only; This week and Re-plan follow it. ${sample ? `"Field C" = share of ${sample.label} who captained him in GW${sample.gw}.` : "Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."} Confidence is how far the captain is ahead of the next best: Strong at 1+ xP, Marginal at 0.4–1.</p>
+    <div class="capwks">${cards}</div>
     ${tc ? `<p class="verdict" style="margin-top:12px">${bestTc ? `Best Triple Captain week in view: <b>GW${bestTc.g}</b>, ${esc(P[bestTc.id].name)} (${f1(bestTc.x)} xP, so about +${f1(bestTc.x)} from the chip).` : ""} Your first-half Triple Captain expires after GW${tc.to}. It's worth most in a double gameweek, when the captain plays twice.</p>` : ""}`;
 }
 
@@ -211,9 +216,18 @@ function draftSummary(d) {
   SB.ov = keep.ov; S.mode = keep.mode;
   return out;
 }
+// Saved plans (drafts): the active plan first, then up to 3 saved ones. A saved plan the active one matches (same moves,
+// strategy, captain and bench choices and lineups, tpaths.js samePath) is marked Active. "Make active" replaces the
+// active plan with it and switches to the strategy it was saved with (activatePlan); Undo brings the old plan back.
+function draftIsActive(d) {
+  const saved = completePlan(d);
+  saved.moves = cleanMoves(saved.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
+  return samePath(saved, completePlan());
+}
 function draftsHTML() {
   const ds = getDrafts();
-  const cur = draftSummary({ name: "Current plan", moves: SB.moves, ov: SB.ov, mode: S.mode, solved: SB.solved });
+  const cur = draftSummary({ name: "Active plan", moves: SB.moves, ov: SB.ov, mode: S.mode, solved: SB.solved });
+  const act = ds.map(draftIsActive);
   const cols = [cur, ...ds.map(draftSummary)];
   const best = (f, dir = 1) => Math.max(...cols.map(c => dir * f(c)));
   const cell = (c, f, fmt, dir = 1) => `<td class="n ${cols.length > 1 && dir * f(c) === best(f, dir) ? "up" : ""}">${fmt(f(c))}</td>`;
@@ -222,19 +236,41 @@ function draftsHTML() {
     ["Hits", c => c.hits, x => x ? "−" + 4 * x : "0", -1], ["FT left at the end", c => c.ftLeft, x => x],
     [term("spread", "Spread vs field"), c => c.spread ?? 0, x => "±" + f1(x), -1],
   ];
+  const head = (c, k) => k ? `${esc(c.name)}<br><span class="dr-sub">${esc(MODES[c.mode] || "")}${act[k - 1] ? ' · <span class="pill good">Active</span>' : ""}</span>`
+    : `Active plan<br><span class="dr-sub">${esc(planName())} · ${MODES[S.mode]}</span>`;
   return `<div class="bar"><h3>Drafts</h3><span class="tag">${ds.length}/3 saved</span></div>
-    <p class="note" style="margin-top:0">Save different versions of your plan (say a template one, a differential one and a roll) and compare them over ${PG.length} GWs. Each draft keeps the strategy it was saved with. Loading one makes it your plan and switches to its strategy; Undo brings the old plan back.</p>
+    <p class="pe-active" style="margin:0 0 10px"><span><span class="lbl">Active plan</span> <b>${esc(planName())}</b> · ${MODES[S.mode]} · ${f1(cur.tot)} projected points${act.some(Boolean) ? ` · same as draft “${esc(ds[act.indexOf(true)].name)}”` : ""}</span>${SB.prev ? `<button class="btn sm" data-undoplan="1">Undo last change</button>` : ""}</p>
+    <p class="note" style="margin-top:0">Save versions of your plan as drafts (say a template one, a differential one and a roll) and compare them over ${PG.length} GWs. Each keeps the strategy it was saved with. <b>Make active</b> makes a draft your active plan and switches to its strategy; This week and Rivals then follow it, and Undo brings the old plan back. Saving never changes your active plan.</p>
     <div class="filters" style="margin:0 0 10px"><input id="draftName" maxlength="24" placeholder="Name this version, e.g. Differential" aria-label="Draft name" style="flex:1 1 180px;min-width:0">
-      <button class="btn primary" data-draftsave="1" ${ds.length >= 3 ? "disabled" : ""}>Save current plan</button></div>
+      <button class="btn primary" data-draftsave="1" ${ds.length >= 3 ? "disabled" : ""}>Save active plan</button></div>
     ${ds.length >= 3 ? '<p class="note">3 drafts saved: delete one to save another.</p>' : ""}
-    <div class="tablebox"><table><thead><tr><th></th>${cols.map((c, k) => `<th class="n">${esc(c.name)}${k ? `<br><span style="font-weight:400;text-transform:none;letter-spacing:0">${esc(MODES[c.mode] || "")}</span>` : ""}</th>`).join("")}</tr></thead>
+    <div class="tablebox"><table><thead><tr><th></th>${cols.map((c, k) => `<th class="n">${head(c, k)}</th>`).join("")}</tr></thead>
       <tbody>${rows.map(([l, f, fmt, dir]) => `<tr><td>${l}</td>${cols.map(c => cell(c, f, fmt, dir || 1)).join("")}</tr>`).join("")}
       <tr><td>GW${PG[0]} captain</td>${cols.map(c => `<td class="n">${esc(P[c.cap]?.name || "–")}</td>`).join("")}</tr>
       <tr><td>Moves</td>${cols.map(c => `<td class="n" style="white-space:normal;min-width:140px;font-size:12.5px">${c.moves.length ? c.moves.map(m => `GW${m.gw} ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join("<br>") : "None"}</td>`).join("")}</tr>
-      ${ds.length ? `<tr><td></td><td></td>${ds.map((d, k) => `<td class="n"><button class="btn" data-draftload="${k}">Load</button> <button class="btn" data-draftdel="${k}" aria-label="Delete draft">Delete</button></td>`).join("")}</tr>` : ""}</tbody></table></div>`;
+      ${ds.length ? `<tr><td></td><td></td>${ds.map((d, k) => `<td class="n dr-acts">${act[k] ? '<span class="dr-on">Active plan</span>' : `<button class="btn primary sm" data-draftload="${k}" aria-label="Make ${esc(d.name || "this plan")} your active plan (switches to ${esc(MODES[d.mode] || MODES[S.mode])})">Make active</button>`} <button class="btn sm" data-draftdel="${k}" aria-label="Delete ${esc(d.name || "saved plan")}">Delete</button></td>`).join("")}</tr>` : ""}</tbody></table></div>`;
 }
-// "Your plan" tab: the full editor (pitch, suggestions, captains, Re-plan, drafts). The page shell, the view tabs and
-// the plan-length switch live in vPlanner (views/planner-views.js).
+// "Your plan" tab: the full editor (pitch, suggestions, captains, Re-plan, drafts). The page shell and the view tabs
+// live in vPlanner (views/planner-views.js); in this tab the plan length sits with the strategy under Planning settings.
+// Phone order: which plan is active, a compact summary of the selected week (xP, bank, free transfers, gain over the
+// plan), the settings (collapsed, current choices in their summary), then the gameweek, the squad and its lineup tools.
+// The detailed week-by-week forecast is collapsed under the pitch. Nothing is computed differently: every figure is
+// the one the old KPI row and table showed (sandboxSummary).
+const PE = { set: false, weeks: false, edit: false };   // which of the editor's folds are open (this visit only)
+function activePlanLine() {
+  const sc = scoreMoves(SB.moves), e = tpEditInfo();
+  return `<div class="pe-active" role="status"><span><span class="lbl">Active plan</span> <b>${esc(planName())}</b>${e ? ` · from saved plan “${esc(e.d.name)}”` : ""} · ${MODES[S.mode]} · ${f1(sc.tot)} pts over ${PG.length} GWs</span>${SB.prev ? `<button class="btn sm" data-undoplan="1">Undo last change</button>` : ""}</div>`;
+}
+function planSettings(sp, g) {
+  return `<details class="pe-set" data-pefold="set" ${PE.set ? "open" : ""}><summary>Planning settings <span class="pe-cur">${MODES[S.mode]} · ${PG.length} GWs</span></summary>
+    <div class="pe-set-body">
+      <div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Strategy")}</span>
+        <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
+      <p class="note" style="margin:0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs " + fieldSample().label)}.` : ""}</p>
+      <div class="bar" style="margin:0"><span class="lbl">${term("horizon", "Plan length")}</span>
+        <div class="seg" role="group" aria-label="Plan length">${[3, 5, 6].filter(h => h <= GWS.length).map(h => `<button data-horizon="${h}" aria-pressed="${S.horizon === h}">${h} GWs</button>`).join("")}</div></div>
+    </div></details>`;
+}
 function plannerEditor() {
   const sum = sandboxSummary();
   const g = SB.gw, wk = sum.weeks.find(w => w.gw === g);
@@ -242,33 +278,36 @@ function plannerEditor() {
   const fresh = new Set(SB.moves.filter(m => m.gw <= g).map(m => m.in));
   const problems = sum.weeks.filter(w => w.bank < 0 || w.over.length);
   const gwButtons = sum.weeks.map(w => `<button data-sbgw="${w.gw}" aria-pressed="${w.gw === g}">GW${w.gw}${w.chip ? ` <span class="tag">${CHIP_SHORT[w.chip]}</span>` : ""}<small>${w.n} move${w.n === 1 ? "" : "s"}${w.hits ? ` · −${4 * w.hits}` : ""} · ${f1(w.team.pts)}</small></button>`).join("");
-  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
+  const movesList = SB.moves.length ? SB.moves.map((m, k) => `<div class="move" data-mv="${m.gw}:${m.in}" style="justify-content:space-between"><span><span class="tag">GW${m.gw}</span> <span class="out">▼ ${esc(P[m.out].name)}</span> <span class="in">▲ ${esc(P[m.in].name)}</span> <span class="muted mono">${sgn(xpFrom(m.in, m.gw, PG.length) - xpFrom(m.out, m.gw, PG.length))}</span></span><button class="btn" data-undo="${k}" aria-label="Remove move ${esc(P[m.out].name)} to ${esc(P[m.in].name)}">Remove</button></div>`).join("") : `<p class="muted" style="margin:0">No moves yet. Add a suggestion, tap a player on the pitch, or load an optimiser plan.</p>`;
   const delta = sum.gain;
   const mult = {}; t.xi.forEach(i => mult[i] = 1); mult[t.cap] = 2;
   const sp = spreadVsField(mult, g);
   const tab = S.ptab || "suggest";
   const tabs = [["suggest", "Suggestions"], ["captains", "Captains"], ["rules", "Re-plan"], ["drafts", "Drafts"]];
   const right = SB.sel ? selPanel() : tab === "rules" ? replanPanel(true) : tab === "drafts" ? draftsHTML() : tab === "captains" ? captainsHTML() : suggestionsHTML(g);
-  return `${tpEditBar()}
-  <div class="panel" style="padding:12px 14px"><div class="bar" style="margin:0"><span class="lbl">${term("strategy", "Editing as")}</span>
-    <div class="seg" role="group" aria-label="Strategy">${Object.entries(MODES).map(([k, l]) => `<button data-mode="${k}" aria-pressed="${S.mode === k}">${l}</button>`).join("")}</div></div>
-    <p class="note" style="margin:8px 0 0">${MODE_HELP[S.mode]} Suggestions, captains and Re-plan below follow this strategy.${sp != null ? ` Your GW${g} team: <b>±${f1(sp)}</b> ${term("spread", "vs " + fieldSample().label)}.` : ""}</p></div>
-  <div class="plansum">
-    <div class="kpi"><span class="lbl">${esc(planName())} · ${PG.length} GWs</span><b>${f1(sum.tot)}</b><span class="delta muted">best XI + captain, minus hits</span></div>
-    <div class="kpi"><span class="lbl">vs no transfers</span><b class="${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}">${sgn(delta)}</b><span class="delta muted" title="${GAIN_NOTE()}">${f1(sum.baseTot)} pts if you do nothing · banked FTs counted</span></div>
-    <div class="kpi"><span class="lbl">GW${g} bank</span><b class="${wk.bank < 0 ? "down" : ""}">${money(wk.bank)}</b><span class="delta muted">after this week's moves</span></div>
-    <div class="kpi"><span class="lbl">GW${g} ${term("ft", "free transfers")}</span><b>${wk.ft}</b><span class="delta muted">${wk.hits ? `${wk.hits} hit (−${wk.hits * 4})` : `next week: ${wk.next}`}</span></div>
+  const cls = x => x > 0.05 ? "up" : x < -0.05 ? "down" : "";
+  return `${tpEditBar()}${activePlanLine()}
+  <div class="gwsel" role="group" aria-label="Gameweek">${gwButtons}</div>
+  <div class="panel pe-head">
+    <dl class="pe-sum">
+      <div class="pe-k"><dt>GW${g} xP</dt><dd>${f1(t.pts)}</dd><dd class="pe-s">projected, this week</dd></div>
+      <div class="pe-k"><dt>Bank after moves</dt><dd class="${wk.bank < 0 ? "down" : ""}">${money(wk.bank)}</dd><dd class="pe-s">after GW${g} moves</dd></div>
+      <div class="pe-k"><dt>${term("ft", "Free transfers")}</dt><dd>${wk.ft}</dd><dd class="pe-s pe-ft">${wk.hits ? `${wk.hits} hit (−${wk.hits * 4})` : `${wk.n} used · next week ${wk.next}`}</dd></div>
+      <div class="pe-k pe-gain"><dt>vs no transfers · ${PG.length} GWs</dt><dd class="${cls(delta)}" title="${GAIN_NOTE()}">${sgn(delta)}</dd><dd class="pe-s">${f1(sum.tot)} pts vs ${f1(sum.baseTot)} · banked FTs counted</dd></div>
+    </dl>
+    ${planSettings(sp, g)}
   </div>
   ${problems.length ? `<p class="verdict" style="border-color:var(--bad)">${problems.map(w => `GW${w.gw}: ${w.bank < 0 ? `over budget by ${money(-w.bank)}` : ""}${w.bank < 0 && w.over.length ? "; " : ""}${w.over.length ? `more than 3 players from ${w.over.join(", ")}` : ""}`).join(". ")}. Adjust the plan before you make it on the FPL site.</p>` : ""}
   <div class="grid2 lu-cols">
     <div style="min-width:0;display:grid;gap:10px;align-content:start">
-      <div class="gwsel" role="group" aria-label="Gameweek">${gwButtons}</div>
       <div class="bar lu-bar"><h3>GW${g} team · ${esc(planName())}</h3>${lineupToggle()}</div>
       ${pitch(t.xi, t.bench, g, { cap: t.cap, vice: t.vice, act: "sbp", sel: SB.sel, fresh, run: 3, price: true })}
-      <p class="note">Tap a player to make him captain, bench or start him, lock him, or replace him. Or drag: a starter onto a sub to swap them, a sub onto another sub to change the bench order, or a replacement from the list onto the player he replaces. On a phone, press and hold to drag. Anything you don't set is picked automatically for the best projected score.</p>
-      <div class="panel"><h3>Week by week</h3><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FT</th><th class="n">Moves</th><th class="n">Hits</th><th class="n">Bank</th><th>Captain</th><th class="n">xP</th><th class="n">vs none</th></tr></thead>
+      <p class="pe-cap"><span>Captain: <b>${esc(P[t.cap]?.name || "–")}</b> · Vice: <b>${esc(P[t.vice]?.name || "–")}</b>${t.capMine ? " · your pick" : ""}</span><button class="linkish" data-pecap="1">All captains</button></p>
+      <p class="note" style="margin:0">Tap a player to make him captain, bench or start him, lock him, or replace him. Anything you don't set is picked automatically for the best projected score.</p>
+      <details class="pe-fold" data-pefold="edit" ${PE.edit ? "open" : ""}><summary>Drag and keyboard</summary><p class="note">Drag a starter onto a sub to swap them, a sub onto another sub to change the bench order, or a replacement from the list onto the player he replaces. On a phone, press and hold to drag. Every drag has a tap or keyboard equivalent: select a player, then use his actions (Bench him, Start him) or choose his replacement from the list.</p></details>
+      <details class="panel pe-fold pe-weeks" data-pefold="weeks" ${PE.weeks ? "open" : ""}><summary>Week-by-week forecast <span class="pe-cur">${PG.length} GWs · ${f1(sum.tot)} pts</span></summary><div class="tablebox"><table><thead><tr><th>GW</th><th class="n">FT</th><th class="n">Moves</th><th class="n">Hits</th><th class="n">Bank</th><th>Captain</th><th class="n">xP</th><th class="n">vs none</th></tr></thead>
         <tbody>${sum.weeks.map(w => `<tr><td>GW${w.gw}${w.chip ? ` <span class="tag" title="${CHIP_NAME[w.chip]}">${CHIP_SHORT[w.chip]}</span>` : ""}</td><td class="n">${w.ft}</td><td class="n">${w.n}</td><td class="n ${w.hits ? "down" : ""}">${w.hits ? "−" + 4 * w.hits : "0"}</td><td class="n ${w.bank < 0 ? "down" : ""}">${w.bank.toFixed(1)}</td><td>${esc(P[w.team.cap]?.name)}</td><td class="n">${f1(w.team.pts)}</td><td class="n ${w.team.pts - 4 * w.hits - w.base > 0.05 ? "up" : ""}">${sgn(w.team.pts - 4 * w.hits - w.base)}</td></tr>`).join("")}</tbody></table></div>
-        <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.${Object.keys(SB.chips || {}).length ? " Chips: WC Wildcard and FH Free Hit weeks' moves are free and keep your banked transfers (a Free Hit's last that week only); BB Bench Boost adds the bench to xP; TC Triple Captain counts the captain three times." : ""}</p></div>
+        <p class="note">Free transfers roll over one per week up to 5. Moves beyond your free transfers cost 4 points each. Players bought in the plan sell back at their current price.${Object.keys(SB.chips || {}).length ? " Chips: WC Wildcard and FH Free Hit weeks' moves are free and keep your banked transfers (a Free Hit's last that week only); BB Bench Boost adds the bench to xP; TC Triple Captain counts the captain three times." : ""}</p></details>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
       ${SB.sel ? "" : `<div class="seg ptabs" role="group" aria-label="Planner tools">${tabs.map(([k, l]) => `<button data-ptab="${k}" aria-pressed="${tab === k}">${l}</button>`).join("")}</div>`}
@@ -276,7 +315,7 @@ function plannerEditor() {
       <div class="panel"><div class="bar"><h3>Your moves</h3>${SB.prev ? `<button class="btn" data-undoplan="1">Undo last change</button>` : ""}</div>
         <div class="moves">${movesList}</div>
         <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-howto="${g}">Make GW${g} moves on FPL</button>${SB.moves.length ? `<button class="btn" data-reset="1">Clear all moves</button>` : ""}</div>
-        <p class="note">Saved on this device${syncReady() ? " and synced" : ""}. This week and Rivals use this plan.</p></div>
+        <p class="note">Planning only: nothing is sent to FPL. Saved on this device${syncReady() ? " and synced" : ""}. This week and Rivals use this plan.</p></div>
     </div>
   </div>`;
 }
@@ -284,7 +323,7 @@ function selPanel() {
   const g = SB.gw, id = SB.sel, p = P[id], t = scoreMoves(SB.moves).weeks.find(w => w.gw === g).team;
   const ov = SB.ov[g] || {}, inXI = t.xi.includes(id), isCap = t.cap === id && t.capMine;
   const locked = SB.rules.locked.includes(id);
-  return `<div class="bar"><h3>${esc(p.name)} · GW${g}</h3><button class="btn" data-cancel="1">Done</button></div>
+  return `<div class="bar"><h3 id="selHead" tabindex="-1">${esc(p.name)} · GW${g}</h3><button class="btn" data-cancel="1">Done</button></div>
     <div class="acts">
       ${inXI ? `<button class="btn ${isCap ? "primary" : ""}" data-act="cap">${isCap ? "Captain ✓" : "Make captain"}</button>` : ""}
       ${inXI ? `<button class="btn ${(ov.vice === id) ? "primary" : ""}" data-act="vice">${ov.vice === id ? "Vice ✓" : "Make vice"}</button>` : ""}
@@ -509,17 +548,66 @@ async function runReplan() {
   }
   SOLVE.busy = false; render();
 }
+// Replace a player: the eligible-player search (same position, affordable this week, at most 3 a club, not already
+// owned). Choosing a candidate opens a preview first; "Add <name> to plan" makes the move (makeTransfer, so Undo works
+// as for any edit). Drag-and-drop from the list still adds the move straight away, as before.
+// Figures, all over the rest of the plan from the move's week (GW g to the plan's last week, H gameweeks):
+//   - player forecast: the incoming player's projected points minus the outgoing player's (xpFrom over H weeks). The
+//     list used PG.length weeks from g, which ran past the plan's end for a later week; it now uses H, as the preview.
+//   - team change: the active plan's projected total after the move minus before (scoreMoves over the whole plan,
+//     after hits, with the plan's chips), so lineups, captains and the bench are re-picked the way they will be.
+//   - planning value: the same plus ftValue() for each free transfer banked at the end, the measure "vs no
+//     transfers" uses; shown separately because it isn't projected points.
+// Missing or ambiguous: a move FPL wouldn't allow (money, club limit) shows the reason and no Add button; a move that
+// leaves a later week over budget or over a club limit is allowed (as before) and the preview says which week.
+function replaceWith(g, out, inn) {
+  let mv = SB.moves.map(m => ({ ...m }));
+  const same = mv.find(m => m.gw === g && m.in === out);
+  if (same) { same.in = inn; if (same.in === same.out) mv = mv.filter(m => m !== same); }
+  else { mv = mv.filter(m => !(m.gw >= g && m.out === out)); mv.push({ gw: g, out, in: inn }); }
+  return cleanMoves(mv, SB.chips || {});
+}
+function replacePreview(g, out, inn) {
+  const pi = P[inn], po = P[out], why = canBuy(g, out, inn);
+  const wks = PG.filter(x => x >= g), H = wks.length, span = H > 1 ? `GW${wks[0]}–GW${wks[H - 1]}` : `GW${wks[0]}`;
+  const head = `<div class="rp-h"><b>${esc(po.name)} → ${esc(pi.name)}</b><span class="muted">from GW${g}</span></div>`;
+  if (why) return `<div class="rp" role="region" aria-label="Preview: ${esc(pi.name)} for ${esc(po.name)}">${head}<p class="verdict" style="margin:0">${esc(why)}</p></div>`;
+  const before = scoreMoves(SB.moves), mv = replaceWith(g, out, inn), after = scoreMoves(mv, null, SB.chips || {});
+  const base = baseScore(), wk = after.weeks.find(w => w.gw === g);
+  const ind = xpFrom(inn, g, H) - xpFrom(out, g, H);
+  const team = after.tot - before.tot;
+  const hitsB = before.weeks.reduce((a, w) => a + w.hits, 0), hitsA = after.weeks.reduce((a, w) => a + w.hits, 0);
+  const value = gainVsNone(after, base) - gainVsNone(before, base);
+  // a later planned move of the same player is replaced by this one (makeTransfer's rule): say which, as it moves points
+  const gone = SB.moves.filter(m => !mv.some(x => x.gw === m.gw && x.out === m.out && x.in === m.in) && !(m.gw === g && m.in === out));
+  const later = after.weeks.filter(w => w.bank < 0 || w.over.length).map(w => `GW${w.gw}: ${w.bank < 0 ? `over budget by ${money(-w.bank)}` : `more than 3 from ${w.over.join(", ")}`}`);
+  const cls = x => x > 0.05 ? "up" : x < -0.05 ? "down" : "";
+  return `<div class="rp" role="region" aria-label="Preview: ${esc(pi.name)} for ${esc(po.name)}">${head}
+    <p class="rp-base">Compared with your active plan, ${span} (${H} GW${H === 1 ? "" : "s"}).</p>
+    <dl class="rp-g">
+      <div><dt>${esc(pi.name)} vs ${esc(po.name)}</dt><dd class="${cls(ind)}">${sgn(ind)}</dd><dd class="pe-s">player xP: ${f1(xpFrom(inn, g, H))} vs ${f1(xpFrom(out, g, H))}</dd></div>
+      <div><dt>Team projected points</dt><dd class="${cls(team)}">${sgn(team)}</dd><dd class="pe-s">plan total ${f1(before.tot)} → ${f1(after.tot)}, after hits</dd></div>
+      <div><dt>Hit cost</dt><dd class="${hitsA > hitsB ? "down" : ""}">${hitsA > hitsB ? "−" + 4 * (hitsA - hitsB) : "No hit"}</dd><dd class="pe-s">${hitsA > hitsB ? "included in team points" : `${Math.max(0, wk.ft - wk.n)} free transfer${wk.ft - wk.n === 1 ? "" : "s"} left in GW${g}`}</dd></div>
+      <div><dt>Bank after GW${g}</dt><dd class="${wk.bank < 0 ? "down" : ""}">${money(wk.bank)}</dd><dd class="pe-s">${wk.next} free transfer${wk.next === 1 ? "" : "s"} next week</dd></div>
+    </dl>
+    <p class="rp-val">Planning value ${sgn(value)}: team points plus ${f1(ftValue())} for each free transfer banked at the end (${after.ftLeft} vs ${before.ftLeft}). Not projected points.${SB.solved ? " The optimiser's own lineups are replaced by automatic picks once you edit, and that is counted in team points." : ""}</p>
+    ${Math.abs(ind - team) > 0.05 ? `<p class="rp-val">The team figure differs from the player figure because only starters and the captain score: ${esc(pi.name)} may not start every week, lineups and captains are re-picked${gone.length ? ", and the move it replaces no longer counts" : ""}.</p>` : ""}
+    ${gone.length ? `<p class="rp-warn">This replaces your planned ${gone.map(m => `GW${m.gw} move ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join(" and ")}, which is counted in the team figure.</p>` : ""}
+    ${later.length ? `<p class="rp-warn">${later.join(". ")}. You can still add it and fix that week later.</p>` : ""}
+    <div class="acts"><button class="btn primary" data-pickadd="${inn}">Add ${esc(pi.name)} to plan</button><button class="btn" data-pickclose="1">Not now</button></div></div>`;
+}
 function candidates() {
   const g = SB.gw, out = SB.sel, po = P[out];
   const sq = squadAt(g);
   const budget = bankAt(g) + (D.squad.some(s => s.id === out) && !SB.moves.some(m => m.in === out) ? sellPrice(out) : po.price);
   const cc = clubCounts(sq.filter(i => i !== out));
   const q = (SB.q || "").toLowerCase();
-  const base = xpFrom(out, g, PG.length);
+  const H = PG.filter(x => x >= g).length;
+  const base = xpFrom(out, g, H);
   const list = D.players.filter(p => p.pos === po.pos && !sq.includes(p.id) && p.ok !== false && p.price <= budget + 1e-9 && (cc[p.team] || 0) < 3 && (!q || (p.name + " " + p.full).toLowerCase().includes(q)))
-    .map(p => ({ p, v: xpFrom(p.id, g, PG.length) })).sort((a, b) => b.v - a.v).slice(0, 30);
+    .map(p => ({ p, v: xpFrom(p.id, g, H) })).sort((a, b) => b.v - a.v).slice(0, 30);
   return `<div class="bar"><h3>Replace ${esc(po.name)} from GW${g}</h3><button class="btn" data-cancel="1">Cancel</button></div>
-    <p class="note" style="margin-top:0">Budget ${money(budget)} · ${esc(po.name)} projects ${f1(base)} over the rest of the plan.</p>
+    <p class="note" style="margin-top:0">Budget ${money(budget)} · ${esc(po.name)} projects ${f1(base)} over the rest of the plan (${H} GW${H === 1 ? "" : "s"}). Each row: the player's xP over the same weeks and the difference from ${esc(po.name)}. Choose one to preview the move.</p>
     <div class="filters"><input type="search" id="candq" placeholder="Search ${po.pos}s" value="${esc(SB.q)}" aria-label="Search replacements"></div>
-    <div style="max-height:420px;overflow:auto">${list.map(({ p, v }) => `<button class="cand" data-pick="${p.id}"><span class="pname">${esc(p.name)} <span class="muted">${T[p.team].short} · ${money(p.price)}</span>${playerTags(p, 2)}</span><span class="${v > base ? "up" : "down"} mono">${sgn(v - base)}</span><b>${f1(v)}</b><span class="d">${GWS.filter(x => x >= g).slice(0, 4).map(x => `GW${x} ${fxFor(p.team, x).map(oppTxt).join("+") || "–"} ${xpCell(p.id, x)}`).join(" · ")}${p.status !== "a" ? ` · <span class="down">${esc(p.news)}</span>` : ""}</span></button>`).join("") || `<p class="muted">No affordable ${po.pos}s fit the budget and club limits.</p>`}</div>`;
+    <div class="candlist">${list.map(({ p, v }) => `<button class="cand${SB.pick === p.id ? " on" : ""}" data-pick="${p.id}" aria-expanded="${SB.pick === p.id}"><span class="pname">${esc(p.name)} <span class="muted">${T[p.team].short} · ${money(p.price)}</span>${playerTags(p, 2)}</span><span class="${v > base ? "up" : "down"} mono">${sgn(v - base)}</span><b>${f1(v)}</b><span class="d">${GWS.filter(x => x >= g).slice(0, 4).map(x => `GW${x} ${fxFor(p.team, x).map(oppTxt).join("+") || "–"} ${xpCell(p.id, x)}`).join(" · ")}${p.status !== "a" ? ` · <span class="down">${esc(p.news)}</span>` : ""}</span></button>${SB.pick === p.id ? replacePreview(g, out, p.id) : ""}`).join("") || `<p class="muted">No affordable ${po.pos}s fit the budget and club limits.</p>`}</div>`;
 }
