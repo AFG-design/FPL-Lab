@@ -27,6 +27,9 @@ DEFAULTS = {
                            # season's 1-GW picks (CI below 0). Better this season at 4 origins: re-check about GW20.
     "w_pos": 450.0,        # pseudo-minutes of positional average
     "w_last": 600.0,       # pseudo-minutes of last-season rate
+    "cred_recency": None,  # how much this season counts against the priors: his minutes weighted by this per GW back.
+                           # None = old behaviour (the recency-weighted minutes, which never pass ~450 at recency 0.8,
+                           # so this season is capped at ~30% of a rate). recency still sets WHICH games count.
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
@@ -767,13 +770,15 @@ def project(ctx, as_of, horizon=6, params=None):
         gs = pstats.get(pid, {})
         # ---- per-90 rates: this season (recency weighted) + last season + position
         num = defaultdict(float)
-        den = 0.0
+        den = cred = 0.0
         for g in hist_gws:
             if g not in gs:
                 continue
             s = gs[g]
             w = P["recency"] ** (as_of - 1 - g)
             den += w * s["minutes"]
+            if P["cred_recency"] is not None:
+                cred += P["cred_recency"] ** (as_of - 1 - g) * s["minutes"]
             if P["opp_adj"]:
                 # FL-065: the opponents of the club he played for that week (a player who has moved faced his old
                 # club's opponents). Ambiguous club (clubs_then): no opponent adjustment that week (of = 1)
@@ -797,7 +802,11 @@ def project(ctx, as_of, horizon=6, params=None):
 
         def rate(k):
             last = pr[key_last[k]] if pr else 0.0
-            return (num[k] + last * w_last / 90 + pp[k] * P["w_pos"] / 90) / (den + w_last + P["w_pos"]) * 90
+            if P["cred_recency"] is None or den <= 0:   # no minutes this season: priors only, as before
+                this, wt = num[k], den
+            else:   # this season's recency-weighted rate (num / den), counted as `cred` minutes against the priors
+                this, wt = num[k] * cred / den, cred
+            return (this + last * w_last / 90 + pp[k] * P["w_pos"] / 90) / (wt + w_last + P["w_pos"]) * 90
 
         xg90, xa90, bo90, sv90, yc90, dc90 = (rate(k) for k in ("xg", "xa", "bonus", "saves", "yc", "dc"))
         sp90 = min(xg90, num["sp"] / (den + P["w_pos"]) * 90) if (sp and P["sp_match"]) else 0.0
