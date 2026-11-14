@@ -4,6 +4,42 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — FL-114 (second slice): league goal level, cs_k and planner settings (no change; Don't adopt)
+
+- **League goal level** (tools/team_level_check.py: each match projected before it was played, `use_flags=False`,
+  real/projected with a bootstrap 95% CI over GWs): goals 0.97 [0.91, 1.02] (2024/25), 0.98 [0.92, 1.05] (2025/26),
+  0.91 [0.79, 1.05] (this season, GW4 on). Calibrated, so no change. The old audit's "about 10% high" was from before
+  upcoming fixtures used betting odds.
+- **Clean sheets** (cs_k 0.9, CS chance = exp(−cs_k × goals against)): over-projected in both past seasons, real/proj
+  0.85 [0.76, 0.96] (2024/25) and 0.80 [0.70, 0.90] (2025/26); this season 1.04 [0.76, 1.27]. Worst at FDR 4–5
+  (projected 0.199 v real 0.132 in 2024/25, 0.197 v 0.118 in 2025/26). cs_k 1.0 fixes the level (0.97, 0.91; this
+  season 1.19) but bench.py, candidate v main, 5-GW picks:
+
+  | Candidate | 2024/25 | 2025/26 | This season | Result |
+  |---|---|---|---|---|
+  | cs_k 0.95 | -0.06 [-0.12, -0.00] | +0.02 [-0.02, +0.07] | 0.00 (4 origins) | Don't adopt (tweak; CI below zero in 2024/25) |
+  | cs_k 1.0 | -0.08 [-0.15, -0.00] | +0.03 [-0.04, +0.10] | 0.00 (4 origins) | Don't adopt (tweak; CI below zero in 2024/25) |
+
+  5-GW totals main / 0.95 / 1.0: 19.12 / 19.07 / 19.05 (2024/25), 19.09 / 19.12 / 19.12 (2025/26), 18.23 all three
+  (this season). 1-GW picks within ±0.01, CIs cross zero. The CS over-projection is real but appears to offset
+  defenders being under-projected elsewhere; fixing CS alone ranks defenders worse. Next lever: how defenders score
+  outside clean sheets (defensive contributions, attacking returns), then retune cs_k with it.
+- **Planner settings, report only** (tools/planner_replay.py overrides an optimise.py constant for one run; optimise.py
+  unchanged). strategy_replay on 2025/26 and 2024/25, real points per season v current settings, paired mean ± 95%:
+
+  | Strategy | Setting (current) | Candidate | Real pts/season v current | Result |
+  |---|---|---|---|---|
+  | Balanced | MIN_PROFIT (1.0) | 0 | -45.2 ± 14.6 (worse in all 6 runs) | Keep 1.0 |
+  | Balanced | MIN_PROFIT | 2 | -34.0 ± 33.2 | Keep 1.0 |
+  | Balanced | BENCH_W (0.1) | 0.05 | -7.3 ± 34.5 | Keep 0.1 |
+  | Balanced | BENCH_W | 0.2 | -21.7 ± 55.1 | Keep 0.1 |
+  | Chase | HIT_GAIN (2.0) | 1.0 | +7.0 ± 17.1 (+0.8 hits a season) | Keep 2.0 (no clear gain) |
+  | Chase | HIT_GAIN | 3.0 | 0 (Chase took no hits at 2.0 either) | Keep 2.0 |
+  | Chase | CHASE_BUDGET (2.0) | 1.0 | -39.0 ± 46.7 | Keep 2.0 |
+  | Chase | CHASE_BUDGET | 3.0 | -34.8 ± 36.3 | Keep 2.0 |
+
+  Balanced: 3 seeds × 2 seasons, 600 sims; Chase: 2 seeds × 2 seasons. The current values are best or level on every
+  row, so nothing to change. FL-114 is now complete.
 ## 13 Nov 2026 — FL-114 (first slice): five untested settings benched (no change; Don't adopt)
 
 - Settings with no result in this log (or only a ±20% sensitivity check), picked by how much they move points, plus
@@ -20,8 +56,8 @@ from odds/archive/ since PR #24, 31 Oct 2026).
 
 - 5-GW totals at main (bench without the European cut, as before FL-115): 17.98 (this season), 19.13 (2025/26), 19.03 (2024/25). home and goal_mult look better this season
   only; re-check both about GW20, when this season has enough 5-week forecasts to count. The penalty bonus (pen_xg)
-  was left out: already tested (no clear effect, model log above). Still to do in FL-114: the league goal level, cs_k,
-  and the planner settings (bench weight, minimum profit, hit gain, Chase budget).
+  was left out: already tested (no clear effect, model log above). League goal level, cs_k and the planner settings: see
+  the second slice above.
 ## 13 Nov 2026 — FL-094: a team-mate returning, diagnosed (no model change; Don't adopt)
 
 - The item: lower a stand-in's minutes when the regular he covered for comes back. Its example was wrong (Konsa is at
