@@ -30,6 +30,7 @@ DEFAULTS = {
     "cred_recency": None,  # how much this season counts against the priors: his minutes weighted by this per GW back.
                            # None = old behaviour (the recency-weighted minutes, which never pass ~450 at recency 0.8,
                            # so this season is capped at ~30% of a rate). recency still sets WHICH games count.
+    "cred_parts": None,    # rates cred_recency applies to, e.g. ["xg", "dc"]; None = every rate. The others keep the cap
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
@@ -802,7 +803,8 @@ def project(ctx, as_of, horizon=6, params=None):
 
         def rate(k):
             last = pr[key_last[k]] if pr else 0.0
-            if P["cred_recency"] is None or den <= 0:   # no minutes this season: priors only, as before
+            if P["cred_recency"] is None or den <= 0 or (P["cred_parts"] is not None and k not in P["cred_parts"]):
+                # off, no minutes this season (priors only, as before), or a rate left out of cred_parts: old formula
                 this, wt = num[k], den
             else:   # this season's recency-weighted rate (num / den), counted as `cred` minutes against the priors
                 this, wt = num[k] * cred / den, cred
