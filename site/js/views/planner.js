@@ -427,7 +427,7 @@ async function getHighs() {
 // over PG for one strategy from your confirmed squad, with the rules given: locks and bans (rules.locked/banned), a
 // stricter hit limit (rules.maxHits) and any captains you fixed (ov[gw].cap). Returns { moves, solved, none } or throws
 // with a reason you can act on. status(msg) reports progress.
-async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], status = () => {}, chips = {} } = {}) {
+async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], status = () => {}, chips = {}, week1Moves = null } = {}) {
   const highs = await getHighs();
   status("Planning…");
   await new Promise(r => setTimeout(r, 30));
@@ -449,7 +449,7 @@ async function optimiseMoves(mode, { ov = {}, rules = SB.rules, poolExtra = [], 
   if (mode !== "balanced" && !eoFrac) throw new Error(`${MODES[mode]} needs the field-ownership data, which isn't in this build`);
   const common = { players, squad: D.squad.map(s => s.id), sell: Object.fromEntries(D.squad.map(s => [s.id, s.sell])), bank: D.manager.bank,
     ft0: Math.min(5, D.manager.free_transfers), gws: PG, locked: rules.locked, banned: rules.banned, captains,
-    maxHits: 0, poolExtra, ...settings, chips };
+    maxHits: 0, poolExtra, ...settings, chips, week1Moves };
   // FL-005: keeping the squad still plays a pinned Bench Boost or Triple Captain (not transfers); a Wildcard or Free
   // Hit needs moves, so the no-transfers yardstick goes without them, as baseScore does
   const holdChips = Object.fromEntries(Object.entries(chips).filter(([k]) => k === "bboost" || k === "3xc"));

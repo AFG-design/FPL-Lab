@@ -120,7 +120,7 @@ function vNext() {
       </dl>
       <p class="dc-sub">The ${horizon} projection includes lineup, captaincy and all transfer hits. The verdict also values each extra free transfer left at the end at ${ftValue()} points.</p>
     </details>`;
-  const tAct = `<button class="btn primary sm" data-plgo="edit:suggest">Compare transfers →</button>${n ? `<button class="btn sm" data-howto="${g}">Make these moves on FPL</button>` : ""}`;
+  const tAct = `${n || decisionAlternative() ? '<button class="btn sm" data-decision="roll">Compare with saving the transfer</button>' : '<span class="note">Saving is recommended; no valid transfer alternative is available.</span>'}<button class="btn primary sm" data-plgo="edit:suggest">Compare transfers →</button>${n ? `<button class="btn sm" data-howto="${g}">Make these moves on FPL</button>` : ""}`;
 
   // captain: your captain and the best other starter, both as captain (xP × 2)
   const capRows = [me.cap, c.alt].filter(i => i != null);
