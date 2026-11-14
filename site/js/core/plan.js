@@ -20,7 +20,13 @@ const MODE_HELP = {
 };
 const mk = (k, mode = S.mode) => mode === "balanced" || !D.plans[`${mode}_${k}`] ? k : `${mode}_${k}`;
 const planLabel = key => { const [m, k] = key.includes("_") ? key.split("_") : ["balanced", key]; return (m === "balanced" ? "" : MODES[m] + ": ") + PLAN_LABEL[k]; };
-function verdict(g, strong = 3, marg = 1) {
+// Cut-offs tested against outcomes on 2024/25 and 2025/26 (FL-127, tools/verdict_check.py, docs/model-log.md 14 Nov).
+// One-week calls (captain, lineup): a projected gap under 1.5 points came off 54% of the time, barely better than a
+// coin flip; 1.5 to 2 about 60%; 2 or more about 77%. Before FL-127 they were Strong at 1 and Marginal at 0.4, which
+// called 55-60% calls Strong. A plan's gain over the plan length keeps 3 / 1: Strong came off 65% (+5.6 real points),
+// Marginal 54%, Coin flip 51%.
+const CUT_WEEK = [2, 1.5], CUT_PLAN = [3, 1];
+function verdict(g, strong = CUT_PLAN[0], marg = CUT_PLAN[1]) {
   return g >= strong ? { t: "Strong", c: "good" } : g >= marg ? { t: "Marginal", c: "warn" } : { t: "Coin flip", c: "mut" };
 }
 // One confidence scale everywhere (U1): Strong / Marginal / Coin flip from verdict(). v.tag adds a separate, neutral

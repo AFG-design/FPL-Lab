@@ -186,7 +186,7 @@ function captainsHTML() {
     if (tc && g <= tc.to && (!bestTc || capX > bestTc.x)) bestTc = { g, id: t.cap, x: capX };
     const gap = opts.length > 1 ? capX - Math.max(...opts.filter(i => i !== t.cap).map(i => xpg(i, g))) : 0;
     const src = t.capMine ? "Your pick" : t.fromPlan ? "Re-plan's pick" : "Auto pick";
-    const conf = { ...verdict(gap, 1, 0.4), tag: F && (F.cap[t.cap] || 0) >= 50 ? "Field's pick" : null };
+    const conf = { ...verdict(gap, ...CUT_WEEK), tag: F && (F.cap[t.cap] || 0) >= 50 ? "Field's pick" : null };
     const alts = opts.filter(i => i !== t.cap).slice(0, 2).map(i => `<div class="capalt"><span><b>${esc(P[i].name)}</b><span class="muted"> ${fxText(P[i], g)} · ${f1(xpg(i, g))} xP${F ? ` · ${(F.cap[i] || 0).toFixed(0)}% field C` : ""}</span></span><button class="btn" data-setcap="${g}:${i}" aria-label="Make ${esc(P[i].name)} captain in GW${g} only">Make captain</button></div>`).join("");
     return `<section class="capwk${t.capMine ? " mine" : ""}" aria-labelledby="capwk-${g}"><div class="capwk-h"><h4 id="capwk-${g}">GW${g}${w.chip ? ` <span class="tag" title="${CHIP_NAME[w.chip]}">${CHIP_SHORT[w.chip]}</span>` : ""}</h4><span class="pill mut">${src}</span></div>
       <div class="capwk-c"><span>Captain: <b class="pname">${esc(P[t.cap].name)}</b> ${vPill(conf)}</span><b class="mono">${f1(capX)} xP</b></div>
@@ -195,7 +195,7 @@ function captainsHTML() {
       ${t.capMine ? `<button class="btn" data-setcap="${g}:0" aria-label="Back to the automatic captain in GW${g}">Back to auto</button>` : ""}</section>`;
   }).join("");
   return `<div class="bar"><h3>Captain planner</h3><span class="tag">${MODES[S.mode]}</span></div>
-    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. A choice applies to that gameweek only; This week and Re-plan follow it. ${sample ? `"Field C" = share of ${sample.label} who captained him in GW${sample.gw}.` : "Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."} Confidence is how far the captain is ahead of the next best: Strong at 1+ xP, Marginal at 0.4–1.</p>
+    <p class="note" style="margin-top:0">Your captain for each gameweek of the plan, from the team your plan has that week. A choice applies to that gameweek only; This week and Re-plan follow it. ${sample ? `"Field C" = share of ${sample.label} who captained him in GW${sample.gw}.` : "Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."} Confidence is how far the captain is ahead of the next best: Strong at 2+ xP, Marginal at 1.5–2 (one-week gaps smaller than that came off barely more than half the time).</p>
     <div class="capwks">${cards}</div>
     ${tc ? `<p class="verdict" style="margin-top:12px">${bestTc ? `Best Triple Captain week in view: <b>GW${bestTc.g}</b>, ${esc(P[bestTc.id].name)} (${f1(bestTc.x)} xP, so about +${f1(bestTc.x)} from the chip).` : ""} Your first-half Triple Captain expires after GW${tc.to}. It's worth most in a double gameweek, when the captain plays twice.</p>` : ""}`;
 }
