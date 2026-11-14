@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Backtest the projection model: for each finished gameweek k, project it from
 data before k only and compare with real points."""
-import json, math, sys
+import json, math, random, sys
 from collections import defaultdict
 from fplmodel import prepare, project
 
@@ -318,6 +318,137 @@ def print_parts(pt, title):
             f"{label} {a[p]['pred']:.2f}/{a[p]['act']:.2f}/{_f(a[p]['corr'], '.2f')}" for p, label in PARTS))
 
 
+# ---------------------------------------------------------------- proper scores per part (FL-161)
+# Each scoring part judged with a proper score on its own raw projection (before the final calibration), so a change
+# aimed at one part can be tested on that part with more power than total points give. Lower is better for every
+# score. (key, label, score name). The five asked for in FL-161 first; dc, bonus and saves are there so every part the
+# targeted-change rule names has a score (bonus and saves are counts the model gives as expected points, not
+# probabilities, so they get squared error, which is proper for an expected value).
+SCORES = [("cs", "Clean sheets", "log-loss"), ("start", "Start chance", "Brier"), ("p60", "60+ minutes", "Brier"),
+          ("goals", "Goals", "Poisson dev."), ("assists", "Assists", "Poisson dev."),
+          ("dc", "Def. contribution", "Brier"), ("bonus", "Bonus", "sq. error"), ("saves", "Saves", "sq. error")]
+_EPS = 1e-6   # probabilities clipped to [eps, 1 - eps] and Poisson means floored at eps: a 0 forecast that comes off
+              # scores -ln(1e-6) = 13.8, a large but finite penalty, so one row can't make the mean infinite
+_NFX = {}
+
+
+def _one_fixture(ctx):
+    """{(team, gw): fixture count}, cached per fixture list."""
+    key = id(ctx["fixtures"])
+    if key not in _NFX:
+        nfx = defaultdict(int)
+        for f in ctx["fixtures"]:
+            if f["event"]:
+                nfx[(f["team_h"], f["event"])] += 1; nfx[(f["team_a"], f["event"])] += 1
+        _NFX[key] = nfx
+    return _NFX[key]
+
+
+def _logloss(p, y):
+    p = min(1 - _EPS, max(_EPS, p))
+    return -math.log(p if y else 1 - p)
+
+
+def _poisson_dev(mu, y):
+    mu = max(_EPS, mu)
+    return 2 * ((y * math.log(y / mu) if y > 0 else 0.0) - (y - mu))
+
+
+def part_scores(cx, k, res):
+    """Proper score of each part for every pool player (played in the last 3 GWs) whose club has exactly one fixture
+    in GW k, from one 1-GW projection (res: project()["players"]). Doubles are left out, as in parts_eval: the live
+    stats sum both matches, so a per-match chance can't be scored. Returns {pid: {key: loss}}.
+    The model's chances come out of its raw points (detail = chance x points for that event), so a position that
+    scores nothing for a part (forwards' clean sheets, keepers' DC) has no chance to score and is left out of it.
+    Missing data: a player with no live stats for GW k, or no projection, is skipped (not scored as 0); the two
+    variants a bench compares are paired on the players both scored, so a skip can't favour either."""
+    from fplmodel import POS
+    nfx, sc, out = _one_fixture(cx), cx["scoring"], {}
+    for pid, r in res.items():
+        e = cx["elements"][pid]
+        s = cx["pstats"].get(pid, {}).get(k)
+        if s is None or nfx.get((e["team"], k)) != 1 or not _in_pool(cx, pid, k):
+            continue
+        pos = POS[e["element_type"]]
+        d = r["detail"].get(k, {})
+        row = {"start": (min(1.0, r["ps_next"]) - (1.0 if s["starts"] > 0 else 0.0)) ** 2,
+               "p60": (min(1.0, r["p60_next"]) - (1.0 if s["minutes"] >= 60 else 0.0)) ** 2,
+               "goals": _poisson_dev(d.get("goals", 0.0) / sc["goals_scored"][pos], s["goals_scored"]),
+               "assists": _poisson_dev(d.get("assists", 0.0) / sc["assists"], s["assists"]),
+               "bonus": (d.get("bonus", 0.0) - s["bonus"]) ** 2}
+        if sc["clean_sheets"][pos]:
+            row["cs"] = _logloss(d.get("cs", 0.0) / sc["clean_sheets"][pos], s["clean_sheets"] > 0)
+        if sc["defensive_contribution"][pos]:
+            row["dc"] = (min(1.0, d.get("dc", 0.0) / sc["defensive_contribution"][pos])
+                         - (1.0 if cx["dc_hit"].get(pid, {}).get(k, False) else 0.0)) ** 2
+        if pos == "GKP":
+            row["saves"] = (d.get("saves", 0.0) - (s["saves"] // 3) * sc["saves"]) ** 2
+        out[pid] = row
+    return out
+
+
+def mean_scores(by_gw):
+    """{gw: {pid: {key: loss}}} -> {key: (mean loss per player-week, n)}."""
+    tot, cnt = defaultdict(float), defaultdict(int)
+    for rows in by_gw.values():
+        for row in rows.values():
+            for key, v in row.items():
+                tot[key] += v; cnt[key] += 1
+    return {key: (tot[key] / cnt[key], cnt[key]) for key, _, _ in SCORES if cnt[key]}
+
+
+def scores_ci(base, cand, n=2000, seed=1):
+    """Paired bootstrap 95% interval of cand - base mean loss for each part. base / cand: {season: {gw: {pid: {key:
+    loss}}}}; pass one season for a per-season interval, several to pool. Gameweeks are resampled with replacement
+    within each season (each keeps its own number of weeks), then the resampled weeks of all seasons are pooled and
+    the difference is total loss difference / total player-weeks, so every player-week counts once. Rows are paired
+    on (gw, player) present in both. Returns {key: (mean diff, lo, hi, n player-weeks)}; negative = cand better."""
+    out = {}
+    for key, _, _ in SCORES:
+        per = []   # per season: [(sum of diffs, count) per gw]
+        for s in base:
+            a, b = base[s], cand.get(s, {})
+            weeks = []
+            for g in sorted(set(a) & set(b)):
+                ds = [b[g][p][key] - a[g][p][key] for p in a[g] if p in b[g] and key in a[g][p] and key in b[g][p]]
+                if ds:
+                    weeks.append((sum(ds), len(ds)))
+            if weeks:
+                per.append(weeks)
+        if not per:
+            continue
+        tn = sum(c for w in per for _, c in w)
+        rng = random.Random(seed)
+        means = []
+        for _ in range(n):
+            sd = sc = 0.0
+            for w in per:
+                for _ in w:
+                    x, c = w[rng.randrange(len(w))]
+                    sd += x; sc += c
+            means.append(sd / sc)
+        means.sort()
+        out[key] = (sum(x for w in per for x, _ in w) / tn, means[int(0.025 * n)], means[int(0.975 * n) - 1], tn)
+    return out
+
+
+def fmt_scores(name, m):
+    return f"  part scores   {name:<16} " + " ".join(
+        f"{label} {m[key][0]:.4f}" for key, label, _ in SCORES if key in m)
+
+
+def fmt_scores_ci(ci, indent="  "):
+    """One line per part: score name, cand - base [95% CI], and 'better' / 'worse' when the interval is clear of 0."""
+    lines = []
+    for key, label, kind in SCORES:
+        if key not in ci:
+            continue
+        d, lo, hi, n = ci[key]
+        verdict = "better" if hi < 0 else "worse" if lo > 0 else "~0"
+        lines.append(f"{indent}{label:18} {kind:13} {d:+.5f} [{lo:+.5f}, {hi:+.5f}] {verdict:6} (n={n})")
+    return lines
+
+
 def print_minutes(mn, title):
     print(title)
     print(f"  {'Pool':5} {'Segment':20} {'':16} {'n':>5} {'xMin MAE':>9} {'RMSE':>6} {'bias':>6} {'Brier st':>9} {'Brier 60':>9}")
@@ -478,6 +609,14 @@ def compare(base_path, new_path):
                 if abs(y["ratio"] - x["ratio"]) >= 0.02 or abs(y["mse"] - x["mse"]) >= 0.001:
                     cells.append(f"{label} {x['ratio']:.2f}->{y['ratio']:.2f} (mse {y['mse'] - x['mse']:+.3f})")
             print(f"  {sname:7} " + ("; ".join(cells) if cells else "no part moved"))
+    sa_, sb_ = A.get("part_scores"), B.get("part_scores")
+    if sa_ and sb_:   # FL-161; files written before it have none, and the block is skipped (said below)
+        print("Proper scores per part (raw, before calibration; this season only, paired over (GW, player), bootstrap "
+              "over GWs; negative = new better). The deciding pooled interval over past seasons is in bench.py.")
+        for line in fmt_scores_ci(scores_ci({"this": sa_}, {"this": sb_}), indent="  "):
+            print(line)
+    elif sa_ or sb_:
+        print("Proper scores per part: only one file has them (written before FL-161), so no paired interval")
     if flagged:
         print(f"{len(flagged)} segment(s) past the limits (MAE +{COMPARE_MAE}, bias ±{COMPARE_BIAS}, n >= {COMPARE_N}): "
               + "; ".join(flagged))
@@ -548,6 +687,12 @@ if __name__ == "__main__":
     parts = parts_eval(ctx, gws, params=params)
     print()
     print_parts(parts, "Scoring parts on their own (raw, before the final calibration; one-fixture weeks)")
+    # FL-161: a proper score for each part (raw, before calibration), stored per (gw, player) so --compare can pair them
+    pscores = {k: part_scores(ctx, k, project(ctx, k, horizon=1, params=dict(params, use_flags=False))["players"])
+               for k in gws}
+    print("  proper scores per player-week (lower is better): " + "; ".join(
+        f"{label} {kind} {v[0]:.4f} (n={v[1]})" for key, label, kind in SCORES
+        for v in [mean_scores(pscores).get(key)] if v))
     print()
     print_segments(seg, f"Segment breakdown, with last-season priors, GW{min(gws)}-{max(gws)} "
                         f"(model status log: {args.status_log or 'none'}; bias = projected - actual)")
@@ -561,5 +706,7 @@ if __name__ == "__main__":
         with open(args.json, "w") as f:
             json.dump({"gws": list(gws), "status_log": args.status_log, "flag_log": flag_path if flag_log else None,
                        "headline": {k: head[k] for k in ("n", "mae", "rmse", "corr", "bias")},
-                       "params": params, "segments": seg, "minutes": mins, "parts": parts}, f, indent=1)
+                       "params": params, "segments": seg, "minutes": mins, "parts": parts,
+                       "part_scores": {str(k): {str(p): v for p, v in rows.items()} for k, rows in pscores.items()}},
+                      f, indent=1)
         print(f"Wrote {args.json}")
