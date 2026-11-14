@@ -35,8 +35,9 @@ with sync_playwright() as p:
             assert 'Auto-sub if he plays' in text, text
             assert 'Auto-sub: counts' not in text
             assert page.evaluate('liveState().total') == 18
-            assert page.locator('.live-panel .kpi').first.locator('b').inner_text() == '18'
-            assert page.locator('.gwtiles .dash-big b').first.inner_text() == '22'  # Home displays gross points, with the hit separately labelled.
+            assert page.locator('.gw-score').inner_text() == '22'
+            assert '18 after the −4 hit' in text
+            assert 'Your live points' not in text
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
             assert not errors, errors
             page.screenshot(path=str(out / f'home-{width}-{theme}.png'), full_page=True)
