@@ -645,15 +645,15 @@ def check_one_scale(page):
       S.home = "next"; setView("week");
       const cards = [...document.querySelectorAll(".dcard h3 .pillwrap")].map(w => [...w.querySelectorAll(".pill")].map(x => x.textContent));
       const bad = cards.filter(p => !SCALE.includes(p[0]) || p.slice(1).some(t => t !== "Field's pick"));
-      // the lineup verdict follows the bench gap on the 1 / 0.4 scale
+      // the lineup verdict follows the bench gap on the one-week scale (CUT_WEEK, FL-127)
       return { n: cards.length, bad, cards };
     }""")
     fails = []
     if r["n"] != 3:
         fails.append(f"One scale: expected 3 decision cards on Home, found {r['n']}")
     fails += [f"One scale: a Home card shows {b} (only Strong / Marginal / Coin flip, plus a Field's pick tag)" for b in r["bad"]]
-    for gap, want in ((0.2, "Coin flip"), (0.5, "Marginal"), (1.2, "Strong")):
-        got = page.evaluate(f"verdict({gap}, 1, 0.4).t")
+    for gap, want in ((1.2, "Coin flip"), (1.7, "Marginal"), (2.2, "Strong")):
+        got = page.evaluate(f"verdict({gap}, ...CUT_WEEK).t")
         if got != want:
             fails.append(f"One scale: a {gap}-point lineup/captain gap reads {got}, expected {want}")
     return fails

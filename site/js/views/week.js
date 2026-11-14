@@ -23,9 +23,9 @@ function weekCalls() {
   const starts = me.xi.filter(i => !curXI.has(i)), benches = [...curXI].filter(i => !newXI.has(i) && me.bench.includes(i));
   const benchFirst = me.bench.filter(i => P[i].pos !== "GKP")[0], weakest = me.xi.filter(i => P[i].pos !== "GKP").sort((a, b) => xpg(a, g) - xpg(b, g))[0];
   const benchGap = benchFirst && weakest ? xpg(weakest, g) - xpg(benchFirst, g) : 9;
-  // lineup: the gap between your weakest starter and first sub, on the captain's scale (1 pt Strong, 0.4 Marginal).
+  // lineup: the gap between your weakest starter and first sub, on the one-week scale (CUT_WEEK: 2 pts Strong, 1.5 Marginal).
   // No bench outfielder to compare (benchGap 9): nothing to weigh, so Strong.
-  const lV = verdict(benchGap, 1, 0.4);
+  const lV = verdict(benchGap, ...CUT_WEEK);
   // captain
   const capOpts = me.xi.slice().sort((a, b) => xpg(b, g) - xpg(a, g)).slice(0, 5);
   const alt = capOpts.find(i => i !== me.cap);
@@ -34,7 +34,7 @@ function weekCalls() {
   const capEO = F ? (F.cap[me.cap] || 0) : null;
   // captain: confidence from the projection only; following the field is shown beside it, not instead of it.
   // No field ownership (capEO null): no tag, never a guess.
-  const cV = { ...verdict(capGap, 1, 0.4), tag: capEO != null && capEO >= 50 ? "Field's pick" : null };
+  const cV = { ...verdict(capGap, ...CUT_WEEK), tag: capEO != null && capEO >= 50 ? "Field's pick" : null };
   // chip
   const tc = D.chips.find(c => c.key === "3xc" && c.available && c.to <= 19);
   const tcWeeks = me.score.weeks.map(w => ({ gw: w.gw, id: w.team.cap, x: xpg(w.team.cap, w.gw) }));

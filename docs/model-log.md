@@ -4,6 +4,35 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — FL-127: Strong / Marginal / Coin flip cut-offs tested (labels only; one-week scale changed)
+
+- tools/verdict_check.py rebuilds Home's three calls out of sample on 2024/25 and 2025/26 (plus this season, GW3 to
+  10), with the model's own squad from three weeks earlier (the archive has no ownership or per-week prices, so squads
+  and the £0.5m price limit on transfers are assumed). A call "comes off" when the chosen option really scored more.
+  One captain and one lineup call a week is too few (67), so every comparable pair is also counted (any two of the
+  five best starters; a low starter v a sub). 95% intervals by bootstrap over weeks. Pooled:
+
+  | Call | Projected gap | Came off | Real gain |
+  |---|---|---|---|
+  | Captain-like pairs (670) | under 1.5 | 56% [51, 61] | +1.30 |
+  | | 1.5 to 2 | 62% [45, 75] | +1.94 |
+  | | 2+ | 79% [55, 97] | +6.30 |
+  | Lineup-like pairs (804) | under 1.5 | 51% [45, 58] | +0.26 |
+  | | 1.5 to 2 | 60% [49, 70] | +0.58 |
+  | | 2+ | 76% [68, 83] | +2.57 |
+  | Transfer over 5 GWs (504) | under 1 (Coin flip) | 51% [39, 64] | +0.06 |
+  | | 1 to 3 (Marginal) | 54% [46, 63] | +1.55 |
+  | | 3+ (Strong) | 65% [60, 71] | +5.64 [+3.83, +7.52] |
+
+- The old one-week cut-offs (Strong at 1, Marginal at 0.4) didn't separate: Coin flip 52-55%, Marginal 53-59%,
+  Strong 60-64%. The same pattern holds in each past season on its own (captain and lineup pairs: 1 to 1.5 came off 48-54%,
+  1.5 to 2 60-64%, 2 to 3 71-76%). Changed to
+  Strong 2, Marginal 1.5 (CUT_WEEK in site/js/core/plan.js) for Home's captain and lineup cards and the Planner's
+  captain cards. Transfers keep 3 / 1 (they separate). The no-moves (Roll) card's own scale and the AFG lean scale
+  (a fun layer, FL-132) were not tested and are unchanged.
+- Consequence: captain calls will mostly read Coin flip. The captain v vice gap was under 1.5 in 66 of 67 weeks, and
+  those calls came off 45% of the time. That is the honest reading of a one-week call, not a fault in the labels.
+
 ## 14 Nov 2026 — FL-114 (second slice): league goal level, cs_k and planner settings (no change; Don't adopt)
 
 - **League goal level** (tools/team_level_check.py: each match projected before it was played, `use_flags=False`,

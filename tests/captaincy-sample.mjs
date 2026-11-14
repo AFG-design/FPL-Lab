@@ -10,7 +10,7 @@ function setup(crowd) {
   const score = {tot: 10, ftLeft: 1, weeks: [{gw: 11, team, hits: 0}]};
   const ctx = vm.createContext({location: {hash: ''}, crowd,
     myTeam: () => team, scoreMoves: () => score, baseScore: () => score, mk: x => x,
-    verdict: () => ({t:'Strong', c:'good'}), threats: () => [], vPill: () => '',
+    verdict: () => ({t:'Strong', c:'good'}), CUT_WEEK: [2, 1.5], threats: () => [], vPill: () => '',
     term: (_, label) => label, MODES: {balanced:'Balanced'}, ftValue: () => 1.5,
     priceRising: () => false, priceFalling: () => false});   // plan.js is stubbed here; no player has a price projection
   for (const file of ['core/state', 'core/model', 'views/week', 'views/planner']) {
