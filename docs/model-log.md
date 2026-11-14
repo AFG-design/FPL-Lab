@@ -4,6 +4,32 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 14 Nov 2026 — this-season cap lifted for xG and DC only (`cred_parts` ["xg", "dc"]; Marginal at 0.9, owner's call)
+
+- Follow-up to the entry below: the cap lifted only where it helped (xG rate → goals, DC rate); bonus, saves, xA and
+  cards keep it. Named as one package before running (both are steady-signal rates the all-rates test showed improving),
+  variants cred_recency 0.9 / 0.95 / 1.0. These are variants 4-6 on this idea, chosen after seeing the first three, so a
+  chance pass is likelier than the nominal rate.
+- bench.py, 5-GW picks, candidate − main:
+
+  | cred_recency | 2025/26 | 2024/25 | Pooled 5-GW | This season (4 origins) |
+  |---|---|---|---|---|
+  | 0.9 | +0.03 [-0.08, +0.16] | +0.04 [-0.05, +0.14] | +0.036 [-0.038, +0.114] | 0.00 |
+  | 0.95 | -0.00 [-0.18, +0.16] | -0.05 [-0.13, +0.05] | -0.025 [-0.127, +0.067] | 0.00 |
+  | 1.0 | -0.00 [-0.19, +0.17] | -0.11 [-0.26, +0.01] | -0.059 [-0.180, +0.050] | -0.11 [-0.47, +0.13] |
+
+  5-GW totals (2025/26 / 2024/25 / this season): main 19.09 / 19.12 / 18.24; 0.9: 19.13 / 19.16 / 18.24; 0.95: 19.09 /
+  19.08 / 18.24; 1.0: 19.09 / 19.01 / 18.13. 1-GW picks: main 4.46 / 4.24 / 4.33; 0.9: 4.44 / 4.25 / 4.36; 0.95: 4.45 /
+  4.25 / 4.36; 1.0: 4.46 / 4.21 / 4.38. This season top-5 +0.50 to +0.60 (CI above 0, all three). No bench CI wholly
+  below zero (1.0: 2024/25 1-GW picks -0.03 [-0.07, +0.00], close).
+- Pooled part scores: goals -0.0006 [-0.0011, -0.0002] better at 0.9 (~0 at 0.95, 1.0); DC better at all three;
+  every other part exactly unchanged. backtest.py --compare, with and without the status log: no segment past the
+  limits; corr +0.0003 to +0.0005.
+- Decision: 0.9 is the only variant with both past seasons positive and both target parts clearly better. Current rule:
+  CI includes zero; Adopt as Marginal only if the cap counts as a known error (it was logged on 31 Oct before any fix;
+  arguable). FL-161 proposal: qualifies as a targeted package (goals and DC clear, picks not wholly below zero) →
+  Adopt as Marginal. Size: +0.04 real points per pick over 5 GWs, small. Left off pending the owner's decision.
+
 ## 14 Nov 2026 — this-season cap lifted: `cred_recency` 0.9 / 0.95 / 1.0 (Don't adopt; setting left off)
 
 - The problem (logged 31 Oct, before this fix): a rate = this season (each game x0.8 per GW back) + 600 pseudo-minutes
