@@ -2058,6 +2058,39 @@ def build_source_health():
     }
 
 
+def publish_league_awards():
+    """Weekly honours (awards.py -> history/awards.json): the latest settled week of each tracked league in data.json,
+    every settled week in site/awards.json, which the Rivals page loads only when Weekly honours opens.
+    Missing file (awards.py hasn't run yet): no awards and sources.awards.ok None, so the page says none are settled yet.
+    Unreadable: none published, the file is left alone, and sources.awards.ok is False (Data health warning). Only
+    leagues in this build's mini-league sample are published, so a league you've left disappears with it."""
+    global aw_store
+    aw_f = os.path.join(HIST, "awards.json")
+    aw_ok = True
+    try:
+        aw_store = json.load(open(aw_f))
+        if not isinstance(aw_store.get("leagues"), dict):
+            raise ValueError("unexpected shape")
+    except FileNotFoundError:
+        aw_store, aw_ok = {"leagues": {}}, None
+    except Exception as ex_:
+        print("history/awards.json unreadable, not publishing awards:", ex_)
+        aw_store, aw_ok = {"leagues": {}}, False
+    ids = {str(lg["id"]) for lg in ((out.get("crowd") or {}).get("leagues") or [])}
+    full, latest = {}, {}
+    for lid, L in aw_store["leagues"].items():
+        if lid not in ids or not L.get("gws"):
+            continue
+        weeks = {g: {k: v for k, v in w.items() if k != "members"} for g, w in L["gws"].items()}
+        full[lid] = {"name": L.get("name"), "gws": weeks}
+        top = max(weeks, key=int)
+        latest[lid] = {"gws": sorted(int(g) for g in weeks), "latest": weeks[top]}
+    out["awards"] = latest
+    out["sources"]["awards"] = {"ok": aw_ok, "updated": aw_store.get("updated"), "leagues": len(full)}
+    with open(os.path.join(os.path.dirname(os.path.abspath(OUT)), "awards.json"), "w") as f_:
+        json.dump({"built": out["meta"]["built"], "leagues": full}, f_, separators=(",", ":"))
+
+
 def write_output():
     """Write data.json and data-extra.json."""
     global ex, f, k, p_
@@ -2088,7 +2121,7 @@ STEPS = (fetch_fpl, load_sources, prepare_context, project_players, read_squad, 
          score_you_vs_model, build_decision_journal, track_set_pieces, build_team_trends, build_afg_suggestion,
          log_news_history, keep_returners, track_prices, rate_squad, fetch_watch_teams, assemble_output,
          fetch_badges, write_shot_maps, build_this_week, read_source_stamps, build_model_track, build_fpl_school,
-         build_source_health, write_output)
+         build_source_health, publish_league_awards, write_output)
 
 
 def main(argv=None):

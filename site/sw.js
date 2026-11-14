@@ -1,5 +1,5 @@
 // FPL Lab offline cache: the page and your last data stay available without signal.
-const CACHE = "fpl-lab-v41";
+const CACHE = "fpl-lab-v42";
 const SHELL = [
   "./",
   "index.html",
@@ -70,7 +70,7 @@ self.addEventListener("fetch", e => {
     // Only a successful response replaces the offline copy. A server error (404, 500, a Pages hiccup mid-deploy)
     // never overwrites it: we answer with the last good copy instead, and pass the error through only when there
     // is no copy at all, so the page's own "data.json returned 500" message still shows.
-    const key = url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : e.request;
+    const key = url.pathname.endsWith("data.json") ? new Request("data.json") : url.pathname.endsWith("data-extra.json") ? new Request("data-extra.json") : url.pathname.endsWith("awards.json") ? new Request("awards.json") : e.request;
     const cached = () => caches.match(key);
     e.respondWith(fetch(e.request, { cache: "no-cache" }).then(r => {
       if (r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(key, copy)); return r; }

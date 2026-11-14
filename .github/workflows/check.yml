@@ -62,6 +62,9 @@ jobs:
       - name: Players table fixed column and header at ten widths
         if: always() && steps.build.outcome == 'success'
         run: python3 scripts/players_check.py --out layout-shots/players
+      - name: Rivals at seven widths, every matchday state, both themes
+        if: always() && steps.build.outcome == 'success'
+        run: python3 scripts/rivals_check.py --shots --out layout-shots/rivals
       - name: Planner and offline behaviour
         if: always() && steps.build.outcome == 'success'
         run: python3 scripts/behaviour_check.py

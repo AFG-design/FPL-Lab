@@ -34,4 +34,7 @@ function setHorizon(h) {
 // horizon (S.horizon / PG): changing it never moves the Planner's weeks or the gameweek you're editing there.
 S.xh = [1, 3, 5, 6].includes(store.get("fpl.xh")) ? store.get("fpl.xh") : 5;
 function setForecast(h) { if ([1, 3, 5, 6].includes(h)) { S.xh = h; store.set("fpl.xh", h); } }
+// Rivals: opens on My league → Standings every visit; the league (fpl.league) and pinned rivals (fpl.rivalPins, per
+// league) are remembered in views/rivals.js. S.rival is the manager open head-to-head; S.hgw the Weekly honours week.
+S.rtab = "league"; S.ltab = "standings"; S.rival = null; S.hgw = null;
 if (location.hash && VIEWS.includes(location.hash.slice(1))) S.view = location.hash.slice(1);
