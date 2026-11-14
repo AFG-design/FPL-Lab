@@ -33,6 +33,12 @@ Starts its own static server and a headless Chromium, then runs each check again
   - Move reason (U2): a planned move on Home's Transfers card has a one-line reason (xP over the plan, money).
   - Plan expiry (D4): a saved path whose signing turns doubtful or whose club blanks shows Review; reviewed clears it.
   - Fixture horizon (C5): Rest of season to GW38, estimates marked past the model's weeks, Matches column, sorting.
+  - Planner redesign: choosing a replacement only previews it (no change until "Add <name> to plan"); the preview's
+    player and team figures are labelled separately and the team figure is the real change in the plan total; Undo
+    restores the plan; a captain chosen for one gameweek changes that week only and Back to auto clears it; saving a
+    draft (with a name that looks like HTML), making another plan active, then Make active on the draft switches the
+    plan and its strategy, This week and Rivals follow it, Undo restores the previous plan, and a reload keeps both
+    the plan and the draft; Suggested says it is a preview and only Make this my active plan changes the plan.
   - Service worker: a 500 for data.json must not replace the good offline copy, and the page gets that copy back.
 
 Missing input fails loudly: no site/data.json or site/data-extra.json exits 2 before any check runs. If the data has no
@@ -937,6 +943,117 @@ def check_journal_summary(page):
     return [f"Journal summary: {x}" for x in r]
 
 
+PLANNER_FLOWS = r"""async () => {
+  const out = [], near = (a, b) => Math.abs(a - b) < 0.051, num = t => +String(t).replace("−", "-").replace("±", "").replace(/[^0-9.\-]/g, "");
+  syncPush = () => {};
+  setDrafts([]); setPlan([], "custom"); SB.prev = null;
+  S.view = "planner"; S.pview = "edit"; SB.gw = PG[0]; SB.sel = null; SB.pick = null; render();
+  // 1. replace: preview first, separate player and team figures, Add, Undo
+  const g = PG[0], sq = squadAt(g);
+  let found = null;
+  for (const id of [...scoreMoves(SB.moves).weeks[0].team.bench, ...sq]) {
+    document.querySelector(`[data-sbp="${id}"]`).click();
+    const cands = [...document.querySelectorAll("[data-pick]")].slice(0, 5).map(b => +b.dataset.pick);
+    for (const c of cands) {
+      document.querySelector(`[data-pick="${c}"]`).click();
+      const dd = [...document.querySelectorAll(".rp-g dd:not(.pe-s)")].map(d => d.textContent);
+      if (dd.length === 4 && Math.abs(num(dd[0]) - num(dd[1])) > 0.2) { found = { id, c, ind: num(dd[0]), team: num(dd[1]) }; break; }
+    }
+    if (found) break;
+    SB.sel = null; SB.pick = null; render();
+  }
+  if (!found) out.push("no replacement found whose player gain differs from its team gain");
+  else {
+    const before = JSON.stringify(SB.moves), tot0 = scoreMoves(SB.moves).tot;
+    if (SB.moves.length) out.push("opening a preview changed the plan");
+    const rp = document.querySelector(".rp")?.innerText || "";
+    for (const w of ["Compared with your active plan", "Team projected points", "Hit cost", "Bank after", "Planning value", "Not projected points"]) if (!rp.includes(w)) out.push(`preview is missing "${w}"`);
+    const add = document.querySelector("[data-pickadd]");
+    if (!add || add.textContent !== `Add ${P[found.c].name} to plan`) out.push(`Add button reads "${add?.textContent}"`);
+    if (document.activeElement !== add) out.push("focus didn't move to the Add button after choosing a candidate");
+    if (JSON.stringify(SB.moves) !== before) out.push("preview changed the moves");
+    add.click();
+    const m = SB.moves.find(x => x.gw === g && x.in === found.c);
+    if (!m || m.out !== found.id) out.push("Add didn't make the move");
+    if (!near(scoreMoves(SB.moves).tot - tot0, found.team)) out.push(`team figure ${found.team} isn't the plan change ${(scoreMoves(SB.moves).tot - tot0).toFixed(2)}`);
+    document.querySelector("[data-undoplan]")?.click();
+    if (JSON.stringify(SB.moves) !== before) out.push("Undo after Add didn't restore the plan");
+  }
+  // 2. a captain for one week only
+  SB.sel = null; S.ptab = "captains"; render();
+  const caps0 = scoreMoves(SB.moves).weeks.map(w => w.team.cap), g2 = PG[1];
+  const btn = document.querySelector(`[data-setcap^="${g2}:"]:not([data-setcap="${g2}:0"])`);
+  const pick = +btn.dataset.setcap.split(":")[1]; btn.click();
+  const caps1 = scoreMoves(SB.moves).weeks.map(w => w.team.cap);
+  PG.forEach((x, k) => { if (x === g2 ? caps1[k] !== pick : caps1[k] !== caps0[k]) out.push(`captain override for GW${g2} changed GW${x}`); });
+  if (SB.ov[g2]?.cap !== pick || Object.entries(SB.ov).some(([x, o]) => +x !== g2 && o.cap)) out.push("captain override not stored for that week only");
+  if (myTeam().cap !== caps0[0] && g2 !== PG[0]) out.push("This week's captain moved with a later week's override");
+  document.querySelector(`[data-setcap="${g2}:0"]`)?.click();
+  if (SB.ov[g2]?.cap) out.push("Back to auto didn't clear the override");
+  if (scoreMoves(SB.moves).weeks.map(w => w.team.cap).join() !== caps0.join()) out.push("Back to auto didn't restore the automatic captains");
+  // 3. save -> activate -> Undo (reload is checked from Python)
+  const nasty = '<img src=x onerror="window.__xss=1">';
+  const o = sq.find(i => P[i].pos === "MID"), cc = clubCounts(sq.filter(i => i !== o));
+  const n = D.players.filter(p => p.pos === "MID" && !sq.includes(p.id) && p.ok !== false && p.price <= bankAt(g) + sellPrice(o) && (cc[p.team] || 0) < 3).sort((a, b) => xpFrom(b.id, g, 5) - xpFrom(a.id, g, 5))[0];
+  makeTransfer(g, o, n.id); S.mode = "safe"; saveSandbox();
+  S.ptab = "drafts"; render();
+  document.querySelector("#draftName").value = nasty;
+  document.querySelector("[data-draftsave]").click();
+  if (window.__xss) out.push("a draft name ran as HTML");
+  if (!document.querySelector(".dr-on")) out.push("the saved draft matching the active plan isn't marked Active");
+  setPlan([], "custom"); S.mode = "balanced"; saveSandbox(); SB.prev = null; render();
+  const mk = document.querySelector('[data-draftload="0"]');
+  if (!mk || mk.textContent !== "Make active") out.push(`draft action reads "${mk?.textContent}", expected Make active`);
+  mk.click();
+  if (!SB.moves.some(x => x.in === n.id) || S.mode !== "safe") out.push("Make active didn't apply the draft and its strategy");
+  if (!myTeam().xi.concat(myTeam().bench).includes(n.id)) out.push("This week doesn't follow the activated draft");
+  if (typeof recTeam === "function" && !(n.id in recTeam().mult) && myTeam().xi.includes(n.id)) out.push("Rivals doesn't follow the activated draft");
+  setView("week"); if (!document.querySelector("#app").innerText.includes(P[n.id].name)) out.push("This week page doesn't show the activated draft's signing");
+  setView("planner");
+  if (!document.querySelector(".pe-active [data-undoplan]")) out.push("no Undo next to the active plan after Make active");
+  document.querySelector(".pe-active [data-undoplan]").click();
+  if (SB.moves.length || S.mode !== "balanced") out.push("Undo after Make active didn't restore the previous plan and strategy");
+  if (myTeam().xi.concat(myTeam().bench).includes(n.id)) out.push("This week still shows the draft after Undo");
+  if (typeof recTeam === "function" && n.id in recTeam().mult) out.push("Rivals still uses the draft after Undo");
+  // 4. Suggested says it's a preview; browsing changes nothing
+  const keep = JSON.stringify(completePlan());
+  S.pview = "suggest"; render();
+  document.querySelectorAll("[data-pvgw]").forEach(b => b.click());
+  document.querySelectorAll("[data-pstrat]").forEach(b => b.click());
+  if (JSON.stringify(completePlan()) !== keep) out.push("browsing Suggested changed the plan");
+  if (!/Previewing|active plan/.test(document.querySelector("#pvpanel").innerText)) out.push("Suggested doesn't say whether it's a preview or the active plan");
+  if (!document.querySelector("[data-pvuse]")?.textContent.includes("active")) out.push("Suggested's action doesn't say it makes the plan active");
+  window.__flow = { draft: n.id, name: nasty };
+  return out;
+}"""
+
+
+def check_planner_flows(browser, url):
+    ctx = browser.new_context(service_workers="block")
+    page = ctx.new_page()
+    errs = []
+    page.on("pageerror", lambda e: errs.append(f"planner flows uncaught: {e}"))
+    page.goto(f"{url}#planner")
+    page.wait_for_selector(".view-planner", timeout=20000)
+    try:
+        out = page.evaluate(PLANNER_FLOWS)
+        # the activated-then-undone plan and the saved draft both survive a reload
+        state = page.evaluate("() => ({ moves: JSON.stringify(SB.moves), mode: S.mode, drafts: getDrafts().map(d => d.name) })")
+        page.reload()
+        page.wait_for_selector(".view-planner", timeout=20000)
+        after = page.evaluate("() => ({ moves: JSON.stringify(SB.moves), mode: S.mode, drafts: getDrafts().map(d => d.name) })")
+        if after != state:
+            out.append(f"reload lost the plan or drafts: {state} -> {after}")
+        page.evaluate("() => { S.pview = 'edit'; S.ptab = 'drafts'; setView('planner'); }")
+        if page.evaluate("() => !!window.__xss"):
+            out.append("a draft name ran as HTML after reload")
+        page.evaluate("() => { setDrafts([]); setPlan([], 'custom'); }")
+    except Exception as e:
+        out = [f"planner flows check crashed: {e}"]
+    ctx.close()
+    return out + errs
+
+
 def main():
     missing = [f for f in ("data.json", "data-extra.json") if not (SITE / f).exists()]
     if missing:
@@ -977,6 +1094,9 @@ def main():
         got = check_lineup(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "lineup styles")
+        got = check_planner_flows(browser, url)
+        failures += got
+        print(("✗ " if got else "✓ ") + "planner flows")
         got = check_tpaths(browser, url)
         failures += got
         print(("✗ " if got else "✓ ") + "transfer paths")

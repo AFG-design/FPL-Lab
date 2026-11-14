@@ -1001,3 +1001,80 @@ tr.is-rival td { background: var(--accent-soft); }
 .sch-out { font-weight: 700; color: var(--bad); }
 .lu-kits .pitch .sch-out { color: var(--on-turf-bad); }
 .lu-np .lu-kit { min-height: 30px; }
+
+/* ---------- Planner: Your plan, Suggested, Captains, Replace, Drafts (planner redesign) ---------- */
+
+/* which plan is active (and Undo), on every Planner tab that can change it */
+.pe-active { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: 0; padding: 9px 12px; font-size: var(--fs-sm); color: var(--fg); background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.pe-active .lbl, .pe-k dt, .capwk-alts .lbl { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--muted); }
+
+/* the selected week in one compact block, then the settings fold */
+.pe-head { display: grid; gap: 10px; padding: 12px 14px; }
+.pe-sum { display: grid; grid-template-columns: repeat(4, minmax(0, auto)); justify-content: space-between; gap: 8px 16px; margin: 0; }
+.pe-k { display: grid; gap: 1px; align-content: start; min-width: 0; }
+.pe-k dd { margin: 0; }
+.pe-k dd:not(.pe-s) { font-family: var(--display); font-size: 26px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.pe-k dd.up { color: var(--good); }
+.pe-k dd.down { color: var(--bad); }
+.pe-s, .rp-g .pe-s { font-size: var(--fs-xs); color: var(--muted); }
+.pe-set { margin: 0; border-top: 1px solid var(--line); padding-top: 8px; }
+.pe-set > summary, .pe-fold > summary { color: var(--fg); font-weight: 600; padding: 4px 0; }
+.pe-cur { margin-left: 6px; font-weight: 500; color: var(--muted); }
+.pe-set-body { display: grid; gap: 10px; padding-top: 10px; }
+.pe-cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; font-size: var(--fs-sm); }
+.pe-cap .linkish { margin-left: auto; color: var(--accent-text); font-weight: 600; }
+.pe-fold { margin: 0; }
+.pe-fold .note { margin: 6px 0 0; }
+.pe-weeks { padding: 12px 14px; }
+.pe-weeks .tablebox { margin-top: 10px; }
+
+@media (max-width: 760px) {
+  .pe-sum { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
+  .pe-gain { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+  .pe-k dd:not(.pe-s) { font-size: 22px; }
+  .pe-k:not(.pe-gain) .pe-s:not(.pe-ft) { display: none; }
+}
+
+/* replace a player: the list and the preview of the chosen candidate */
+@media (min-width: 1001px) { .candlist { max-height: 560px; overflow: auto; overscroll-behavior: contain; } }
+.cand.on { background: var(--accent-soft); }
+.rp { display: grid; gap: 10px; margin: 6px 0 12px; padding: 12px; background: var(--surface); border: 1.5px solid var(--accent-text); border-radius: var(--r-sm); }
+.rp-h { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; align-items: baseline; }
+.rp-base, .rp-val { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.rp-g { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 0; }
+.rp-g > div { display: grid; gap: 1px; min-width: 0; }
+.rp-g dt { font-size: var(--fs-xs); font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+.rp-g dd { margin: 0; }
+.rp-g dd:not(.pe-s) { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1.1; }
+.rp-g dd.up { color: var(--good); }
+.rp-g dd.down { color: var(--bad); }
+
+/* captain planner: one card a gameweek */
+.capwks { display: grid; gap: 10px; }
+.capwk { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); }
+.capwk.mine { border-color: var(--accent-text); }
+.capwk-h, .capwk-c { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 10px; }
+.capwk-h h4 { margin: 0; font-size: var(--fs-lg); }
+.capwk-m { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.capwk-alts { display: grid; gap: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+.capwk .capalt { flex-wrap: wrap; font-size: var(--fs-sm); }
+.capwk .capalt > span { min-width: 0; flex: 1 1 160px; }
+.capwk > .btn { justify-self: start; }
+
+/* Suggested: moves first on phones, squad back on the left from 1001px */
+.pv-lead { margin: 0 0 4px; font-weight: 650; }
+.pv-cons { list-style: none; margin: 10px 0 0; padding: 10px 0 0; border-top: 1px solid var(--line); display: grid; gap: 4px; font-size: var(--fs-sm); }
+.pv-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.sg-whyd { margin: 0; }
+.sg-whyd .sg-why { margin-top: 6px; }
+
+@media (min-width: 1001px) {
+  .pv-sugg > .pv-team { grid-column: 1; grid-row: 1; }
+  .pv-sugg > .pv-side { grid-column: 2; grid-row: 1; }
+}
+
+/* drafts: which one is active, and its actions */
+.dr-sub { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.dr-on { font-size: var(--fs-xs); font-weight: 650; color: var(--accent-text); }
+.dr-acts { white-space: nowrap; }
+.rp-warn { margin: 0; padding: 6px 10px; font-size: var(--fs-xs); color: var(--fg); background: var(--sunk); border-left: 3px solid var(--warn); border-radius: 0 var(--r-sm) var(--r-sm) 0; }

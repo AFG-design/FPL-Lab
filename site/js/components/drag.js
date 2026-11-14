@@ -19,7 +19,7 @@ function makeTransfer(g, out, inn) {
     if (same) { same.in = inn; if (same.in === same.out) SB.moves = SB.moves.filter(m => m !== same); }  // swap a signing made this week: still one transfer
     else { SB.moves = SB.moves.filter(m => !(m.gw >= g && m.out === out)); SB.moves.push({ gw: g, out, in: inn }); }
   });
-  SB.sel = null;
+  SB.sel = null; SB.pick = null;
 }
 function canBuy(g, out, inn) {
   const po = P[out], pi = P[inn], sq = squadAt(g);
