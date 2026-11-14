@@ -242,7 +242,7 @@ function vCurrent() {
   const hero = `<section class="hero compact" aria-label="GW${cg} so far">
     <p class="eyebrow">GW${cg} · ${phase === "live" ? `<em><span class="live-dot" aria-hidden="true"></span>${phaseTxt}</em>` : phaseTxt} · Your submitted squad · updated ${hm(D.meta.built)}</p>
     <h1><span class="gw-score">${gross}</span> ${provisional ? "provisional points" : "points"}</h1>
-    <p class="hero-why">${scoreContext}</p><p class="dc-sub">${progress}</p><div class="hero-acts">${acts}</div></section>`;
+    <p class="hero-why">${scoreContext}</p><p class="hero-why">${progress}</p><div class="hero-acts">${acts}</div></section>`;
 
   const hc = D.history.find(h => h.gw === cg), hp = D.history.find(h => h.gw === cg - 1);
   let rankTile;
