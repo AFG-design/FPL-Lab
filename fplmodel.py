@@ -27,10 +27,12 @@ DEFAULTS = {
                            # season's 1-GW picks (CI below 0). Better this season at 4 origins: re-check about GW20.
     "w_pos": 450.0,        # pseudo-minutes of positional average
     "w_last": 600.0,       # pseudo-minutes of last-season rate
-    "cred_recency": None,  # how much this season counts against the priors: his minutes weighted by this per GW back.
+    "cred_recency": 0.9,   # how much this season counts against the priors: his minutes weighted by this per GW back.
                            # None = old behaviour (the recency-weighted minutes, which never pass ~450 at recency 0.8,
                            # so this season is capped at ~30% of a rate). recency still sets WHICH games count.
-    "cred_parts": None,    # rates cred_recency applies to, e.g. ["xg", "dc"]; None = every rate. The others keep the cap
+                           # 0.9 for xG and DC: Adopt as Marginal (14 Nov 2026, model log); re-check at GW20 and
+                           # season end, revert (None) if the pooled 5-GW gain has gone.
+    "cred_parts": ["xg", "dc"],   # rates cred_recency applies to; None = every rate (tested: worse for bonus, saves)
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
