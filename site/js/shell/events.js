@@ -8,6 +8,7 @@ function flashMove(g, inId) {
 function bind() {
   document.querySelectorAll("[data-decision]").forEach(b => b.onclick = () => openDecision(b.dataset.decision, +b.dataset.keep));
   const on = (sel, fn, ev = "onclick") => document.querySelectorAll(sel).forEach(el => el[ev] = () => fn(el));
+  on("[data-rivalry-remove]", () => { rivalryPin(null); render(); toast("Current GW pin removed."); });
   on("[data-p]", b => openPlayer(+b.dataset.p));
   // FL-156: a name in the Players table opens details beside the table on wide screens (the sheet otherwise); the
   // table keeps its scroll position and the row stays selected; closing returns focus to the name
@@ -225,11 +226,16 @@ function bindRivals() {
   });
   const ls = $("#leagueSel"); if (ls) ls.onchange = e => { store.set("fpl.league", +e.target.value); S.rival = null; S.hgw = null; if (S.ltab === "h2h") S.ltab = "standings"; render(); refocus("#leagueSel"); };
   on("[data-rvh2h]", b => { S.rival = +b.dataset.rvh2h || null; S.ltab = "h2h"; render(); window.scrollTo({ top: 0 }); refocus("#h2h-h"); });
+  on("[data-rivalry-rival]", b => { const [lg, entry] = b.dataset.rivalryRival.split(":").map(Number); rivalryPin("rival", lg, entry); render(); toast("Rival pinned to Current GW."); });
+  on("[data-rivalry-league]", b => { rivalryPin("league", +b.dataset.rivalryLeague); render(); toast("League pinned to Current GW."); });
   on("[data-rvpin]", b => {
     const lg = rvLeague(D.crowd?.leagues || []).lg; if (!lg) return;
     const pins = rvPins(), v = +b.dataset.rvpin, was = pins[lg.id];
     if (v) pins[lg.id] = v; else delete pins[lg.id];
-    store.set("fpl.rivalPins", pins); render(); refocus("[data-rvpin]");
+    store.set("fpl.rivalPins", pins);
+    if (v) rivalryPin("rival", lg.id, v);
+    else if (store.get(rivalryKey())?.entry === was) rivalryPin(null);
+    render(); refocus("[data-rvpin]");
     const nm = id => lg.rows.find(r => r.entry === id)?.player || "that manager";
     toast(v ? `${nm(v)} is your pinned rival in ${lg.name}${was && was !== v ? `, instead of ${nm(was)}` : ""}.` : `${nm(was)} is unpinned. The closest manager on points leads instead.`);
   });

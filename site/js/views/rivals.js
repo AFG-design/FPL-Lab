@@ -72,7 +72,7 @@ function vLeague(C, lg, note) {
   if (!lg) return stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." });
   const sub = S.ltab === "honours" ? "honours" : "standings";
   const inner = S.ltab === "honours" ? vHonours(C, lg) : S.ltab === "h2h" ? vH2H(C, lg) : vStandings(C, lg);
-  return `${tabsHtml(LT_TABS, sub, { label: "My league", idp: "lttab", data: "ltab", panel: "ltpanel" })}
+  return `<div class="acts"><button class="btn sm" data-rivalry-league="${lg.id}">Pin this league to Current GW</button><button class="btn sm" data-rivalry-remove="1">Remove Current GW pin</button></div>${tabsHtml(LT_TABS, sub, { label: "My league", idp: "lttab", data: "ltab", panel: "ltpanel" })}
     <div id="ltpanel" role="tabpanel" aria-labelledby="lttab-${sub}" class="rv-body">${note ? `<p class="note rv-flag">${note}</p>` : ""}${inner}</div>`;
 }
 
@@ -225,7 +225,7 @@ function vH2H(C, lg) {
       <p>Your planned GW${g ?? ""} team${t ? ` (active plan: ${esc(planName())})` : ""} against ${fn}'s public GW${C.gw} team.</p>
       <div class="rv-pair"><div><span>Projected advantage</span><b class="${c && c.swing < 0 ? "down" : ""}">${c ? `${sgn(c.swing)} pts` : "–"}</b></div><div><span>Shared players</span><b>${c ? `${c.shared} / 15` : "–"}</b></div></div></section>
     <section class="panel"><h3 class="rv-h">Rival details</h3><dl class="rv-dl">${dl.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>
-      <div class="rv-acts">${pinned ? `<button type="button" class="btn sm" data-rvpin="0">Unpin ${fn}</button>` : `<button type="button" class="btn primary sm" data-rvpin="${rv.entry}">${other ? `Pin ${fn} instead of ${esc(firstName(other, lg.rows))}` : `Pin ${fn} as your rival`}</button>`}
+      <div class="rv-acts"><button class="btn sm" data-rivalry-rival="${lg.id}:${rv.entry}">Pin rival to Current GW</button>${pinned ? `<button type="button" class="btn sm" data-rvpin="0">Unpin ${fn}</button>` : `<button type="button" class="btn primary sm" data-rvpin="${rv.entry}">${other ? `Pin ${fn} instead of ${esc(firstName(other, lg.rows))}` : `Pin ${fn} as your rival`}</button>`}
       <button type="button" class="btn ghost sm" data-ltab="standings">Choose another manager</button></div></section>
     ${lists}
     ${c ? `<p class="note">Based on ${fn}'s GW${C.gw} team, the latest FPL shows. Changes before the deadline appear afterwards.</p>` : ""}
@@ -466,3 +466,42 @@ function eliteGapPanel(C) {
       <p class="note">Hits: ${TK.hits != null ? `the top 10k took ${TK.hits.toFixed(2)} points of hits per manager on average` : "not in this sample"}; FPL doesn't publish a figure for everyone.</p></details></div>`;
 }
 const T_TEAM = i => (T[P[i]?.team]?.short || "");   // club short name (global T: teams)
+
+// One Current GW pin per manager on this device, using the same preference store as Rivals.
+const rivalryKey = () => `fpl.currentRivalry.${D.meta.team_id}`;
+function rivalryPin(kind, league, entry = null) { store.set(rivalryKey(), kind ? { kind, league, entry } : null); }
+function rivalrySummary() {
+  const pin = store.get(rivalryKey()); if (!pin) return "";
+  const C = D.crowd, L = D.live, lg = C?.leagues?.find(l => l.id === pin.league), me = lg?.rows.find(r => r.me);
+  const actions = '<div class="acts"><button class="btn sm" data-v-go="rivals">Change pin in Rivals</button><button class="btn sm" data-rivalry-remove="1">Remove pin</button></div>';
+  const wrap = body => `<section class="panel"><h2>Pinned rivalry${lg ? ` · ${esc(lg.name)}` : ""}</h2>${body}${actions}</section>`;
+  // Wrong-GW, missing scores and missing neighbours never become a fabricated zero or a replacement rival.
+  if (!lg || !me || C.gw !== D.meta.cur_gw) return wrap('<p>Rivalry data is unavailable for the current gameweek. Your pin is kept.</p>');
+  if (pin.kind === "league") {
+    const above = lg.rows.filter(r => r.rank != null && (r.rank === me.rank - 1 || (lg.rows.length >= lg.size && r.rank < me.rank))).sort((a, b) => b.rank - a.rank)[0];
+    const other = me.rank === 1 ? lg.rows.find(r => !r.me && r.rank === 1) || lg.rows.find(r => r.rank === 2) : above;
+    const gap = me.total != null && other?.total != null ? me.total - other.total : null;
+    return wrap(`<p><b>${me.rank ? ordn(me.rank) : "Position unavailable"} of ${lg.size}</b> · overall standings.</p><p>${gap == null ? "Gap unavailable: the neighbouring place isn't in the sample." : gap === 0 ? "Level on overall points with " + esc(other.player) + "." : me.rank === 1 ? `${ptsW(gap)} ahead of second place.` : `${ptsW(-gap)} behind ${esc(other.player)} in ${ordn(other.rank)}.`}</p><p class="note">Official overall standings from FPL · updated ${ukStamp(D.meta.built)}. ${C.in_play ? "May lag provisional gameweek scores." : "Final gameweek scores."}</p>`);
+  }
+  const rival = lg.rows.find(r => r.entry === pin.entry);
+  if (!rival) return wrap('<p>Your pinned rival is unavailable in this update. Your pin is kept.</p>');
+  const sc = rvScores(C), a = sc.gwOf(me), b = sc.gwOf(rival), ah = sc.hitOf(me), bh = sc.hitOf(rival);
+  const gap = a != null && b != null && ah != null && bh != null ? a - ah - b + bh : null;
+  const lead = gap == null ? "Gameweek gap unavailable." : gap === 0 ? "Level on gameweek points." : gap > 0 ? `You lead ${esc(rival.player)} by ${ptsW(gap)}.` : `${esc(rival.player)} leads by ${ptsW(-gap)}.`;
+  let stake = "Players still to play are unavailable.";
+  if (!C.in_play || D.meta.cur_finished) stake = "Gameweek finished: no players still to play.";
+  else if (L?.gw === C.gw && L.fixtures && rival.picks && sc.ls) {
+    const theirs = Object.fromEntries(rival.picks), mine = Object.fromEntries(sc.ls.xi.map(r => [r.id, sc.ls.mult(r)]));
+    for (const [out, inn] of rival.live_subs || []) { theirs[out] = 0; theirs[inn] = 1; }
+    const pending = id => P[id] ? rowMatch({ team: P[id].team, mins: 0 }, L).left > 0 : null;
+    const ids = [...new Set([...Object.keys(mine), ...Object.keys(theirs)])];
+    const known = ids.filter(i => (mine[i] || theirs[i]) && pending(i) === null);
+    const left = mult => Object.keys(mult).filter(i => mult[i] > 0 && pending(i)).length;
+    const diff = ids.filter(i => pending(i) && (mine[i] || 0) !== (theirs[i] || 0)).sort((a, b) => Math.abs((mine[b] || 0) - (theirs[b] || 0)) - Math.abs((mine[a] || 0) - (theirs[a] || 0)))[0];
+    stake = known.length ? "Some player fixtures are missing; remaining-player counts unavailable." : `Players with matches remaining (including doubles): you ${left(mine)}, ${esc(rival.player)} ${left(theirs)}.`;
+    if (diff) stake += ` ${esc(P[diff].name)} could change the gap: you ×${mine[diff] || 0}, rival ×${theirs[diff] || 0}.`;
+    else if (!known.length) stake += " No scoring differences among the remaining players.";
+    stake += " Rival multipliers use submitted captaincy; a later vice-captain change may alter the contest.";
+  }
+  return wrap(`<p class="verdict">${lead}</p><p>GW${C.gw} gap after hits · ${C.in_play ? "provisional" : "final"}.</p><p>${stake}</p>${rvStale(sc.phase) ? `<p class="note">${rvStale(sc.phase)}</p>` : ""}`);
+}
