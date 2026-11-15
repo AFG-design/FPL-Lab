@@ -16,23 +16,41 @@ function decisionAlternative() {
 function decisionMoves(d) {
   return d.moves.filter(m => PG.includes(m.gw)).map(m => `<li>GW${m.gw}: ${esc(P[m.out]?.name)} → ${esc(P[m.in]?.name)}</li>`).join("") || "<li>No transfers across this horizon.</li>";
 }
-async function openDecision() {
+async function openDecision(kind = "roll", keep = null) {
   if (!PG.length || SOLVE.busy) return;
   const a = { ...completePlan(), name: "Suggested route" };
-  if (!a.moves.some(m => m.gw === PG[0])) {
+  if (kind === "roll" && !a.moves.some(m => m.gw === PG[0])) {
     const alternative = decisionAlternative();
     if (!alternative) return;
     Object.assign(a, alternative);
   }
-  const state = DECISION = { a, b: null, title: "Compare with saving the transfer", scope: sbKey(), built: D.meta.built, horizon: PG.join(), busy: true };
+  const state = DECISION = { a, b: null, title: kind === "captain" ? "Compare my captain" : kind === "keep" ? `What if I keep ${P[keep]?.name}?` : "Compare with saving the transfer", kind, keep, scope: sbKey(), built: D.meta.built, horizon: PG.join(), busy: true };
+  if (kind === "captain") {
+    const sc = decisionScore(a), w = sc.weeks[0];
+    a.name = `Captain ${P[w.team.cap].name}`;
+    state.original = completePlan(a); state.xi = w.team.xi.slice(); state.cap = w.team.cap;
+    state.busy = false; setDecisionCaptain(w.team.xi.filter(i => i !== w.team.cap).sort((a, b) => xpg(b, PG[0]) - xpg(a, PG[0]))[0]); return;
+  }
   drawDecision(); SOLVE.busy = true;
   try {
     if (["wildcard", "freehit"].includes(chipAt(PG[0], a.chips))) throw new Error("A Wildcard or Free Hit is pinned this week. Remove that pin in the Planner before comparing a saved transfer.");
-    const result = await optimiseMoves(a.mode, { rules: { locked: [], banned: [], maxHits: SB.rules.maxHits }, chips: a.chips, week1Moves: 0 });
-    state.b = { ...completePlan({ ...result, chips: a.chips, ov: {}, mode: a.mode }), name: "Save the transfer" };
-    if (state.b.moves.some(m => m.gw === PG[0]) || !decisionValid(state.b)) throw new Error("No legal saving route could be evaluated with this data.");
+    const rules = { locked: kind === "keep" ? [...new Set([...SB.rules.locked, keep])] : [], banned: kind === "keep" ? SB.rules.banned.filter(i => i !== keep) : [], maxHits: SB.rules.maxHits };
+    const result = await optimiseMoves(a.mode, { rules, chips: a.chips, week1Moves: kind === "roll" ? 0 : null });
+    state.b = { ...completePlan({ ...result, chips: a.chips, ov: {}, mode: a.mode }), name: kind === "keep" ? `Keep ${P[keep].name}` : "Save the transfer" };
+    if ((kind === "roll" && state.b.moves.some(m => m.gw === PG[0])) || (kind === "keep" && state.b.moves.some(m => m.out === keep)) || !decisionValid(state.b)) throw new Error("No legal saving route could be evaluated with this data.");
   } catch (e) { state.error = e.message; }
   finally { SOLVE.busy = false; state.busy = false; if (DECISION === state && $("#dlg").open) drawDecision(); }
+}
+function setDecisionCaptain(id) {
+  const d = DECISION, g = PG[0]; if (!d.xi.includes(id)) return;
+  const sc = decisionScore(d.original), w = sc.weeks[0];
+  // Freeze every XI and captain, then change exactly one armband. TC adds two copies, otherwise one.
+  const fixed = completePlan(d.original);
+  fixed.ov = Object.fromEntries(sc.weeks.map(w => [w.gw, { start: w.team.xi.slice(), bench: w.team.bench.slice(), order: w.team.bench.slice(), cap: w.team.cap, vice: w.team.vice }]));
+  d.a = { ...completePlan(fixed), name: `Captain ${P[d.cap].name}` };
+  d.b = { ...completePlan(fixed), name: `Captain ${P[id].name}` };
+  d.b.ov[g].cap = id; d.b.ov[g].vice = id === w.team.vice ? d.cap : w.team.vice;
+  d.selected = id; drawDecision();
 }
 function drawDecision() {
   const d = DECISION, g = PG[0], stale = d.scope !== sbKey() || d.built !== D.meta.built || d.horizon !== PG.join();
@@ -45,10 +63,12 @@ function drawDecision() {
     <div class="acts"><button class="btn" data-decision-save="${k}" ${getDrafts().length >= 3 || !decisionValid(p) ? "disabled" : ""}>Save as an alternative</button><button class="btn primary" data-decision-use="${k}" ${!decisionValid(p) ? "disabled" : ""}>Make this my active plan</button></div></section>`;
   $("#dlgBody").innerHTML = `<button class="x" id="decisionClose" aria-label="Close comparison">×</button><h2 id="decisionTitle">${esc(d.title)}</h2>
     <p>From your current squad · GW${g}–${PG.at(-1)} (${PG.length} weeks). Previewing preserves your active plan.</p>
-    ${stale ? '<p role="status">Data or planning weeks changed. Close and reopen this comparison to recalculate.</p>' : d.busy ? '<p role="status">Finding a legal route…</p>' : d.error ? `<p role="alert">${esc(d.error)}</p>` : scores ? `<p class="verdict">${esc(d.a.name)}: <b>${sgn(diff)} projected points</b> versus ${esc(d.b.name)} over ${PG.length} weeks, after hits. ${vPill(verdict(Math.abs(value)))}</p><p class="note">Confidence includes ${f1(ftValue())} assumed points per free transfer left at the end (${scores[0].ftLeft} vs ${scores[1].ftLeft}). Later moves shown below are assumptions, not commitments.</p><div class="grid2">${card(d.a, scores[0], "a")}${card(d.b, scores[1], "b")}</div>` : ""}
+    ${d.kind === "keep" ? `<p class="note">Assumption: keep ${esc(P[d.keep]?.name)} throughout these ${PG.length} weeks. Other legal transfers may be chosen.</p>` : d.kind === "captain" ? `<div class="filters"><label for="decisionCaptain">Alternative captain</label><select class="sel" id="decisionCaptain">${d.xi.filter(i => i !== d.cap).map(i => `<option value="${i}" ${i === d.selected ? "selected" : ""}>${esc(P[i].name)}</option>`).join("")}</select></div><p class="note">Same lineup, transfers and chip in both routes. Only GW${g} captaincy changes (vice swaps if needed).</p>` : `<p class="note">Saving means zero transfers in GW${g}; later weeks may include moves.</p>`}
+    ${stale ? '<p role="status">Data or planning weeks changed. Close and reopen this comparison to recalculate.</p>' : d.busy ? '<p role="status">Finding a legal route…</p>' : d.error ? `<p role="alert">${esc(d.error)}</p>` : scores ? `<p class="verdict">${esc(d.a.name)}: <b>${sgn(diff)} projected points</b> versus ${esc(d.b.name)} over ${PG.length} weeks, after hits. ${vPill(d.kind === "captain" ? verdict(Math.abs(diff), ...CUT_WEEK) : verdict(Math.abs(value)))}</p><p class="note">${d.kind === "captain" ? `Confidence uses the existing captain scale for GW${g}; later weeks are identical.` : `Confidence includes ${f1(ftValue())} assumed points per free transfer left at the end (${scores[0].ftLeft} vs ${scores[1].ftLeft}). Later moves shown below are assumptions, not commitments.`}</p><div class="grid2">${card(d.a, scores[0], "a")}${card(d.b, scores[1], "b")}</div>` : ""}
     ${getDrafts().length >= 3 ? '<p class="note">Three alternatives saved. Delete one in Planner → Drafts to save another.</p>' : ""}`;
   const dlg = $("#dlg"); dlg.setAttribute("aria-labelledby", "decisionTitle"); if (!dlg.open) dlg.showModal();
   $("#decisionClose").onclick = () => dlg.close();
+  if ($("#decisionCaptain")) $("#decisionCaptain").onchange = e => setDecisionCaptain(+e.target.value);
   document.querySelectorAll("[data-decision-use], [data-decision-save]").forEach(b => b.onclick = () => {
     if (stale || d.built !== D.meta.built || d.scope !== sbKey()) return;
     const p = d[b.dataset.decisionUse || b.dataset.decisionSave]; if (!decisionValid(p)) return;

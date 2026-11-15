@@ -110,7 +110,7 @@ function vNext() {
     `Roll this week to start GW${g + 1} with ${w0.next} free transfer${w0.next === 1 ? "" : "s"}.`;
   const tBody = `<p class="dc-do">${n || g < 38 ? summary : "No transfers planned for the final gameweek."}</p>
     ${n ? `<ul class="dc-moves">${moves0.map(m => `<li><span class="out"><span class="sr">Out: </span>${esc(P[m.out].name)}</span>
-      <span class="arr" aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)}</span></li>`).join("")}</ul>` : ""}
+      <span class="arr" aria-hidden="true">→</span><span class="in"><span class="sr">In: </span>${esc(P[m.in].name)}</span><button class="btn sm" style="grid-column:1/-1" data-decision="keep" data-keep="${m.out}" aria-label="What if I keep ${esc(P[m.out].name)}?">What if I keep him?</button></li>`).join("")}</ul>` : ""}
     <details><summary>How this was calculated</summary>
       ${n ? mvList : ""}
       <dl class="dc-nums">
@@ -129,7 +129,7 @@ function vNext() {
       <span class="dcc-n">${j ? '<span class="dcc-alt">Alt</span>' : '<span class="badge inline" aria-label="Captain">C</span>'}${esc(P[i].name)}<span class="muted dcc-fx">${fxText(P[i], g)}</span></span>
       <span class="dcc-bar"><i style="width:${(xpg(i, g) / cmax * 100).toFixed(0)}%"></i></span><b>${f1(xpg(i, g) * 2)}</b></button>`).join("")}</div>
     <p class="dc-sub">Projected captain points for GW${g} (xP × 2).${me.capMine ? ` Your choice; the model's pick is ${esc(P[capPick(me.xi, g).cap].name)}.` : ""} Vice: ${esc(P[me.vice].name)}.${c.capEO != null ? ` ${c.capEO.toFixed(0)}% of ${c.capSample.label} captained ${esc(P[me.cap].name)} in GW${c.capSample.gw}.` : " Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."}</p>`;
-  const cAct = `<button class="btn primary sm" data-plgo="edit:captains">Compare captains →</button>`;
+  const cAct = `<button class="btn sm" data-decision="captain">Compare my captain</button><button class="btn primary sm" data-plgo="edit:captains">Compare captains →</button>`;
 
   // lineup
   const lTxt = c.starts.length || c.benches.length
