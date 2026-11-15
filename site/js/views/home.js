@@ -46,7 +46,7 @@ function vHome() {
   const hint = v === "next" && gwInProgress() ? `<span class="home-hint"><span class="live-dot" aria-hidden="true"></span>GW${cg} is under way: its points are in Current GW.</span>`
     : v === "current" && ng ? `<span class="home-hint">Plan changes apply to the GW${ng} deadline.</span>` : "";
   let body;
-  try { body = v === "current" ? vCurrent() : seasonOver() ? seasonOverView("plan") : vNext(); } catch (e) {
+  try { body = v === "current" ? rivalrySummary() + vCurrent() : seasonOver() ? seasonOverView("plan") : vNext(); } catch (e) {
     console.error(e);
     body = stateView({ kind: "error", title: "This view couldn't be drawn", body: "Something in the latest data didn't match what this page expects. The other view should still work." });
   }
