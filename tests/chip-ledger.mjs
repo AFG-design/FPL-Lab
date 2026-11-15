@@ -46,6 +46,6 @@ test('use-now card is projected, picks the best week, and says Free Hit is not p
 test('chip cards split by the GW20 divider', () => {
   const ctx = setup(D);
   ctx.chipNowVsBest = () => ''; ctx.chipLedger = () => '';
-  const html = vm.runInContext('vChips()', ctx);
+  const html = vm.runInContext('benchBoostCompare = () => ""; vChips()', ctx);
   assert.match(html, /Triple Captain[\s\S]*Chips renew at GW20[\s\S]*GW20–38/);
 });
