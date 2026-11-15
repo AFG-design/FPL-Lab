@@ -42,6 +42,7 @@ function bind() {
     render();
   });
   on("[data-sync]", () => openSync());
+  on("[data-bbweek]", b => { BB_COMPARE[b.dataset.bbweek] = +b.value; render(); document.querySelector(`[data-bbweek="${b.dataset.bbweek}"]`)?.focus(); }, "onchange");
   on("[data-replan]", () => runReplan());
   on("[data-setcap]", b => { const [g, id] = b.dataset.setcap.split(":").map(Number); setOv(g, o => { o.cap = id || null; }); render(); });
   on("[data-horizon]", b => { setHorizon(+b.dataset.horizon); render(); });

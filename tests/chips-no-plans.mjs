@@ -12,7 +12,7 @@ function render(gwInfo, { doubles=false, used=false }={}) {
     season_gws:[{gw:12,doubles:doubles?['ARS']:[],blanks:[]}]};
   const ctx=vm.createContext({D,P:{1:{name:'Salah'},2:{name:'Haaland'}},esc:String,f1:n=>n.toFixed(1)});
   vm.runInContext(source,ctx);
-  return vm.runInContext('vChips()',ctx);
+  return vm.runInContext('benchBoostCompare = () => ""; vChips()',ctx);
 }
 for(const [name,info,options] of [
   ['empty projections',[],{}],['missing projections',undefined,{}],['null projections',null,{}],
