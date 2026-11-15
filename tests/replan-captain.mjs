@@ -54,3 +54,16 @@ for (const mode of ["balanced", "safe", "chase"]) {
     });
   }
 }
+
+for (const mode of ['balanced', 'safe', 'chase']) {
+  test(`${mode}: saving forbids moves only this week and preserves active plan`, async () => {
+    const run = planner();
+    run('D.manager.free_transfers = 5');
+    const before = run('JSON.stringify(SB)');
+    const result = await run(`optimiseMoves('${mode}', { week1Moves: 0 })`);
+    assert.ok(result.moves.every(m => m.gw !== 10));
+    assert.ok(result.moves.some(m => m.gw === 11), 'profitable later moves remain possible');
+    assert.equal(run('ftTable([])[0].next'), 5);
+    assert.equal(run('JSON.stringify(SB)'), before);
+  });
+}
