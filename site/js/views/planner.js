@@ -253,7 +253,7 @@ function draftsHTML() {
         <dl class="drcard-m">${metrics}</dl>
         <p class="drcard-mv"><b>GW${PG[0]} captain</b> ${esc(P[c.cap]?.name || "–")}</p>
         <p class="drcard-mv"><b>Moves</b> ${c.moves.length ? c.moves.map(m => `GW${m.gw} ${esc(P[m.out].name)} → ${esc(P[m.in].name)}`).join(" · ") : "None"}</p>
-        ${k ? `<div class="acts">${on ? '<span class="dr-on">This is your active plan</span>' : `<button class="btn primary" data-draftload="${k - 1}" aria-label="Make ${esc(d.name || "this draft")} your active plan (switches to ${esc(MODES[d.mode] || MODES[S.mode])})">Make active</button>`}<button class="btn" data-draftdel="${k - 1}" aria-label="Delete ${esc(d.name || "draft")}">Delete</button></div>` : SB.prev ? `<div class="acts"><button class="btn sm" data-undoplan="1">Undo last change</button></div>` : ""}
+        ${k ? `<div class="acts"><button class="btn" data-plan-review="${k - 1}">What changed?</button>${on ? '<span class="dr-on">This is your active plan</span>' : `<button class="btn primary" data-draftload="${k - 1}" aria-label="Make ${esc(d.name || "this draft")} your active plan (switches to ${esc(MODES[d.mode] || MODES[S.mode])})">Make active</button>`}<button class="btn" data-draftdel="${k - 1}" aria-label="Delete ${esc(d.name || "draft")}">Delete</button></div>` : SB.prev ? `<div class="acts"><button class="btn sm" data-undoplan="1">Undo last change</button></div>` : ""}
       </section>`;
     }).join("")}</div>`;
 }

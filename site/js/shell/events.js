@@ -62,9 +62,11 @@ function bind() {
     ds.push(tpStamp({ id: tpId(), name, ...completePlan(), saved: Date.now(), from: "Your plan" }));
     setDrafts(ds); render();
   });
+  on("[data-plan-review]", b => openPlanReview(+b.dataset.planReview));
+  on("[data-plan-reviewed]", b => { acknowledgePlanReview(b.dataset.planReviewed); render(); });
   on("[data-draftload]", b => {
     const d = getDrafts()[+b.dataset.draftload]; if (!d) return;
-    activatePlan(d, "custom", d.id || "i" + b.dataset.draftload); render();
+    activatePlan(d, "custom", d.id || "i" + b.dataset.draftload); render(); openPlanReview(+b.dataset.draftload);
     // the toast reads the name as text (textContent), so a saved name can't inject markup
     toast(`“${d.name || "Saved plan"}” is now your active plan, with its ${MODES[S.mode]} strategy. Undo is next to Active plan.`);
   });

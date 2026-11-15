@@ -49,9 +49,10 @@ const r1 = x => Math.round(x * 10) / 10;
 const tpGain = (r, hold) => r1(r1(r.sc.tot) - r1(hold.sc.tot));
 // a saved path's Net xP now, so a later forecast change can be shown against it; and what it relies on (tpDeps)
 function tpStamp(d) {
+  PLAN_REVIEWS.delete(planReviewKey(d));
   const moves = cleanMoves(d.moves.filter(m => P[m.in] && P[m.out] && GWS.includes(m.gw)));
   const sc = withDraft(d, () => scoreMoves(moves, d.solved || null));
-  return { ...d, net: r1(sc.tot), h: PG.length, built: D.meta.built, deps: tpDeps(moves, sc) };
+  return { ...d, net: r1(sc.tot), h: PG.length, built: D.meta.built, deps: tpDeps(moves, sc), review: planReviewSnapshot(d) };
 }
 // the players a path relies on (signings and captains), as they stood: [status, chance, club, {gw: matches}]
 function tpDeps(moves, sc) {
@@ -242,10 +243,7 @@ function tpStrip(r, g, rows) {
       ${!r.active && rows.some(x => x.kind === "active") ? `<button class="btn sm" data-tpover="${esc(r.key)}" title="Replace this path with your active plan">Save Your plan over it</button>` : ""}
       <button class="btn sm tp-del" data-tpdel="${esc(r.key)}">Delete</button></div>` : "";
   // plan expiry (D4): what changed for the players this saved path relies on, readable on a phone (not only a tooltip)
-  const ch = r.kind === "draft" && r.changes?.worse.length ? r.changes : null;
-  const review = ch ? `<div class="tp-review-box" role="status"><b>Review this path: things it relies on have changed since you saved it.</b>
-      <ul class="alerts">${ch.worse.map(t => `<li class="warn"><span>${esc(t)}</span></li>`).join("")}${ch.better.map(t => `<li class="info"><span>${esc(t)}</span></li>`).join("")}</ul>
-      <button class="btn sm" data-tpreviewed="${esc(r.key)}">Mark as reviewed</button></div>` : "";
+  const review = r.kind === "draft" ? planReviewHTML(r.d) : "";
   return `<section class="tp-strip" aria-label="${esc(r.name)}, GW${g}">${review}
     <div class="tp-strip-h"><button type="button" class="tp-x" data-tpclose="1" aria-expanded="true" aria-label="Close GW${g} details">▾</button><h3>GW${g} · ${esc(r.name)}</h3>
       <button class="linkish tp-edit" data-tpedit="${esc(r.key)}|${g}">${editTxt}</button></div>
@@ -423,4 +421,92 @@ function bindTpEdit() {
     render(); toast(`Back to “${e.d.name}” as saved. Undo is in Your moves.`);
   });
   on("[data-tpestop]", () => { tpEditing(null); render(); });
+}
+
+// Last-reviewed facts belong to one saved path. A review session retains its previous baseline through re-renders
+// and background refreshes. First open records only the snapshot actually shown; Mark as reviewed acknowledges a
+// newer refresh explicitly. Older drafts establish a baseline, never invent a past price or availability.
+const PLAN_REVIEWS = new Map();
+function planReviewSnapshot(d) {
+  const missing = [], moves = d.moves || [], chips = d.chips || {};
+  const bad = moves.filter(m => !P[m.in] || !P[m.out]);
+  if (D.squad.some(s => !P[s.id])) return { built: D.meta.built, missing: ['A squad player is missing from the data.'], weeks: [] };
+  if (bad.length) return { built: D.meta.built, missing: ['A planned player is missing from the data.'], weeks: [] };
+  const sc = withDraft(d, () => scoreMoves(moves, d.solved, chips));
+  const weeks = sc.weeks.map(w => {
+    const sqMissing = w.sq.some(i => !P[i] || !T[P[i].team]?.fx);
+    if (!Number.isFinite(w.bank)) missing.push(`GW${w.gw}: transfer budget unavailable.`);
+    if (sqMissing) { missing.push(`GW${w.gw}: squad or fixture data missing.`); return { gw: w.gw }; }
+    const players = Object.fromEntries(w.sq.map(i => {
+      const p = P[i];
+      return [i, { name: p.name, status: p.status ?? null, chance: p.chance ?? null,
+        starter: w.team.xi.includes(i), fixture: fxFor(p.team, w.gw).map(f => `${T[f.opp]?.short || f.opp} ${f.home ? '(H)' : '(A)'}`).sort().join(', ') || 'Blank' }];
+    }));
+    const forecastMissing = w.sq.some(i => P[i].xp?.[w.gw] == null && fxFor(P[i].team, w.gw).length);
+    if (forecastMissing) missing.push(`GW${w.gw}: captain recommendation unavailable because a projection is missing.`);
+    const cap = forecastMissing ? null : withDraft(d, () => bestXI(w.sq, w.gw, {}).cap);
+    return { gw: w.gw, bank: w.bank, players, cap, capName: P[cap]?.name,
+      moves: moves.filter(m => m.gw === w.gw).map(m => `${P[m.out].name} → ${P[m.in].name}`).join(', ') };
+  });
+  return { built: D.meta.built, missing, weeks };
+}
+function planReviewDiff(before, now) {
+  if (!before) return [];
+  const out = [], seen = new Set();
+  let budgetReported = false;
+  const add = s => { if (!seen.has(s)) { seen.add(s); out.push(s); } };
+  for (const w of now.weeks) {
+    const old = before.weeks?.find(x => x.gw === w.gw); if (!old) continue;
+    if (!budgetReported && old.bank != null && w.bank < 0 && old.bank >= 0) {
+      add(`GW${w.gw}: ${w.moves || 'the planned squad'} is now unaffordable. Bank ${money(old.bank)} → ${money(w.bank)}; short by ${money(-w.bank)}.`);
+      budgetReported = true;
+    }
+    for (const [id, p] of Object.entries(w.players || {})) {
+      const prev = old.players?.[id]; if (!prev) continue;
+      // Status/chance are official fields. Unknown chance is never silently converted into an injury diagnosis.
+      if ((prev.starter || p.starter) && prev.status != null && p.status != null && (p.status !== prev.status || p.chance !== prev.chance)) {
+        const status = s => ({a:'available',d:'doubtful',i:'injured',s:'suspended',u:'unavailable',n:'unavailable'}[s] || s);
+        const label = x => `${status(x.status)}${x.chance == null ? ' (chance not supplied)' : ` (${x.chance}% chance)`}`;
+        add(`${p.name}: ${label(prev)} → ${label(p)}; a starter in this plan.`);
+      }
+      if (p.fixture !== prev.fixture) add(`${p.name}, GW${w.gw}: ${prev.fixture} → ${p.fixture}.`);
+    }
+    if (old.cap != null && w.cap != null && old.cap !== w.cap) add(`GW${w.gw}: recommended captain ${old.capName} → ${w.capName}, from this plan's squad.`);
+  }
+  return out;
+}
+const planReviewKey = d => `${sbKey()}|${d.id || JSON.stringify([d.name, d.saved, d.moves])}`;
+function recordPlanReview(d, snapshot) {
+  const ds = getDrafts(), k = ds.findIndex(x => planReviewKey(x) === planReviewKey(d));
+  if (k < 0) return;
+  ds[k] = { ...ds[k], review: snapshot }; setDrafts(ds);
+}
+function planReviewHTML(d) {
+  const key = planReviewKey(d), now = planReviewSnapshot(d);
+  if (!PLAN_REVIEWS.has(key)) {
+    PLAN_REVIEWS.set(key, d.review || null);
+    // Incomplete data cannot replace a good reviewed baseline.
+    if (!now.missing.length) recordPlanReview(d, now);
+  }
+  const before = PLAN_REVIEWS.get(key), changes = planReviewDiff(before, now);
+  const age = Date.now() - Date.parse(now.built), stale = !Number.isFinite(age) || age > 2 * 60 * 60 * 1000;
+  const line = !before ? (now.missing.length ? 'First review: incomplete data; a baseline cannot yet be established.' : 'First review: baseline established from the available data; no earlier reviewed version to compare.') : now.missing.length || stale ? 'No further confirmed material changes; some data is missing or may be stale.' : 'No material changes since your last review.';
+  return `<div class="tp-review-box" role="status"><h3>What changed?</h3>${changes.length ? `<ul>${changes.map(s => `<li>${esc(s)}</li>`).join('')}</ul>` : `<p>${line}</p>`}
+    ${now.missing.length ? `<p class="note">${now.missing.map(esc).join(' ')} The previous baseline is kept.</p>` : ''}
+    ${stale ? `<p class="note">Data may be stale (snapshot ${esc(now.built || 'date unavailable')}); check the latest update before acting.</p>` : ''}
+    <button class="btn sm" data-plan-reviewed="${esc(key)}">Mark as reviewed</button></div>`;
+}
+function acknowledgePlanReview(key) {
+  const d = getDrafts().find(x => planReviewKey(x) === key); if (!d) return;
+  const now = planReviewSnapshot(d); if (now.missing.length) { toast('Missing data: your previous review baseline is kept.'); return; }
+  const ds = getDrafts(), k = ds.findIndex(x => planReviewKey(x) === key);
+  ds[k] = tpStamp(d); setDrafts(ds); PLAN_REVIEWS.set(key, now);
+}
+function openPlanReview(index) {
+  const d = getDrafts()[index]; if (!d) return;
+  const dlg = $('#dlg');
+  $('#dlgBody').innerHTML = `<button class="x" id="reviewClose" aria-label="Close review">×</button><h2 id="reviewTitle">${esc(d.name || 'Saved plan')}</h2>${planReviewHTML(d)}`;
+  dlg.setAttribute('aria-labelledby', 'reviewTitle'); if (!dlg.open) dlg.showModal();
+  $('#reviewClose').onclick = () => dlg.close();
+  $('[data-plan-reviewed]').onclick = b => { acknowledgePlanReview(b.currentTarget.dataset.planReviewed); openPlanReview(index); };
 }
