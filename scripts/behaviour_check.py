@@ -326,12 +326,13 @@ TPATHS = r"""async () => {
     const v = +gain.replace("−", "-").replace("±", "");
     if (Math.abs(v - (net - hold.sc.tot)) > 0.051) out.push(`row "${tr.querySelector(".tp-nm").textContent.trim()}": vs Hold ${gain} but Net ${net} − Hold ${hold.sc.tot.toFixed(1)}`);
   });
-  // selecting cells and rows never changes saved paths
-  const before = JSON.stringify(getDrafts());
+  // Opening a path may record review facts, but cannot edit any other saved field.
+  const withoutReview = () => JSON.stringify(getDrafts().map(({review, ...d}) => d));
+  const before = withoutReview();
   document.querySelector('[data-tpcell="d:paid|' + g2 + '"]').click();
   document.querySelector('[data-tprow="d:free"]').click();
   document.querySelector('[data-tpcell="hold|' + g + '"]').click();
-  if (JSON.stringify(getDrafts()) !== before) out.push("selecting cells changed the saved paths");
+  if (withoutReview() !== before) out.push("selecting cells changed the saved paths");
   if (!document.querySelector(".tp-strip")) out.push("selecting a cell didn't open the detail strip");
   // an invalid path can't be used
   const planBefore = JSON.stringify(SB.moves);
@@ -695,7 +696,7 @@ def check_plan_expiry(page):
       setDrafts([d]); TP.sel = "d:exp"; TP.gw = g; S.view = "planner"; S.pview = "compare"; render();
       out.pill = !!document.querySelector(".tp-review");
       out.box = document.querySelector(".tp-review-box")?.textContent || "";
-      document.querySelector("[data-tpreviewed]")?.click();
+      document.querySelector("[data-plan-reviewed]")?.click();
       out.cleared = !(tpChanges(getDrafts()[0])?.worse.length) && !document.querySelector(".tp-review");
       const old = { ...d }; delete old.deps;
       out.oldFlag = tpChanges(old);
@@ -710,7 +711,7 @@ def check_plan_expiry(page):
         fails.append(f"Plan expiry: {r['name']} going to 25% wasn't flagged ({r['worse']})")
     if not any(f"GW{r['g2']} now a blank" in w for w in r["worse"]):
         fails.append(f"Plan expiry: a new blank in GW{r['g2']} wasn't flagged ({r['worse']})")
-    if not r["pill"] or "Review this path" not in r["box"]:
+    if not r["pill"] or "What changed?" not in r["box"]:
         fails.append("Plan expiry: the Review pill or the change list isn't shown in Transfer paths")
     if not r["cleared"]:
         fails.append("Plan expiry: Mark as reviewed didn't clear the flag")
