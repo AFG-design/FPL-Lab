@@ -22,6 +22,12 @@ Under each model line, "all players" scores the pool plus everyone outside it wh
 the 3 GWs before: new signings, returners), with that outside-pool group on its own, so a change
 that helps or hurts them is visible. It is reported only; the decision metrics above still use the pool.
 
+FL-163 adds a second a-priori pool (report only, not a deciding metric): the existing pool plus
+registered regulars with 5+ starts in the preceding 10 gameweeks or 1,500+ minutes in the immediately
+preceding season. Registration must be observed before the deadline. Unlike the FL-137 appearance-only
+outside-pool line, this includes non-appearances. Players without qualifying history (including unseen
+new arrivals and overseas signings without a PL prior) remain outside; no future appearance admits them.
+
 FL-161 adds lines only (every earlier line prints exactly as before):
 - "part scores": a proper score for each scoring part on its raw projection, before the final calibration
   (backtest.part_scores; lower is better): log-loss for clean sheets, Brier for start chance, 60+ and defensive
@@ -36,7 +42,7 @@ from collections import defaultdict
 
 from fplmodel import prepare, project, POS, europe_dates, euro_weeks
 import archive, selling
-from backtest import part_scores, mean_scores, scores_ci, fmt_scores, fmt_scores_ci
+from backtest import in_regular_pool, regular_rows, part_scores, mean_scores, scores_ci, fmt_scores, fmt_scores_ci
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOPN = {"GKP": 5, "DEF": 15, "MID": 15, "FWD": 10}
@@ -201,7 +207,7 @@ def current_ctx():
     return _CUR["ctx"]
 
 
-def run_current(params, gws=None, everyone=None, scores=None):
+def run_current(params, gws=None, everyone=None, scores=None, regular=None, regular_scores=None):
     """everyone: optional dict, filled with all_rows per GW for the "all players" line (the pool is unchanged).
     scores: optional dict, filled with backtest.part_scores per GW (FL-161), from the same projections."""
     ctx = current_ctx()
@@ -214,6 +220,10 @@ def run_current(params, gws=None, everyone=None, scores=None):
             everyone[k] = all_rows(ctx, k, pred)
         if scores is not None:
             scores[k] = part_scores(ctx, k, res)
+        if regular is not None:
+            regular[k] = regular_rows(ctx, k, pred)
+        if regular_scores is not None:
+            regular_scores[k] = part_scores(ctx, k, res, pool=in_regular_pool)
     return out
 
 
@@ -261,7 +271,7 @@ def _xg_at(ctx, team_at, k):
     return t
 
 
-def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None, scores=None):
+def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None, scores=None, regular=None, regular_scores=None):
     ctx, team_at = _season(season)
     out = {}
     for k in gws:
@@ -275,10 +285,14 @@ def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None, score
             everyone[k] = all_rows(cx, k, pred)
         if scores is not None:
             scores[k] = part_scores(cx, k, res)
+        if regular is not None:
+            regular[k] = regular_rows(cx, k, pred)
+        if regular_scores is not None:
+            regular_scores[k] = part_scores(cx, k, res, pool=in_regular_pool)
     return out
 
 
-def run_horizon(params, season, H):
+def run_horizon(params, season, H, regular=None):
     """Planner check: from each origin k, project k..k+H-1 from data before k and compare each pool player's
     H-week total with his real H-week total (the solver plans over several weeks, while score() judges one).
     Origins: every k whose H weeks have all finished (this season: from GW3; archive: GW5 to 39-H).
@@ -305,6 +319,9 @@ def run_horizon(params, season, H):
             rows.append((pid, POS[cx["elements"][pid]["element_type"]], sum(r["xp"].get(g, 0.0) for g in range(k, k + H)),
                          sum(pg.get(g, 0) for g in range(k, k + H))))
         out[k] = rows
+        if regular is not None:
+            pred = {pid: sum(r["xp"].get(g, 0.0) for g in range(k, k + H)) for pid, r in res.items()}
+            regular[k] = regular_rows(cx, k, pred, horizon=H)
     return out
 
 
@@ -356,29 +373,47 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
         if not quiet:
             print(f"--- {s} ---")
         for name, p in variants.items():
-            ev, sc = {}, {}
+            ev, sc, reg, rsc = {}, {}, {}, {}
             if s == "current":
-                m = score(run_current(p, everyone=ev, scores=sc))
+                m = score(run_current(p, everyone=ev, scores=sc, regular=reg, regular_scores=rsc))
             else:
-                m = score(run_archive(p, s, everyone=ev, scores=sc))
+                m = score(run_archive(p, s, everyone=ev, scores=sc, regular=reg, regular_scores=rsc))
             res[s][name] = m
             m["_all"] = score_all(ev)
             m["_scores"] = sc
+            m["_regular"] = score(reg) if any(reg.values()) else None
+            m["_regular_scores"] = rsc
             if not quiet:
                 print(fmt(name, m))
                 print(fmt_all(name, m["_all"]))
                 print(fmt_scores(name, mean_scores(sc)))
+                if m["_regular"]:
+                    print("  second pool (regulars, report only): " + fmt(name, m["_regular"]))
+                    print("  second pool " + fmt_scores(name, mean_scores(rsc)).strip())
+                else:
+                    print("  second pool: no eligible observations")
         names = list(variants)
         for name in names[1:]:
             ci = res[s].setdefault("_ci", {})[name] = paired_ci(res[s][names[0]], res[s][name])
             if not quiet:
                 print(fmt_ci(ci))
+                rb, rc = res[s][names[0]]["_regular"], res[s][name]["_regular"]
+                if rb and rc:
+                    print("  second pool (report only) " + fmt_ci(paired_ci(rb, rc)).strip())
+                    for line in fmt_scores_ci(scores_ci({s: res[s][names[0]]["_regular_scores"]},
+                                                         {s: res[s][name]["_regular_scores"]}), indent="    "):
+                        print("  second pool " + line.strip())
                 print(f"  part scores, paired 95% CI ({name} - {names[0]}, bootstrap over GWs; lower loss is better):")
                 for line in fmt_scores_ci(scores_ci({s: res[s][names[0]]["_scores"]}, {s: res[s][name]["_scores"]}),
                                           indent="    "):
                     print(line)
         if H5:
-            hs = {name: score_h(run_horizon(p, s, H5)) for name, p in variants.items()}
+            hs, rhs = {}, {}
+            for name, p in variants.items():
+                reg = {}
+                hs[name] = score_h(run_horizon(p, s, H5, regular=reg))
+                rhs[name] = score_h(reg)
+            res[s]["_regular_h5"] = rhs
             res[s]["_h5"] = hs
             if not quiet:
                 if not hs[names[0]]["origins"]:
@@ -397,6 +432,9 @@ def compare(variants, seasons=("current", "2025-26", "2024-25"), quiet=False):
                         line += (f" | vs current: corr {h['corr'] - hs[names[0]]['corr']:+.3f}, picks "
                                  f"{sum(d) / len(d):+.2f} [{lo:+.2f}, {hi:+.2f}]" + ("" if lo > 0 or hi < 0 else " ~0"))
                     print(line)
+        if not quiet and H5:
+            for name, h in res[s]["_regular_h5"].items():
+                print(f"  second pool {H5}-GW totals (report only) {name}: n={h['n']} corr {h['corr']:.3f} picks {h['picks']:.2f} ({h['origins']} origins)")
     pooled(res, list(variants), quiet)
     return res
 
