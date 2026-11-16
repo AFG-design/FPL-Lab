@@ -59,13 +59,58 @@ def _in_pool(ctx, pid, k):
     return any(_mins(ctx, pid, g) > 0 for g in range(k - 3, k))
 
 
+def in_regular_pool(ctx, pid, k):
+    """FL-163 reporting pool: recent players OR 5 starts in the previous 10 GWs
+    OR 1,500 minutes in the immediately preceding season. Never uses GW k's result.
+    Registration must be observed before k (a live row, including zero minutes, or
+    the deadline status log). A new arrival without either is not yet observable.
+    Missing starts/prior/season dates provide no evidence for that criterion.
+    The 10-GW window deliberately includes blanks and sums starts in doubles.
+    """
+    gs = ctx["pstats"].get(pid, {})
+    if _in_pool(ctx, pid, k):
+        return True
+    if not any(g < k for g in gs) and pid not in ctx.get("status_rows", {}).get(k, {}):
+        return False
+    if sum(gs.get(g, {}).get("starts", 0) for g in range(max(1, k - 10), k)) >= 5:
+        return True
+    pr = ctx.get("priors", {}).get(str(pid), {})
+    dates = [f.get("kickoff_time") for f in ctx.get("fixtures", []) if f.get("kickoff_time")]
+    if not dates or not pr.get("season"):
+        return False
+    first = min(dates)
+    start_year = int(first[:4]) - (int(first[5:7]) < 7)
+    return str(pr["season"])[:4] == str(start_year - 1) and pr.get("last_mins", 0) >= 1500
+
+
+def regular_rows(ctx, k, pred, horizon=1):
+    """Extra a-priori pool, also including its non-appearances. Missing actuals are
+    skipped for 1 GW (coverage is unknown); horizon blanks count as zero as in the
+    original horizon bench. An absent projection fails rather than hiding a player.
+    """
+    from fplmodel import POS
+    rows = []
+    for pid, e in ctx["elements"].items():
+        if not in_regular_pool(ctx, pid, k):
+            continue
+        actual = ctx["pts_gw"].get(pid, {})
+        if horizon == 1 and k not in actual:
+            continue
+        if pid not in pred:
+            raise ValueError(f"regular pool: missing projection for player {pid} at GW{k}")
+        rows.append((pid, POS[e["element_type"]], pred[pid], sum(actual.get(g, 0) for g in range(k, k + horizon))))
+    return rows
+
+
 def evaluate(ctx, gws, params=None, verbose=False):
     pred, act = [], []
     buckets = {}
     top_hits = []
-    pool_rows, all_rows = [], []
+    pool_rows, all_rows, regular = [], [], []
     for k in gws:
         res = project(ctx, k, horizon=1, params=dict(params or {}, use_flags=False))
+        regular.extend((x, a, band(a, _mins(ctx, pid, k))) for pid, _, x, a in
+                       regular_rows(ctx, k, {pid: r["xp"].get(k, 0.0) for pid, r in res["players"].items()}))
         rows = []
         for pid, r in res["players"].items():
             x = r["xp"].get(k, 0.0)
@@ -94,7 +139,7 @@ def evaluate(ctx, gws, params=None, verbose=False):
     corr = cov / math.sqrt(sum((p - mp) ** 2 for p in pred) * sum((a - ma) ** 2 for a in act))
     out = {"n": n, "mae": mae, "rmse": rmse, "corr": corr, "bias": mp - ma,
            "buckets": {b: (c, px / c, pa / c) for b, (c, px, pa) in sorted(buckets.items())},
-           "top30": top_hits, "pool": errors(pool_rows), "all": errors(all_rows)}
+           "top30": top_hits, "pool": errors(pool_rows), "all": errors(all_rows), "regular": errors(regular)}
     if verbose:
         print(f"n={n} MAE={mae:.3f} RMSE={rmse:.3f} corr={corr:.3f} bias={mp-ma:+.3f}")
         for b, (c, px, pa) in out["buckets"].items():
@@ -108,6 +153,11 @@ def evaluate(ctx, gws, params=None, verbose=False):
                 x = e["bands"][b]
                 if x["n"]:
                     print(f"    {name:24} n={x['n']:5d} RMSE={x['rmse']:.3f} MAE={x['mae']:.3f} bias={x['bias']:+.2f}")
+        e = out["regular"]
+        if e["n"]:
+            print(f"  Second pool (regulars, report only): n={e['n']} MAE={e['mae']:.3f} RMSE={e['rmse']:.3f} bias={e['bias']:+.3f}")
+        else:
+            print("  Second pool (regulars, report only): no eligible observations")
     return out
 
 def baseline(ctx, gws):
@@ -197,7 +247,7 @@ def minutes_eval(ctx, gws, params=None):
             row = (r["xmin"], s["minutes"], min(1.0, r["ps_next"]), 1.0 if s["starts"] > 0 else 0.0,
                    min(1.0, r["p60_next"]), 1.0 if s["minutes"] >= 60 else 0.0)
             pool = _in_pool(ctx, pid, k)
-            for p_ in (("all",) + (("pool",) if pool else ())):
+            for p_ in (("all",) + (("pool",) if pool else ()) + (("regular",) if in_regular_pool(ctx, pid, k) else ())):
                 seg[(p_, "All", "all")].append(row)
                 if p_ == "pool":
                     seg[(p_, "Position", POS[e["element_type"]])].append(row)
@@ -354,7 +404,7 @@ def _poisson_dev(mu, y):
     return 2 * ((y * math.log(y / mu) if y > 0 else 0.0) - (y - mu))
 
 
-def part_scores(cx, k, res):
+def part_scores(cx, k, res, pool=_in_pool):
     """Proper score of each part for every pool player (played in the last 3 GWs) whose club has exactly one fixture
     in GW k, from one 1-GW projection (res: project()["players"]). Doubles are left out, as in parts_eval: the live
     stats sum both matches, so a per-match chance can't be scored. Returns {pid: {key: loss}}.
@@ -367,7 +417,7 @@ def part_scores(cx, k, res):
     for pid, r in res.items():
         e = cx["elements"][pid]
         s = cx["pstats"].get(pid, {}).get(k)
-        if s is None or nfx.get((e["team"], k)) != 1 or not _in_pool(cx, pid, k):
+        if s is None or nfx.get((e["team"], k)) != 1 or not pool(cx, pid, k):
             continue
         pos = POS[e["element_type"]]
         d = r["detail"].get(k, {})
@@ -452,7 +502,7 @@ def fmt_scores_ci(ci, indent="  "):
 def print_minutes(mn, title):
     print(title)
     print(f"  {'Pool':5} {'Segment':20} {'':16} {'n':>5} {'xMin MAE':>9} {'RMSE':>6} {'bias':>6} {'Brier st':>9} {'Brier 60':>9}")
-    for p_ in ("pool", "all"):
+    for p_ in ("pool", "all", "regular"):
         for group, names in mn.get(p_, {}).items():
             for name in sorted(names):
                 s = names[name]
@@ -707,6 +757,7 @@ if __name__ == "__main__":
             json.dump({"gws": list(gws), "status_log": args.status_log, "flag_log": flag_path if flag_log else None,
                        "headline": {k: head[k] for k in ("n", "mae", "rmse", "corr", "bias")},
                        "params": params, "segments": seg, "minutes": mins, "parts": parts,
+                       "regular_pool": head["regular"],
                        "part_scores": {str(k): {str(p): v for p, v in rows.items()} for k, rows in pscores.items()}},
                       f, indent=1)
         print(f"Wrote {args.json}")

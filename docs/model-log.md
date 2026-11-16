@@ -10,6 +10,32 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 16 Nov 2026 — FL-163: second evaluation pool (report only)
+
+- The deciding pool requires minutes in one of the last three gameweeks, so it omits returning regulars and
+  qualifying arrivals. FL-137's outside-pool line only scores players who actually appeared: useful diagnosis,
+  but not a pool that could have been chosen at the deadline.
+- Added a second, report-only pool: the existing pool plus players with five starts in the previous ten gameweeks
+  or at least 1,500 minutes in the immediately preceding season. Ten gameweeks includes blanks and sums starts in
+  doubles; it is not ten appearances. Prior-only/returning eligibility requires a live row before the origin
+  (zero-minute rows count as registration) or a deadline status-log entry. Membership stays fixed for all five
+  weeks of a horizon. Future starts/results never admit a player, and non-appearances remain in the scores.
+- Reports points, raw part scores and 1-/5-GW picks beside the current metrics; backtest also reports minutes
+  accuracy. The existing deciding metrics, pooled intervals and model parameters are unchanged.
+
+  | Season | Existing player-weeks | Second-pool player-weeks | Existing / second 1-GW picks | Existing / second 5-GW picks |
+  |---|---:|---:|---:|---:|
+  | 2026/27, GW3–10 | 3,050 | 3,344 | 4.36 / 4.36 | 18.24 / 18.24 |
+  | 2025/26 | 12,847 | 14,456 | 4.44 / 4.44 | 19.13 / 19.13 |
+  | 2024/25 | 13,003 | 14,573 | 4.25 / 4.25 | 19.16 / 19.16 |
+
+- Coverage limits: no qualifying history means no membership, including overseas arrivals without a PL prior and
+  arrivals not observed before the deadline. Missing prior/season dates cannot qualify a player via last-season
+  minutes; stale two-season-old priors do not qualify. Missing one-week actuals are skipped; horizon blanks count
+  as zero, as in the existing bench. Missing projections for eligible rows raise instead of silently dropping them.
+- No adoption decision: evaluation tooling only. Whether this pool becomes part of the deciding metric remains
+  the owner's decision. Comparing errors between the pools is not evidence of a model improvement: populations differ.
+
 ## 14 Nov 2026 — this-season cap lifted for xG and DC only (`cred_parts` ["xg", "dc"]; Marginal at 0.9, owner's call)
 
 - Follow-up to the entry below: the cap lifted only where it helped (xG rate → goals, DC rate); bonus, saves, xA and
