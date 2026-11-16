@@ -10,6 +10,32 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 16 Nov 2026 — FL-162: walk-forward minutes retraining (Don't adopt)
+
+- Protocol committed and draft PR #187 opened before training. Two linked minutes-package variants only:
+  retrain all four boosters with the existing 21 inputs and fixed 320-round recipe; then the same with logistic
+  start-chance recalibration fitted on the preceding season's out-of-sample predictions. Training through
+  2023/24 → test 2024/25, through 2024/25 → test 2025/26, through 2025/26 → current season. No test-season fitting.
+- **Pooled 5-GW picks, candidate − shipped:** retrained **−0.028 [-0.110, +0.052]**;
+  recalibrated **−0.043 [-0.147, +0.060]**. Neither establishes an improvement.
+- **Targeted start loss (lower is better):** retrained +0.000428 [-0.000145, +0.000970];
+  recalibrated +0.010275 [+0.008964, +0.011623], clearly worse. Retrained 60+ Brier also worsens:
+  +0.000551 [+0.000152, +0.000970]. The second regular-player pool confirms the same direction.
+- **No harm / segments:** retrained 2024/25 correlation −0.001221 [-0.002388, −0.000059].
+  Current-season top-30 MAE trips --compare in both variants: retrained +0.073 without flags / +0.128 with
+  deadline flags; recalibrated +0.05034 / +0.089. Full before/after tables, all three seasons' 1-/5-GW totals,
+  paired intervals and reliability bins: [FL-162 results](experiments/fl-162-results.md).
+- Reliability example: shipped 2024/25 pool, 90–100% bin: mean predicted 93.16%, actual starts 93.57% (n=2,223).
+  This does not support a blanket confidence squeeze. Recalibration learned on the earlier season did not transfer.
+- **Decision-table row for both: any segment trips --compare → Don't adopt until fixed or explained.**
+  Regressions remain unexplained; leave xmins/ and the separate xmins_sell shadow unchanged. No third variant tried.
+- Worth it: keeps a reproducible walk-forward trainer and reliability report so the next refresh can be tested
+  honestly. Newer training data alone are not a reason to replace the live model. The original training recipe
+  was not supplied, so the same-season 2024/25 fold also measures reconstruction differences.
+- Validation: 438-test Python suite passes plus the seven focused retraining tests (including output-path protection).
+  Training/evaluation writes outside the repository; no history or live model file changes. Missing source labels,
+  conditional targets or calibration classes raise. FL-163 coverage limits remain explicitly reported.
+
 ## 16 Nov 2026 — FL-163: second evaluation pool (report only)
 
 - The deciding pool requires minutes in one of the last three gameweeks, so it omits returning regulars and
