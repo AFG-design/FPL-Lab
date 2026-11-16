@@ -128,4 +128,27 @@ function render() {
   if (S.view === "week" && typeof railToNow === "function") railToNow();
   const fold = $("#app .livefold"); if (fold) fold.addEventListener("toggle", () => { if (fold.open && typeof railToNow === "function") railToNow(); });
   bind();
+  updatePhoneTableHeaders();
 }
+
+// FL-130: horizontal overflow creates a scroll container even without a height cap,
+// so CSS sticky alone cannot follow the page. Move the real, interactive headings;
+// no duplicate controls or guessed column widths. Empty/loading tables need no work.
+function updatePhoneTableHeaders() {
+  const phone = matchMedia("(max-width: 600px)").matches;
+  const top = Math.max(0, document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0);
+  document.querySelectorAll(".explorer > .tablebox, .xptable > .tablebox").forEach(box => {
+    const head = box.querySelector("thead");
+    if (!head) return;
+    const rect = box.getBoundingClientRect();
+    const offset = phone ? Math.max(0, Math.min(top - rect.top - box.clientTop, box.clientHeight - head.offsetHeight)) : 0;
+    box.style.setProperty("--phone-head-offset", `${offset}px`);
+  });
+}
+let phoneHeaderFrame = 0;
+function schedulePhoneTableHeaders() {
+  if (phoneHeaderFrame) return;
+  phoneHeaderFrame = requestAnimationFrame(() => { phoneHeaderFrame = 0; updatePhoneTableHeaders(); });
+}
+addEventListener("scroll", schedulePhoneTableHeaders, { passive: true });
+addEventListener("resize", schedulePhoneTableHeaders);

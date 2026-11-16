@@ -1217,3 +1217,9 @@ h4.rv-h { font-size: 20px; }
 /* 320px: the entry-ID hint's FPL address and the field's two-up tables must not widen the page */
 .view-rivals .note, .view-rivals .verdict { overflow-wrap: anywhere; }
 .view-rivals .statgrid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
+
+/* FL-130: one vertical page scroll on phones; retain horizontal table scrolling. */
+@media (max-width: 600px) {
+  .explorer > .tablebox, .xptable > .tablebox { max-height: none; }
+  .explorer > .tablebox th, .xptable > .tablebox th { transform: translateY(var(--phone-head-offset, 0)); }
+}
