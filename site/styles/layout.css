@@ -2,8 +2,8 @@
 .shell { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); }
 
 .maincol { min-width: 0; display: flex; flex-direction: column; }
-#app { outline: none; padding: 4px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); width: 100%; max-width: 1240px; }
-footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color: var(--faint); max-width: 1240px; }
+#app { outline: none; padding: 4px max(16px, env(safe-area-inset-right)) 48px max(16px, env(safe-area-inset-left)); width: 100%; max-width: 1920px; }   /* fills a 1920px monitor beside the sidebar; capped so 4K screens don't over-stretch */
+footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color: var(--faint); max-width: 1920px; }
 
 /* wordmark: a tiny pitch-line mark and the name */
 .wordmark { display: inline-flex; align-items: center; gap: 9px; font-weight: 750; font-size: 15px; letter-spacing: .14em; }
