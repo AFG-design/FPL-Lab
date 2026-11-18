@@ -15,7 +15,8 @@
   display: grid; grid-template-columns: minmax(0, 1.2fr) auto minmax(40px, 1fr) 42px; gap: 10px; align-items: center;
   padding: 6px 8px; border-radius: var(--r-sm); box-shadow: inset 3px 0 0 var(--club, var(--line-strong)); transition: background var(--t-fast) var(--ease);
 }
-.dash-cap:hover { background: var(--raised); }
+
+@media (hover: hover) and (pointer: fine) { .dash-cap:hover { background: var(--raised); } }
 .dash-cap:focus-visible { outline: 2px solid var(--hi); }
 .dc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dc-fx { display: inline-flex; gap: 2px; }
@@ -101,12 +102,14 @@
 .explorer .tablebox { margin-top: 4px; }
 .sticky-col { position: sticky; left: 0; z-index: 1; background: var(--surface); }
 th.sticky-col { z-index: 3; background: var(--raised); }
-tbody tr:hover .sticky-col { background: var(--raised); }
+
+@media (hover: hover) and (pointer: fine) { tbody tr:hover .sticky-col { background: var(--raised); } }
 tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 .pcell { display: flex; align-items: center; gap: 8px; }
 .pcell input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
 .linkish { all: unset; cursor: pointer; }
-.linkish:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+
+@media (hover: hover) and (pointer: fine) { .linkish:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; } }
 .linkish:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; border-radius: 3px; }
 .colpick { position: relative; margin: 0 0 0 auto; }
 .colpick summary { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--sunk); }
@@ -115,7 +118,8 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
   display: grid; gap: 2px; padding: 10px; background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: var(--shadow);
 }
 .colpick-body label { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 4px; font-size: var(--fs-sm); cursor: pointer; }
-.colpick-body label:hover { background: var(--sunk); }
+
+@media (hover: hover) and (pointer: fine) { .colpick-body label:hover { background: var(--sunk); } }
 .colpick-body input { accent-color: var(--accent); }
 .colpick-body .btn { justify-self: start; margin-top: 6px; }
 
@@ -268,7 +272,8 @@ tr.is-rival td { background: var(--accent-soft); }
   width: auto; color: var(--fg); font-size: var(--fs-md); font-weight: 400; border-radius: var(--r-sm);
 }
 .afg-row > summary::before { display: none; }
-.afg-row > summary:hover { background: var(--raised); }
+
+@media (hover: hover) and (pointer: fine) { .afg-row > summary:hover { background: var(--raised); } }
 .afg-row > summary::-webkit-details-marker { display: none; }
 .afg-row > summary:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; border-radius: var(--r-sm); }
 .afg-row[open] { padding-bottom: 10px; }
@@ -425,7 +430,8 @@ tr.is-rival td { background: var(--accent-soft); }
 /* ---------- Stats: Goals & assists bars (actual bar, expected tick) ---------- */
 .gabars { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-width: 760px; }
 .gabars li { display: grid; grid-template-columns: minmax(96px, 168px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; padding: 3px 6px; border-radius: var(--r-sm); }
-.gabars li:hover { background: var(--raised); }
+
+@media (hover: hover) and (pointer: fine) { .gabars li:hover { background: var(--raised); } }
 .gabars li.mine { box-shadow: inset 3px 0 0 var(--hi); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .ga-name { font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ga-track { position: relative; height: 14px; }
@@ -497,7 +503,8 @@ tr.is-rival td { background: var(--accent-soft); }
   .home-next .hero-acts { margin: 0; flex-wrap: nowrap; }
 }
 .hero-acts .btn:not(.primary) { background: var(--on-turf-glass); border-color: var(--on-turf-line); color: var(--on-turf); }
-.hero-acts .btn:not(.primary):hover { border-color: var(--on-turf); }
+
+@media (hover: hover) and (pointer: fine) { .hero-acts .btn:not(.primary):hover { border-color: var(--on-turf); } }
 
 /* the three calls */
 
@@ -546,7 +553,8 @@ tr.is-rival td { background: var(--accent-soft); }
 .dc-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .dc-caps { display: grid; gap: 4px; }
 .dcc { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(40px, 1fr) auto; align-items: center; gap: 10px; padding: 4px 6px; margin: 0 -6px; background: none; border: 0; border-radius: var(--r-sm); color: inherit; text-align: left; }
-.dcc:hover { background: var(--raised); }
+
+@media (hover: hover) and (pointer: fine) { .dcc:hover { background: var(--raised); } }
 .dcc-n { display: flex; align-items: center; gap: 6px; min-width: 0; font-weight: 650; white-space: nowrap; overflow: hidden; }
 .dcc-fx { font-size: var(--fs-xs); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
 .dcc-alt { font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 5px; }
@@ -572,7 +580,8 @@ tr.is-rival td { background: var(--accent-soft); }
 .side-alerts { font-size: var(--fs-sm); }
 .qr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .qrb { display: flex; align-items: flex-start; gap: 8px; min-width: 0; padding: 9px 10px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--fg); text-align: left; font-weight: 600; font-size: var(--fs-sm); }
-.qrb:hover { border-color: var(--accent-text); }
+
+@media (hover: hover) and (pointer: fine) { .qrb:hover { border-color: var(--accent-text); } }
 .qrb .ic { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--accent-text); }
 .qrb span { display: grid; min-width: 0; }
 .qrb small { font-size: var(--fs-xs); font-weight: 500; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -673,7 +682,8 @@ tr.is-rival td { background: var(--accent-soft); }
 .tp-c.h3 { background: var(--heat-2); }
 .tp-c.h4 { background: var(--heat-3); }
 .tp-c.h5 { background: var(--heat-4); }
-.tp-c:hover { box-shadow: inset 0 0 0 1px var(--accent-text); }
+
+@media (hover: hover) and (pointer: fine) { .tp-c:hover { box-shadow: inset 0 0 0 1px var(--accent-text); } }
 .tp-c.tp-on { box-shadow: inset 0 0 0 2px var(--hi); }
 .tp-net, .tp-gain { padding: 6px 12px !important; font-family: var(--display); font-size: 21px; font-weight: 700; white-space: nowrap; }
 .tp-act { padding: 6px 10px !important; text-align: right; white-space: nowrap; }
@@ -829,7 +839,8 @@ tr.is-rival td { background: var(--accent-soft); }
   background: color-mix(in srgb, var(--surface) 94%, var(--turf)); border: 1px solid color-mix(in srgb, var(--line-strong) 80%, transparent);
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 70%, transparent), 0 2px 6px rgb(0 0 0 / 22%); }
 .lu-cards .luc.newin { box-shadow: inset 0 2px 0 color-mix(in srgb, var(--club, transparent) 70%, transparent), inset 0 -2px 0 var(--good), 0 2px 6px rgb(0 0 0 / 22%); }
-.lu-cards .luc:hover { border-color: var(--accent-text); }
+
+@media (hover: hover) and (pointer: fine) { .lu-cards .luc:hover { border-color: var(--accent-text); } }
 .lu-cards .luc:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
 .lu-cards .luc.sel { outline: 2px solid var(--hi); outline-offset: 1px; border-color: var(--hi); }
 .lu-cards .lu-box { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; box-sizing: border-box; height: 100%; padding: 6px 6px 5px; }
@@ -1030,7 +1041,8 @@ tr.is-rival td { background: var(--accent-soft); }
 
 /* ---------- decision journal reasons (D5b) ---------- */
 .rs-btn { display: inline-block; margin-top: 4px; padding: 2px 8px; border: 1px dashed var(--line-strong); border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: var(--fs-xs); cursor: pointer; text-align: left; }
-.rs-btn:hover { color: var(--fg); border-color: var(--accent-text); }
+
+@media (hover: hover) and (pointer: fine) { .rs-btn:hover { color: var(--fg); border-color: var(--accent-text); } }
 .rs-btn.set { border-style: solid; border-color: var(--accent-text); color: var(--fg); border-radius: var(--r-sm); }
 .rs-btn .rs-k { font-weight: 650; color: var(--accent-text); }
 .j-why { grid-column: 1 / -1; }
@@ -1304,4 +1316,17 @@ h4.rv-h { font-size: 20px; }
 @media (max-width: 600px) {
   .explorer > .tablebox, .xptable > .tablebox { max-height: none; }
   .explorer > .tablebox th, .xptable > .tablebox th { transform: translateY(var(--phone-head-offset, 0)); }
+}
+
+/* Touch screens: iOS zooms the page into any field under 16px and doesn't zoom back, so fields are 16px there.
+   Mouse screens keep their smaller size. Last in the last stylesheet so it wins over .filters and .search-box. */
+@media (pointer: coarse) {
+  .filters select, .filters input, .sel, .search-box input, input:not([type="checkbox"], [type="radio"]), select, textarea { font-size: 16px; }
+}
+
+/* Press feedback: a control shrinks slightly while pressed, so a tap visibly lands. No transition, so it never lags a
+   quick tap; off with reduced motion. (Hover lifts on .pc and .mcard give way to this while pressed.) */
+@media (prefers-reduced-motion: no-preference) {
+  .btn:active, .seg button:active, .chipbtn:active, .qrb:active, .searchbtn:active, .theme-toggle:active, .pl-chip:active,
+  .rs-btn:active, .pc:active, .mcard:active, .sheetbody button:active, .bottomnav button:active, #sidenav button:active { transform: scale(.97); }
 }

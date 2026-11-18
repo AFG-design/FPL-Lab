@@ -3,7 +3,15 @@
 *::before,
 *::after { box-sizing: border-box; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* Touch: no grey flash over a tapped control (each has its own pressed state), no double-tap-zoom wait on controls,
+   and a long press on a button doesn't select its label. Text content stays selectable. */
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+button, a, summary, select, label, [role="button"], [role="tab"], [role="link"] { touch-action: manipulation; }
+button, summary, [role="button"], [role="tab"] {
+  /* stylelint-disable-next-line property-no-vendor-prefix -- Safari (iOS) still needs the prefix for user-select */
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 body {
   margin: 0;
