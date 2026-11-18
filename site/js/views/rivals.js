@@ -72,7 +72,12 @@ function vLeague(C, lg, note) {
   if (!lg) return stateView({ title: "No mini-leagues yet", body: "Your classic mini-leagues appear here after the next gameweek sample." });
   const sub = S.ltab === "honours" ? "honours" : "standings";
   const inner = S.ltab === "honours" ? vHonours(C, lg) : S.ltab === "h2h" ? vH2H(C, lg) : vStandings(C, lg);
-  return `<div class="acts"><button class="btn sm" data-rivalry-league="${lg.id}">Pin this league to Current GW</button><button class="btn sm" data-rivalry-remove="1">Remove Current GW pin</button></div>${tabsHtml(LT_TABS, sub, { label: "My league", idp: "lttab", data: "ltab", panel: "ltpanel" })}
+  // FL-185: one toggle for the Current GW pin, worded from the pin as saved: remove it when it's this league, else pin
+  // this league ("instead" when it would replace a league or rival pin). No saved pin, or an unreadable one: "Pin".
+  const cg = store.get(rivalryKey()), here = cg?.kind === "league" && cg.league === lg.id;
+  const cgBtn = here ? `<button class="btn sm" data-rivalry-remove="1">Remove this league from Current GW</button>`
+    : `<button class="btn sm" data-rivalry-league="${lg.id}">Pin this league to Current GW${cg ? " instead" : ""}</button>`;
+  return `<div class="acts">${cgBtn}</div>${tabsHtml(LT_TABS, sub, { label: "My league", idp: "lttab", data: "ltab", panel: "ltpanel" })}
     <div id="ltpanel" role="tabpanel" aria-labelledby="lttab-${sub}" class="rv-body">${note ? `<p class="note rv-flag">${note}</p>` : ""}${inner}</div>`;
 }
 
@@ -208,7 +213,13 @@ function vH2H(C, lg) {
   const rv = lg.rows.find(r => r.entry === S.rival && !r.me);
   if (!rv) return `${back}<h3 class="rv-h rv-sec" id="h2h-h" tabindex="-1">Compare another team</h3>${watchPanel()}`;
   const fn = esc(firstName(rv, lg.rows)), g = D.meta.next_gw, sc = rvScores(C), me = lg.rows.find(r => r.me);
+  // FL-185: one pin toggle. Pinning a rival (data-rvpin, shell/events.js) also pins them to Current GW and unpinning
+  // clears that, so the separate "Pin rival to Current GW" button was the same action twice.
   const pin = rvPins()[lg.id], pinned = pin === rv.entry, other = lg.rows.find(r => r.entry === pin && !r.me);
+  // what the pin does to Current GW, from the saved Current GW pin (none or unreadable: treated as not this rival)
+  const cg = store.get(rivalryKey()), onCg = cg?.kind === "rival" && cg.league === lg.id && cg.entry === rv.entry;
+  const cgNote = !pinned ? `Pinning ${fn} also shows them on Current GW${cg ? ", in place of your current pin" : ""}.`
+    : onCg ? `${fn} is also pinned to Current GW.` : `Current GW shows a different pin. To show ${fn} there, unpin and pin again.`;
   const t = recTeam(), c = t && rv.picks ? cmpDiffs(rv, t) : null;
   const gw = sc.gwOf(rv), hit = sc.hitOf(rv), gap = me?.total != null && rv.total != null ? me.total - rv.total : null;
   const st = chipState(rv.chips), [ha, hb] = chipHalf(), capId = rv.picks?.find(([, m]) => m >= 2)?.[0];
@@ -227,8 +238,9 @@ function vH2H(C, lg) {
       <p>Your planned GW${g ?? ""} team${t ? ` (active plan: ${esc(planName())})` : ""} against ${fn}'s public GW${C.gw} team.</p>
       <div class="rv-pair"><div><span>Projected advantage</span><b class="${c && c.swing < 0 ? "down" : ""}">${c ? `${sgn(c.swing)} pts` : "–"}</b></div><div><span>Shared players</span><b>${c ? `${c.shared} / 15` : "–"}</b></div></div></section>
     <section class="panel"><h3 class="rv-h">Rival details</h3><dl class="rv-dl">${dl.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>
-      <div class="rv-acts"><button class="btn sm" data-rivalry-rival="${lg.id}:${rv.entry}">Pin rival to Current GW</button>${pinned ? `<button type="button" class="btn sm" data-rvpin="0">Unpin ${fn}</button>` : `<button type="button" class="btn primary sm" data-rvpin="${rv.entry}">${other ? `Pin ${fn} instead of ${esc(firstName(other, lg.rows))}` : `Pin ${fn} as your rival`}</button>`}
-      <button type="button" class="btn ghost sm" data-ltab="standings">Choose another manager</button></div></section>
+      <div class="rv-acts">${pinned ? `<button type="button" class="btn sm" data-rvpin="0">Unpin ${fn}</button>` : `<button type="button" class="btn primary sm" data-rvpin="${rv.entry}">${other ? `Pin ${fn} instead of ${esc(firstName(other, lg.rows))}` : `Pin ${fn} as your rival`}</button>`}
+      <button type="button" class="btn ghost sm" data-ltab="standings">Choose another manager</button></div>
+      <p class="note">${cgNote}</p></section>
     ${lists}
     ${c ? `<p class="note">Based on ${fn}'s GW${C.gw} team, the latest FPL shows. Changes before the deadline appear afterwards.</p>` : ""}
     ${watchPanel()}`;
