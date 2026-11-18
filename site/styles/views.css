@@ -410,9 +410,11 @@ tr.is-rival td { background: var(--accent-soft); }
 .pvcmp th .btn { white-space: nowrap; }
 .pvcmp tr.pvsep td { padding-top: 14px; font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
 
+/* FL-186: below 640px the four tabs sit 2 x 2, so all four are always in view. As one sideways-scrolling row the
+   fourth ("Your plan") was cut off at 390px with no sign it was there. The open tab is always visible. */
 @media (max-width: 640px) {
-  .pviews { margin: 0 -2px; width: calc(100% + 4px); }
-  .pviews button { flex: 0 0 auto; padding: 6px 10px; }
+  .pviews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; margin: 0 -2px; width: calc(100% + 4px); }
+  .pviews button { min-width: 0; padding: 6px 10px; white-space: normal; text-align: center; }
 }
 .pvcmpbox { max-height: none; }
 .pvcmp th:first-child, .pvcmp td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
