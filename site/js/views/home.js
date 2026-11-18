@@ -81,13 +81,14 @@ function vNext() {
   if (!c) return stateView({ title: "No gameweek to plan", body: "The next deadline appears here once FPL publishes it." });
   const { g, me, w0, moves0 } = c, k = planKind(), n = moves0.length;
   const intro = !WEEK_INTRO_DONE; WEEK_INTRO_DONE = true;   // entrance motion on the first draw only
-  const why = k.kind === "model" ? `The ${MODES[S.mode]} strategy's plan (${esc(k.plan)}), as the optimiser made it. Any change you make turns it into your draft.`
-    : k.kind === "replan" ? "The optimiser re-planned around your locks and rules. Any change you make turns it into your draft."
+  const why = k.kind === "model" ? `Straight from the optimiser's ${MODES[S.mode]} strategy (${esc(k.plan)}). Change anything and it becomes your draft.`
+    : k.kind === "replan" ? "The optimiser re-planned around your locks and rules. Change anything and it becomes your draft."
     : "Your draft is separate from the model's recommendation. Compare them before you commit.";
+  // the verdict on one band: what you're doing this week on the left, the two ways on to the Planner on the right
   const hero = `<section class="hero compact${intro ? " intro" : ""}" aria-label="Your plan for GW${g}">
-    <p class="eyebrow">GW${g} · <span class="hero-kind">${k.label}</span> · Deadline ${ukTime(D.meta.deadline)} · <em>${countdown(D.meta.deadline)} left</em></p>
+    <div class="hero-main"><p class="eyebrow">GW${g} · <span class="hero-kind">${k.label}</span> · Deadline ${ukTime(D.meta.deadline)} · <em>${countdown(D.meta.deadline)} left</em></p>
     <h1>${n ? `${n} move${n > 1 ? "s" : ""} planned.` : "No moves planned."} <span class="cap">${esc(P[me.cap].name)}</span> captain.</h1>
-    <p class="hero-why">${why}${c.later.length ? ` ${c.later.length} more move${c.later.length > 1 ? "s" : ""} later in the plan.` : ""}</p>
+    <p class="hero-why">${why}${c.later.length ? ` ${c.later.length} more move${c.later.length > 1 ? "s" : ""} later in the plan.` : ""}</p></div>
     <div class="hero-acts"><button class="btn primary" data-plgo="compare">Compare with model</button><button class="btn" data-plgo="edit">Open planner</button></div>
   </section>`;
 
@@ -120,7 +121,7 @@ function vNext() {
       </dl>
       <p class="dc-sub">The ${horizon} projection includes lineup, captaincy and all transfer hits. The verdict also values each extra free transfer left at the end at ${ftValue()} points.</p>
     </details>`;
-  const tAct = `${n || decisionAlternative() ? '<button class="btn sm" data-decision="roll">Compare with saving the transfer</button>' : '<span class="note">Saving is recommended; no valid transfer alternative is available.</span>'}<button class="btn primary sm" data-plgo="edit:suggest">Compare transfers →</button>${n ? `<button class="btn sm" data-howto="${g}">Make these moves on FPL</button>` : ""}`;
+  const tAct = `${n || decisionAlternative() ? '<button class="btn sm" data-decision="roll">Compare with saving the transfer</button>' : '<span class="note">Saving is recommended; no valid transfer alternative is available.</span>'}<button class="btn sm" data-plgo="edit:suggest">Compare transfers →</button>${n ? `<button class="btn sm" data-howto="${g}">Make these moves on FPL</button>` : ""}`;
 
   // captain: your captain and the best other starter, both as captain (xP × 2)
   const capRows = [me.cap, c.alt].filter(i => i != null);
@@ -129,7 +130,7 @@ function vNext() {
       <span class="dcc-n">${j ? '<span class="dcc-alt">Alt</span>' : '<span class="badge inline" aria-label="Captain">C</span>'}${esc(P[i].name)}<span class="muted dcc-fx">${fxText(P[i], g)}</span></span>
       <span class="dcc-bar"><i style="width:${(xpg(i, g) / cmax * 100).toFixed(0)}%"></i></span><b>${f1(xpg(i, g) * 2)}</b></button>`).join("")}</div>
     <p class="dc-sub">Projected captain points for GW${g} (xP × 2).${me.capMine ? ` Your choice; the model's pick is ${esc(P[capPick(me.xi, g).cap].name)}.` : ""} Vice: ${esc(P[me.vice].name)}.${c.capEO != null ? ` ${c.capEO.toFixed(0)}% of ${c.capSample.label} captained ${esc(P[me.cap].name)} in GW${c.capSample.gw}.` : " Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."}</p>`;
-  const cAct = `<button class="btn sm" data-decision="captain">Compare my captain</button><button class="btn primary sm" data-plgo="edit:captains">Compare captains →</button>`;
+  const cAct = `<button class="btn sm" data-decision="captain">Compare my captain</button><button class="btn sm" data-plgo="edit:captains">Compare captains →</button>`;
 
   // lineup
   const lTxt = c.starts.length || c.benches.length
@@ -137,20 +138,32 @@ function vNext() {
     : "Keep last week's starting XI";
   const lBody = `<p class="dc-do">${lTxt}</p>
     <p class="dc-sub">${c.benchFirst && c.weakest ? `Closest call: ${esc(P[c.weakest].name)} (${f1(xpg(c.weakest, g))} xP) starts over first sub ${esc(P[c.benchFirst].name)} (${f1(xpg(c.benchFirst, g))} xP), a gap of ${f1(c.benchGap)}.` : ""} Bench order: ${me.bench.map(i => esc(P[i].name)).join(", ")}.</p>`;
-  const lAct = `<button class="btn primary sm" data-plgo="edit">Edit lineup →</button>`;
-  const dcard = (t, v, body, act) => `<article class="dcard"><h3>${t}<span class="pillwrap">${vPill(v)}</span></h3><div class="dc-body">${body}</div><div class="dc-acts">${act}</div></article>`;
-  const cards = `<div class="dcards">${dcard("Transfers", c.tV, tBody, tAct)}${dcard("Captain", c.cV, cBody, cAct)}${dcard("Lineup", c.lV, lBody, lAct)}</div>`;
+  const lAct = `<button class="btn sm" data-plgo="edit">Edit lineup →</button>`;
+  // The decision board: the three calls as rows of one panel, each with its key number on the right, labelled for what
+  // it is (the verdict pill says how sure; the number says by how much). Lineup with no bench outfielder to compare
+  // (benchGap 9, see weekCalls) shows no number rather than a made-up gap.
+  const key = (v, lbl) => `<span class="dc-key"><b>${v}</b><small>${lbl}</small></span>`;
+  const tKey = n ? key(`${sgn(c.ptsVsRoll)}`, `xP vs rolling, ${PG.length} GW${PG.length === 1 ? "" : "s"}`) : g < 38 ? key(String(w0.next), `free transfer${w0.next === 1 ? "" : "s"} for GW${g + 1}`) : "";
+  const cKey = key(f1(xpg(me.cap, g) * 2), "captain xP");
+  const lKey = c.benchFirst && c.weakest ? key(f1(c.benchGap), "xP closest gap") : "";
+  const dcard = (t, v, kv, body, act) => `<article class="dcard"><h3>${t}<span class="pillwrap">${vPill(v)}</span>${kv}</h3><div class="dc-body">${body}</div><div class="dc-acts">${act}</div></article>`;
+  const board = `<section class="panel dboard" aria-label="GW${g} decisions"><div class="side-h"><h3>GW${g} decisions</h3></div>
+    ${dcard("Transfers", c.tV, tKey, tBody, tAct)}${dcard("Captain", c.cV, cKey, cBody, cAct)}${dcard("Lineup", c.lV, lKey, lBody, lAct)}</section>`;
 
-  // money and xP above the pitch
-  const tv = squadValue(w0.sq);
+  // money and xP above the pitch, for the plan week shown (homePreview: your plan's GW by default)
+  const pv = homePreview(me), w = pv.week, wg = w.gw, wn = pv.moves.filter(m => m.gw === wg).length, own = pv.key === "mine" && pv.i === 0;
+  const tv = squadValue(w.sq);
   const mrow = moneyRow([
-    { lbl: "Team value", val: tv != null ? money(tv) : null, sub: tv != null ? "Squad at today's prices, excluding cash" : "A player in your plan has no price" },
-    { lbl: "In the bank", val: money(w0.bank), cls: w0.bank < 0 ? "down" : "", sub: n ? `After your GW${g} moves, at your selling prices` : `FPL's figure since the GW${D.meta.squad_gw} deadline` },
-    { lbl: "Expected points", val: `${f1(me.pts)} <small>xP</small>`, sub: `GW${g}, captain ×2${w0.hits ? `, before the −${4 * w0.hits} hit (${f1(me.pts - 4 * w0.hits)} net)` : ""}` },
+    { lbl: "Team value", val: tv != null ? money(tv) : null, sub: tv != null ? "Squad at today's prices, excluding cash" : "A player in this plan has no price" },
+    { lbl: "In the bank", val: money(w.bank), cls: w.bank < 0 ? "down" : "", sub: own ? (n ? `After your GW${g} moves, at your selling prices` : `FPL's figure since the GW${D.meta.squad_gw} deadline`)
+      : pv.moves.some(m => m.gw <= wg) ? `After the plan's moves to GW${wg}, at your selling prices` : `FPL's figure since the GW${D.meta.squad_gw} deadline` },
+    { lbl: "Expected points", val: `${f1(w.team.pts)} <small>xP</small>`, sub: `GW${wg}, captain ×2${w.hits ? `, before the −${4 * w.hits} hit (${f1(w.team.pts - 4 * w.hits)} net)` : ""}` },
   ]);
   const left = `<div class="home-pitch">
-    <div class="bar"><h2>GW${g} team · ${esc(planName())}</h2><span class="lu-head"><span class="tag">${f1(me.pts)} ${term("xp", "xP")}</span>${lineupToggle()}</span></div>
-    ${mrow}${pitch(me.xi, me.bench, g, { cap: me.cap, vice: me.vice, fresh: new Set(moves0.map(m => m.in)) })}</div>`;
+    <div class="bar"><h2>GW${wg} team · ${esc(pv.label)}</h2><span class="lu-head"><span class="tag">${f1(w.team.pts)} ${term("xp", "xP")}</span>${lineupToggle()}</span></div>
+    ${previewControls(pv)}
+    ${own ? "" : `<p class="hp-note" role="status">Preview only: ${pv.key === "mine" ? `your plan's team for GW${wg}` : `the ${esc(pv.label)}, GW${wg}`}${wn ? `, with ${wn} move${wn > 1 ? "s" : ""} that week` : ""}. Your plan isn't changed. <button type="button" class="linkish" data-hpreset="1">Back to your GW${g} team</button></p>`}
+    ${mrow}${pitch(w.team.xi, w.team.bench, wg, { cap: w.team.cap, vice: w.team.vice, fresh: new Set(pv.moves.filter(m => m.gw === wg).map(m => m.in)) })}</div>`;
 
   // quick research: straight into the right section, with useful filters set
   const out5 = w0.sq.filter(i => P[i].pos !== "GKP").sort((a, b) => xpFrom(a, g, PG.length) - xpFrom(b, g, PG.length))[0];
@@ -180,9 +193,34 @@ function vNext() {
     att.length > 3 ? `<button class="btn sm" data-showall="1" aria-expanded="false">Show all ${att.length}</button>` : "",
     att.length ? `<span class="pill warn">${att.length} to check</span>` : `<span class="pill good">Clear</span>`);
 
-  return `${hero}${cards}<div class="home-main">${left}<div class="home-side">${qr}${wl}${na}</div></div>${prevGwStrip()}
+  return `${hero}<div class="home-main">${left}<div class="home-side">${board}${na}${qr}${wl}</div></div>${prevGwStrip()}
     <div class="grid2">${squadRatingPanel()}<div id="watchlist" tabindex="-1">${starsPanel()}</div></div>`;
 }
+// The pitch's plan-week preview: which plan and which of its gameweeks the pitch shows. In memory only, so every visit
+// (and every reload) opens on your own plan's next-deadline team; nothing here changes your plan or the Planner's state.
+// "mine" is the active plan (model plan, re-plan or your draft, as planName() calls it); the strategies are the
+// optimiser's recommended plan for each (recommendedPlan). A strategy with no plan in this build (the solver failed, or
+// an old data.json) is shown disabled with the reason, never filled in. A plan shorter than the stored week (a plan
+// length change) falls back to its first week.
+S.hprev = S.hprev || { key: "mine", i: 0 };
+const _hpCache = {};
+function homePreview(me) {
+  const opts = [["mine", planName(), SB.moves, () => me.score]].concat(Object.keys(MODES).map(m => {
+    const k = recommendedPlan(m), mv = k ? planMoves(D.plans[k]) : null;
+    return [m, `${MODES[m]} plan`, mv, mv ? () => (_hpCache[k] && _hpCache[k].d === D.meta.built && _hpCache[k].pg === PG.join() ? _hpCache[k].sc : (_hpCache[k] = { d: D.meta.built, pg: PG.join(), sc: scoreMoves(mv) }).sc) : null];
+  }));
+  const o = opts.find(x => x[0] === S.hprev.key && x[3]) || opts[0];
+  const sc = o[3](), i = S.hprev.i < sc.weeks.length ? S.hprev.i : 0;
+  return { key: o[0], label: o[1], moves: o[2], i, week: sc.weeks[i], weeks: sc.weeks, opts };
+}
+function previewControls(pv) {
+  const plans = `<div class="seg hp-plans" role="group" aria-label="Plan shown on the pitch">${pv.opts.map(([k, l, mv]) =>
+    `<button type="button" data-hpplan="${k}" aria-pressed="${k === pv.key}"${mv ? "" : ` disabled title="No ${esc(l)} in this update"`}>${k === "mine" ? "Your plan" : esc(MODES[k])}</button>`).join("")}</div>`;
+  const gws = `<div class="hp-gws" role="group" aria-label="Gameweek shown on the pitch">${pv.weeks.map((w, j) => { const m = pv.moves.filter(x => x.gw === w.gw).length;
+    return `<button type="button" class="hp-gw" data-hpgw="${j}" aria-pressed="${j === pv.i}"><b>GW${w.gw}</b><small>${m ? `${m} move${m > 1 ? "s" : ""}` : "No moves"}</small><small>${f1(w.team.pts)} xP</small></button>`; }).join("")}</div>`;
+  return `<div class="hp-ctl">${plans}${gws}</div>`;
+}
+
 // last finished gameweek in one line, with Review and Rivals
 function prevGwStrip() {
   const fin = D.meta.cur_finished ? D.meta.cur_gw : (D.meta.cur_gw || 1) - 1;
@@ -389,6 +427,10 @@ function bindHome() {
   });
   on("[data-qbudget]", b => { const [pos, max] = b.dataset.qbudget.split(":"); Object.assign(S, { pos, maxp: max, team: "ALL", q: "" }); setView("players"); });
   on("[data-scrollto]", b => { const el = $("#" + b.dataset.scrollto); if (el) { el.scrollIntoView({ behavior: calm() ? "auto" : "smooth", block: "start" }); el.focus({ preventScroll: true }); } });
+  // the pitch's plan-week preview (homePreview): plan, gameweek, and back to your own next-deadline team
+  on("[data-hpplan]", b => { S.hprev = { key: b.dataset.hpplan, i: S.hprev.i }; render(); $(`[data-hpplan="${b.dataset.hpplan}"]`)?.focus(); });
+  on("[data-hpgw]", b => { S.hprev = { ...S.hprev, i: Number(b.dataset.hpgw) }; render(); $(`[data-hpgw="${b.dataset.hpgw}"]`)?.focus(); });
+  on("[data-hpreset]", () => { S.hprev = { key: "mine", i: 0 }; render(); $('[data-hpgw="0"]')?.focus(); });
   on("[data-showall]", b => {
     const open = b.getAttribute("aria-expanded") === "true", list = b.closest(".side")?.querySelectorAll(".side-alerts li") || [];
     list.forEach((li, i) => { if (i >= 3) li.hidden = open; });

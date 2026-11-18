@@ -291,7 +291,7 @@ tr.is-rival td { background: var(--accent-soft); }
   .hero.intro > :nth-child(4) { animation-delay: 150ms; }
   .dash.intro .dc-bar i { transform-origin: left; animation: grow 500ms var(--ease) 200ms both; }
   .stat-sub .nudge { display: inline-block; animation: nudge 500ms var(--ease) 300ms 1; }
-  .stat.deadline.soon dd#cd { animation: pulse 2.4s ease-in-out infinite; }
+  .stat.deadline.soon #cd { animation: pulse 2.4s ease-in-out infinite; }
   .move.flash { position: relative; }
   .move.flash::after { content: ""; position: absolute; inset: -3px -6px; border-radius: var(--r-sm); background: color-mix(in srgb, var(--accent) 30%, transparent); pointer-events: none; animation: flash 900ms ease-out both; }
 }
@@ -444,14 +444,46 @@ tr.is-rival td { background: var(--accent-soft); }
 .hero-kind { color: var(--on-turf); }
 .eyebrow .live-dot { display: inline-block; margin-right: 6px; vertical-align: 1px; }
 .hero-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.hero-main { display: grid; gap: 8px; min-width: 0; }
+
+/* Next deadline: the verdict and its two Planner buttons on one band on wide screens, so the team starts higher */
+@media (min-width: 1101px) {
+  .home-next .hero.compact { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 24px; padding: 18px 24px; }
+  .home-next .hero.compact h1 { font-size: 38px; }
+  .home-next .hero-acts { margin: 0; flex-wrap: nowrap; }
+}
 .hero-acts .btn:not(.primary) { background: var(--on-turf-glass); border-color: var(--on-turf-line); color: var(--on-turf); }
 .hero-acts .btn:not(.primary):hover { border-color: var(--on-turf); }
 
 /* the three calls */
-.dcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.dcard { display: grid; grid-template-rows: auto 1fr auto; gap: 10px; min-width: 0; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+
+/* the decision board: the three calls as rows of one panel, each with its key number on the right */
+.dboard { display: grid; padding: 14px 16px 4px; }
+.dboard > .side-h { padding-bottom: 4px; }
+.dcard { display: grid; gap: 10px; min-width: 0; padding: 14px 0; border-top: 1px solid var(--line); }
+.dboard > .side-h + .dcard { border-top: 0; padding-top: 8px; }
 .dcard h3 .pill { text-transform: none; letter-spacing: 0; }
-.dcard h3 { display: flex; align-items: center; gap: 10px; font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.dcard h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
+.dc-key { display: inline-flex; align-items: baseline; gap: 5px; margin-left: auto; text-transform: none; letter-spacing: 0; }
+.dc-key b { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; color: var(--fg); }
+.dc-key small { font-size: var(--fs-xs); font-weight: 500; color: var(--muted); }
+
+/* the pitch's plan-week preview: which plan, which gameweek */
+.hp-ctl { display: grid; gap: 8px; }
+.hp-plans { justify-self: start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.hp-plans button { white-space: nowrap; }
+.hp-plans button:disabled { opacity: .5; cursor: not-allowed; }
+.hp-gws { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(88px, 1fr); gap: 6px; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; }
+.hp-gw { display: grid; gap: 1px; padding: 8px 10px; text-align: left; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--fg); cursor: pointer; transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
+.hp-gw b { font-family: var(--display); font-size: 17px; font-weight: 700; line-height: 1.1; }
+.hp-gw small { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.hp-gw[aria-pressed="true"] { border-color: var(--accent-text); background: var(--accent-soft); }
+.hp-gw:active, .hp-plans button:active { transform: scale(.97); }
+.hp-gw:focus-visible { outline: 2px solid var(--hi); outline-offset: 1px; }
+
+@media (hover: hover) and (pointer: fine) { .hp-gw:hover { border-color: var(--line-strong); } }
+.hp-note { margin: 0; padding: 8px 12px; font-size: var(--fs-sm); color: var(--fg); background: var(--hi-soft); border-radius: var(--r-sm); }
+.hp-note .linkish { color: var(--accent-text); font-weight: 600; }
 .dc-body { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .dc-do { margin: 0; font-size: 17px; font-weight: 650; }
 .dc-sub { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
@@ -477,7 +509,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .dcc > b { font-family: var(--display); font-size: 22px; font-weight: 700; }
 
 /* pitch on the left, research and checks on the right */
-.home-main { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.home-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); gap: 16px; align-items: start; }
 
 /* the Planner's lineup column gets the same share (about 65%), so five cards fit side by side */
 .grid2.lu-cols { grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); }
@@ -542,7 +574,6 @@ tr.is-rival td { background: var(--accent-soft); }
 }
 
 @media (max-width: 1100px) {
-  .dcards { grid-template-columns: minmax(0, 1fr); }
   .home-main { grid-template-columns: minmax(0, 1fr); }
   .home-side { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 }
