@@ -118,20 +118,19 @@ function openPlayer(id) {
       ${S.xh > 1 ? statBadge(`xP ${fcLabel()}`, fcTxt(p), { sub: `${p.xmin} expected mins` }) : statBadge("Expected minutes", String(p.xmin), { sub: `GW${g}` })}
     </dl>
 
+    ${outlook(p, g)}
     ${whyXP(p, g)}
+    <section class="ph-sec"><h3>Upcoming fixtures</h3>${upcomingFixtures(p, id)}
+      <p class="note">The chip shows FPL's fixture difficulty, 1 easiest to 5 hardest. The number on the right is projected points.</p></section>
     ${newsTimeline(p)}
     <section class="ph-sec"><h3>Points this season</h3>${pointsHistory(p)}
       <p class="note">Points per gameweek. Yellow bars are 10 or more.</p></section>
-
-    <section class="ph-sec"><h3>Upcoming fixtures</h3>${upcomingFixtures(p, id)}
-      <p class="note">The chip shows FPL's fixture difficulty, 1 easiest to 5 hardest. The number on the right is projected points.</p></section>
 
     ${p.price_proj?.[0] != null ? `<section class="ph-sec"><h3>Price change</h3>${priceChange(p)}</section>` : ""}
     ${p.pos !== "GKP" ? `<section class="ph-sec" id="shotmap" data-pid="${id}"><h3>Shot map</h3><p class="note">Loading…</p></section>` : ""}
 
     <section class="ph-sec"><h3>Key stats</h3>
       <div class="brk">${tile("Season pts", p.pts)}${tile("Goals, assists", `${p.goals}, ${p.assists}`)}${tile("xG, xA", `${p.xg.toFixed(1)}, ${p.xa.toFixed(1)}`)}${tile("xGI/90 L4", p.xgi90_4.toFixed(2))}${p.st5?.[1] ? tile(`Starts, last ${p.st5[1]}`, `${p.st5[0]} of ${p.st5[1]}`) : ""}${tile("Chance to start next game", `${Math.round(p.p_start * 100)}%`)}${tile("Owned", `${p.own.toFixed(1)}%`)}${p.last ? tile(`${p.last.season} pts`, p.last.pts) : ""}${sq ? tile("Bought at", money(sq.buy)) : ""}</div>
-      ${outcomeTiles(p, g, tile)}
       <details><summary>GW${g} projection breakdown</summary>
         <div class="brk dbody">${Object.entries(d).filter(([, v]) => Math.abs(v) >= 0.01).map(([k, v]) => tile(labels[k] || k, v.toFixed(2))).join("")}</div></details>
       ${p.us ? `<details><summary>Shots and chances per 90 (last 4 GWs)</summary><div class="brk dbody">
@@ -251,11 +250,54 @@ function openTry(id) {
 $("#dlg").addEventListener("click", e => { if (e.target.id === "dlg") e.target.close(); });
 $("#dlg").addEventListener("close", () => $("#dlg").removeAttribute("aria-labelledby"));
 
-// simulated outcomes for one gameweek: chance of a haul (10+) and a blank (2 or fewer), and the likely range
-function outcomeTiles(p, g, tile) {
+// The next gameweek at a glance, near the top of the sheet: the likely range drawn as a band (10th to 90th percentile
+// of the simulated outcomes, dist [p10, p6, blank, q10, q90] from build.py) with his xP marked on it, then the chances
+// of a haul (10+), a return (6+) and a blank (2 or fewer). The axis runs 0 to 15 points, or further when the 90th
+// percentile is higher. Missing: no simulation for that gameweek (dist absent, e.g. no fixture or no projection) says so
+// rather than leaving the section out.
+function outlook(p, g) {
   const d = p.dist?.[g];
-  if (!d) return "";
+  if (!d) return `<section class="ph-sec ph-out"><h3>GW${g} ${term("outcomes", "outcomes")}</h3><p class="note">No simulated outcomes for GW${g} in this update${fxFor(p.team, g).length ? "" : ": he has no fixture"}.</p></section>`;
   const pc = x => x < 0.01 ? "<1%" : Math.round(x * 100) + "%";
-  return `<h3 class="ph-sub">GW${g} ${term("outcomes", "outcomes")}</h3>
-      <div class="brk">${tile("10+ pts", pc(d[0]))}${tile("6+ pts", pc(d[1]))}${tile("2 or fewer", pc(d[2]))}${tile("Likely range", `${Math.round(d[3])}–${Math.round(d[4])}`)}</div>`;
+  const [lo, hi] = [Math.round(d[3]), Math.round(d[4])], top = Math.max(15, Math.ceil(d[4])), at = v => `${(Math.max(0, Math.min(top, v)) / top * 100).toFixed(1)}%`;
+  const ticks = [0, 5, 10, 15].filter(t => t <= top).concat(top > 15 ? [top] : []);
+  const chance = (l, v) => `<div class="oc"><span>${l}</span><b>${pc(v)}</b><i style="--w:${Math.min(100, v * 100).toFixed(0)}%" aria-hidden="true"></i></div>`;
+  return `<section class="ph-sec ph-out"><h3>GW${g} ${term("outcomes", "outcomes")}</h3>
+    <div class="orange" role="img" aria-label="Likely range ${lo} to ${hi} points, projected ${f1(p.xp1)} xP">
+      <span class="or-band" style="left:${at(d[3])};width:calc(${at(d[4])} - ${at(d[3])})"></span><span class="or-xp" style="left:${at(p.xp1 || 0)}"><b>${f1(p.xp1)} xP</b></span>
+      ${ticks.map(t => `<span class="or-tick" style="left:${at(t)}">${t}</span>`).join("")}</div>
+    <p class="note">Likely range <b>${lo}–${hi} points</b>: 8 in 10 of the model's simulated outcomes fall inside the band.</p>
+    <div class="ocs">${chance("10+ pts", d[0])}${chance("6+ pts", d[1])}${chance("2 or fewer", d[2])}</div></section>`;
 }
+
+/* Phones: the sheet has a handle at the top; drag it down to close (a quick flick is enough). Dragging up is damped,
+   not stopped. Pointer capture keeps the drag going if the finger leaves the handle, and a second finger is ignored.
+   Escape and the × still close it as before; the handle is hidden from screen readers, which use those. Wider screens
+   show no handle. Reduced motion: the sheet follows the finger but doesn't animate back or away. */
+(function sheetDrag() {
+  const dlg = $("#dlg"), grab = $("#dlgGrab"); if (!dlg || !grab) return;
+  let id = null, y0 = 0, t0 = 0, dy = 0;
+  const reset = () => { dlg.style.transform = ""; dlg.style.transition = ""; };
+  grab.addEventListener("pointerdown", e => {
+    if (id !== null || !matchMedia("(max-width: 640px)").matches) return;
+    id = e.pointerId; y0 = e.clientY; t0 = performance.now(); dy = 0;
+    grab.setPointerCapture(id); dlg.style.transition = "none";
+  });
+  grab.addEventListener("pointermove", e => {
+    if (e.pointerId !== id) return;
+    const d = e.clientY - y0; dy = d < 0 ? d * 0.2 : d;
+    dlg.style.transform = `translateY(${dy}px)`;
+  });
+  const end = e => {
+    if (e.pointerId !== id) return;
+    id = null;
+    const v = dy / Math.max(1, performance.now() - t0), shut = dy > 120 || (dy > 24 && v > 0.5);
+    const still = calm();
+    dlg.style.transition = still ? "none" : "transform 200ms cubic-bezier(.23, 1, .32, 1)";
+    if (shut) { dlg.style.transform = "translateY(100%)"; setTimeout(() => { dlg.close(); reset(); }, still ? 0 : 200); }
+    else { dlg.style.transform = ""; if (still) reset(); else setTimeout(reset, 200); }
+  };
+  grab.addEventListener("pointerup", end);
+  grab.addEventListener("pointercancel", end);
+  dlg.addEventListener("close", reset);
+})();
