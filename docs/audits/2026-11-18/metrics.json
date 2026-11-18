@@ -1,0 +1,534 @@
+{
+ "week-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 2591,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ],
+  "errors": []
+ },
+ "week-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 4722,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ],
+  "errors": []
+ },
+ "afg-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 2957,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "afg-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 5724,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "planner-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1856,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "Planner"
+  ],
+  "errors": []
+ },
+ "planner-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 2393,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "Planner"
+  ],
+  "errors": []
+ },
+ "rivals-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 2322,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "rivals-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 3673,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "deadlines-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1116,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "deadlines-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 2201,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "review-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 3465,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "review-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 5245,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "fixtures-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 2012,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "fixtures-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 3930,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "players-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1214,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "players-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 7904,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "stats-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1759,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "stats-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 2565,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "xptable-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1217,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "xptable-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 9336,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "chips-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 2160,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "chips-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 3847,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "model-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 5555,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "model-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 9036,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "health-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1795,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "health-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 2628,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "vsmodel-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 3075,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "vsmodel-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 5397,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "school-1440-dark": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 900,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "school-390-dark": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 844,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "week-1440-light": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 2591,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ],
+  "errors": []
+ },
+ "week-390-light": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 4722,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ],
+  "errors": []
+ },
+ "planner-1440-light": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1856,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "Planner"
+  ],
+  "errors": []
+ },
+ "planner-390-light": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 2393,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "Planner"
+  ],
+  "errors": []
+ },
+ "players-1440-light": {
+  "sw": 1440,
+  "cw": 1440,
+  "sh": 1214,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "players-390-light": {
+  "sw": 390,
+  "cw": 390,
+  "sh": 7904,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "week-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 2737,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ],
+  "errors": []
+ },
+ "week-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 2737,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ],
+  "errors": []
+ },
+ "planner-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 1916,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "Planner"
+  ],
+  "errors": []
+ },
+ "planner-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 1916,
+  "small": 0,
+  "h1": [
+   "BACK2BACK",
+   "Planner"
+  ],
+  "errors": []
+ },
+ "rivals-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 2397,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "rivals-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 2397,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "deadlines-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 1116,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "deadlines-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 1116,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "review-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 3495,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "review-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 3495,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "fixtures-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 2033,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "fixtures-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 2033,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "players-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 1214,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "players-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 1214,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "vsmodel-1280-dark": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 3163,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ },
+ "vsmodel-1280-light": {
+  "sw": 1280,
+  "cw": 1280,
+  "sh": 3163,
+  "small": 0,
+  "h1": [
+   "BACK2BACK"
+  ],
+  "errors": []
+ }
+}

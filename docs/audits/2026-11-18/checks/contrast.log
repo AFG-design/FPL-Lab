@@ -1,0 +1,11 @@
+
+> contrast
+> python3 scripts/contrast_check.py
+
+dark  contrast   0 colour pairs below AA (0 distinct elements)
+dark  size       0 text sizes under 11px (0 distinct elements)
+light contrast   0 colour pairs below AA (0 distinct elements)
+light size       0 text sizes under 11px (0 distinct elements)
+
+41934 text elements measured.
+All text is 11px or more and meets WCAG AA in both themes at 390px and 1280px.
