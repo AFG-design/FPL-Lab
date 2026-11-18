@@ -117,6 +117,15 @@ season, the pooled 5-GW picks interval, and (for a targeted change) the pooled i
   data, long names) at seven widths from 320 to 1920px in both themes, and checks league and pinned-rival memory. `scripts/screenshots.py` is for the
   README shots.
 
+## Verification
+- Run the verify skill (`.claude/skills/verify/SKILL.md`) before every PR, and put its PASS/FAIL summary in the PR.
+- Flaky tests: never skip, retry, sleep or loosen a test to make it pass. Find the root cause, or delete the test and
+  record why in the PR.
+- Three strikes: after 3 failed fix rounds on the same failure, stop and escalate to the owner with what you tried
+  (open the PR as a draft with the write-up).
+- A change must not edit the check that judges it (tests, `validate.py`, `.github/workflows/check.yml`) unless the PR
+  explains why the check was wrong.
+
 ## GitHub
 - `gh pr create` fails in these sessions (GraphQL blocked). Open PRs with the REST API:
   `gh api repos/AFG-design/fpl-lab/pulls -f title=... -f head=BRANCH -f base=main -f body=...`
