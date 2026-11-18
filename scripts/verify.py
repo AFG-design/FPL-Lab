@@ -8,7 +8,7 @@ Steps, in order (independent ones run side by side so the whole run stays under 
   1. build     python3 build.py TEAM site/data.json  }  together
   2. npm test  lint, whole-app check, node tests     }
   3. validate  python3 validate.py site/data.json (errors fail; warnings are printed, as on the Health page)
-  4. screens   scripts/layout_check.py: every view at 390px and 1280px, no JS errors, no error cards, no sideways
+  4. screens   scripts/layout_check.py: every view at 390px, 1280px and 1440px, no JS errors, no error cards, no sideways
                scroll, no missing site files                                            }  together
   5. squad     the homepage (both its Current GW and Next GW views, at 390px and 1280px) shows 15 players on the
                pitch and bench, and sensible team value and bank (below)                }

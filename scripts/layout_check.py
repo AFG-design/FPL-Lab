@@ -1,4 +1,4 @@
-"""Phone and desktop layout check: opens every screen at 390px and 1280px wide and fails on problems.
+"""Phone, desktop and widescreen layout check: opens every screen at 390px, 1280px and 1440px wide and fails on problems.
 
     python3 scripts/layout_check.py              # needs site/data.json (see "Run locally" in the README)
     python3 scripts/layout_check.py --out shots  # also where the screenshots go (default: layout-shots/)
@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-WIDTHS = {"phone": (390, 844), "desktop": (1280, 900)}
+WIDTHS = {"phone": (390, 844), "desktop": (1280, 900), "wide": (1440, 900)}  # wide: FL-203, big monitors
 # extra states to open, set through localStorage before the page loads: (view, name, localStorage key, value)
 VARIANTS = [("week", "current", "fpl.home", "current"), ("planner", "paths", "fpl.pview", "compare"), ("week", "kits", "fpl.lineup", "kits")]
 
@@ -122,7 +122,7 @@ def main():
         for f in failures:
             print("  - " + f)
         sys.exit(1)
-    print(f"All {len(vs)} views fine at {' and '.join(f'{w}px' for w, _ in WIDTHS.values())}.")
+    print(f"All {len(vs)} views fine at {', '.join(f'{w}px' for w, _ in WIDTHS.values())}.")
 
 
 if __name__ == "__main__":

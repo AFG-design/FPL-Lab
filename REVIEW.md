@@ -60,7 +60,7 @@ Tag every finding:
   rolling the transfer. Breaking any of these is **Important** (CLAUDE.md, Tabs and planner).
 
 ## 5. Phone layout and both themes
-- Check the screens at ~390px and ~1280px in dark and light mode (CLAUDE.md, Testing). `npm run layout` catches JS
+- Check the screens at ~390px and ~1280px in dark and light mode (CLAUDE.md, Testing). `npm run layout` (which also opens every screen at 1440px) catches JS
   errors, error cards and sideways scroll. It doesn't catch text that's cut off, overlaps or is too small, so look at
   the screenshots CI keeps.
 - New tables scroll inside `.tablebox`, never the page. New colours need contrast in both themes
