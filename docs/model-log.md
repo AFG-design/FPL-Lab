@@ -10,6 +10,38 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 18 Nov 2026 — FL-114 follow-up: defenders scoring outside clean sheets + cs_k retune (Don't adopt)
+
+- Idea (FL-114 "Next lever"): clean sheets were over-projected in 2024/25 and 2025/26 (real/proj 0.90), yet fixing
+  `cs_k` alone ranked defenders worse. Diagnostic on `main` (`c7fe6f5`) DEF one-fixture pool across all three
+  seasons (2026/27 GW3–10 / 2025/26 / 2024/25, real/proj): goals `0.71 / 0.91 / 0.94` and assists
+  `0.96 / 1.07 / 0.89` are not under-projected, whereas **defensive contributions** (`1.24 / 1.30 / –`, due to
+  prior seasons without DC diluting `dc90` toward 0 and Poisson underestimating `>= 10` tail) and **DEF bonus**
+  (`1.21 / 1.21 / 1.30`, from global `bonus_scale=0.8`) are consistently under-projected.
+- Package (linked to rebalance defender scoring outside CS and retune `cs_k` with it; tested off `main` `c7fe6f5`,
+  code reverted after testing):
+  - `dc_prior_fix`: track `dc_mins` (only seasons with `defensive_contribution`) in `make_priors.py` and
+    `archive.py` so 0-DC seasons don't shrink `dc90` toward 0; older `priors.json` without `dc_mins` falls back
+    to `mins`, `dc_mins == 0` sets `wl = 0`.
+  - `dc_r = 10`: Negative Binomial tail in `p_at_least` (`None` or `<= 0` = Poisson).
+  - `def_bonus_mult = 1.2`: scales DEF bonus to offset `bonus_scale=0.8`.
+  - Three variants, listed before running: **V1** `cs_k=0.90`, **V2** `cs_k=0.95`, **V3** `cs_k=1.00`.
+- **bench.py, pooled 5-GW picks (2024/25 + 2025/26, 60 origins, candidate − main):**
+  V1 **−0.047 [−0.123, +0.023]**, V2 **−0.069 [−0.146, +0.005]**, V3 **−0.066 [−0.154, +0.021]**.
+  Per-season 1-GW / 5-GW picks against main (`4.36 / 18.24` this season, `4.44 / 19.13` 2025/26, `4.25 / 19.16`
+  2024/25):
+  - V1: `4.36 / 18.24` (this season), `4.43 / 19.05` (`−0.08 [−0.22, +0.06]`, 2025/26), `4.25 / 19.15` (`−0.02 [−0.04, +0.00]`, 2024/25).
+  - V2: `4.38 / 18.24` (this season), `4.44 / 19.04` (`−0.09 [−0.23, +0.05]`, 2025/26), `4.25 / 19.11` (**`−0.05 [−0.10, −0.01]`**, 2024/25).
+  - V3: `4.38 / 18.24` (this season), `4.44 / 19.02` (`−0.11 [−0.27, +0.04]`, 2025/26), `4.25 / 19.14` (`−0.02 [−0.10, +0.06]`, 2024/25).
+- **Pooled part scores (lower loss is better):**
+  - `Def. contribution` Brier: **−0.00068 [−0.00099, −0.00040]** better in all three (`2025/26` alone: `−0.00137 [−0.00200, −0.00080]`; 2024/25 has no DC).
+  - `Bonus` sq. error: V1 `−0.00010 [−0.00033, +0.00012]`, V2 `−0.00014 [−0.00034, +0.00006]`, V3 `−0.00016 [−0.00033, +0.00001]` (2024/25 alone `−0.00020` / `−0.00021`, clear of 0).
+  - `Clean sheets` log-loss: V1 `+0.00000`, V2 `−0.00061 [−0.00160, +0.00046]`, V3 `−0.00036 [−0.00232, +0.00175]` (but V3 current season `+0.00659 [+0.00052, +0.01198]` worse).
+- **No-harm & `backtest.py --compare` (2026/27 GW3–10, with / without status log):**
+  - No `--compare` segment trips in any variant (V1 MAE `+0.0013 / +0.0014`, V2 `−0.0053 / −0.0058`, V3 `−0.0109 / −0.0121`; corr `+0.0001 / −0.0002 / −0.0007`).
+  - No-harm trips: V1 has `2025/26` `cap −0.34 [−0.77, −0.03]` and `2024/25` `top5 −0.06 [−0.13, −0.01]` wholly below zero; V2 has `2024/25` 5-GW picks `−0.05 [−0.10, −0.01]` wholly below zero; V3 worsens current-season CS log-loss (`+0.00659 [+0.00077, +0.01232]` with status log).
+- **Decision-table row:** `CI includes zero and the change is only a tweak` (package of multiple parts, pooled 5-GW picks negative in all three, and V1/V2 trip no-harm CIs) → **Don't adopt.**
+
 ## 18 Nov 2026 — FL-173: returning regulars' start chance from last season (Don't adopt; issue #194 Item 1)
 
 - Idea (FL-093 / FL-030 follow-up, the "Saliba problem"): a regular from last season on 0 minutes so far gets
