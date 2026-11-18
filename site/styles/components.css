@@ -134,7 +134,11 @@ a.btn { text-decoration: none; }
 .pc > span { display: block; }
 .pc .pc-meta { display: flex; justify-content: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 500; }
 .pc-form { color: var(--accent-text); background: var(--accent-soft); border-radius: 3px; padding: 0 4px; }
-.pc .nm { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* names in the condensed display face, as the lineup cards (.lu-cards) have them, and up to two lines breaking only at
+   spaces and hyphens, so "Muharemović" and "Calvert-Lewin" fit a phone card instead of being cut to "Muharem…" */
+.pc .nm { display: -webkit-box; max-width: 100%; overflow: hidden; font-family: var(--display); font-weight: 700; font-size: 15px; line-height: 1.05; letter-spacing: .01em;
+  white-space: normal; overflow-wrap: normal; word-break: normal; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .pc .xp { font-family: var(--display); font-weight: 700; font-size: 21px; line-height: 1.05; letter-spacing: .01em; }
 .pc .xp.asm { color: var(--on-turf-muted); }
 .pc .fx { display: flex !important; gap: 2px; justify-content: center; margin-top: 4px; }
@@ -169,7 +173,7 @@ a.btn { text-decoration: none; }
   .pc { flex-basis: 68px; padding: 5px 2px 4px; }
   .pc .shirt { width: 22px; height: 22px; }
   .armband { top: 10px; left: calc(50% - 27px); }
-  .pc .nm { font-size: 11px; }
+  .pc .nm { font-size: 12.5px; letter-spacing: 0; }
   .pc .pc-meta { font-size: 11px; gap: 4px; }
   .pc .xp { font-size: 17px; }
   .pc .fx .fdr { font-size: 11px; gap: 3px; }
