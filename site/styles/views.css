@@ -571,6 +571,14 @@ tr.is-rival td { background: var(--accent-soft); }
 .home-pitch { display: grid; gap: 10px; min-width: 0; }
 .home-pitch .bar { margin: 0; }
 .home-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.home-side2 { display: grid; gap: 12px; align-content: start; min-width: 0; }
+
+/* wide monitors: the side cards split into two columns (decisions | checks, research, watchlist), so the
+   pitch column is no longer left with empty space under it while one long side column carries on */
+@media (min-width: 1640px) {
+  .home-main:has(.home-side2) { grid-template-columns: minmax(0, 1fr) minmax(0, 760px); }
+  .home-side:has(.home-side2) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+}
 .side { padding: 14px 16px; display: grid; gap: 10px; }
 .side-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .side-h h3 { font-size: var(--fs-lg); }

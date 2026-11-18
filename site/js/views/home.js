@@ -206,7 +206,7 @@ function vNext() {
     att.length > 3 ? `<button class="btn sm" data-showall="1" aria-expanded="false">Show all ${att.length}</button>` : "",
     att.length ? `<span class="pill warn">${att.length} to check</span>` : `<span class="pill good">Clear</span>`);
 
-  return `${hero}<div class="home-main">${left}<div class="home-side">${board}${na}${qr}${wl}</div></div>${prevGwStrip()}
+  return `${hero}<div class="home-main">${left}<div class="home-side">${board}<div class="home-side2">${na}${qr}${wl}</div></div></div>${prevGwStrip()}
     <div class="grid2">${squadRatingPanel()}<div id="watchlist" tabindex="-1">${starsPanel()}</div></div>`;
 }
 // The pitch's plan-week preview: which plan and which of its gameweeks the pitch shows. In memory only, so every visit
