@@ -201,7 +201,7 @@ tr:last-child td { border-bottom: 0; }
 tbody tr { transition: background var(--t-fast) var(--ease); }
 
 @media (hover: hover) and (pointer: fine) { tbody tr:hover { background: var(--raised); } }
-tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
+tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi-text); } /* FL-181: --hi-text, 3:1+ on light surfaces; same yellow as --hi in dark */
 .pname { font-weight: 600; }
 .tick td.fxc { padding: 3px; }
 .fxc > span { display: flex; justify-content: center; align-items: baseline; gap: 4px; border-radius: 4px; padding: 5px 4px; font-weight: 600; font-size: var(--fs-sm); min-width: 62px; }
@@ -675,7 +675,7 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 @media (hover: hover) and (pointer: fine) { .mcard:hover { transform: translateY(-1px); border-color: var(--line-strong); } }
 .mcard.live { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); background: linear-gradient(180deg, color-mix(in srgb, var(--good) 9%, var(--surface)), var(--surface) 60%); }
 .mcard.ft { background: var(--surface); }
-.mcard.mine { box-shadow: inset 3px 0 0 var(--hi), 0 1px 2px rgb(0 0 0 / 12%); }
+.mcard.mine { box-shadow: inset 3px 0 0 var(--hi-text), 0 1px 2px rgb(0 0 0 / 12%); }
 .mc-top { display: flex; justify-content: space-between; align-items: center; font-size: var(--fs-xs); font-weight: 700; letter-spacing: .02em; min-height: 18px; }
 .mc-live { display: inline-flex; align-items: center; gap: 6px; color: var(--good); }
 .mc-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); }
