@@ -244,12 +244,26 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi); }
 .stepcard .sub { font-size: var(--fs-sm); color: var(--muted); }
 
 /* option tiles */
-.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin-top: 8px; }
-.opt { border: 1px solid var(--line); border-radius: var(--r-sm); padding: 9px 11px; background: var(--sunk); text-align: left; transition: border-color var(--t-fast) var(--ease); }
-.opt:hover { border-color: var(--line-strong); }
-.opt b { display: block; font-size: var(--fs-lg); }
-.opt span { font-size: var(--fs-xs); color: var(--muted); }
-.opt.sel { border-color: var(--hi); box-shadow: inset 0 0 0 1px var(--hi); }
+
+/* Planner → My team: the three strategy cards, three across; on phones a row you swipe, one and a bit cards wide */
+.pvstrats { display: grid; gap: 8px; }
+.pvstrats .bar { margin: 0; }
+.pvcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pvcard { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 14px 16px; text-align: left; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
+.pvcard:active { transform: scale(.98); }
+.pvcard:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.pvc-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 650; }
+.pvc-g { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.pvc-gain { font-family: var(--display); font-size: 34px; font-weight: 700; line-height: 1; }
+.pvc-g small, .pvc-help { font-size: var(--fs-xs); color: var(--muted); }
+.pvc-now { font-size: var(--fs-sm); }
+
+@media (hover: hover) and (pointer: fine) { .pvcard:hover { border-color: var(--accent-text); } }
+
+@media (max-width: 760px) {
+  .pvcards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(250px, 82%); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 2px; }
+  .pvcard { scroll-snap-align: start; }
+}
 .gwsel { display: flex; gap: 6px; flex-wrap: wrap; }
 .gwsel button { border: 1px solid var(--line); background: var(--sunk); border-radius: var(--r-sm); padding: 6px 11px; font-weight: 650; min-width: 64px; text-align: left; }
 .gwsel button small { display: block; font-weight: 500; font-size: var(--fs-xs); color: var(--muted); }
