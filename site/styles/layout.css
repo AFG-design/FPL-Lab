@@ -185,7 +185,8 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
 .sheetbody [aria-current="page"] b, .sheetbody [aria-current="page"] .ic { color: var(--accent-text); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .sheet:not([hidden]) .sheetbody { animation: rise var(--t) var(--ease); }
+  .sheet:not([hidden]) .sheetbody { animation: rise-sheet var(--t) var(--ease); }
 }
 
-@keyframes rise { from { transform: translateY(16px); opacity: 0; } }
+/* FL-180: keyframe names are global, so each file's are named for what they do (views.css has rise-intro) */
+@keyframes rise-sheet { from { transform: translateY(16px); opacity: 0; } }

@@ -399,7 +399,7 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  dialog[open] { animation: rise var(--t) var(--ease); }
+  dialog[open] { animation: rise-sheet var(--t) var(--ease); } /* rise-sheet: layout.css */
 }
 
 /* ---------- loading, empty and error states ---------- */
@@ -700,9 +700,9 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .mc-p b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: no-preference) {
-  .mc-live i { animation: pulse 1.6s ease-out infinite; }
+  .mc-live i { animation: pulse-ring 1.6s ease-out infinite; }
 
-  @keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+  @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--good) 60%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
 }
 
 @media (max-width: 700px) {
