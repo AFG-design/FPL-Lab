@@ -77,6 +77,23 @@ function fieldEO() { return fieldSample()?.data.eo || null; }
 // Strategy extras as the optimiser has them, in every week: Chase rewards the chance of 10+ points (double for the
 // captain), Play safe marks down starters who may not play (starters only). pts stays plain projected points.
 const haulP = (i, g) => P[i]?.dist?.[g]?.[0] || 0;
+// FL-164: what still differs when the captain call is a Coin flip (the projections are too close to call).
+// haulChance: the model's chance of 10+ points in GW g (dist[g][0], simulated), a projection. Missing distribution:
+// null, shown as "no projection", never 0%.
+function haulChance(i, g) { const v = P[i]?.dist?.[g]?.[0]; return Number.isFinite(v) ? v : null; }
+// leagueCaptains: how a mini-league's managers captained in the crowd sample's gameweek (actual picks, not a forecast
+// of this week). The armband is the pick FPL counts double or triple (multiplier 2 or 3). You are left out. Only the
+// managers in this update are counted (for a big league, the top of its table), so callers say "of N".
+// Missing: no league, or no manager with picks -> null, and the caller says the sample is unavailable.
+function leagueCaptains(lg, ids) {
+  const caps = (lg?.rows || []).filter(r => !r.me && Array.isArray(r.picks)).map(r => (r.picks.find(([, m]) => m >= 2) || [null])[0]);
+  if (!caps.length) return null;
+  const tally = {};
+  caps.forEach(c => { if (c != null) tally[c] = (tally[c] || 0) + 1; });
+  const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+  return { n: caps.length, of: ids.map(id => ({ id, k: tally[id] || 0 })), top: top ? { id: +top[0], k: top[1] } : null };
+}
+const pctTxt = v => v == null ? "no projection" : `${Math.round(v * 100)}%`;
 function adjXI(i, g) {
   // Play safe: projected points decide, the safety terms only break ties (no points given up)
   if (S.mode === "safe") return xpg(i, g) + 1e-3 * adjXIraw(i, g);

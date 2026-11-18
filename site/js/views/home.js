@@ -125,7 +125,20 @@ function vNext() {
   // captain: your captain and the best other starter, both as captain (xP × 2)
   const capRows = [me.cap, c.alt].filter(i => i != null);
   const cmax = Math.max(...capRows.map(i => xpg(i, g))) || 1;
-  const cBody = `<div class="dc-caps">${capRows.map((i, j) => `<button type="button" class="dcc${j ? "" : " top"}" data-p="${i}">
+  // FL-164: a Coin flip gives no steer on points, so the card leads with what does differ between the two options:
+  // each one's projected chance of 10+ points, and how the mini-league you follow on Rivals captained last time
+  // (actual, GW of the crowd sample). Someone else is named only if more of them captained him than either option. No league sample: said, not left out quietly.
+  let cLead = "";
+  if (c.cV.t === "Coin flip" && capRows.length > 1) {
+    const lg = rvLeague(D.crowd?.leagues || []).lg, lc = leagueCaptains(lg, capRows);
+    const hauls = capRows.map(i => `${esc(P[i].name)} ${pctTxt(haulChance(i, g))}`).join(" · ");
+    const lTxt = !lc ? "No mini-league sample yet, so rivals' captains aren't shown."
+      : `In GW${D.crowd.gw}, of the ${lc.n} other ${esc(lg.name)} managers in this update, ${lc.of.map(o => `${o.k || "none"} captained ${esc(P[o.id].name)}`).join(" and ")}`
+        + (lc.top && !capRows.includes(lc.top.id) && P[lc.top.id] && lc.of.every(o => lc.top.k > o.k) ? `; their most popular captain was ${esc(P[lc.top.id].name)} (${lc.top.k})` : "") + " (actual picks).";
+    cLead = `<p class="dc-do">Too close to call on projected points. What differs:</p>
+    <ul class="dc-diff"><li>Chance of 10+ points in GW${g} (projected): ${hauls}</li><li>${lTxt}</li></ul>`;
+  }
+  const cBody = `${cLead}<div class="dc-caps">${capRows.map((i, j) => `<button type="button" class="dcc${j ? "" : " top"}" data-p="${i}">
       <span class="dcc-n">${j ? '<span class="dcc-alt">Alt</span>' : '<span class="badge inline" aria-label="Captain">C</span>'}${esc(P[i].name)}<span class="muted dcc-fx">${fxText(P[i], g)}</span></span>
       <span class="dcc-bar"><i style="width:${(xpg(i, g) / cmax * 100).toFixed(0)}%"></i></span><b>${f1(xpg(i, g) * 2)}</b></button>`).join("")}</div>
     <p class="dc-sub">Projected captain points for GW${g} (xP × 2).${me.capMine ? ` Your choice; the model's pick is ${esc(P[capPick(me.xi, g).cap].name)}.` : ""} Vice: ${esc(P[me.vice].name)}.${c.capEO != null ? ` ${c.capEO.toFixed(0)}% of ${c.capSample.label} captained ${esc(P[me.cap].name)} in GW${c.capSample.gw}.` : " Captaincy sample unavailable: neither managers near your rank nor the top 10k has a usable sample."}</p>`;
