@@ -106,7 +106,7 @@ function vDeadlines() {
     <div style="display:grid;gap:20px;align-content:start;min-width:0">
       <div class="panel dl-hero"><span class="lbl">GW${g} deadline</span><b id="dlCount">${countdown(W.deadline)}</b><span>${ukTime(W.deadline)}</span>
         ${nx ? `<span class="muted">First kick-off ${ukTime(nx[0])}: ${T[nx[1]].name} v ${T[nx[2]].name}</span>` : ""}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn primary" data-howto="${g}">Make these moves on FPL</button><button class="btn" data-ics="1">Add all deadlines to calendar</button></div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn primary" data-howto="${g}">${howtoLabel(g)}</button><button class="btn" data-ics="1">Add all deadlines to calendar</button></div></div>
       <div class="panel"><h3>Coming up</h3><div class="tablebox"><table><thead><tr><th>Gameweek</th><th>Deadline (UK)</th><th class="n">In</th></tr></thead>
         <tbody>${ahead.map(([gw, d]) => `<tr><td>GW${gw}</td><td>${ukTime(d)}</td><td class="n">${new Date(d) - Date.now() < 864e5 ? countdown(d) : days(d) + " day" + (days(d) === 1 ? "" : "s")}</td></tr>`).join("")}</tbody></table></div>
         <p class="note">The calendar file adds every remaining deadline, each with reminders 24 hours and 2 hours before. Open it on your phone to import it.</p></div>

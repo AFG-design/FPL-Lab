@@ -34,10 +34,14 @@ function movesSummaryText(g) {
   out.push(`Captain: ${n(d.t.cap)} · Vice: ${n(d.t.vice)}`);
   return out.join("\n");
 }
+// The button that opens this summary, and its heading, say what it holds: "Make these moves" only when the active plan
+// has transfers in that gameweek; otherwise it's the lineup and captain to set ("Set your GW11 team"). Same test as
+// the summary's own Transfers step (the plan's moves for that gameweek), not a proxy.
+const howtoLabel = g => SB.moves.some(m => m.gw === g) ? "Make these moves on FPL" : `Set your GW${g} team on FPL`;
 function openMovesSummary(g) {
   const d = movesSummaryData(g), n = i => esc(P[i].name);
   $("#dlgBody").innerHTML = `<button class="x" aria-label="Close" id="dlgX">×</button>
-    <h2>Make these moves · GW${d.gw}</h2>
+    <h2>${d.tx.length ? "Make these moves" : "Set your team"} · GW${d.gw}</h2>
     <p class="note" style="margin:-8px 0 0">${esc(planName())}. Do them in this order on the FPL site.</p>
     <ol class="howto">
       <li><h3>Transfers ${d.tx.length ? `<span class="muted">${d.tx.length} move${d.tx.length > 1 ? "s" : ""}${d.w.hits ? `, −${4 * d.w.hits} hit` : ", free"}</span>` : ""}</h3>
