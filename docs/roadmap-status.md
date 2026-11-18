@@ -1,4 +1,4 @@
-# FPL Lab roadmap: where we left off (5 Nov 2026)
+# FPL Lab roadmap: where we left off (18 Nov 2026)
 
 **The backlog sheet is the source of truth for what's next.** Google Sheet "FPL Lab feature backlog":
 - **Board** shows what's Next, In progress and Done.
@@ -7,6 +7,16 @@
 - **How it works** has the rules: capture first, one branch and one PR per item, and a review at the end of each cycle.
 
 This file keeps the context and the decisions. It doesn't keep a second to-do list.
+
+## Status at 18 Nov 2026
+Checked against the git log on `main` and the backlog sheet on 18 Nov. The sheet is still the source of truth; the sections below this one are kept as they were written.
+
+- **Cycle 1 (6–19 Nov): all 34 items done.** That includes four rows added on 18 Nov for work that shipped without an FL ID: FL-168 squad rating floor (#151), FL-169 this-week transfer comparisons (save, keep, captain, Bench Boost; direct commits 14–15 Nov), FL-170 saved plans explain what changed since their last review (direct commit 15 Nov), and FL-040 mini-league extras, delivered by the Rivals redesign (#174) and the pinned rival on Current GW.
+- **Cycle 2 (20 Nov–3 Dec): 8 of 9 done before it starts.** FL-090 Planner redesign (#165, follow-ups #167, #170, #171), FL-149 (You vs the model keeps its own tab), FL-156 Players review (#157–#161), FL-159, FL-161, FL-130 (#185), FL-163 (#186), FL-162 (#187; live model unchanged). Left: **FL-021**, the player-odds re-test at GW12–13, now set to Next.
+- **Cycles 3 and 4 need re-planning at the 19 Nov review.** Everything proposed for them (FL-030, FL-065, FL-053, FL-005) was done on 13 Nov, so the "Proposed later cycles" section below is out of date.
+- **Open backlog:** FL-160 clean sheets and defender scoring as one package, FL-131 xmins_sell decision (shadow check after GW14, decide before the GW15 deadline), FL-134 ep_next blend, FL-135 decision replay on 2026/27, FL-158 build.py except blocks, FL-164 captain card wording, FL-165 banked free transfer value, FL-171 mini-league points heatmap (split from FL-040).
+- **In progress:** FL-098 backup scheduler. The first real test is the GW11 deadline window, Sat 21 Nov 05:00–11:00 UTC.
+- **Process note:** several changes on 14–15 Nov went straight to `main` without an FL ID or a PR. Keep to one ID, one branch and one PR per item so the cycle review can count them.
 
 ## Status at 11 Nov 2026
 Written from the git log on `main`, not from the sheet. The sheet is still the source of truth; if they disagree, the sheet wins. The text below this section is as it was on 5 Nov.
