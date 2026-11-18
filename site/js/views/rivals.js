@@ -173,23 +173,25 @@ function rvTable(C, lg, sc, me) {
     const mv = r.last_rank && r.rank ? r.last_rank - r.rank : null;
     const arrow = mv > 0 ? `<span class="mv up" aria-label="up ${mv}">▲${mv}</span>` : mv < 0 ? `<span class="mv down" aria-label="down ${-mv}">▼${-mv}</span>` : `<span class="mv same" aria-label="${mv == null ? "no previous rank" : "no change"}">–</span>`;
     const gw = sc.gwOf(r), hit = sc.hitOf(r), src = sc.srcOf(r);
+    // their total minus yours. Its own column from 768px; under the total on phones, where the column is hidden (the
+    // header then reads "Total / gap"). Your own row, or a missing total either side, shows no gap rather than 0.
     const gap = me && !r.me && r.total != null && me.total != null ? r.total - me.total : null;
     const who = r.me ? `<span class="pname">${esc(r.player)}</span> <span class="pill good">You</span>` : `<button type="button" class="pname linkish" data-rvh2h="${r.entry}">${esc(r.player)}</button>${r.entry === pin ? ' <span class="pill warn">Rival</span>' : ""}`;
     return `<tr class="${r.me ? "mine" : ""}${r.entry === pin ? " is-rival" : ""}"><td class="n"><span class="lg-rank"><b>${r.rank ?? "–"}</b>${arrow}</span></td>
       <td class="rv-mgr">${who}${r.chip ? ` <span class="tag">${esc(CHIP_NAME[r.chip] || r.chip)}</span>` : ""}<span class="muted lg-team">${esc(r.team)}</span></td>
       <td class="n${gw != null && gw > 0 && gw === best ? " lg-best" : ""}"${hitTip(hit, gw)}>${gw ?? "–"}${live && src === "fpl" ? '<sup class="rv-fb" title="FPL league-table figure: no live picks for this manager">*</sup>' : ""}</td>
       <td class="n rv-hit">${hit == null ? '<span class="muted" title="Not known: no picks for this manager">–</span>' : hit > 0 ? `<span class="down">−${hit}</span>` : '<span class="muted">0</span>'}</td>
-      <td class="n"><b>${r.total ?? "–"}</b></td><td class="n rv-c-gap ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null ? "" : signed(gap)}</td><td class="rv-c-chips">${chipBadges(r.chips)}</td></tr>`;
+      <td class="n"><b>${r.total ?? "–"}</b>${gap == null ? "" : `<small class="rv-gap-sm ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${signed(gap)}</small>`}</td><td class="n rv-c-gap ${gap > 0 ? "down" : gap < 0 ? "up" : ""}">${gap == null ? "" : signed(gap)}</td><td class="rv-c-chips">${chipBadges(r.chips)}</td></tr>`;
   }).join("");
   const fb = live && lg.rows.some(r => sc.srcOf(r) === "fpl");
-  const notes = [`Points are GW${g} points before hits, as FPL shows them; Hit is that manager's transfer cost (0 = none, – = not known). # and Total are FPL's official league rank and season total, which include hits. Arrows show places moved since the last gameweek.`];
+  const notes = [`Points are GW${g} points before hits, as FPL shows them; Hit is that manager's transfer cost (0 = none, – = not known). # and Total are FPL's official league rank and season total, which include hits. Arrows show places moved since the last gameweek. Gap is their total minus yours (under the total on phones).`];
   if (live) notes.push(`Live points include provisional bonus and automatic substitutions once a starter's matches are over and his replacement has played, with the same rule for every row.${(C.vice_unknown || []).some(e => lg.rows.some(r => r.entry === e)) ? " For managers sampled before the vice-captain was saved, the armband isn't passed to the vice if the captain doesn't play." : ""}`);
   if (fb) notes.push("* No live picks for this manager, so the figure is FPL's league table, which updates less often.");
   const st = lg.rows.filter(r => !r.me && r.chips).map(r => chipState(r.chips));
   if (st.length) { const [a, b] = chipHalf(); notes.push(`Rivals with each chip still to play (GW${a}–${b}): ${["wildcard", "freehit", "bboost", "3xc"].map(k => `<b>${CHIP_NAME[k]}</b> ${st.filter(x => !x.find(c => c.k === k).used).length}/${st.length}`).join(" · ")}.`); }
   const count = lg.size > lg.rows.length ? `${lg.rows.length} of ${lg.size.toLocaleString("en-GB")} managers: top 10 and around you` : `${lg.size} managers`;
   return `<section class="panel rv-standings" aria-labelledby="rvst-h"><div class="bar"><h3 id="rvst-h" class="rv-h">Season standings</h3><span class="muted">${count} · Official ranks</span></div>
-    <div class="tablebox league rv-table"><table><thead><tr><th class="n" scope="col">#</th><th scope="col">Manager</th><th class="n" scope="col">GW${g}${live ? '<span class="rv-c-live"> live</span>' : ""}</th><th class="n" scope="col">Hit</th><th class="n" scope="col">Total</th><th class="n rv-c-gap" scope="col">${term("gap", "Gap")}</th><th class="rv-c-chips" scope="col">${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tablebox league rv-table"><table><thead><tr><th class="n" scope="col">#</th><th scope="col">Manager</th><th class="n" scope="col">GW${g}${live ? '<span class="rv-c-live"> live</span>' : ""}</th><th class="n" scope="col">Hit</th><th class="n" scope="col">Total<small class="rv-gap-sm">gap</small></th><th class="n rv-c-gap" scope="col">${term("gap", "Gap")}</th><th class="rv-c-chips" scope="col">${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="note">Select a manager for team details, chips and a full comparison.</p>${notes.map(n => `<p class="note">${n}</p>`).join("")}</section>`;
 }
 function vStandings(C, lg) {
