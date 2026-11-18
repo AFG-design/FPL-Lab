@@ -343,6 +343,10 @@ tr.divider td { color: var(--muted); font-size: var(--fs-sm); text-align: center
 .chart .grid { stroke: var(--line); }
 svg text { fill: var(--muted); font-family: var(--font); font-size: 11px; }
 .chart text { font-size: 13px; }
+
+/* FL-182: fit charts are drawn at their real width (lineChart in views/stats.js), so this is the size on screen */
+.chart.fit { max-width: none; }
+.chart.fit text { font-size: var(--fs-xs); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-sm); }
 .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .s1 { stroke: var(--accent-text); background: var(--accent-text); }

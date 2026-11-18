@@ -1,7 +1,17 @@
 // Stats.
 /* ---------- Stats ---------- */
-function lineChart(series, labels, { h = 200, yfmt = x => x, title = "" } = {}) {
-  const W = 600, pad = { l: 40, r: 12, t: 12, b: 26 };
+/* FL-182: a chart made with { fit: true } is drawn again at its box's real width once it is on the page (fitCharts, after
+   each render and on resize), so one SVG unit is one CSS pixel and its tick labels stay at --fs-xs (.chart.fit text) at any
+   width instead of scaling with the box. Until then, or with no layout to measure (a hidden panel, a test without a
+   browser), it is drawn at the 600-unit default and scaled like every other chart. When the gameweek labels would be
+   closer than about one and a half label widths (phones; the last label ends at its point, so it needs the room), every second (or third) one is shown, always keeping the latest. */
+const FIT_CHARTS = [];
+function lineChart(series, labels, opts = {}) {
+  const fit = opts.fit ? FIT_CHARTS.push([series, labels, opts]) - 1 : null;
+  return drawChart(series, labels, opts, 600, fit);
+}
+function drawChart(series, labels, { h = 200, yfmt = x => x, title = "" } = {}, W = 600, fit = null) {
+  const pad = { l: 40, r: 12, t: 12, b: 26 };
   const all = series.flatMap(s => s.vals.filter(v => v != null));
   const mx = Math.max(1, ...all), mn = Math.min(0, ...all);
   const nice = mx <= 2 ? 0.5 : mx <= 5 ? 1 : mx <= 12 ? 2 : 5;
@@ -9,11 +19,22 @@ function lineChart(series, labels, { h = 200, yfmt = x => x, title = "" } = {}) 
   const x = i => pad.l + (labels.length === 1 ? 0 : i / (labels.length - 1)) * (W - pad.l - pad.r);
   const y = v => pad.t + (1 - (v - mn) / (top - mn)) * (h - pad.t - pad.b);
   const ticks = []; for (let v = 0; v <= top + 1e-9; v += nice) ticks.push(v);
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(title || `Line chart across ${labels.length} gameweeks`)}">
+  const gap = labels.length > 1 ? (W - pad.l - pad.r) / (labels.length - 1) : W, every = fit == null ? 1 : Math.max(1, Math.ceil(46 / gap));
+  const last = labels.length - 1;
+  // the last label ends at its point (text-anchor end) so it isn't cut off by the right edge
+  const xlab = (l, i) => (last - i) % every ? "" : `<text x="${x(i)}" y="${h - 8}" text-anchor="${i === last && last > 0 ? "end" : "middle"}">${l}</text>`;
+  return `<svg class="chart${fit == null ? "" : " fit"}" viewBox="0 0 ${W} ${h}"${fit == null ? "" : ` data-fit="${fit}" data-w="${W}"`} role="img" aria-label="${esc(title || `Line chart across ${labels.length} gameweeks`)}">
     ${ticks.map(v => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${yfmt(v)}</text>`).join("")}
-    ${labels.map((l, i) => `<text x="${x(i)}" y="${h - 8}" text-anchor="middle">${l}</text>`).join("")}
+    ${labels.map(xlab).join("")}
     ${series.map(s => `<polyline class="${s.cls}" fill="none" stroke-width="2.5" stroke-linejoin="round" ${s.dash ? 'stroke-dasharray="5 4"' : ""} points="${s.vals.map((v, i) => v == null ? "" : `${x(i)},${y(v)}`).join(" ")}"/>${s.vals.map((v, i) => v == null ? "" : `<circle cx="${x(i)}" cy="${y(v)}" r="3" class="${s.cls}" fill="var(--surface)" stroke-width="2"/>`).join("")}`).join("")}
   </svg>`;
+}
+function fitCharts() {
+  document.querySelectorAll("svg.chart[data-fit]").forEach(svg => {
+    const a = FIT_CHARTS[svg.dataset.fit], w = Math.round(svg.getBoundingClientRect().width);
+    if (!a || w < 120 || w === +svg.dataset.w) return;
+    svg.outerHTML = drawChart(a[0], a[1], a[2], w, +svg.dataset.fit);
+  });
 }
 function vStats() {
   const cur = D.meta.cur_gw, gwl = Array.from({ length: cur }, (_, i) => "GW" + (i + 1));

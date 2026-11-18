@@ -119,6 +119,7 @@ function render() {
   }
   const fn = VIEW_FN()[S.view] || vWeek;
   let html;
+  FIT_CHARTS.length = 0; // FL-182: this render's fit charts (views/stats.js)
   try { html = fn(); } catch (e) {
     console.error(e);
     html = stateView({ kind: "error", title: "This section couldn't be drawn", body: "Something in the latest data didn't match what this page expects. Other sections should still work, and the next data refresh may fix it.", action: `<button class="btn" data-v-go="week">Go to This week</button>` });
@@ -131,6 +132,7 @@ function render() {
   const fold = $("#app .livefold"); if (fold) fold.addEventListener("toggle", () => { if (fold.open && typeof railToNow === "function") railToNow(); });
   bind();
   updatePhoneTableHeaders();
+  fitCharts();
 }
 
 // FL-130: horizontal overflow creates a scroll container even without a height cap,
@@ -154,3 +156,6 @@ function schedulePhoneTableHeaders() {
 }
 addEventListener("scroll", schedulePhoneTableHeaders, { passive: true });
 addEventListener("resize", schedulePhoneTableHeaders);
+// FL-182: redraw fit charts (views/stats.js) at their new width, once per frame
+let fitFrame = 0;
+addEventListener("resize", () => { if (!fitFrame) fitFrame = requestAnimationFrame(() => { fitFrame = 0; fitCharts(); }); });
