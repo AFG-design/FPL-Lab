@@ -350,7 +350,7 @@ svg text { fill: var(--muted); font-family: var(--font); font-size: 11px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-sm); }
 .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .s1 { stroke: var(--accent-text); background: var(--accent-text); }
-.s2 { stroke: var(--hi); background: var(--hi); }
+.s2 { stroke: var(--hi-text); background: var(--hi-text); }   /* --hi-text: the same yellow in dark, 5.7:1 on white in light (--hi was 1.4:1) */
 .s3 { stroke: var(--info); background: var(--info); }
 .s4 { stroke: var(--bad); background: var(--bad); }
 .gwbars { display: flex; gap: 5px; align-items: flex-end; height: 96px; }
