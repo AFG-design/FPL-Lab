@@ -1,0 +1,239 @@
+<meta charset="utf-8">
+<title>FPL LAB Redesign Concepts</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a review board. Findings, then a screen switcher showing Current / A / B / C side by side, then the verdict. */
+:root {
+  --bg: #f2f5f3; --surface: #ffffff; --sunk: #e8eeea; --line: #d6dfd9; --fg: #0f1a16; --muted: #4f6158;
+  --accent: #17804e; --accent-soft: rgb(23 128 78 / 10%); --hi: #ffd23f; --hi-ink: #6b4d00; --bad: #b02f26;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif; --body: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1713; --surface: #14211b; --sunk: #0a120f; --line: #24352d; --fg: #e7efe9; --muted: #98aa9f;
+  --accent: #4fcf8a; --accent-soft: rgb(79 207 138 / 12%); --hi-ink: #ffd23f; --bad: #ff7466; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0d1713; --surface: #14211b; --sunk: #0a120f; --line: #24352d; --fg: #e7efe9; --muted: #98aa9f;
+  --accent: #4fcf8a; --accent-soft: rgb(79 207 138 / 12%); --hi-ink: #ffd23f; --bad: #ff7466; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.55 var(--body); font-feature-settings: "tnum" 1; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; }
+h1, h2, h3 { font-family: var(--display); text-transform: uppercase; letter-spacing: .02em; line-height: 1.05; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(34px, 5vw, 52px); }
+h2 { font-size: 28px; margin-bottom: 14px; }
+h3 { font-size: 20px; }
+p { margin: 0; max-width: 72ch; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.lede { color: var(--muted); font-size: 16px; margin-top: 10px; }
+.note { display: inline-block; margin-top: 14px; padding: 6px 12px; border-radius: 8px; background: rgb(255 210 63 / 22%); color: var(--fg); font-size: 13px; }
+.note b { color: var(--hi-ink); }
+
+/* findings */
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.f { padding: 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 6px; align-content: start; }
+.f .sev { justify-self: start; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px; background: var(--sunk); color: var(--muted); }
+.f .sev.high { background: rgb(176 47 38 / 12%); color: var(--bad); }
+.f b { font-size: 15px; }
+.f span { font-size: 13.5px; color: var(--muted); }
+
+/* concept cards */
+.concepts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.c { padding: 18px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: grid; gap: 8px; align-content: start; }
+.c .tag { font: 700 13px/1 var(--display); letter-spacing: .1em; color: var(--accent); }
+.c ul { margin: 0; padding-left: 18px; font-size: 13.5px; color: var(--muted); display: grid; gap: 4px; }
+.c a { color: var(--accent); font-weight: 600; font-size: 13px; }
+
+/* gallery */
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 10px; background: var(--sunk); border: 1px solid var(--line); }
+.seg button { border: 0; background: none; color: var(--muted); font: 600 13.5px var(--body); padding: 7px 12px; border-radius: 7px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgb(0 0 0 / 12%); }
+.seg button:focus-visible, .shot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.gal { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gal.phone { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+figure { margin: 0; display: grid; gap: 8px; align-content: start; min-width: 0; }
+figcaption { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+figcaption b { font: 700 18px/1 var(--display); text-transform: uppercase; letter-spacing: .03em; }
+figcaption span { font-size: 12.5px; color: var(--muted); }
+.shot { display: block; padding: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--sunk); cursor: zoom-in; }
+.shot img { display: block; width: 100%; height: auto; max-width: 100%; }
+.gal.phone .shot img { aspect-ratio: 390 / 844; object-fit: cover; object-position: top; }
+.gal.desktop .shot img { aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; }
+.missing { display: grid; place-items: center; aspect-ratio: 390 / 844; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 13px; padding: 12px; text-align: center; }
+.gal.desktop .missing { aspect-ratio: 16 / 10; }
+.cap { font-size: 13.5px; color: var(--muted); margin-top: 10px; }
+
+/* scorecard */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 940px; }
+th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+.dots { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dots i { display: inline-block; width: 9px; height: 9px; margin-right: 2px; border-radius: 50%; background: var(--line); }
+.dots i.on { background: var(--accent); }
+.dots em { font-style: normal; margin-left: 6px; color: var(--muted); font-size: 12.5px; }
+.best td { background: var(--accent-soft); }
+
+/* verdict */
+.verdict { padding: 22px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent); display: grid; gap: 14px; }
+.verdict ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 80ch; }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.two ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+
+dialog { border: 0; padding: 0; max-width: min(96vw, 1500px); max-height: 94vh; background: var(--surface); border-radius: 12px; overflow: auto; }
+dialog::backdrop { background: rgb(0 0 0 / 70%); }
+dialog img { display: block; max-width: 100%; height: auto; }
+dialog .bar { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--line); font-size: 13px; }
+dialog button { border: 1px solid var(--line); background: var(--sunk); color: var(--fg); border-radius: 8px; padding: 6px 12px; font: 600 13px var(--body); cursor: pointer; }
+
+@media (max-width: 860px) {
+  .gal { grid-template-columns: minmax(0, 1fr); }
+  .gal.phone { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">FPL LAB · UI redesign proposal · 18 Nov 2026</div>
+    <h1>Three directions for FPL LAB</h1>
+    <p class="lede">Refined, Premium Analytics, and Modern &amp; Interactive, each built as a working prototype on a real FPL LAB snapshot (GW11, team BACK2BACK) and screenshotted next to the live site. Nothing in the app, model or data pipeline was changed.</p>
+    <span class="note"><b>Sample data.</b> Prototypes read a frozen copy of the published data.json from 18 Nov 09:02. Mini-league rivals are anonymised. Nothing is live.</span>
+  </header>
+
+  <section aria-labelledby="audit">
+    <h2 id="audit">What the audit found</h2>
+    <p class="lede" style="margin:-6px 0 16px">No earlier UI audit was saved in the repo or this session, so these findings come from a fresh pass over the live screens at 390px and 1280px, dark and light. Ranked by impact.</p>
+    <div class="findings">
+      <div class="f"><span class="sev high">High</span><b>The team sits below the fold on desktop</b><span>At 1280×900 the pitch starts about 840px down. The view tabs, a 200px hero and three decision cards all come first.</span></div>
+      <div class="f"><span class="sev high">High</span><b>The phone home shows one decision per screen</b><span>Header, status bar and view tabs use about 300px. Only the hero and half the Transfers card fit before scrolling.</span></div>
+      <div class="f"><span class="sev high">High</span><b>Filters come before data</b><span>Players stacks four rows of controls (views, presets, horizon, seven dropdowns) above the first row. The phone xP table has four control rows.</span></div>
+      <div class="f"><span class="sev">Medium</span><b>Every card has a "Coin flip" pill</b><span>The same badge sits on all three decision cards, so it doesn't help you tell them apart. A margin in xP ("0.5 xP") says more.</span></div>
+      <div class="f"><span class="sev">Medium</span><b>Bank and free transfers repeat</b><span>They show in the header, the status line, the team header and the planner summary.</span></div>
+      <div class="f"><span class="sev">Medium</span><b>Too many filled buttons</b><span>"Compare transfers", "Compare captains" and "Edit lineup" all look primary, so the main next step isn't obvious.</span></div>
+      <div class="f"><span class="sev">Medium</span><b>Clipping and wrapping</b><span>"Van Hecke I…" and "Every player by …" are cut off. Phone header labels wrap ("Overall / rank", "3 free / transfers").</span></div>
+      <div class="f"><span class="sev">Low</span><b>Internal terms in the hero</b><span>"The Balanced strategy's plan (Roll), as the optimiser made it" reads as system language, not advice.</span></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="concepts">
+    <h2 id="concepts">The three concepts</h2>
+    <div class="concepts">
+      <div class="c"><span class="tag">A · REFINED</span><h3>Same app, tidied</h3><ul>
+        <li>Same palette and fonts. Spacing on a 4px scale, with one type scale (12 to 32px).</li>
+        <li>Header is one row. The deadline is the only coloured number. The status line is gone.</li>
+        <li>Desktop home: a short verdict, then the pitch on the left and a decision rail on the right, so everything fits in the first screen.</li>
+        <li>Captain shown as a bar chart with a "close call · 0.5 xP" margin. Players filters fit on one row.</li></ul></div>
+      <div class="c"><span class="tag">B · PREMIUM ANALYTICS</span><h3>Built like an analyst's desk</h3><ul>
+        <li>Graphite surfaces, top tab bar and a KPI ribbon with a rank-by-GW sparkline.</li>
+        <li>Decision board: each call with its expected value and margin, in one table.</li>
+        <li>Squad and Players as xP heat grids by GW. Master-detail player panel with a 10th–90th percentile range.</li>
+        <li>Strategy line chart and a plan matrix comparing strategies GW by GW. Chart colours pass the colour-blind validator.</li></ul></div>
+      <div class="c"><span class="tag">C · MODERN &amp; INTERACTIVE</span><h3>Touch-first and tactile</h3><ul>
+        <li>Floating icon rail on desktop, glass dock on phones, and a deadline ring.</li>
+        <li>Home pitch has a strategy switch and a GW scrubber. Tap GW12 to see the plan's team, with new signings badged.</li>
+        <li>Swipeable decision cards. Captain shown head to head. Players as cards with xP bars and a fixture strip.</li>
+        <li>Player drawer slides in on desktop and works as a bottom sheet on phones. Motion respects reduced-motion settings.</li></ul></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="gallery">
+    <h2 id="gallery">Side by side</h2>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Screen" id="screenSeg"></div>
+      <div class="seg" role="group" aria-label="Device" id="deviceSeg"></div>
+      <div class="seg" role="group" aria-label="Theme" id="themeSeg"></div>
+    </div>
+    <div class="gal desktop" id="gal"></div>
+    <p class="cap" id="cap"></p>
+  </section>
+
+  <section aria-labelledby="score">
+    <h2 id="score">How they compare</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Concept</th><th>Readability</th><th>Data density</th><th>Phone layout</th><th>Accessibility</th><th>Build effort</th><th>Main risk</th></tr></thead>
+      <tbody id="scoreBody"></tbody>
+    </table></div>
+    <p class="cap">Scores are out of 5 and come from my review of the rendered prototypes. For build effort, more dots means less work.</p>
+  </section>
+
+  <section class="verdict" aria-labelledby="rec">
+    <h2 id="rec" style="margin:0">Recommendation: A, plus three pieces from B and C</h2>
+    <p>Refined fixes the problems that matter most: the team above the fold, a one-row header, filters out of the way. It keeps the look the site already has, and it can be done in small CSS-led PRs against the existing <code>site/styles</code> tokens. B and C each have a few parts worth taking. Rebuilding the whole app in either of them isn't worth the cost.</p>
+    <ol>
+      <li><b>From B, the decision board.</b> Each call, its xP and its margin in one block, replacing the three "Coin flip" cards. Also B's xP heat cells and its 10th–90th percentile range in the player sheet. The data for both already exists (<code>xp</code> by GW and <code>dist</code>).</li>
+      <li><b>From C, the GW scrubber and strategy switch on the home pitch.</b> It shows the plan as a team, not a list of moves, and it reuses the planner data already loaded.</li>
+      <li><b>From C, the phone bottom sheet</b> with a drag handle for the player view, plus press feedback and reduced-motion handling across the app.</li>
+    </ol>
+    <div class="two">
+      <div><h3>Keep from today</h3><ul>
+        <li>The "Why 4.7 xP" breakdown (minutes, attack, bonus, cards) in the player sheet. None of the prototypes show it yet, and it has to stay.</li>
+        <li>Data-health banner, Refresh and Sync, and the AFG, Model and Data health tabs in their current places (CLAUDE.md).</li>
+        <li>Cards/Kits lineup toggle, saved views, presets and every filter. They move behind a Filters button but aren't removed.</li></ul></div>
+      <div><h3>Not prototyped</h3><ul>
+        <li>Deadlines, Chips, Review, You vs the model, Model, Data health, FPL School and AFG. These would be restyled with the shared tokens.</li>
+        <li>Live matchday states and the Rivals edge cases that <code>npm run rivals</code> covers.</li>
+        <li>C's fixtures view shows only the first match of a double gameweek, and badges without names on phones.</li></ul></div>
+    </div>
+    <p><b>Next step, waiting for your go-ahead:</b> no app code changes until you approve. If you pick A plus these three pieces, I'd start with one PR for the header and home layout, check it with <code>npm run layout</code> at 390px and 1280px in both themes, then do Players, then the player sheet.</p>
+  </section>
+</div>
+
+<dialog id="zoom"><div class="bar"><span id="zoomCap"></span><button type="button" id="zoomClose">Close</button></div><img id="zoomImg" alt=""></dialog>
+
+<script>
+const SCREENS = [["home", "Dashboard"], ["players", "Players"], ["players-detail", "Player detail"], ["planner", "Planner"], ["fixtures", "Fixtures"], ["rivals", "Rivals"]];
+const COLS = [["current", "Current", "Live site today"], ["a-refined", "A · Refined", "Evolution"], ["b-analytics", "B · Premium Analytics", "Data-first"], ["c-interactive", "C · Modern & Interactive", "Touch-first"]];
+const LIGHT_OK = ["home", "players"];
+const NOTES = {
+  home: "Desktop: today the pitch starts below the fold. A shows the verdict, team and decisions in the first screen. B swaps the pitch for a decision board and squad heat table. C puts an interactive pitch first. Phone: A and B fit the verdict and key numbers in one screen. C leads with swipeable decision cards.",
+  players: "A puts every control on one row and adds an xP bar. B shows xP per gameweek as a heat grid, with the player panel open alongside. C uses cards: fewer players per screen, but each has xP bars and a fixture strip.",
+  "players-detail": "Today's sheet explains the projection ('Why 4.7 in GW11?'), and that has to stay. A and C add xP-by-GW bars and outcome chances. B adds the 10th–90th percentile range and transfer flows.",
+  planner: "A: strategy cards, then a GW strip, then the plan's team. B: a matrix of every strategy by gameweek plus a team xP chart. C: a vertical timeline with swap cards.",
+  fixtures: "All three sort by the easiest run. B keeps full team names and an average bar. C uses large touch tiles; on phones it shows badges without names (a known gap).",
+  rivals: "Names are anonymised. B adds a 'gap to you' column. C shows the gap as a bar on desktop and drops it on phones.",
+};
+let st = { screen: "home", device: "desktop", theme: "dark" };
+try { const h = location.hash.slice(1); if (SCREENS.some(([k]) => k === h)) st.screen = h; } catch (e) {}
+const src = (c, s, d, t) => `screenshots/${c}--${s}--${d}--${t}.webp`;
+function seg(el, items, key) {
+  el.innerHTML = items.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${st[key] === k}">${l}</button>`).join("");
+  el.onclick = e => { const b = e.target.closest("button"); if (!b) return; st[key] = b.dataset.k; if (key === "screen") { try { history.replaceState(null, "", "#" + b.dataset.k); } catch (err) {} } draw(); };
+}
+function draw() {
+  if (st.theme === "light" && !LIGHT_OK.includes(st.screen)) st.theme = "dark";
+  seg(document.getElementById("screenSeg"), SCREENS, "screen");
+  seg(document.getElementById("deviceSeg"), [["desktop", "Desktop"], ["phone", "Phone"]], "device");
+  seg(document.getElementById("themeSeg"), LIGHT_OK.includes(st.screen) ? [["dark", "Dark"], ["light", "Light"]] : [["dark", "Dark"]], "theme");
+  const g = document.getElementById("gal");
+  g.className = "gal " + st.device;
+  const label = SCREENS.find(([k]) => k === st.screen)[1];
+  g.innerHTML = COLS.map(([c, name, sub]) => {
+    const missing = c === "current" && st.theme === "light" && st.screen !== "home" && st.screen !== "players";
+    const s = src(c, st.screen, st.device, st.theme);
+    return `<figure><figcaption><b>${name}</b><span>${sub}</span></figcaption>${missing ? `<div class="missing">No light-mode shot</div>` :
+      `<button type="button" class="shot" data-src="${s}" data-cap="${name} · ${label} · ${st.device} · ${st.theme}" aria-label="Enlarge ${name}, ${label}"><img src="${s}" alt="${name}: ${label} screen, ${st.device}, ${st.theme} mode" loading="lazy"></button>`}</figure>`;
+  }).join("");
+  document.getElementById("cap").textContent = (NOTES[st.screen] || "") + (st.device === "desktop" ? " Current site shot at 1280px wide, prototypes at 1440px." : "");
+}
+document.getElementById("gal").addEventListener("click", e => {
+  const b = e.target.closest(".shot"); if (!b) return;
+  document.getElementById("zoomImg").src = b.dataset.src; document.getElementById("zoomImg").alt = b.dataset.cap;
+  document.getElementById("zoomCap").textContent = b.dataset.cap; document.getElementById("zoom").showModal();
+});
+document.getElementById("zoomClose").onclick = () => document.getElementById("zoom").close();
+document.getElementById("zoom").addEventListener("click", e => { if (e.target.id === "zoom") e.target.close(); });
+addEventListener("hashchange", () => { const h = location.hash.slice(1); if (SCREENS.some(([k]) => k === h)) { st.screen = h; draw(); } });
+
+const dots = (n, note) => `<span class="dots">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}<em>${note}</em></span>`;
+const SCORES = [
+  ["Current", [3, "long scroll to the team"], [3, "filters crowd data"], [3, "header wraps"], [4, "contrast-checked"], [5, "nothing to do"], "Stays as it is"],
+  ["A · Refined", [4, "clear hierarchy"], [4, "more above the fold"], [4, "one-row header"], [4, "keeps today's contrast"], [4, "mostly CSS"], "Less of a step change than B or C", true],
+  ["B · Premium Analytics", [3, "12.5px text is dense"], [5, "most per screen"], [3, "wide tables scroll"], [3, "small text, heavy colour"], [2, "new nav and charts"], "Can feel like a spreadsheet; tables strain on phones"],
+  ["C · Modern & Interactive", [4, "big, calm type"], [2, "12 players per screen"], [5, "dock and sheets"], [3, "glass contrast, motion"], [2, "state and animation"], "More taps to scan the market; motion to maintain"],
+];
+document.getElementById("scoreBody").innerHTML = SCORES.map(([n, a, b, c, d, e, risk, best]) => `<tr class="${best ? "best" : ""}"><td><b>${n}</b></td><td>${dots(...a)}</td><td>${dots(...b)}</td><td>${dots(...c)}</td><td>${dots(...d)}</td><td>${dots(...e)}</td><td>${risk}</td></tr>`).join("");
+draw();
+</script>
