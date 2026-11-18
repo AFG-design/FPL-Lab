@@ -94,7 +94,7 @@ Before committing front-end changes:
 
 ```
 npm test        # ESLint + Stylelint, then the whole-app check below
-npm run layout  # every screen at 390px and 1280px: JS errors, error cards, sideways scroll, missing files (needs Python Playwright and a local data.json)
+npm run layout  # every screen at 390px, 1280px and 1440px: JS errors, error cards, sideways scroll, missing files (needs Python Playwright and a local data.json)
 npm run contrast  # every screen in light and dark at 390px and 1280px: no text under 11px, WCAG AA contrast as drawn
 npm run taps    # every screen as a phone: controls at least 40x40px on touch, none inside a <summary>, no aria-pressed on tabs
 npm run sw      # after adding or removing a script or stylesheet: refreshes the offline file list in sw.js

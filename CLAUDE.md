@@ -110,7 +110,7 @@ season, the pooled 5-GW picks interval, and (for a targeted change) the pooled i
 
 ## Testing
 - Check the page at ~390px and ~1280px wide, in both dark and light mode. `npm run layout` (scripts/layout_check.py) opens every screen at
-  both widths and fails on JS errors, error cards, sideways page scroll or missing site files; the Check site
+  390px, 1280px and 1440px (widescreen) and fails on JS errors, error cards, sideways page scroll or missing site files; the Check site
   workflow runs it on every PR and keeps the screenshots as an artifact. `npm run players` (scripts/players_check.py)
   checks the Players table's fixed name column and header at ten widths from 320 to 1920px. `npm run rivals`
   (scripts/rivals_check.py) opens Rivals in each matchday state (final, live, pre-match, failed refresh, wrong-GW live
