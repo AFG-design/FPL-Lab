@@ -22,10 +22,18 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   code reverted after testing):
   - `dc_prior_fix`: track `dc_mins` (only seasons with `defensive_contribution`) in `make_priors.py` and
     `archive.py` so 0-DC seasons don't shrink `dc90` toward 0; older `priors.json` without `dc_mins` falls back
-    to `mins`, `dc_mins == 0` sets `wl = 0`.
+    to `mins`, `dc_mins == 0` sets `wl = 0`. This part fixes a **known error**, not a tweak: the 31 Oct 2026
+    PR #28 entry below already records that past seasons without DC gave players a DC rate of 0, and main still has
+    it (`archive.py` adds up `dc_min` but divides `dc90` by all minutes; `make_priors.py` counts a season with no
+    DC field as 0 DC). Bundled with the three tweaks here, its own effect is unknown; it is to be benched on its
+    own as a known-error fix (follow-up task).
   - `dc_r = 10`: Negative Binomial tail in `p_at_least` (`None` or `<= 0` = Poisson).
   - `def_bonus_mult = 1.2`: scales DEF bonus to offset `bonus_scale=0.8`.
-  - Three variants, listed before running: **V1** `cs_k=0.90`, **V2** `cs_k=0.95`, **V3** `cs_k=1.00`.
+  - Not new: PR #28 (31 Oct 2026 entry below) already benched a Negative Binomial DC tail (r=5) and a higher
+    `bonus_scale` (0.8 -> 0.95) as Marginal; main is still on Poisson and 0.8, so those were not kept. This run is
+    a re-test of both ideas with different settings.
+  - Three variants, listed before running: **V1** `cs_k=0.90`, **V2** `cs_k=0.95`, **V3** `cs_k=1.00`. Main already
+    has `cs_k=0.9`, so V1 is the package alone with no clean-sheet retune (hence its CS log-loss `+0.00000`).
 - **bench.py, pooled 5-GW picks (2024/25 + 2025/26, 60 origins, candidate − main):**
   V1 **−0.047 [−0.123, +0.023]**, V2 **−0.069 [−0.146, +0.005]**, V3 **−0.066 [−0.154, +0.021]**.
   Per-season 1-GW / 5-GW picks against main (`4.36 / 18.24` this season, `4.44 / 19.13` 2025/26, `4.25 / 19.16`
@@ -33,6 +41,8 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   - V1: `4.36 / 18.24` (this season), `4.43 / 19.05` (`−0.08 [−0.22, +0.06]`, 2025/26), `4.25 / 19.15` (`−0.02 [−0.04, +0.00]`, 2024/25).
   - V2: `4.38 / 18.24` (this season), `4.44 / 19.04` (`−0.09 [−0.23, +0.05]`, 2025/26), `4.25 / 19.11` (**`−0.05 [−0.10, −0.01]`**, 2024/25).
   - V3: `4.38 / 18.24` (this season), `4.44 / 19.02` (`−0.11 [−0.27, +0.04]`, 2025/26), `4.25 / 19.14` (`−0.02 [−0.10, +0.06]`, 2024/25).
+  - This season's difference intervals were not recorded, and the variant code and raw bench output were not kept,
+    so the run can't be re-checked. This season's 5-GW total is `18.24` for main and all three variants.
 - **Pooled part scores (lower loss is better):**
   - `Def. contribution` Brier: **−0.00068 [−0.00099, −0.00040]** better in all three (`2025/26` alone: `−0.00137 [−0.00200, −0.00080]`; 2024/25 has no DC).
   - `Bonus` sq. error: V1 `−0.00010 [−0.00033, +0.00012]`, V2 `−0.00014 [−0.00034, +0.00006]`, V3 `−0.00016 [−0.00033, +0.00001]` (2024/25 alone `−0.00020` / `−0.00021`, clear of 0).
@@ -40,7 +50,13 @@ from odds/archive/ since PR #24, 31 Oct 2026).
 - **No-harm & `backtest.py --compare` (2026/27 GW3–10, with / without status log):**
   - No `--compare` segment trips in any variant (V1 MAE `+0.0013 / +0.0014`, V2 `−0.0053 / −0.0058`, V3 `−0.0109 / −0.0121`; corr `+0.0001 / −0.0002 / −0.0007`).
   - No-harm trips: V1 has `2025/26` `cap −0.34 [−0.77, −0.03]` and `2024/25` `top5 −0.06 [−0.13, −0.01]` wholly below zero; V2 has `2024/25` 5-GW picks `−0.05 [−0.10, −0.01]` wholly below zero; V3 worsens current-season CS log-loss (`+0.00659 [+0.00077, +0.01232]` with status log).
-- **Decision-table row:** `CI includes zero and the change is only a tweak` (package of multiple parts, pooled 5-GW picks negative in all three, and V1/V2 trip no-harm CIs) → **Don't adopt.**
+- **Decision-table rows:** pooled 5-GW picks CI includes zero in all three variants.
+  - V1, V2: `Any segment trips --compare` (each has a no-harm CI wholly below zero, which counts as a tripped
+    segment) → **Don't adopt** until fixed or explained.
+  - V3: no no-harm trip under the rule (CS log-loss is a part score, not one of the listed no-harm metrics). Its DC
+    part interval is clear of zero and its pooled 5-GW interval is not wholly below zero, but it is a package of a
+    known-error fix plus three tweaks, not a change aimed at one part, so the targeted-change row doesn't apply;
+    `CI includes zero and the change is only a tweak` → **Don't adopt.**
 
 ## 18 Nov 2026 — FL-173: returning regulars' start chance from last season (Don't adopt; issue #194 Item 1)
 
