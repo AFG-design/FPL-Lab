@@ -102,6 +102,7 @@ const PRESETS = {
   fixtures: { name: "Strong fixtures", set: () => ({ fxtop: "6", minnail: "60", sort: "xp5", dir: -1 }) },
 };
 const PRESET_CLEARS = ["team", "minp", "maxp", "minform", "own", "minnail", "minxmin", "fxtop"];
+const PANEL_KEYS = PRESET_CLEARS;   // the filters inside the Filters panel: the same set a preset clears
 // each club's rank (1 = easiest) for attack and for defence over the forecast period
 function fixtureRanks() {
   const gws = fcGws(), att = {}, def = {};
@@ -228,17 +229,36 @@ function vPlayers() {
     : S.sort === "pc" ? (p.price_proj?.[0] ?? 0) : ["name", "pos"].includes(S.sort) ? p[S.sort] : +p[S.sort] || 0;
   rows.sort((a, b) => { const x = val(a), y = val(b); return (x > y ? 1 : x < y ? -1 : 0) * S.dir; });
   const shown = rows.slice(0, 150), on = new Set(colsOn()), cols = colsOn().map(k => COLS.find(c => c[0] === k));
+  // The xP-over-the-period cell carries a strip of one square per gameweek, shaded by that gameweek's xP, so a player's
+  // run shows at a glance (the xP table has the numbers). The scale is the xP table's: between the 5th and 95th
+  // percentile of the gameweek figures on screen, so one player can't flatten it. A blank gameweek (no fixture) is an
+  // empty square and a fixture with no projection a dashed one, both said in the tooltip; never shaded as a number.
+  // One-gameweek period: no strip, the total is that gameweek.
+  const gws = fcGws(), hv = shown.flatMap(p => gws.map(g => p.xp?.[g]).filter(v => v != null)).sort((a, b) => a - b);
+  const qv = f => hv.length ? hv[Math.min(hv.length - 1, Math.floor(f * hv.length))] : 0, lo = qv(0.05), hi = qv(0.95);
+  const heat = v => hi > lo ? Math.max(0, Math.min(5, Math.round((v - lo) / (hi - lo) * 5))) : 0;
+  const xpRun = p => {
+    if (gws.length < 2) return fcTxt(p, true);
+    const sq = gws.map(g => { const v = p.xp?.[g], blank = !fxFor(p.team, g).length;
+      return { cls: v != null ? `h${heat(v)}` : blank ? "hb" : "hn", tip: `GW${g}: ${v != null ? `${f1(v)} xP` : blank ? "no fixture" : "no projection"}` }; });
+    return `<span class="xrun" title="${sq.map(x => x.tip).join(" · ")}"><span class="xrun-sq" aria-hidden="true">${sq.map(x => `<i class="${x.cls}"></i>`).join("")}</span>${fcTxt(p, true)}</span>`;
+  };
   const cell = {
     team: p => T[p.team].short, pos: p => p.pos, price: p => p.price.toFixed(1), form: p => f1(p.form), pts: p => p.pts,
     xg: p => (p.xg ?? 0).toFixed(1), xa: p => (p.xa ?? 0).toFixed(1), xgi90_4: p => p.xgi90_4.toFixed(2), own: p => p.own.toFixed(1),
     t10k: p => D.crowd ? t10(p).toFixed(0) + "%" : "–", nailed: p => nailedPill(p), xmin: p => p.xmin, xp1: p => xpCell(p.id, D.meta.next_gw),
-    xp5: p => fcTxt(p, true), val: p => (fcTot(p).sum / p.price).toFixed(2), pc: p => priceCell(p),
+    xp5: p => xpRun(p), val: p => (fcTot(p).sum / p.price).toFixed(2), pc: p => priceCell(p),
   };
   const teamOpts = Object.values(T).sort((a, b) => a.name.localeCompare(b.name)).map(t => `<option value="${t.id}" ${String(S.team) === String(t.id) ? "selected" : ""}>${t.name}</option>`).join("");
   // a limit set elsewhere (the homepage's Budget options) is added to the list so the menu shows it
   const prices = [...new Set([4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 9, 10, 12, 15, ...[S.minp, S.maxp].filter(Boolean).map(Number)])].sort((a, b) => a - b);
   const priceSel = (id, cur, any, op) => `<select id="${id}" aria-label="${any}"><option value="">${any}</option>${prices.map(x => `<option ${+cur === x ? "selected" : ""} value="${x}">${op} £${x.toFixed(1)}m</option>`).join("")}</select>`;
   const active = [S.pos !== "ALL", S.team !== "ALL", S.minp, S.maxp, S.minform, S.own && S.own !== "any", S.minnail, S.minxmin, S.fxtop, S.q].filter(Boolean).length;
+  // The Filters panel holds the presets and every filter but search, period and position. It's kept in memory and
+  // closed on each visit; it stays open while a preset is waiting to be applied. When it's closed, each filter still on
+  // shows as a chip that removes it, so a filter is never on without being seen (the count is on the button as well).
+  const chips = PANEL_KEYS.map(k => [k, filterTxt(k, S[k])]).filter(([, t]) => t);
+  const nPanel = chips.length, fOpen = !!S.filtOpen || !!S.presetAsk;
   const head = `<th class="sort sticky-col" data-sort="name" ${S.sort === "name" ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>Player${S.sort === "name" ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>` +
     cols.map(([k, l, n]) => `<th class="sort ${n ? "n" : ""}" data-sort="${k}" ${S.sort === k ? `aria-sort="${S.dir < 0 ? "descending" : "ascending"}"` : ""}>${COLTERM[k] ? term(COLTERM[k], colLabel(k, l)) : colLabel(k, l)}${S.sort === k ? (S.dir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
   if (S.side && !P[S.side]) S.side = null;
@@ -250,27 +270,30 @@ function vPlayers() {
   const main = `<div class="panel explorer${S.pdens === "comfy" ? " dens-comfy" : ""}">
     <div class="bar"><h2>Players</h2><span class="muted" aria-live="polite">${rows.length} player${rows.length === 1 ? "" : "s"}${rows.length > 150 ? ", top 150 shown" : ""}</span></div>
     ${pvBar()}
-    <div class="filters presets" role="group" aria-label="Quick presets"><span class="pv-lbl">Presets</span>${Object.entries(PRESETS).map(([k, p]) => `<button class="btn preset-btn" type="button" data-preset="${k}" aria-pressed="${S.presetAsk === k}">${p.name}</button>`).join("")}
-      <select id="presetSel" class="preset-sel" aria-label="Presets"><option value="">Choose a preset…</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}" ${S.presetAsk === k ? "selected" : ""}>${p.name}</option>`).join("")}</select></div>
-    ${presetAsk()}
-    <div class="filters">
+    <div class="filters pl-tools">
       <input type="search" id="q" placeholder="Search players" value="${esc(S.q)}" aria-label="Search players">
       <div class="seg" role="group" aria-label="Forecast period">${fcButtons()}</div>
       <div class="seg" role="group" aria-label="Position">${["ALL", "GKP", "DEF", "MID", "FWD"].map(x => `<button data-fpos="${x}" aria-pressed="${S.pos === x}">${x === "ALL" ? "All" : x}</button>`).join("")}</div>
-    </div>
-    <div class="filters">
-      <select id="fteam" aria-label="Team"><option value="ALL">All teams</option>${teamOpts}</select>
-      ${priceSel("fmin", S.minp, "Min price", "From")}${priceSel("fmax", S.maxp, "Max price", "Up to")}
-      <select id="fform" aria-label="Minimum form"><option value="">Any form</option>${[2, 3, 4, 5, 6, 8].map(x => `<option ${+S.minform === x ? "selected" : ""} value="${x}">Form ${x}+</option>`).join("")}</select>
-      <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
-      ${(() => { const n = [S.minnail, S.minxmin, S.fxtop].filter(Boolean).length; return `<button class="btn more-f-btn" type="button" data-morefilters="1" aria-expanded="${!!S.moreF}">More filters${n ? ` (${n})` : ""}</button>`; })()}
-      <span class="more-f${S.moreF ? " open" : ""}"><select id="fnail" aria-label="Minimum Nailed"><option value="">Any Nailed</option>${[60, 70, 80, 90].map(x => `<option ${+S.minnail === x ? "selected" : ""} value="${x}">Nailed ${x}+</option>`).join("")}</select>
-      <select id="fxmin" aria-label="Minimum expected minutes"><option value="">Any xMins</option>${[45, 60, 70, 80].map(x => `<option ${+S.minxmin === x ? "selected" : ""} value="${x}">xMins ${x}+</option>`).join("")}</select>
-      <select id="ffx" aria-label="Fixtures over the forecast period"><option value="">Any fixtures</option>${[4, 6, 8, 10].map(x => `<option ${+S.fxtop === x ? "selected" : ""} value="${x}">Fixtures: top ${x} clubs</option>`).join("")}</select></span>
-      ${active ? `<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button>` : ""}
+      <button class="btn pl-fbtn" type="button" data-filters="1" aria-expanded="${fOpen}" aria-controls="plFilters">${icon("filter")}Filters${nPanel ? ` (${nPanel})` : ""}</button>
       <details class="colpick"><summary>Columns</summary><div class="colpick-body" role="group" aria-label="Columns to show">
         ${colPickRows(on)}
         <button class="btn ghost sm" data-colreset="1">Reset columns</button></div></details>
+    </div>
+    ${active ? `<div class="pl-chips" role="group" aria-label="Filters on">${fOpen ? "" : chips.map(([k, t]) => `<button type="button" class="pl-chip" data-fdrop="${k}" aria-label="Remove filter: ${esc(t)}">${esc(t)}<span aria-hidden="true">×</span></button>`).join("")}<button class="btn ghost sm" data-fclear="1">Clear filters (${active})</button></div>` : ""}
+    <div class="pl-fpanel" id="plFilters"${fOpen ? "" : " hidden"}>
+      <div class="filters presets" role="group" aria-label="Quick presets"><span class="pv-lbl">Presets</span>${Object.entries(PRESETS).map(([k, p]) => `<button class="btn preset-btn" type="button" data-preset="${k}" aria-pressed="${S.presetAsk === k}">${p.name}</button>`).join("")}
+        <select id="presetSel" class="preset-sel" aria-label="Presets"><option value="">Choose a preset…</option>${Object.entries(PRESETS).map(([k, p]) => `<option value="${k}" ${S.presetAsk === k ? "selected" : ""}>${p.name}</option>`).join("")}</select></div>
+      ${presetAsk()}
+      <div class="filters">
+        <select id="fteam" aria-label="Team"><option value="ALL">All teams</option>${teamOpts}</select>
+        ${priceSel("fmin", S.minp, "Min price", "From")}${priceSel("fmax", S.maxp, "Max price", "Up to")}
+        <select id="fform" aria-label="Minimum form"><option value="">Any form</option>${[2, 3, 4, 5, 6, 8].map(x => `<option ${+S.minform === x ? "selected" : ""} value="${x}">Form ${x}+</option>`).join("")}</select>
+        <select id="fown" aria-label="Ownership"><option value="any">Any ownership</option>${[["diff", "Differentials (under 5%)"], ["mid", "5% to 20% owned"], ["template", "Template (20%+)"]].map(([v, l]) => `<option value="${v}" ${S.own === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+        <select id="fnail" aria-label="Minimum Nailed"><option value="">Any Nailed</option>${[60, 70, 80, 90].map(x => `<option ${+S.minnail === x ? "selected" : ""} value="${x}">Nailed ${x}+</option>`).join("")}</select>
+        <select id="fxmin" aria-label="Minimum expected minutes"><option value="">Any xMins</option>${[45, 60, 70, 80].map(x => `<option ${+S.minxmin === x ? "selected" : ""} value="${x}">xMins ${x}+</option>`).join("")}</select>
+        <select id="ffx" aria-label="Fixtures over the forecast period"><option value="">Any fixtures</option>${[4, 6, 8, 10].map(x => `<option ${+S.fxtop === x ? "selected" : ""} value="${x}">Fixtures: top ${x} clubs</option>`).join("")}</select>
+        <button class="btn sm" type="button" data-filters="1" aria-controls="plFilters">Done</button>
+      </div>
     </div>
     ${compareHTML()}
     ${shown.length ? `<div class="tablebox"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`
