@@ -191,6 +191,7 @@ function captainsHTML() {
     return `<section class="capwk${t.capMine ? " mine" : ""}" aria-labelledby="capwk-${g}"><div class="capwk-h"><h4 id="capwk-${g}">GW${g}${w.chip ? ` <span class="tag" title="${CHIP_NAME[w.chip]}">${CHIP_SHORT[w.chip]}</span>` : ""}</h4><span class="pill mut">${src}</span></div>
       <div class="capwk-c"><span>Captain: <b class="pname">${esc(P[t.cap].name)}</b> ${vPill(conf)}</span><b class="mono">${f1(capX)} xP</b></div>
       <p class="capwk-m">${fxText(P[t.cap], g)}${F ? ` · ${(F.cap[t.cap] || 0).toFixed(0)}% field C` : ""} · vice ${esc(P[t.vice]?.name || "–")}</p>
+      ${conf.t === "Coin flip" && opts.length > 1 ? `<p class="capwk-m">Too close to call on points. Chance of 10+ (projected): ${opts.slice(0, 3).map(i => `${esc(P[i].name)} ${pctTxt(haulChance(i, g))}`).join(" · ")}</p>` : ""}
       ${alts ? `<div class="capwk-alts"><span class="lbl">Alternatives</span>${alts}</div>` : ""}
       ${t.capMine ? `<button class="btn" data-setcap="${g}:0" aria-label="Back to the automatic captain in GW${g}">Back to auto</button>` : ""}</section>`;
   }).join("");
