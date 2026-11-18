@@ -119,18 +119,38 @@ tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
 .pv-dens { margin-left: auto; display: none; }
 .pv-msg { margin: 0 0 6px; }
 
-/* presets: buttons from 641px, one menu on phones; the three newer filters fold behind "More filters" on phones */
-.preset-sel, .more-f-btn { display: none; }
-.more-f { display: contents; }
+/* presets: buttons from 641px, one menu on phones (inside the Filters panel) */
+.preset-sel { display: none; }
 .preset-ask { margin: 0 0 8px; }
 
 @media (max-width: 640px) {
   .preset-btn { display: none; }
-  .preset-sel, .more-f-btn { display: inline-flex; }
-  .preset-sel { flex: 1 1 160px; }
-  .more-f { display: none; }
-  .more-f.open { display: contents; }
+  .preset-sel { display: inline-flex; flex: 1 1 160px; }
 }
+
+/* the one toolbar row, the Filters panel, and the chips that show filters while the panel is shut */
+.pl-tools input[type="search"] { flex-basis: 140px; }
+.pl-fbtn { display: inline-flex; align-items: center; gap: 6px; }
+.pl-fbtn .ic { width: 16px; height: 16px; }
+.pl-fbtn[aria-expanded="true"] { border-color: var(--accent-text); color: var(--accent-text); }
+.pl-fpanel { margin: 0 0 10px; padding: 12px 12px 2px; background: var(--sunk); border: 1px solid var(--line); border-radius: var(--r); }
+.pl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -2px 0 10px; }
+.pl-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--accent-text); border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.pl-chip span { font-size: 15px; line-height: 1; }
+.pl-chip:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+
+/* xP over the period: one square per gameweek before the total, the xP table's heat scale */
+.xrun { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.xrun-sq { display: inline-flex; gap: 2px; }
+.xrun-sq i { width: 7px; height: 14px; border-radius: 2px; border: 1px solid var(--line-strong); }
+.xrun-sq .h0 { background: var(--heat-0); }
+.xrun-sq .h1 { background: var(--heat-1); }
+.xrun-sq .h2 { background: var(--heat-2); }
+.xrun-sq .h3 { background: var(--heat-3); }
+.xrun-sq .h4 { background: var(--heat-4); }
+.xrun-sq .h5 { background: var(--heat-5); }
+.xrun-sq .hb { background: none; }
+.xrun-sq .hn { background: none; border-style: dashed; }
 
 /* FL-156: player details beside the table, from 1280px wide (players.js SIDE_MIN) */
 .pl-split { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
@@ -1019,7 +1039,7 @@ tr.is-rival td { background: var(--accent-soft); }
    overlap. Inline links inside a sentence are exempt (WCAG 2.5.8). Last in the last stylesheet, because .linkish and
    .term reset everything (all: unset). Checked by scripts/tap_check.py. */
 @media (pointer: coarse) {
-  .btn, .seg button, .gwsel button, select, summary, .chipbtn, .skip, .st-when, .mc-p, .mc-club,
+  .btn, .seg button, .gwsel button, select, summary, .chipbtn, .pl-chip, .skip, .st-when, .mc-p, .mc-club,
   input:not([type="checkbox"], [type="radio"], [type="hidden"]) { min-height: 40px; }
   .theme-toggle, .icon-only, .vm-dot, .xptable .xstar { min-width: 40px; min-height: 40px; }
   .seg button { min-width: 40px; }

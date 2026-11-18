@@ -185,7 +185,9 @@ function bind() {
   // FL-156: presets ask first (what they set and clear), then fill in the filter bar
   on("[data-preset]", b => { S.presetAsk = S.presetAsk === b.dataset.preset ? null : b.dataset.preset; render(); $("[data-preset-apply]")?.focus(); });
   const pss = $("#presetSel"); if (pss) pss.onchange = () => { S.presetAsk = pss.value || null; render(); $("[data-preset-apply]")?.focus(); };
-  on("[data-morefilters]", () => { S.moreF = !S.moreF; render(); $("[data-morefilters]")?.focus(); });
+  // the Filters panel (players.js): toggle it (closing it drops a preset that wasn't applied), or remove one filter by its chip
+  on("[data-filters]", () => { const open = !!S.filtOpen || !!S.presetAsk; S.filtOpen = !open; if (open) S.presetAsk = null; render(); $(".pl-fbtn")?.focus(); });
+  on("[data-fdrop]", b => { S[b.dataset.fdrop] = PV_DEFAULT[b.dataset.fdrop]; render(); ($(".pl-chip") || $(".pl-fbtn"))?.focus(); });
   on("[data-preset-apply]", b => { presetApply(b.dataset.presetApply); render(); $(`[data-preset="${b.dataset.presetApply}"]`)?.focus(); });
   on("[data-preset-cancel]", () => { const k = S.presetAsk; S.presetAsk = null; render(); $(`[data-preset="${k}"]`)?.focus(); });
   const keepCols = () => { const d = $(".colpick"); return d && d.open; };
