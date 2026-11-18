@@ -32,7 +32,11 @@ def run_odds(tmp, past=PAST, upcoming=UPCOMING, fixtures=FIXTURES, previous=None
         out.write_text(json.dumps(previous))
     pages = {"/bootstrap-static/": BOOT, "/fixtures/": fixtures}
     fetch = lambda url: past if url.endswith("E0.csv") else upcoming
-    with patch.object(odds, "OUT", str(out)), patch.object(odds, "fpl", pages.get), patch.object(odds, "fetch", fetch), \
+    # odds.main also reads the saved Odds API snapshot (odds/upcoming.json) and its history files; point those at the
+    # temp folder too, or the test picks up whatever the last live refresh saved (on 18 Nov a real Chelsea v Arsenal
+    # snapshot row matched fixture 120 here and the "source down" case failed)
+    with patch.object(odds, "OUT", str(out)), patch.object(odds, "UPCOMING", str(Path(tmp) / "upcoming.json")), \
+            patch.object(odds, "HIST", str(tmp)), patch.object(odds, "fpl", pages.get), patch.object(odds, "fetch", fetch), \
             contextlib.redirect_stdout(io.StringIO()):
         try:
             odds.main()

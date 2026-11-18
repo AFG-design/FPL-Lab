@@ -22,8 +22,10 @@ function header() {
   $("#score").innerHTML =
     statBadge("Overall rank", `<span id="rankNum">${rankFmt(m.rank)}</span>`, { sub: move }) +
     statBadge("Points", m.points, { sub: `GW${meta.picks_gw}: ${m.gw_points ?? "–"}` }) +
-    statBadge("Bank", money(m.bank), { sub: `${m.free_transfers} free transfer${m.free_transfers === 1 ? "" : "s"}` }) +
-    `<div class="stat deadline${deadlineSoon(meta.deadline) ? " soon" : ""}" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><dt>${meta.next_gw ? `GW${meta.next_gw} deadline` : "Next deadline"}</dt><dd id="cd">${countdown(meta.deadline)}</dd><dd class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : meta.season_over ? "Season over" : ""}</dd></div>`;
+    statBadge("Bank", money(m.bank), { sub: `${m.free_transfers} free transfer${m.free_transfers === 1 ? "" : "s"}` });
+  // the deadline sits in its own pill beside the team name, so on phones it shares the first row instead of squeezing
+  // the three numbers below. No deadline (season over, or FPL hasn't published it): the pill says so, no countdown.
+  $("#dlpill").innerHTML = `<div class="stat deadline${deadlineSoon(meta.deadline) ? " soon" : ""}" role="link" tabindex="0" data-godl="1" title="Open Deadlines"><span id="cd" class="dl-cd">${countdown(meta.deadline)}</span><span class="dl-txt"><span class="dl-l">${meta.next_gw ? `GW${meta.next_gw} deadline` : "Next deadline"}</span><span class="stat-sub">${meta.deadline ? ukTime(meta.deadline) : meta.season_over ? "Season over" : ""}</span></span></div>`;
   // first load only: the rank arrow nudges up and the rank counts in from last week's figure
   if (!RANK_INTRO_DONE) {
     RANK_INTRO_DONE = true;
@@ -52,7 +54,7 @@ function header() {
     </span>
     <span class="st-msg" id="refreshMsg">${esc(REFRESH.msg)}</span><span class="st-msg" id="syncMsg">${esc(SYNC.msg || "")}</span>`;
   const hl = $("#meta [data-gohealth]"); if (hl) { hl.onclick = () => setView("health"); hl.onkeydown = e => { if (e.key === "Enter") setView("health"); }; }
-  const dl = $("#score [data-godl]"); if (dl) { dl.onclick = () => setView("deadlines"); dl.onkeydown = e => { if (e.key === "Enter") setView("deadlines"); }; }
+  const dl = $("#dlpill [data-godl]"); if (dl) { dl.onclick = () => setView("deadlines"); dl.onkeydown = e => { if (e.key === "Enter") setView("deadlines"); }; }
   document.querySelectorAll("#meta [data-refresh]").forEach(rb => rb.onclick = () => { if (!REFRESH.busy) startRefresh(); });
   const sb2 = $("#meta [data-sync]"); if (sb2) sb2.onclick = () => openSync();
 }
