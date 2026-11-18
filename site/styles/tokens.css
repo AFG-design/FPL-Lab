@@ -90,6 +90,12 @@
   --r-lg: 14px;
   --gap: 16px;
   --sidebar: 232px;
+
+  /* desktop side padding (FL-204), used by the top bar, status line, content and footer so their edges line up.
+     32px up to 1280px wide, then ramps: about 41px at 1366px, 48px at 1440px, capped at 56px from 1520px.
+     Phones (<900px) don't use it: they keep 16px or the safe-area inset (layout.css). No fallback is needed for
+     clamp(): it's older than color-mix() and :has(), which the site already needs to render at all. */
+  --gutter: clamp(32px, 10vw - 96px, 56px);
   --shadow: 0 10px 30px rgb(0 0 0 / 35%);
 
   /* weekly-honours medals (Rivals): label text on a tinted chip; the word is always shown, colour only backs it up */
