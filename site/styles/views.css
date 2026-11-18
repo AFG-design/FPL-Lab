@@ -107,6 +107,11 @@ th.sticky-col { z-index: 3; background: var(--raised); }
 tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi-text); }
 .pcell { display: flex; align-items: center; gap: 8px; }
 .pcell input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+
+/* FL-197: the compare checkbox's <label> is a 24 x 24px click area (WCAG 2.5.8). The negative margins give back the
+   extra 9px across and 3.5px down, so the name column and the row height are the same as with the bare 15px box.
+   On touch screens the FL-124 rule below makes it 40 x 40px. */
+.cmp-hit { display: grid; flex: none; place-items: center; width: 24px; height: 24px; margin: -1.75px -4.5px; cursor: pointer; }
 .linkish { all: unset; cursor: pointer; }
 
 @media (hover: hover) and (pointer: fine) { .linkish:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; } }
