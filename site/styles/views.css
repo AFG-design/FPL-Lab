@@ -59,6 +59,18 @@
 .ptsbars > div > span { font-size: 11px; color: var(--muted); height: 14px; }
 .pb-avg { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--faint); pointer-events: none; }
 .pb-avg span { position: absolute; left: 0; top: -8px; font-size: 11px; line-height: 16px; color: var(--muted); background: var(--surface); padding-right: 6px; }
+
+/* the next gameweek at a glance (player-sheet.js outlook): likely range band with the xP marked, then three chances */
+.orange { position: relative; height: 54px; margin: 22px 6px 2px; }
+.orange::before { content: ""; position: absolute; left: 0; right: 0; top: 14px; height: 2px; background: var(--line-strong); border-radius: 2px; }
+.or-band { position: absolute; top: 8px; height: 14px; border-radius: 7px; background: var(--accent-soft); border: 1px solid var(--accent-text); }
+.or-xp { position: absolute; top: 2px; width: 2px; height: 26px; margin-left: -1px; background: var(--fg); border-radius: 1px; }
+.or-xp b { position: absolute; bottom: calc(100% + 2px); left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: var(--fs-xs); }
+.or-tick { position: absolute; top: 34px; transform: translateX(-50%); font-size: 11px; color: var(--muted); }
+.ocs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.oc { position: relative; display: grid; gap: 2px; padding: 8px 10px 12px; overflow: hidden; background: var(--sunk); border-radius: var(--r-sm); font-size: var(--fs-xs); color: var(--muted); }
+.oc b { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; color: var(--fg); }
+.oc i { position: absolute; left: 0; bottom: 0; height: 4px; width: var(--w); background: var(--accent); }
 .upnext { list-style: none; margin: 0; padding: 0; display: grid; }
 .upnext li { display: grid; grid-template-columns: 46px auto minmax(0, 1fr) minmax(40px, 90px) 34px; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
 .upnext li:last-child { border-bottom: 0; }

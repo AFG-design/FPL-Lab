@@ -348,7 +348,7 @@ dialog {
 }
 dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .dlg { padding: 20px; display: grid; gap: 16px; overflow: auto; }
-.dlg .x { position: absolute; right: 10px; top: 10px; width: 34px; height: 34px; border-radius: 50%; background: var(--sunk); border: 1px solid var(--line); font-size: 18px; line-height: 1; color: var(--muted); }
+.dlg .x { position: absolute; z-index: 3; right: 10px; top: 10px; width: 34px; height: 34px; border-radius: 50%; background: var(--sunk); border: 1px solid var(--line); font-size: 18px; line-height: 1; color: var(--muted); }
 .dlg .x:hover { color: var(--fg); }
 .brk { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
 .brk div { background: var(--sunk); border-radius: var(--r-sm); padding: 7px 9px; font-size: var(--fs-xs); color: var(--muted); }
@@ -356,9 +356,15 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 .phead { display: flex; gap: 14px; align-items: flex-start; }
 .photo { width: 72px; height: 92px; object-fit: cover; border-radius: var(--r-sm); background: var(--sunk); flex: none; }
 
+.dlg-grab { display: none; }
+
 @media (max-width: 640px) {
-  dialog { width: 100vw; max-width: 100vw; max-height: 90vh; margin: auto 0 0; border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0; }
+  dialog { width: 100vw; max-width: 100vw; max-height: 90vh; margin: auto 0 0; border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0; overscroll-behavior: contain; }
   .dlg { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+
+  /* the drag handle: a 40px-tall strip pinned to the top of the sheet, so it can be grabbed however far you've scrolled */
+  .dlg-grab { position: sticky; top: 0; z-index: 2; display: grid; place-items: center; height: 40px; margin-bottom: -20px; touch-action: none; cursor: grab; background: linear-gradient(var(--surface) 60%, transparent); }
+  .dlg-grab span { width: 40px; height: 5px; border-radius: 99px; background: var(--line-strong); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
