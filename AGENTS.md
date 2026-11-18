@@ -13,6 +13,7 @@ to CLAUDE.md.
   change, and add results there in the existing format.
 
 ## Review guidelines
+Full checklist, with examples and Important / Nit / Pre-existing tags: **REVIEW.md**. The short version:
 - Treat as P0: anything that could lose or overwrite write-once files in `history/`;
   anything that lets backtests see information not available at the deadline (hindsight).
 - Treat as P1: Balanced or Play safe producing a hit; plans that break FPL rules
