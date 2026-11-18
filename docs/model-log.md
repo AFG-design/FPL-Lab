@@ -10,6 +10,43 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 18 Nov 2026 — FL-173: returning regulars' start chance from last season (Don't adopt; issue #194 Item 1)
+
+- Idea (FL-093 / FL-030 follow-up, the "Saliba problem"): a regular from last season on 0 minutes so far gets
+  almost no start chance (Saliba: 1%, 0.34 xP over 5 GWs, 83% of games started last season). Lift his `p_start`
+  towards last season's `start_rate` from priors.json. Run off main `a1a3efe` in an uncommitted worktree; code
+  not merged, branch `feat/returning-regulars-start-prior` dropped.
+- Three variants, listed before running: V1 `prior_start_games` 2 and V2 `prior_start_games` 5 (new param: last
+  season's start rate fades out over that many uninjured club games, only for a player with no minutes in the
+  window); V3 `start_prior` 2.0 (existing param, now also applied on top of xMins when the window is short).
+- Live GW11 spot check (start chance / 5-GW xP): Saliba 0.013 / 0.34 → V1 0.423 / 7.13, V2 0.669 / 11.21,
+  V3 0.560 / 9.40. Mitoma 0.006 / 0.19 → 0.579 / 7.23 in all three. V3 also lifts Minteh (8 minutes, 3 games)
+  0.052 → 0.284, a false boost.
+- **bench.py, pooled 5-GW picks (2024/25 + 2025/26):** V1 +0.000 [+0.000, +0.000], V2 +0.000 [+0.000, +0.000],
+  V3 +0.015 [-0.004, +0.041]. Per season 1-GW / 5-GW against main 4.35 / 18.23 (this season), 4.44 / 19.13
+  (2025/26), 4.25 / 19.16 (2024/25): V1 and V2 identical everywhere; V3 4.33 / 18.22, 4.45 / 19.14, 4.25 / 19.19.
+- **Targeted part, start chance Brier (pooled, lower is better):** V1 +0.00000 [+0.00000, +0.00000],
+  V2 +0.00000 [+0.00000, +0.00000], V3 +0.00039 [+0.00008, +0.00080] worse. FL-163 second pool: V1 −0.00002
+  [−0.00006, +0.00001], V2 +0.00010 [+0.00001, +0.00026] worse, V3 +0.00051 [+0.00010, +0.00105] worse. This
+  season's second pool: V1 +0.00038 [+0.00008, +0.00076] worse, V2 +0.00184 [+0.00042, +0.00374] worse.
+- **Backtest (GW3–10, --compare):** no segment flags for any variant. With status log, V3 start Brier +0.00620
+  [+0.00110, +0.01290] worse; all-players xMin MAE V2 +0.31, V3 +1.04; players outside the pool who played
+  improve (V1 −0.55, V2 −0.94, V3 −1.33 xMin MAE, n=153) but less than everyone else gets worse.
+- **Why the bench reads 0.000:** the deciding pool needs minutes in one of the last three GWs (see FL-163), so a
+  0-minute player is outside it by construction. The evidence that decides this is the diagnostic, not the bench.
+- **Diagnostic (why it fails):** players with a strong prior (start rate about 0.63–0.68) still on 0 minutes after
+  2–4 uninjured club games start only 0–6% of the time this season, 2–9% in 2025/26 and 4–10% in 2024/25. Most are
+  out of favour, not returning from injury, so pulling them to about 65% raises their start Brier from about 0.04
+  to about 0.40. The diagnostic did not split them by why they had 0 minutes.
+- Missing inputs: no priors.json or no `start_rate` falls back to minutes / 3230, or no blend if there are no
+  minutes either; no history/status.json means injury weeks aren't removed from the game count. Both params
+  default to 0 (off).
+- **Decision-table row (all three): CI includes zero and the change is only a tweak (doesn't qualify as a targeted
+  change: the start-chance interval is never clear of zero in the right direction) → Don't adopt.**
+- Next: FL-174 re-tests the idea keyed to a recorded return from absence (status log `ret_why` back / date) rather
+  than 0 minutes. Side finding, FL-175: with no minutes history, xMins gives unused bench players (Harwood-Bellis,
+  Nunes) about 0.94 start chance; to be reproduced and fixed separately.
+
 ## 16 Nov 2026 — FL-162: walk-forward minutes retraining (Don't adopt)
 
 - Protocol committed and draft PR #187 opened before training. Two linked minutes-package variants only:
