@@ -164,6 +164,12 @@
       if (free) { con(` h_${w}`, "=", 0); con(` f_${w + 1} - f_${w}`, "<=", 1); }
       else {
         con(` h_${w} + f_${w}` + ids.map(i => ` - ${ti(i, w)}`).join(""), ">=", 0);
+        // hits are exactly the moves beyond your free transfers (FPL), as optimise.py: never a -4 taken to bank an
+        // extra free transfer for later (that got past maxHits: FPL would charge the later week -8). y_w is 1 in a
+        // week with a hit; then free transfers - moves + hits <= 0, so hits = moves - free transfers.
+        bin.push(`y_${w}`);
+        con(` h_${w} - 15 y_${w}`, "<=", 0);
+        con(` f_${w} + h_${w}` + ids.map(i => ` - ${ti(i, w)}`).join("") + ` + 5 y_${w}`, "<=", 5);
         con(` f_${w + 1} - f_${w} + ${ids.map(i => ti(i, w)).join(" + ")} - h_${w}`, "<=", 1);
       }
       if (inp.maxHits != null) con(` h_${w}`, "<=", inp.maxHits);

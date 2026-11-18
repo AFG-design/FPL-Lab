@@ -150,6 +150,13 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
         m += bk[w] == prev_bank + pulp.lpSum(sp[i] * tout[i][w] - buy[i] * tin[i][w] for i in pool)
         m += n_w <= max_moves_week
         m += hits[w] >= n_w - ft[w]
+        # hits are exactly the moves beyond your free transfers (FPL): never a -4 taken to bank an extra free transfer.
+        # Without this a plan could book a hit in a week with no moves and spend the extra transfer later, getting past
+        # Chase rank's one-hit-a-week cap (MAX_HITS): FPL would charge -8 in that later week. hit_w is 1 in a week with
+        # a hit; then free transfers - moves + hits <= 0, so hits = moves - free transfers.
+        hit_w = pulp.LpVariable(f"hit_{w}", cat=B)
+        m += hits[w] <= 15 * hit_w
+        m += ft[w] - n_w + hits[w] <= 5 * (1 - hit_w)
         m += ft[w + 1] <= ft[w] - n_w + hits[w] + 1
         m += ft[w + 1] >= 1
         if w == 0 and week1_moves is not None:
