@@ -1238,7 +1238,7 @@ h4.rv-h { font-size: 20px; }
 .rv-status.is-stale { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
 
 /* rivalry moment and projection */
-.rv-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.rv-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: start; }   /* FL-185: each card its own height, no empty lower half */
 .rv-hero.one { grid-template-columns: minmax(0, 1fr); }
 .rv-moment { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface) 70%); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
 .rv-eyebrow { display: block; font-size: var(--fs-label); font-weight: 650; letter-spacing: var(--ls-eyebrow); text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
