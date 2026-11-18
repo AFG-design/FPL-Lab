@@ -334,7 +334,9 @@ function vField(C) {
   const capTop = Object.entries(F?.cap || {}).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const chipTxt = Object.entries(F?.chips || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${CHIP_NAME[k] || k} ${v.toFixed(0)}%`).join(" · ") || "none";
   // FL-082: FPL gave no overall rank (before your first finished GW), so the band is centred on an assumed 100,000
-  const label = S.field === "near" ? `managers near ${F?.rank_assumed ? "an assumed rank of 100,000 (FPL gave no overall rank)" : "your rank"} (${rankFmt(F?.rank_from)}–${rankFmt(F?.rank_to)})` : "the top 10k";
+  // the rank band only when the sample has one: with no sample (or no band in it) it said "(–––)", which tells you nothing
+  const band = F?.rank_from != null && F?.rank_to != null ? ` (${rankFmt(F.rank_from)}–${rankFmt(F.rank_to)})` : "";
+  const label = S.field === "near" ? `managers near ${F?.rank_assumed ? "an assumed rank of 100,000 (FPL gave no overall rank)" : "your rank"}${band}` : "the top 10k";
   const warn = [];
   if (C.gw !== D.meta.cur_gw) warn.push(`This sample is from GW${C.gw}; this week's is taken after the deadline.`);
   if (C.complete === false) warn.push(`Some requests failed when the sample was taken (${C.failed}), so it has fewer teams than planned.`);

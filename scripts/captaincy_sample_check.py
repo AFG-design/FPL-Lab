@@ -56,7 +56,8 @@ def main():
                         assert 'Captaincy sample unavailable' in planner
                         assert '% field C' not in planner
                         assert 'Ownership sample unavailable' in compare
-                        page.evaluate("S.field='near'; $('#app').innerHTML=vRivals()")
+                        # the sample text is on Rivals' "The field" tab; "My league" opens by default, so open the field tab
+                        page.evaluate("S.field='near'; S.rtab='field'; $('#app').innerHTML=vRivals()")
                         text=page.locator('#app').inner_text()
                         assert 'sample unavailable' in text
                         assert "Your XI's average ownership" not in text

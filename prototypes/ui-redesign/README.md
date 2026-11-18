@@ -46,3 +46,23 @@ any JavaScript error, failed local request or sideways page scroll.
 - Not prototyped: Deadlines, Chips, Review, You vs the model, Model, Data health, FPL School, AFG and live matchday states.
 - C's fixtures view shows only the first match of a double gameweek, and badges without team names on phones.
 - Buttons such as Compare, Add to plan and Filters are visual only.
+
+## Outcome (kept as a record)
+
+The owner chose **A · Refined** plus three pieces from B and C. It was built in the live site in eight steps, each its
+own PR, all on 18 Nov 2026. These prototypes are frozen: they are not kept in step with the site.
+
+| Step | PR | What was built |
+|---|---|---|
+| 1 Header and home | #198 | Deadline pill; pitch above the fold with a right-hand rail; B's decision board (each call with its key number); C's plan-week preview (strategy and gameweek switch on the pitch) |
+| 2 Players | #199 | One toolbar row; Filters panel with removable chips; B's per-gameweek xP heat strip in the total |
+| 3 Player sheet | #200 | Next-GW outlook near the top (B's likely-range band and outcome chances); C's drag handle on phones |
+| 4 Planner | #201 | Strategy cards first on My team |
+| 5 Fixtures | #202 | Club badges aligned; phone options wrap; no sideways scroll at 320px |
+| 6 Rivals | #203 | Points gap under each total on phones |
+| 7 Season screens | #204 | Full names on past-gameweek pitches; the "moves on FPL" button only claims moves when there are some |
+| 8 App-wide feel | #205 | Hover only with a mouse, press feedback, no tap flash, 16px fields on touch, status-bar colour on load |
+
+Not built, on purpose: B's graphite palette and top tab bar, C's glass dock and icon rail, and C's card grid for
+Players. Several screens already had what a concept proposed (the Planner's side-by-side table, the xP table's heat
+grid, Rivals' Gap column), so those steps fixed only what was actually wrong.
