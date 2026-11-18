@@ -573,6 +573,16 @@ tr.is-rival td { background: var(--accent-soft); }
 .home-side { display: grid; gap: 12px; align-content: start; min-width: 0; }
 .home-side2 { display: grid; gap: 12px; align-content: start; min-width: 0; }
 
+/* mid-width screens (laptops, a zoomed browser): only one side column fits, so the decisions card stays beside
+   the pitch and the other three cards run in a row under both (three across, two on narrower
+   screens), instead of stacking below the decisions */
+@media (min-width: 1101px) and (max-width: 1639px) {
+  .home-side:has(.home-side2) { display: contents; }
+  .home-main:has(.home-side2) > .home-pitch { grid-column: 1; grid-row: 1; }
+  .home-main:has(.home-side2) .dboard { grid-column: 2; grid-row: 1; align-self: start; }
+  .home-main .home-side2 { grid-column: 1 / -1; grid-row: 2; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; }
+}
+
 /* wide monitors: the side cards split into two columns (decisions | checks, research, watchlist), so the
    pitch column is no longer left with empty space under it while one long side column carries on */
 @media (min-width: 1640px) {
