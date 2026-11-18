@@ -104,7 +104,7 @@
 th.sticky-col { z-index: 3; background: var(--raised); }
 
 @media (hover: hover) and (pointer: fine) { tbody tr:hover .sticky-col { background: var(--raised); } }
-tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi); }
+tr.mine td.sticky-col { box-shadow: inset 3px 0 0 var(--hi-text); }
 .pcell { display: flex; align-items: center; gap: 8px; }
 .pcell input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
 .linkish { all: unset; cursor: pointer; }
@@ -432,7 +432,7 @@ tr.is-rival td { background: var(--accent-soft); }
 .gabars li { display: grid; grid-template-columns: minmax(96px, 168px) minmax(0, 1fr) 64px; gap: 10px; align-items: center; padding: 3px 6px; border-radius: var(--r-sm); }
 
 @media (hover: hover) and (pointer: fine) { .gabars li:hover { background: var(--raised); } }
-.gabars li.mine { box-shadow: inset 3px 0 0 var(--hi); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.gabars li.mine { box-shadow: inset 3px 0 0 var(--hi-text); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
 .ga-name { font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ga-track { position: relative; height: 14px; }
 .ga-act { position: absolute; inset: 2px auto 2px 0; background: var(--accent); border-radius: 0 4px 4px 0; }
