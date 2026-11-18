@@ -76,7 +76,7 @@ function afgScoreboard() {
       <div class="kpi"><span class="lbl">Average miss per player</span><b>${bt.mae_afg.toFixed(2)} <span class="muted afg-v">v ${bt.mae_model.toFixed(2)}</span></b><span class="delta muted">AFG v model, lower is better</span></div>
     </div>` : "";
   if (!B.length) {
-    return `<div class="panel"><h2>Scoreboard: AFG v the model</h2>
+    return `<div class="panel"><h2 style="margin-bottom:8px">Scoreboard: AFG v the model</h2>
       <p>Each week AFG's captain, best XI and punts are saved before the deadline next to the model's, then marked once the gameweek finishes. The first results appear after GW${D.afg.gw}.</p>${btTiles}</div>`;
   }
   // Running scores, one contest per gameweek (per punt for punts); the higher points win, the lower average miss wins.
@@ -153,7 +153,7 @@ function vAfg() {
       : `<p class="sub">A punt needs a player the fan factors push up by at least 0.3 and who beats yours by 0.5 AFG points, within budget.</p>`);
 
   return `<div class="panel afg-hero">
-      <div class="bar" style="margin:0"><h2>AFG suggestion · GW${g}</h2><span class="tag">Punt layer</span></div>
+      <div class="bar" style="margin:0 0 8px"><h2>AFG suggestion · GW${g}</h2><span class="tag">Punt layer</span></div>
       <p>The model's projections, nudged by what a fan would look at: record against this opponent and at this ground, home and away form, head-to-heads, hot runs, Europe and new managers. It's kept apart from the rest of the app, which still follows the model.</p>
       <p class="note">Built on your plan's squad (${esc(planName())}). Records cover ${(A.seasons[0] || "").replace("-", "/")} to now. The labels show how far AFG leans, not proof of an edge: see the scoreboard below.</p>
     </div>

@@ -298,7 +298,7 @@ function vSchool() {
   const relay = D.school?.relay;
   const form = `<form class="filters" id="schoolForm" style="margin:8px 0"><input id="schoolId" inputmode="numeric" pattern="[0-9]*" placeholder="FPL team ID" aria-label="FPL team ID" value="${esc(SCHOOL.id)}" style="max-width:180px" ${relay ? "" : "disabled"}><button class="btn primary" type="submit" ${relay && !SCHOOL.busy ? "" : "disabled"}>${SCHOOL.busy ? "Reviewing…" : "Review"}</button></form>`;
   const intro = `<p class="note" style="margin-top:0">Type any team ID (the number in the address of their Points page on the FPL site) for a rating and one suggested move. Read-only: nothing is saved, and the rest of the app stays on your team.</p>`;
-  if (!relay) return `<div class="panel"><h2>FPL School</h2>${intro}${form}<p class="verdict">The relay isn't set up yet, so teams can't be fetched. It's a one-time, 5-minute job: see <code>docs/fpl-school-relay.md</code>, then put its address in <code>fpl_school.json</code>.</p></div>`;
+  if (!relay) return `<div class="panel"><h2 style="margin-bottom:8px">FPL School</h2>${intro}${form}<p class="verdict">The relay isn't set up yet, so teams can't be fetched. It's a one-time, 5-minute job: see <code>docs/fpl-school-relay.md</code>, then put its address in <code>fpl_school.json</code>.</p></div>`;
   let body = "";
   if (SCHOOL.err) body = `<p class="verdict bad" role="alert">${esc(SCHOOL.err)}</p>`;
   else if (SCHOOL.res) {
@@ -325,5 +325,5 @@ function vSchool() {
       ${score == null ? "" : `<div class="share-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px"><button class="btn" type="button" data-share="download">Download image</button><button class="btn" type="button" data-share="copy">Copy image</button><span class="note" aria-live="polite">${esc(SHARE.msg)}</span></div>
       <p class="note">A 1200×675 card of this review: ${r.lineup?.picked ? `their GW${r.gw} team as picked, with GW${r.lineup.gw} xP` : `their GW${r.lineup?.gw ?? r.gws[0]} best XI`}, the rating and the one move.</p>`}`;
   }
-  return `<div class="panel"><h2>FPL School</h2>${intro}${form}<p class="st-msg" aria-live="polite">${esc(SCHOOL.msg)}</p>${body}</div>`;
+  return `<div class="panel"><h2 style="margin-bottom:8px">FPL School</h2>${intro}${form}<p class="st-msg" aria-live="polite">${esc(SCHOOL.msg)}</p>${body}</div>`;
 }

@@ -116,7 +116,7 @@ function vmWeek(w) {
 
 function vmNext(n) {
   const t = n.target;
-  if (!t) return `<div class="panel"><h2>GW${n.gw}: the team to beat</h2><p>No model team yet: it appears once the model's plans for GW${n.gw} are saved on the next refresh.</p></div>`;
+  if (!t) return `<div class="panel"><h2 style="margin-bottom:8px">GW${n.gw}: the team to beat</h2><p>No model team yet: it appears once the model's plans for GW${n.gw} are saved on the next refresh.</p></div>`;
   const mult = vmCaptainMultiplier(t, null);
   const items = vmModelItems({ xi: t.xi, bench: t.bench || [], cap: t.captain, vice: t.vice }, i => xpg(i, n.gw), new Set(D.squad.map(s => s.id)), mult);
   return `<div class="panel vm-head"><h2>GW${n.gw}: the team to beat</h2>
@@ -282,7 +282,7 @@ function vVsModel() {
   const opts = [...(n?.gw ? [[`n${n.gw}`, `GW${n.gw}`]] : []), ...weeks.map(w => [String(w.gw), `GW${w.gw}`])];
   if (!opts.some(([k]) => k === S.vmgw)) S.vmgw = String(weeks[0].gw);
   const w = weeks.find(x => String(x.gw) === S.vmgw);
-  return `${vmStreak(V)}<div class="panel vm-intro"><h2>You vs the model</h2>
+  return `${vmStreak(V)}<div class="panel vm-intro"><h2 style="margin-bottom:8px">You vs the model</h2>
       <p>Each gameweek your actual points, after hits, against what the model's team actually scored: the plan it recommended before the deadline (Balanced), after its hits, with its bench and FPL's auto-subs. Beat it to win the week.</p>${skipTxt ? `<ul class="alerts"><li class="warn"><span>${skipTxt}</span></li></ul>` : ""}
       <div class="seg vm-gws" role="group" aria-label="Gameweek">${opts.map(([k, l]) => `<button type="button" data-vmgw="${k}" aria-pressed="${k === S.vmgw}">${l}${k[0] === "n" ? " · to play" : ` · ${vmRes[V.weeks.find(x => String(x.gw) === k).res][0]}`}</button>`).join("")}</div>
       ${lineupToggle()}</div>
