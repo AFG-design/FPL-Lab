@@ -487,6 +487,9 @@ tr.is-rival td { background: var(--accent-soft); }
 .dc-body { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .dc-do { margin: 0; font-size: 17px; font-weight: 650; }
 .dc-sub { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+
+/* FL-164: what differs between the captain options when the call is a Coin flip */
+.dc-diff { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: var(--fs-sm); }
 .dc-moves { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
 .dc-moves li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 16px; font-weight: 650; }
 .dc-moves .out { color: var(--bad); }
