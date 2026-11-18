@@ -149,19 +149,27 @@ function pvMine() {
   const sq = D.squad.map(s => s.id);
   const asm = sq.filter(i => isAsm(i, g)).length;
   const flagged = sq.filter(i => P[i] && P[i].status !== "a");
-  const ft = Math.min(5, D.manager.free_transfers);
+  // The three strategies first: the question this page answers. Each card: its gain over keeping your team (the same
+  // vs-no-transfers figure as everywhere, banked free transfers counted), how sure (vPill), what it does in the first
+  // gameweek, and what the strategy is for (MODE_HELP). A strategy with no plan in this build says so and still opens
+  // its tab, which explains why (pvMissing); nothing is filled in from another strategy.
+  // Free transfers and bank aren't repeated here: the header shows both on every screen.
   const cards = PV_MODES.map(m => {
     const r = pvStrat(m);
-    if (!r.key) return `<button class="opt" data-pview="${m}"><span>${MODES[m]}</span><b>–</b><span>No plan this build</span></button>`;
+    if (!r.key) return `<button type="button" class="pvcard" data-pview="${m}"><span class="pvc-name">${MODES[m]}</span><b class="pvc-gain">–</b><span class="pvc-now">No plan in this build</span></button>`;
     const now = r.moves.filter(x => x.gw === PG[0]);
-    return `<button class="opt" data-pview="${m}"><span>${MODES[m]} · ${vPill(r.conf)}</span><b class="${r.gain > 0.05 ? "up" : ""}">${sgn(r.gain)}</b><span>${now.length ? now.map(x => `${esc(P[x.in].name)} in`).join(", ") : "Roll this week"}</span></button>`;
+    return `<button type="button" class="pvcard" data-pview="${m}"><span class="pvc-name">${MODES[m]}${vPill(r.conf)}</span>
+      <span class="pvc-g"><b class="pvc-gain ${r.gain > 0.05 ? "up" : r.gain < -0.05 ? "down" : ""}">${sgn(r.gain)}</b><small>xP vs no transfers, ${PG.length} GWs</small></span>
+      <span class="pvc-now"><b>GW${PG[0]}:</b> ${now.length ? now.map(x => `${esc(P[x.out].name)} → ${esc(P[x.in].name)}`).join(", ") : "roll the free transfer"}</span>
+      <span class="pvc-help">${esc(MODE_HELP[m])}</span></button>`;
   }).join("");
   return `
+  <section class="pvstrats" aria-labelledby="pvStratsH"><div class="bar"><h3 id="pvStratsH">What each strategy would do</h3></div>
+    <div class="pvcards">${cards}</div>
+    <p class="note">Gains are projected points over ${PG.length} GWs against keeping this team, ${GAIN_NOTE()}. Tap one to see its moves and the XI it leaves you.</p></section>
   <div class="plansum">
     <div class="kpi"><span class="lbl">No transfers · ${PG.length} GWs</span><b>${f1(base.tot)}</b><span class="delta muted">projected, best XI + captain each week</span></div>
     <div class="kpi"><span class="lbl">GW${g} xP</span><b>${f1(t.pts)}</b><span class="delta muted">captain ${esc(P[t.cap]?.name || "–")}</span></div>
-    <div class="kpi"><span class="lbl">${term("ft", "Free transfers")}</span><b>${ft}</b><span class="delta muted">for GW${PG[0]}</span></div>
-    <div class="kpi"><span class="lbl">Bank</span><b>${money(D.manager.bank)}</b><span class="delta muted">before any moves</span></div>
   </div>
   ${D.meta.fh_restored ? `<p class="note" style="margin:0">Free Hit active in GW${D.meta.picks_gw}: plans start from the squad and bank FPL gives back for GW${PG[0]} (your GW${D.meta.squad_gw} team).</p>` : ""}
   <div class="grid2 lu-cols">
@@ -172,10 +180,8 @@ function pvMine() {
       <p class="note">Your 15 as they are, with the XI and captain picked for the most projected points each week. Tap a player for his details.${asm ? ` ${asm} projection${asm === 1 ? " rests" : "s rest"} on assumptions (dotted number): FPL hasn't given a return date or chance.` : ""}</p>
     </div>
     <div style="display:grid;gap:20px;min-width:0;align-content:start">
-      <div class="panel"><h3>What each strategy would do</h3>
-        <p class="note" style="margin-top:0">vs no transfers over ${PG.length} GWs: projected points vs keeping this team, ${GAIN_NOTE()}. Tap one to see the XI it leaves you.</p>
-        <div class="opts">${cards}</div></div>
-      ${flagged.length ? `<div class="panel"><h3>Flagged in your squad</h3><div class="moves">${flagged.map(i => `<div class="move"><button data-p="${i}" class="linkish"><b>${esc(P[i].name)}</b></button><span class="muted">${esc(P[i].news || "flagged")}</span><span class="mono">${f1(xpFrom(i, PG[0], PG.length))} xP / ${PG.length} GWs</span></div>`).join("")}</div></div>` : ""}
+      ${flagged.length ? `<div class="panel"><h3>Flagged in your squad</h3><div class="moves">${flagged.map(i => `<div class="move"><button data-p="${i}" class="linkish"><b>${esc(P[i].name)}</b></button><span class="muted">${esc(P[i].news || "flagged")}</span><span class="mono">${f1(xpFrom(i, PG[0], PG.length))} xP / ${PG.length} GWs</span></div>`).join("")}</div></div>`
+        : `<div class="panel"><h3>Flagged in your squad</h3><p class="note" style="margin:0">Nobody: FPL has no injury, suspension or doubt flag on any of your 15.</p></div>`}
     </div>
   </div>`;
 }
