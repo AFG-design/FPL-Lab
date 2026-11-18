@@ -1,0 +1,130 @@
+{
+ "a-refined/phone/dark": {
+  "texts": 553,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 21,
+  "small_taps": 0,
+  "header_px": 113
+ },
+ "a-refined/phone/light": {
+  "texts": 553,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 21,
+  "small_taps": 0,
+  "header_px": 113
+ },
+ "a-refined/desktop/dark": {
+  "texts": 983,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 35,
+  "small_taps": 20,
+  "header_px": 89
+ },
+ "a-refined/desktop/light": {
+  "texts": 983,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 35,
+  "small_taps": 20,
+  "header_px": 89
+ },
+ "b-analytics/phone/dark": {
+  "texts": 705,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 0,
+  "small_taps": 0,
+  "header_px": 163
+ },
+ "b-analytics/phone/light": {
+  "texts": 705,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 0,
+  "small_taps": 0,
+  "header_px": 163
+ },
+ "b-analytics/desktop/dark": {
+  "texts": 1425,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 0,
+  "small_taps": 0,
+  "header_px": 156
+ },
+ "b-analytics/desktop/light": {
+  "texts": 1425,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 0,
+  "small_taps": 0,
+  "header_px": 156
+ },
+ "c-interactive/phone/dark": {
+  "texts": 492,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 71,
+  "small_taps": 0,
+  "header_px": 60
+ },
+ "c-interactive/phone/light": {
+  "texts": 492,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 71,
+  "small_taps": 0,
+  "header_px": 60
+ },
+ "c-interactive/desktop/dark": {
+  "texts": 833,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 98,
+  "small_taps": 0,
+  "header_px": 88
+ },
+ "c-interactive/desktop/light": {
+  "texts": 833,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 98,
+  "small_taps": 0,
+  "header_px": 88
+ },
+ "current/phone/dark": {
+  "texts": 530,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 14,
+  "small_taps": 42,
+  "header_px": 272
+ },
+ "current/phone/light": {
+  "texts": 530,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 14,
+  "small_taps": 42,
+  "header_px": 272
+ },
+ "current/desktop/dark": {
+  "texts": 1107,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 14,
+  "small_taps": 95,
+  "header_px": 143
+ },
+ "current/desktop/light": {
+  "texts": 1107,
+  "small_text": 0,
+  "low_contrast": 0,
+  "skipped": 14,
+  "small_taps": 95,
+  "header_px": 143
+ }
+}

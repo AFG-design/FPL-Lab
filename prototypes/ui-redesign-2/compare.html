@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en-GB">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<!-- Comparison board for the round-2 prototypes. The same page is published as a private Artifact; open this copy via a local server from the repo root. -->
+<title>FPL LAB Redesign Round 2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one reading column (1240px max) with a full-width comparison bench; FPL LAB's own "pitch at night" palette. */
+:root {
+  --bg: #0f1a16; --surface: #15221c; --raised: #1b2b24; --line: #24352d; --line-2: #33493e;
+  --fg: #e7efe9; --muted: #93a69a; --accent: #2fa36b; --accent-text: #5ccf94; --hi: #ffd23f; --hi-text: #ffd23f; --hi-soft: rgb(255 210 63 / 14%);
+  --good: #4fcf8a; --warn: #f2b33d; --bad: #ff7a6e; --turf: #123d29; --turf-2: #164831;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif; --text: Inter, system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f3f6f4; --surface: #fff; --raised: #f7faf8; --line: #d7e0da; --line-2: #bccbc1; --fg: #0f1a16; --muted: #55675c;
+  --accent: #17804e; --accent-text: #13703f; --hi-text: #856000; --hi-soft: rgb(255 210 63 / 28%); --good: #0f6a3a; --warn: #875200; --bad: #b02f26; --turf: #155536; --turf-2: #175c3d; color-scheme: light; } }
+:root[data-theme="light"] {
+  --bg: #f3f6f4; --surface: #fff; --raised: #f7faf8; --line: #d7e0da; --line-2: #bccbc1; --fg: #0f1a16; --muted: #55675c;
+  --accent: #17804e; --accent-text: #13703f; --hi-text: #856000; --hi-soft: rgb(255 210 63 / 28%); --good: #0f6a3a; --warn: #875200; --bad: #b02f26; --turf: #155536; --turf-2: #175c3d; color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--text); -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+a { color: var(--accent-text); }
+.eyebrow { font-size: 12px; font-weight: 650; letter-spacing: .11em; text-transform: uppercase; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+header.hero { background: repeating-linear-gradient(90deg, var(--turf) 0 72px, var(--turf-2) 72px 144px); color: #fff; }
+header.hero .wrap { padding-block: 40px 34px; display: grid; gap: 14px; }
+header.hero .eyebrow { color: rgb(255 255 255 / 78%); }
+header.hero h1 { font: 700 clamp(40px, 6vw, 64px)/0.95 var(--display); text-transform: uppercase; letter-spacing: .005em; }
+header.hero h1 em { font-style: normal; color: #ffd23f; }
+header.hero p { max-width: 68ch; color: rgb(255 255 255 / 88%); font-size: 16px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.facts span { padding: 5px 11px; border-radius: 999px; background: rgb(0 0 0 / 28%); border: 1px solid rgb(255 255 255 / 18%); font-size: 13px; }
+
+section.s { padding-block: 44px 8px; }
+section.s > .wrap { display: grid; gap: 16px; }
+.sh { display: grid; gap: 6px; }
+.sh h2 { font: 700 34px/1 var(--display); text-transform: uppercase; letter-spacing: .01em; }
+.sh p { color: var(--muted); max-width: 72ch; }
+
+/* comparison bench */
+.bench { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 94%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.bench .wrap { padding-block: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); flex-wrap: wrap; }
+.seg button { border: 0; background: transparent; color: var(--muted); font: 550 13.5px var(--text); padding: 7px 12px; border-radius: 7px; cursor: pointer; min-height: 34px; }
+.seg button[aria-pressed="true"] { background: var(--raised); color: var(--fg); box-shadow: 0 0 0 1px var(--line-2); }
+.seg button:focus-visible, .shot:focus-visible, .x:focus-visible { outline: 2px solid var(--hi-text); outline-offset: 2px; }
+.grid { display: grid; gap: 16px; padding-block: 16px 8px; }
+.grid.desk { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid.phone { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+figure { margin: 0; display: grid; gap: 8px; min-width: 0; align-content: start; }
+figcaption { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+figcaption b { font: 700 19px/1.1 var(--display); text-transform: uppercase; letter-spacing: .02em; }
+figcaption span { color: var(--muted); font-size: 13px; }
+.shot { display: block; width: 100%; padding: 0; border: 1px solid var(--line-2); border-radius: 12px; overflow: auto; background: var(--surface); cursor: zoom-in; max-height: 820px; }
+.shot img { display: block; width: 100%; height: auto; }
+figure.today .shot { border-color: var(--line-2); }
+figure.today figcaption b { color: var(--muted); }
+.missing { display: grid; place-items: center; min-height: 180px; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--muted); font-size: 13.5px; padding: 16px; text-align: center; }
+.why { color: var(--muted); font-size: 13.5px; }
+
+/* concept notes */
+.concepts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.cc { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.cc h3 { font: 700 26px/1 var(--display); text-transform: uppercase; }
+.cc .tag { font-size: 13.5px; color: var(--muted); }
+.cc h4 { margin: 6px 0 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.cc ul { margin: 0; padding-left: 18px; display: grid; gap: 5px; font-size: 14px; }
+.cc ul.plus li::marker { content: "+  "; color: var(--good); font-weight: 700; }
+.cc ul.minus li::marker { content: "–  "; color: var(--bad); font-weight: 700; }
+
+/* audit coverage + scorecard tables */
+.tbox { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 650; white-space: nowrap; background: var(--raised); }
+tr:last-child td { border-bottom: 0; }
+td.k { font-weight: 600; min-width: 190px; }
+.st { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.st.y { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.st.p { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.st.n { color: var(--muted); background: var(--raised); }
+.dots { display: inline-flex; gap: 3px; vertical-align: -1px; margin-right: 6px; }
+.dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line-2); }
+.dots i.on { background: var(--accent-text); }
+td small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.best { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-text) 45%, transparent); border-radius: 6px; }
+
+.rec { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; min-width: 0; display: grid; gap: 12px; align-content: start; }
+.panel.lead { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.panel h3 { font-size: 18px; }
+.panel ol, .panel ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.verdict { font: 700 30px/1.05 var(--display); text-transform: uppercase; }
+.verdict em { font-style: normal; color: var(--hi-text); }
+.steps td:first-child { font: 700 18px var(--display); white-space: nowrap; }
+.callout { border-left: 3px solid var(--hi-text); background: var(--hi-soft); padding: 12px 14px; border-radius: 0 10px 10px 0; font-size: 14px; }
+footer { color: var(--muted); font-size: 13px; }
+footer .wrap { padding-block: 36px 48px; display: grid; gap: 8px; }
+
+.lb { position: fixed; inset: 0; z-index: 50; background: rgb(3 8 6 / 82%); display: grid; grid-template-rows: auto 1fr; padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); gap: 10px; }
+.lb[hidden], [hidden] { display: none !important; }
+.lb .bar { display: flex; align-items: center; gap: 12px; color: #fff; }
+.lb .x { margin-left: auto; border: 1px solid rgb(255 255 255 / 30%); background: rgb(0 0 0 / 40%); color: #fff; border-radius: 10px; padding: 8px 14px; font: 600 14px var(--text); cursor: pointer; }
+.lb .scroll { overflow: auto; border-radius: 10px; }
+.lb img { display: block; margin: 0 auto; max-width: min(100%, 1440px); height: auto; }
+
+@media (max-width: 1000px) { .grid.phone { grid-template-columns: repeat(2, minmax(0, 1fr)); } .concepts, .rec { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .grid.desk, .grid.phone { grid-template-columns: minmax(0, 1fr); } .sh h2 { font-size: 28px; } .bench .seg { width: 100%; } .bench .seg button { flex: 1 0 auto; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Visual redesign proposal · round 2 · 18 Nov 2026 · GW11</span>
+    <h1>Three ways FPL LAB <em>could</em> look next</h1>
+    <p>Three working prototypes built from the second visual audit: <b>A · Refined</b>, <b>B · Premium Analytics</b> and <b>C · Modern &amp; Interactive</b>. Each one covers the same eight screens on desktop and phone, next to real captures of today's site. Nothing in the live app has been changed.</p>
+    <div class="facts"><span>8 screens per concept</span><span>390px and 1440px</span><span>Dark and light</span><span>Sample data: 18 Nov snapshot</span><span>No live services</span></div>
+  </div>
+</header>
+
+<div class="bench" id="bench">
+  <div class="wrap">
+    <div class="seg" role="group" aria-label="Screen" id="segScreen"></div>
+    <div class="seg" role="group" aria-label="Device" id="segDevice"></div>
+    <div class="seg" role="group" aria-label="Theme" id="segTheme"></div>
+  </div>
+</div>
+
+<section class="s" id="compare" style="padding-top:8px">
+  <div class="wrap">
+    <p class="why" id="why"></p>
+    <div class="grid desk" id="grid"></div>
+    <p class="why">Click any screenshot to open it full size. "Today" is the live site at 17:02 on 18 Nov, served locally from a copy of <code>site/</code> with the published data. The prototypes use a trimmed copy of the same snapshot, with mini-league managers anonymised.</p>
+  </div>
+</section>
+
+<section class="s" id="concepts">
+  <div class="wrap">
+    <div class="sh"><span class="eyebrow">The three directions</span><h2>What each one changes, and what it costs</h2>
+      <p>All three keep the identity that stayed through round 1: deep green surfaces, pitch-green actions, armband yellow only for the captain, the deadline and your own players, Barlow Condensed for titles and numbers, and the same sections in the same order.</p></div>
+    <div class="concepts">
+      <article class="cc"><h3>A · Refined</h3><p class="tag">Today's design, finished. The same tokens and layout, with the audit's open items fixed and one rule for headings.</p>
+        <h4>Design choices</h4><ul>
+          <li>The page title is the only <code>&lt;h1&gt;</code>; the team name moves to the sidebar card.</li>
+          <li>Phone header: a 56px bar (title, deadline chip, search) plus a 52px stat strip that scrolls away. Content starts at <b>113px</b> instead of 272px.</li>
+          <li>One type scale (11.5 / 13 / 14.5 / 17 / 28px) and one card-title style.</li>
+          <li>"Close call" pill only when the top two captains are within 1 xP, with the margin printed on it.</li>
+          <li>Planner view tabs 2×2 on phones; club crest plus 3-letter code in sticky columns; fades on any strip that scrolls sideways.</li></ul>
+        <h4>Strengths</h4><ul class="plus"><li>Fixes both High audit items and most Mediums.</li><li>Lowest risk: same components, same muscle memory.</li><li>Mostly CSS and the header template.</li></ul>
+        <h4>Weaknesses</h4><ul class="minus"><li>Looks like today's app. It is a polish pass, not a new look.</li><li>Desktop density barely changes.</li></ul></article>
+      <article class="cc"><h3>B · Premium Analytics</h3><p class="tag">An analyst's desk: thin rules instead of cards, tabular figures, and colour used only to encode data.</p>
+        <h4>Design choices</h4><ul>
+          <li>KPI ribbon with sparklines: rank, points, plan xP, bench points, model correlation.</li>
+          <li>Home is a decision board (call, key number, alternatives) plus a squad xP matrix: 15 players × 5 GWs, heat cells and each player's likely range.</li>
+          <li>Players as a screener with a detail panel beside it at 1440px; no sheet to open and close.</li>
+          <li>Player view: outcome band, a stacked "Why 4.9 xP" bar, points vs xGI by gameweek.</li>
+          <li>Model: correlation by GW, a calibration plot, top-30 projected vs actual.</li></ul>
+        <h4>Strengths</h4><ul class="plus"><li>The most information above the fold; best for comparing many players.</li><li>Every chart labelled and to scale.</li><li>Fits the tool's purpose: decisions from numbers.</li></ul>
+        <h4>Weaknesses</h4><ul class="minus"><li>Heavier to read on a phone: tables scroll sideways and the header is 163px with the ribbon.</li><li>New layout on every screen, so the biggest build.</li><li>Feels like a terminal; less of the pitch-side warmth.</li></ul></article>
+      <article class="cc"><h3>C · Modern &amp; Interactive</h3><p class="tag">The week as a guided flow, with choices that update the numbers as you make them.</p>
+        <h4>Design choices</h4><ul>
+          <li>Home walks through 3 steps (Transfers, Captain, Lineup). Picking a captain re-marks the pitch and updates the XI total.</li>
+          <li>GW scrubber and strategy switch on the pitch; cards settle with a short stagger.</li>
+          <li>"/" or ⌘K command palette; a compare tray for up to 3 players.</li>
+          <li>Tabbed player sheet (Outlook, Form, Fixtures) with a waterfall showing how the xP adds up.</li>
+          <li>Rivals as a points race; tap a rival to see "they have, you don't".</li></ul>
+        <h4>Strengths</h4><ul class="plus"><li>Shortest phone header (60px) and the largest tap targets.</li><li>Makes the "what if" of a choice visible straight away.</li><li>Motion only where it explains a change, all off under reduced motion.</li></ul>
+        <h4>Weaknesses</h4><ul class="minus"><li>Lowest density: more scrolling to see the same numbers.</li><li>Tabs hide Form and Fixtures behind a tap.</li><li>Larger radii and the ring hero drift furthest from today's look.</li></ul></article>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="audit">
+  <div class="wrap">
+    <div class="sh"><span class="eyebrow">Audit 2 coverage</span><h2>Highest-impact items first</h2><p>The audit's ranked list (impact H/M), and what each concept does about it. "Kept" means the concept doesn't change that part, so today's fix or bug carries over.</p></div>
+    <div class="tbox"><table>
+      <thead><tr><th>Audit item</th><th>Impact</th><th>A · Refined</th><th>B · Analytics</th><th>C · Interactive</th></tr></thead>
+      <tbody>
+        <tr><td class="k">Phone header 285px before any content</td><td>H</td><td><span class="st y">Fixed</span> 113px</td><td><span class="st p">Partly</span> 163px with the ribbon</td><td><span class="st y">Fixed</span> 60px</td></tr>
+        <tr><td class="k">Health: Status column hidden at 1440px</td><td>H</td><td><span class="st y">Fixed</span> Status in column 2, cells wrap</td><td><span class="st y">Fixed</span> plus an age bar</td><td><span class="st y">Fixed</span> status lights</td></tr>
+        <tr><td class="k">Two <code>&lt;h1&gt;</code>s and three <code>&lt;h3&gt;</code> styles; duplicate Watchlist</td><td>M</td><td><span class="st y">Fixed</span> one h1, one card title, one Watchlist</td><td><span class="st y">Fixed</span></td><td><span class="st y">Fixed</span></td></tr>
+        <tr><td class="k">Model chart clipped, 66% wide, 13px ticks</td><td>M</td><td><span class="st y">Fixed</span> full width, sized per device</td><td><span class="st y">Fixed</span></td><td><span class="st y">Fixed</span> and tappable</td></tr>
+        <tr><td class="k">Light-mode owned-player bar 1.44:1</td><td>M</td><td><span class="st y">Fixed</span> uses the darker yellow text token</td><td><span class="st y">Fixed</span></td><td><span class="st p">Partly</span> light wash, but the row also says "in your squad"</td></tr>
+        <tr><td class="k">Planner phone tabs and strategy strip clip</td><td>M</td><td><span class="st y">Fixed</span> 2×2 tabs, stacked cards</td><td><span class="st p">Partly</span> table scrolls inside its panel with a fade</td><td><span class="st y">Fixed</span> stacked strategy cards</td></tr>
+        <tr><td class="k">Players checkbox hit area 15×21px on desktop</td><td>M</td><td><span class="st y">Fixed</span> 24×24 label</td><td><span class="st y">Fixed</span> whole row selects</td><td><span class="st y">Fixed</span> 26px tick</td></tr>
+        <tr><td class="k">0px gap under card titles</td><td>M</td><td><span class="st y">Fixed</span> 8px</td><td><span class="st y">Fixed</span></td><td><span class="st y">Fixed</span></td></tr>
+        <tr><td class="k">Fixtures and xP sticky column 137px on phones</td><td>M</td><td><span class="st y">Fixed</span> crest + code, 4 GWs fit</td><td><span class="st y">Fixed</span></td><td><span class="st y">Fixed</span> all 5 GWs fit</td></tr>
+        <tr><td class="k">Rivals: two pin buttons, stretched hero card</td><td>L</td><td><span class="st y">Fixed</span> one toggle</td><td><span class="st n">Not shown</span> pin not prototyped</td><td><span class="st n">Not shown</span> pin not prototyped</td></tr>
+        <tr><td class="k">Clashing <code>@keyframes rise</code> / <code>pulse</code></td><td>L</td><td colspan="3"><span class="st n">Code fix</span> No visual design involved; rename them in the real build whichever concept is chosen.</td></tr>
+        <tr><td class="k">FPL School empty state</td><td>M</td><td colspan="3"><span class="st n">Not prototyped</span> Kept for a later round, with Deadlines, Chips, Review, You vs the model and AFG.</td></tr>
+      </tbody></table></div>
+  </div>
+</section>
+
+<section class="s" id="score">
+  <div class="wrap">
+    <div class="sh"><span class="eyebrow">Scorecard</span><h2>Readability, density, phones, accessibility, effort</h2>
+      <p>Dots are my judgement out of 5. The numbers under them were measured with the same script on every screen at 390px and 1440px, in both themes (<code>prototypes/ui-redesign-2/measure.py</code>).</p></div>
+    <div class="tbox"><table>
+      <thead><tr><th>Criterion</th><th>Today</th><th>A · Refined</th><th>B · Analytics</th><th>C · Interactive</th></tr></thead>
+      <tbody id="scoreBody"></tbody></table></div>
+    <p class="why">Accessibility counts: text under 11px · text below WCAG AA against its solid background · controls under 24×24px (WCAG 2.5.8). The checker skips text on gradients or images rather than passing it (14 today, 21 A, 0 B, 71 C phone), so C's pitch and hero text still need a manual check. A's 20 desktop hits are 16px checkboxes inside a 24px label, which is the real target.</p>
+  </div>
+</section>
+
+<section class="s" id="rec">
+  <div class="wrap">
+    <div class="sh"><span class="eyebrow">Recommendation</span><h2>Build A, and take four pieces from B and C</h2></div>
+    <div class="rec">
+      <div class="panel lead">
+        <p class="verdict">A as the base. <em>Worth it.</em></p>
+        <p>A fixes both High audit items (the phone header and the hidden Health column) and nearly all the Mediums without changing how the app works. It costs the least, and it brings the phone header down from 272px to 113px, the single biggest everyday gain. B and C are better at specific jobs, so take those jobs, not their whole look.</p>
+        <h3>Worth combining</h3>
+        <ol>
+          <li><b>From B: the Players screener with a detail panel</b> at 1280px and wider. You can compare players without opening and closing a sheet. Phones keep the sheet.</li>
+          <li><b>From B: the Model calibration plot and top-30 table.</b> They show where the model misses (big hauls are under-projected) better than a single correlation line.</li>
+          <li><b>From C: picking a captain updates the XI total and the pitch.</b> The close-call captain decision then shows its cost in points, not just two numbers side by side.</li>
+          <li><b>From C: the "How 4.9 xP adds up" waterfall</b> in the player sheet, in place of today's list. Negative parts (cards) and the total read at a glance.</li>
+        </ol>
+        <h3>Not worth taking</h3>
+        <ul>
+          <li>B's KPI ribbon: it adds 50px back to the phone header, which is the problem A solves.</li>
+          <li>B's rules-only panels everywhere: great for tables, but harder to scan on Home.</li>
+          <li>C's 3-step stepper as Home's main layout: the decisions rail already does this, and today's site already has "/" search and a compare tool.</li>
+          <li>C's tabbed sheet and larger radii: more taps, and the furthest from today's look.</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <h3>Suggested build order (one PR each, after your approval)</h3>
+        <div class="tbox" style="border:0"><table class="steps"><tbody>
+          <tr><td>1</td><td><b>Header and page titles (A).</b> One h1, compact phone header, one heading scale. <small>Effort M · fixes audit #2, #7, #8</small></td></tr>
+          <tr><td>2</td><td><b>Audit quick fixes (A).</b> Health wrap, Model chart, light owned bar, 24px checkboxes, keyframes rename, 2×2 Planner tabs, short codes, one pin toggle. <small>Effort S each, one PR · audit #1, #3–6, #9–11</small></td></tr>
+          <tr><td>3</td><td><b>Player sheet waterfall (C)</b> plus the phone sheet width bug found while capturing. <small>Effort S–M</small></td></tr>
+          <tr><td>4</td><td><b>Captain choice updates the XI total (C).</b> <small>Effort M · Home rail only</small></td></tr>
+          <tr><td>5</td><td><b>Model calibration and top-30 (B).</b> <small>Effort S–M · uses data already in data.json</small></td></tr>
+          <tr><td>6</td><td><b>Players screener with detail panel (B), desktop only.</b> <small>Effort L · the biggest change; do it last</small></td></tr>
+        </tbody></table></div>
+        <div class="callout">Nothing gets built until you say so. Tell me which direction (or this mix) to take, and I'll start with step 1 on a branch and open a PR for your review, as CLAUDE.md requires.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="s" id="limits">
+  <div class="wrap">
+    <div class="sh"><span class="eyebrow">Limits of this proposal</span><h2>What these prototypes are not</h2></div>
+    <div class="tbox"><table><tbody>
+      <tr><td class="k">Data</td><td>A frozen sample from the published 18 Nov 17:02 build (public FPL API data as <code>build.py</code> joins it). No FPL Review data. Mini-league managers are anonymised. Buttons such as Compare with model, Refresh and Add filter are visual only.</td></tr>
+      <tr><td class="k">Screens</td><td>Home, Planner, Players, Player detail, Fixtures, Rivals, Model and Data health. Not prototyped: Deadlines, AFG suggestion, FPL School, Chips, Review, You vs the model, Stats, xP table and the live matchday states.</td></tr>
+      <tr><td class="k">Images</td><td>Club badges from <code>site/badges</code>. Shirt images were left out because they load from FPL's servers, so pitch cards show crests instead. In light mode some white crests (Spurs) need a backing tile.</td></tr>
+      <tr><td class="k">Devices</td><td>Screenshots are from headless Chromium at 390×844 and 1440×900. Not tested on a real phone, in Safari or with a screen reader.</td></tr>
+      <tr><td class="k">Found in passing</td><td>On today's site, the phone player sheet is 358px wide and pinned to the left (not centred), and its club line reads "Man City , Forward". Logged as a separate task; not fixed here.</td></tr>
+    </tbody></table></div>
+  </div>
+</section>
+
+<footer><div class="wrap"><p>Prototypes live in <code>prototypes/ui-redesign-2/</code> on branch <code>claude/zealous-planck-sw9jjy</code>. Nothing there is loaded by <code>site/</code>, <code>build.py</code>, the workflows or GitHub Pages.</p><p>Rebuild the shots with <code>python3 prototypes/ui-redesign-2/shoot.py</code>.</p></div></footer>
+
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Screenshot"><div class="bar"><b id="lbTitle"></b><button class="x" type="button" id="lbClose">Close</button></div><div class="scroll"><img id="lbImg" alt=""></div></div>
+
+<script>
+(function () {
+  const CON = [["current", "Today", "live site, 18 Nov 17:02"], ["a-refined", "A · Refined", "evolution"], ["b-analytics", "B · Analytics", "data-dense"], ["c-interactive", "C · Interactive", "guided, interactive"]];
+  const SCR = [["home", "Home"], ["home-full", "Home, full page"], ["planner", "Planner"], ["players", "Players"], ["players-detail", "Player detail"], ["fixtures", "Fixtures"], ["rivals", "Rivals"], ["model", "Model"], ["model-health", "Data health"], ["c-states", "C: palette + compare"]];
+  const LIGHT = { current: ["home", "players"], other: ["home", "players", "players-detail"] };
+  const NOTES = {
+    home: "Today puts a 272px header above the hero on phones. A keeps the layout and cuts the header; B swaps cards for a decision board and squad xP matrix; C turns the week into three steps, where the captain you pick updates the pitch and the total.",
+    "home-full": "The whole Home page, to show length and order. B is the densest; C is the longest per decision.",
+    planner: "Today's 4 tabs clip on phones. A makes them 2×2; B compares the strategies in one table, week by week; C uses selectable strategy cards and a timeline of moves.",
+    players: "A keeps today's table, with 24px checkboxes and a fixed light-mode marker. B is a screener with per-GW heat cells and the selected player beside it. C is a roomier list with a compare tray.",
+    "players-detail": "The prediction view for Haaland: likely range, chances of 10+, 6+ and 2 or fewer, and what makes up his 4.9 xP. B lays it out as charts; C as a tabbed sheet with a waterfall.",
+    fixtures: "On phones, A and B show the crest plus a 3-letter code in the sticky column, so more gameweeks fit. C re-sorts clubs, with motion, when you change the window.",
+    rivals: "Rivals with the gap to each manager. A drops the paired pin buttons; B adds XI overlap and the rivals' differentials; C shows a points race and \"they have, you don't\".",
+    model: "Today's chart stops at two-thirds of its card and clips the last label. All three fill the width; B adds a calibration plot; C lets you tap a week for its numbers.",
+    "model-health": "Today's Status column sits off-screen at 1440px. All three move Status to column 2 or a status light, and let long details wrap.",
+    "c-states": "Only C has these states: the \"/\" command palette mid-search, and the compare tray with three forwards.",
+  };
+  const st = { screen: "home", device: "desktop", theme: "dark" };
+  const $ = id => document.getElementById(id);
+  const seg = (el, opts, key) => { el.innerHTML = opts.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${st[key] === v}">${l}</button>`).join(""); el.onclick = e => { const b = e.target.closest("button"); if (!b) return; st[key] = b.dataset.v; draw(); }; };
+  function src(c, s) {
+    if (s === "c-states") return null;
+    const lightOk = (c === "current" ? LIGHT.current : LIGHT.other).includes(s);
+    if (st.theme === "light" && !lightOk) return null;
+    if (c === "current" && s === "model-health") s = "model-health";
+    return `screenshots/${c}--${s}--${st.device}--${st.theme}.webp`;
+  }
+  function draw() {
+    seg($("segScreen"), SCR.map(([v, l]) => [v, l]), "screen");
+    seg($("segDevice"), [["desktop", "Desktop 1440px"], ["phone", "Phone 390px"]], "device");
+    seg($("segTheme"), [["dark", "Dark"], ["light", "Light"]], "theme");
+    $("why").textContent = NOTES[st.screen];
+    const g = $("grid"); g.className = "grid " + (st.device === "phone" ? "phone" : "desk");
+    let items;
+    if (st.screen === "c-states") items = [["c-interactive", "C · Palette", "\"/\" or ⌘K, mid-search", `screenshots/c-interactive--home-palette--${st.device}--dark.webp`], ["c-interactive", "C · Compare tray", "three forwards side by side", `screenshots/c-interactive--players-compare--${st.device}--dark.webp`]];
+    else items = CON.map(([c, l, sub]) => [c, l, sub, src(c, st.screen)]);
+    g.innerHTML = items.map(([c, l, sub, u]) => `<figure class="${c === "current" ? "today" : ""}"><figcaption><b>${l}</b><span>${sub}</span></figcaption>${u ? `<button class="shot" type="button" data-src="${u}" data-title="${l} · ${SCR.find(s => s[0] === st.screen)[1]} · ${st.device} · ${st.theme}"><img src="${u}" alt="${l}: ${SCR.find(s => s[0] === st.screen)[1]}, ${st.device}, ${st.theme} mode" loading="lazy"></button>` : `<div class="missing">Not captured in ${st.theme} mode.<br>Light-mode shots cover Home, Players${c === "current" ? "" : " and Player detail"}.</div>`}</figure>`).join("");
+  }
+  $("grid").addEventListener("click", e => { const b = e.target.closest(".shot"); if (!b) return; $("lbImg").src = b.dataset.src; $("lbImg").alt = b.dataset.title; $("lbTitle").textContent = b.dataset.title; $("lb").hidden = false; $("lbClose").focus(); });
+  const close = () => { $("lb").hidden = true; };
+  $("lbClose").onclick = close; $("lb").addEventListener("click", e => { if (e.target.id === "lb") close(); });
+  addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+
+  // scorecard: dots are judgement; numbers come from measurements.json (measure.py, 18 Nov sample)
+  const dots = n => `<span class="dots" aria-label="${n} out of 5">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= n ? "on" : ""}"></i>`).join("")}</span>`;
+  const rows = [
+    ["Readability", [3, "mixed heading styles"], [4, "one type scale, one h1"], [3, "dense 13.5px tables, caps labels"], [4, "large type, lots of space"], 1],
+    ["Data density (desktop, first screen)", [3, "hero + pitch + rail"], [3, "same as today"], [5, "ribbon, board, 15×5 matrix"], [2, "one decision at a time"], 2],
+    ["Phones", [2, "content starts at 272px"], [4, "113px; 2×2 tabs; fades"], [3, "163px; tables scroll sideways"], [4, "60px; long pages"], 1],
+    ["Accessibility (measured)", [3, "0 · 0 · 42 phone / 95 desktop"], [4, "0 · 0 · 0 / 20 (checkbox in label)"], [4, "0 · 0 · 0 / 0"], [4, "0 · 0 · 0 / 0 (71 skipped)"], 1],
+    ["Implementation effort", [5, "nothing to build"], [4, "low to medium: CSS + header"], [2, "high: new layout per screen"], [3, "medium to high: state + motion"], 1],
+    ["Keeps FPL LAB's identity", [5, "it is the identity"], [5, "same tokens and layout"], [4, "same palette, new structure"], [3, "softer, rounder, new hero"], 1],
+    ["Risk to existing features", [5, ""], [5, "same components"], [3, "every screen re-laid out"], [3, "Home flow changes; tabs hide content"], 1],
+  ];
+  $("scoreBody").innerHTML = rows.map(([k, ...v]) => { const best = v.pop(); return `<tr><td class="k">${k}</td>${v.map((x, i) => `<td class="${i === best ? "best" : ""}">${dots(x[0])}<small>${x[1]}</small></td>`).join("")}</tr>`; }).join("");
+  draw();
+})();
+</script>
