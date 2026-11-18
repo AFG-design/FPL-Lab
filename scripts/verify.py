@@ -19,6 +19,9 @@ Reuses the existing checks rather than copying them: only the squad step is new,
     on Current GW it also equals the sum of today's prices of the 15 in data.json, as its label says.
   - In the bank is a £m figure from 0.0 to 30.0; on Current GW it equals data.json's manager.bank. In a Free Hit
     week the page shows "Unavailable" by design (meta.fh_restored), which is accepted only when that flag is set.
+  - On Current GW, team value + bank is within £1.5m of FPL's own figure (manager.value: bank + squad at the last
+    deadline's prices), so a figure read in tenths or the wrong squad fails even though page and data agree.
+    Missing manager.value: that cross-check is skipped and the other checks still run.
   - Missing figure ("Unavailable" otherwise, or no money row at all) fails, never passes quietly.
 
 Missing input fails loudly: no network for the build, no site/data.json with --no-build, or no Playwright, each fails
@@ -38,6 +41,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 WIDTHS = {"phone": (390, 844), "desktop": (1280, 900)}
 VALUE_RANGE, BANK_RANGE = (80.0, 120.0), (0.0, 30.0)
+# how far today's value + bank may sit from FPL's deadline figure (manager.value): 15 players can each move about
+# £0.1m a night, and in practice a week's moves come to well under £1m (18 Nov: £0.5m)
+FPL_GAP = 1.5
 
 
 def run(name, cmd, timeout=300):
@@ -102,6 +108,7 @@ def squad_check():
     ids = [s["id"] for s in D.get("squad", [])]
     want_value = round(sum(price[i] for i in ids), 1) if ids and all(price.get(i) is not None for i in ids) else None
     want_bank, fh = D.get("manager", {}).get("bank"), bool(D.get("meta", {}).get("fh_restored"))
+    want_fpl = D.get("manager", {}).get("value")
     lines, fails = [], []
     httpd, url = serve()
     try:
@@ -145,6 +152,14 @@ def squad_check():
                         msg.append(f"bank £{bank}m outside £{BANK_RANGE[0]}m-£{BANK_RANGE[1]}m")
                     elif home == "current" and want_bank is not None and abs(bank - want_bank) > 0.05:
                         msg.append(f"bank £{bank}m but data.json says £{want_bank}m")
+                    # Cross-check against FPL's own figure, which data.json takes from a different field: manager.value
+                    # is bank + squad at the last deadline's prices (FPL entry_history.value), so today's value + bank
+                    # differs from it only by price changes since that deadline. A bank or value read in tenths, or
+                    # the wrong squad, misses by several £m. Skipped in a Free Hit week (bank shown as Unavailable).
+                    if home == "current" and tv is not None and bank is not None and want_fpl is not None \
+                            and abs(tv + bank - want_fpl) > FPL_GAP:
+                        msg.append(f"team value £{tv}m + bank £{bank}m = £{tv + bank:.1f}m, but FPL's figure at the "
+                                   f"deadline is £{want_fpl}m (more than £{FPL_GAP}m apart: price moves can't explain it)")
                     msg += errs
                     lines.append(f"{'ok' if not msg else 'FAIL':4} {where}: {n} players, team value {tv_s}, bank {bank_s}")
                     fails += [f"{where}: {m}" for m in msg]

@@ -19,7 +19,7 @@ It runs, reusing the repo's own checks rather than copies of them:
 | npm test | lint, whole-app check, node tests | any lint error or failing test |
 | validate | `python3 validate.py site/data.json` | any validate error (warnings are printed, not failed) |
 | screens | `scripts/layout_check.py`: every view at 390px and 1280px | a JS error, an error card, sideways page scroll, a missing site file |
-| squad | homepage, Current GW and Next GW views, both widths | not 15 players on pitch and bench; team value not £80.0m-£120.0m, or (Current GW) not today's prices of the squad; bank not £0.0m-£30.0m, or (Current GW) not `manager.bank` |
+| squad | homepage, Current GW and Next GW views, both widths | not 15 players on pitch and bench; team value not £80.0m-£120.0m, or (Current GW) not today's prices of the squad; bank not £0.0m-£30.0m, or (Current GW) not `manager.bank`; (Current GW) value + bank more than £1.5m from FPL's own deadline figure (`manager.value`) |
 
 Options: `--no-build` reuses the current `site/data.json` (for a site-only change, ~50 s); `--team ID` for another team.
 
