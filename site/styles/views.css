@@ -1086,6 +1086,11 @@ tr.is-rival td { background: var(--accent-soft); }
 .j-miss { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-sm); }
 .j-tbl th small { display: block; font-weight: 400; font-size: var(--fs-xs); }
 
+/* ---------- Data health: Sources table (FL-179) ----------
+   Details and How often wrap so the table fits its box and the Status pills (2nd column) stay in view. The min-width
+   keeps a wrapped cell from going one word per line on phones; there the table still scrolls inside its own box. */
+.srctable td.wrap { white-space: normal; min-width: 14em; }
+
 /* ---------- tap targets on touch screens (FL-124) ----------
    At least 40 x 40px for every control when the pointer is a finger. Boxed controls grow. Text-style buttons (player
    names in tables, glossary terms, link-style buttons) keep their look: they are at least 40px wide, and an invisible

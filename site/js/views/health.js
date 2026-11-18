@@ -32,13 +32,15 @@ function vHealth() {
   const maxGap = gaps.length ? Math.max(...gaps) : null;
   const runRows = runs.map(r => `<tr><td>${ukTime(r.created_at)}</td><td>${esc(trig(r))}</td><td>${r.status !== "completed" ? '<span class="pill mut">Running</span>' : r.conclusion === "success" ? '<span class="pill good">Done</span>' : r.conclusion === "skipped" ? '<span class="pill mut">Skipped</span>' : `<span class="pill bad">${esc(r.conclusion || "failed")}</span>`}</td><td class="n">${r.updated_at && r.status === "completed" ? Math.max(1, Math.round((new Date(r.updated_at) - new Date(r.run_started_at || r.created_at)) / 6e4)) + " min" : "–"}</td><td><a href="${r.html_url}" target="_blank" rel="noopener">Log ↗</a></td></tr>`).join("");
   const A = D.accuracy?.absence || [];
+  // FL-179: Status sits next to Source and the long Details / How often cells wrap (.srctable td.wrap), so the
+  // pills stay in view at any width. No data change: a source with no record still shows "–" / "Not collected".
   return `<div class="kpis" style="margin-bottom:16px">
       <div class="kpi"><span class="lbl">Site data</span><b>${ageTxt(D.meta.built)}</b><span class="delta muted">${ukTime(D.meta.built)}, took ${D.meta.build_secs ?? "–"}s</span></div>
       <div class="kpi"><span class="lbl">Last refresh run</span><b class="${HEALTH.last && HEALTH.last.conclusion !== "success" ? "down" : ""}">${HEALTH.last ? (HEALTH.last.conclusion === "success" ? "Worked" : esc(HEALTH.last.conclusion || "–")) : "–"}</b><span class="delta muted">${HEALTH.last ? ageTxt(HEALTH.last.updated_at) : "checking GitHub…"}</span></div>
       <div class="kpi"><span class="lbl">Longest gap between runs</span><b class="${maxGap > 75 ? "down" : ""}">${maxGap == null ? "–" : maxGap < 90 ? Math.round(maxGap) + " min" : (maxGap / 60).toFixed(1) + " h"}</b><span class="delta muted">over the last ${runs.length} runs</span></div>
     </div>
-    <div class="panel"><h3>Sources</h3><div class="tablebox"><table><thead><tr><th>Source</th><th>Updated</th><th>Details</th><th>How often</th><th>Status</th></tr></thead><tbody>
-      ${rows.map(([n, at, det, ok, warn, how]) => `<tr><td><b>${n}</b></td><td>${ageTxt(at)}</td><td class="muted">${esc(det)}</td><td class="muted">${how}</td><td>${pill(ok, warn)}</td></tr>`).join("")}</tbody></table></div>
+    <div class="panel"><h3>Sources</h3><div class="tablebox"><table class="srctable"><thead><tr><th>Source</th><th>Status</th><th>Updated</th><th>Details</th><th>How often</th></tr></thead><tbody>
+      ${rows.map(([n, at, det, ok, warn, how]) => `<tr><td><b>${n}</b></td><td>${pill(ok, warn)}</td><td>${ageTxt(at)}</td><td class="muted wrap">${esc(det)}</td><td class="muted wrap">${how}</td></tr>`).join("")}</tbody></table></div>
       ${poErr ? `<p class="verdict" style="border-color:var(--bad);margin-top:10px">Player odds failed at ${ukTime(po.error.at)}: ${esc(poErr.slice(0, 160))}</p>` : ""}
       ${foErr ? `<p class="verdict" style="border-color:var(--bad);margin-top:10px">Upcoming match odds failed at ${ukTime(fo.error.at)}: ${esc(foErr.slice(0, 160))}</p>` : ""}</div>
     ${D.health ? `<div class="panel"><div class="bar"><h3>Data checks</h3>${pill(D.health.ok && !D.health.warnings.length, D.health.ok)}</div>
