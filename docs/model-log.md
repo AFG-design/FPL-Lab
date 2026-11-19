@@ -8,10 +8,55 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
 - **dc_prior_mins (FL-176)** (adopted 19 Nov 2026, entry below). Re-check at season end. Old value to test against:
   `{"dc_prior_mins": false}`. Adopted at pooled 5-GW −0.045 [−0.116, +0.023]; pooled DC part clearly better. It fixes a
   known error, so revert only if the DC part gain has gone, not on 5-GW picks alone.
+- **archive_dc_backfill (FL-212)** (adopted 19 Nov 2026, entry below). Re-check at season end. Old value to test against:
+  `{"archive_dc_backfill": false}`. Bench-fidelity change (does not move live projections); adopted at pooled 5-GW
+  −0.006 [−0.038, +0.027] and pooled DC part −0.00015 [−0.00023, −0.00008] better.
 
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
+
+## 19 Nov 2026 — FL-212: 2025/26 archive priors use FPL's backfilled 2024/25 DefCon (Adopt as Marginal — bench-fidelity change)
+
+- **Context (logged in FL-176 below):** FPL backfilled 2024/25 `defensive_contribution` in `element-summary`
+  `history_past` (`DC_FIRST = 2024`), so the live `priors.json` already has real 2024/25 DefCon. Vaastav's
+  `2024-25/players_raw.csv` has no `defensive_contribution` column, so the 2025/26 test season's archive priors
+  (2023-24 + 2024-25) still had `dc_mins = 0`, unlike the live model.
+- **Change (one candidate only, listed before running: `{"archive_dc_backfill": true}` against main):**
+  - Added `tools/dc_backfill.py` (rate-limited, same `MAX_FAILED = 2%` and `MIN_KEPT = 85%` guards as
+    `make_priors.py`) and committed `archive_dc/2024-25.json` (**327** players with 2024/25 DefCon of 672 current
+    players, 0 failed downloads). All 327 join 1:1 to vaastav's `2024-25/players_raw.csv` by FPL `code`, covering
+    **303 of 415 (73.0%)** 2025/26 test-season players who had 2024/25 minutes (100% exact minutes match; test
+    fails loudly below 70%). Players absent from the file (left the game) keep `dc_mins = 0`, as before.
+  - `archive._priors()` merges `archive_dc/<season>.json` with the same 1:2 weights when a prior season (`>= DC_FIRST`)
+    has no CSV `defensive_contribution` column, behind `DEFAULTS["archive_dc_backfill"]` (default `True`; `False`
+    reproduces main exactly).
+  - **Hindsight check:** only `season_name == "2024/25"` rows are extracted from `history_past` (2024/25 season
+    totals, known before 2025/26 GW1). Nothing from 2025/26 or later enters `archive_dc/2024-25.json` or 2025/26's
+    priors, and 2024/25's test priors (`2022-23` + `2023-24`) never touch it.
+  - **Bench-fidelity change only — live model unchanged:** `priors.json` is untouched and live GW11 5-GW xP moves
+    for **0 of 672 players** (`max |Δ| = 0.0`). This changes how future tests are scored on 2025/26, not the live
+    projections.
+- **bench.py (candidate = `{"archive_dc_backfill": true}`, against main `f6d15e2`):**
+
+| Season | 1-GW picks | 5-GW picks | 1-GW picks CI | 5-GW picks CI | cap CI | top-5 CI | DC part (Brier) CI |
+|---|---|---|---|---|---|---|---|
+| 2026/27 (4 origins) | 4.36 → 4.36 | 18.24 → 18.24 | +0.00 | +0.00 | +0.00 | +0.00 | +0.00000 |
+| 2025/26 | 4.46 → 4.46 | 18.97 → 18.96 | +0.00 [−0.03, +0.03] | −0.01 [−0.07, +0.05] | +0.03 [+0.00, +0.09] | −0.01 [−0.13, +0.10] | −0.00029 [−0.00046, −0.00016] |
+| 2024/25 | 4.25 → 4.25 | 19.16 → 19.16 | +0.00 | +0.00 | +0.00 | +0.00 | +0.00000 (no DefCon) |
+
+  - **This season and 2024/25 are identical** to every printed digit.
+  - **Pooled 2025/26 + 2024/25 (60 origins):** **5-GW picks −0.006 [−0.038, +0.027]** (includes 0, not wholly below);
+    **DC part −0.00015 [−0.00023, −0.00008] better** (2025/26 second pool: `−0.00027 [−0.00041, −0.00014]` better).
+    Every other part score `+0.00000`.
+  - **No-harm:** 0 metrics with CI wholly below zero in any season (`cap` changed in 1 of 35 weeks in 2025/26,
+    `+0.03 [+0.00, +0.09]`; 5-GW corr `0.522 → 0.522`).
+- **Segments (2025/26 GW4–38, same check as FL-176):** 0 segments tripped (`n >= 30`, `ΔMAE > 0.05` or `|Δbias| > 0.2`).
+  Headline MAE `1.8637 → 1.8636` (`−0.0001`), corr `0.4114 → 0.4114`, bias `−0.0309 → −0.0308`; DEF `ΔMAE −0.0009`,
+  MID `+0.0004`, top 30 `−0.0217`. This season's backtest is identical with and without the status log.
+- **Decision-table row:** meets both `CI includes zero, the change fixes a known error, and no segment worse` and
+  `Targeted change: the targeted part's pooled interval is clear of zero in the right direction, the pooled 5-GW picks
+  interval is not wholly below zero, and no segment worse` → **Adopt as Marginal**. Rating: **Marginal**.
 
 ## 19 Nov 2026 — FL-176: DefCon priors use DefCon minutes only (Adopt as Marginal)
 

@@ -40,7 +40,7 @@ FL-161 adds lines only (every earlier line prints exactly as before):
 import json, math, os, random, sys
 from collections import defaultdict
 
-from fplmodel import prepare, project, POS, europe_dates, euro_weeks
+from fplmodel import DEFAULTS, prepare, project, POS, europe_dates, euro_weeks
 import archive, selling
 from backtest import in_regular_pool, regular_rows, part_scores, mean_scores, scores_ci, fmt_scores, fmt_scores_ci
 
@@ -230,10 +230,12 @@ def run_current(params, gws=None, everyone=None, scores=None, regular=None, regu
 _SEASON = {}
 
 
-def _season(season):
-    if season not in _SEASON:
+def _season(season, use_dc_backfill=None):
+    use_dc = bool(DEFAULTS.get("archive_dc_backfill", False) if use_dc_backfill is None else use_dc_backfill)
+    key = (season, use_dc)
+    if key not in _SEASON:
         boot_now = json.load(open(os.path.join(HERE, "raw", "bootstrap.json")))
-        boot, fixtures, live, priors, team_at = archive.load_season(season, boot_now)
+        boot, fixtures, live, priors, team_at = archive.load_season(season, boot_now, use_dc_backfill=use_dc)
         market = archive.load_odds(season) if ARCHIVE_ODDS else None
         if market is None:
             why = "--no-archive-odds" if not ARCHIVE_ODDS else f"no odds/archive/{season}.json (run odds_archive.py)"
@@ -255,8 +257,8 @@ def _season(season):
         # FL-065: his club each week from the archive, for his past opponents (fplmodel reads ctx["club_then"])
         ctx["club_then"] = {(pid, g): team_at(pid, g + 1) or ctx["elements"][pid]["team"]
                             for pid, gs in ctx["pstats"].items() for g in gs}
-        _SEASON[season] = (ctx, team_at)
-    return _SEASON[season]
+        _SEASON[key] = (ctx, team_at)
+    return _SEASON[key]
 
 
 def _xg_at(ctx, team_at, k):
@@ -272,7 +274,7 @@ def _xg_at(ctx, team_at, k):
 
 
 def run_archive(params, season="2025-26", gws=range(4, 39), everyone=None, scores=None, regular=None, regular_scores=None):
-    ctx, team_at = _season(season)
+    ctx, team_at = _season(season, params.get("archive_dc_backfill"))
     out = {}
     for k in gws:
         cx = dict(ctx)
@@ -301,7 +303,7 @@ def run_horizon(params, season, H, regular=None):
         ctx, team_at = current_ctx(), None
         origins = range(3, _CUR["cur"] - H + 2)
     else:
-        ctx, team_at = _season(season)
+        ctx, team_at = _season(season, params.get("archive_dc_backfill"))
         origins = range(5, 39 - H + 1)
     out = {}
     for k in origins:
