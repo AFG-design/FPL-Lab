@@ -399,9 +399,9 @@ tr.is-rival td { background: var(--accent-soft); }
 @media (max-width: 639px) {
   /* FL-193: keep the sticky Player column compact below 640px so ~4 GW columns fit on phones; 640px+ unchanged */
   .xptable td.sticky-col, .xptable th.sticky-col { padding-left: 8px; padding-right: 6px; }
-  .xptable .xwho { max-width: 104px; }
-  .xptable .xname { gap: 2px; }
-  .xptable .xname .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .xptable .xwho { max-width: 108px; }
+  .xptable .xname { gap: 2px; flex-wrap: wrap; }
+  .xptable .xname .pname { white-space: normal; overflow-wrap: anywhere; }
 }
 
 @media (max-width: 560px) {
