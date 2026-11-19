@@ -5,10 +5,57 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
 - **cred_recency 0.9 for xG and DC** (adopted 14 Nov 2026, entry below). Re-check at GW20 (this season then has enough
   5-GW origins to count) and at season end. Old value to test against: `{"cred_recency": null}`. Adopted at pooled 5-GW
   +0.036 [-0.038, +0.114]; goals and DC part scores clearly better.
+- **dc_prior_mins (FL-176)** (adopted 19 Nov 2026, entry below). Re-check at season end. Old value to test against:
+  `{"dc_prior_mins": false}`. Adopted at pooled 5-GW −0.045 [−0.116, +0.023]; pooled DC part clearly better. It fixes a
+  known error, so revert only if the DC part gain has gone, not on 5-GW picks alone.
 
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
+
+## 19 Nov 2026 — FL-176: DefCon priors use DefCon minutes only (Adopt as Marginal)
+
+- The error (logged before the fix: 31 Oct 2026 PR #28 entry, 18 Nov 2026 FL-114 follow-up): seasons with no
+  defensive contributions counted as 0 DefCon. `archive._priors` divided DefCon by all minutes, `make_priors.py`
+  counted a season with no field as 0, and `fplmodel` gave the DefCon prior the all-minutes weight
+  (`w_last * min(1, mins / 1500)`), so DefCon priors were dragged towards 0.
+- Fix (on its own, no tweaks): dc90 = DefCon / minutes of seasons that recorded it; `dc_mins` saved on the same
+  per-season scale and 1:2 weights as `mins`; DefCon's prior weight is `w_last * min(1, dc_mins / 1500)` (0 when
+  `dc_mins` is 0). A priors.json without `dc_mins` falls back to `mins`; validate.py warns with both counts.
+  Switch `dc_prior_mins` (False = old behaviour, rebuilt exactly from the new prior fields; checked: the off-mode bench
+  and backtests equal main's to every printed digit).
+- Data found on 19 Nov 2026 (all 672 players' history_past): FPL backfilled DefCon for 2024/25 (no 900+ minute
+  outfielder at 0; 7.22 DEF / 8.46 MID / 3.92 FWD per 90 against 7.80 / 8.48 / 4.42 in 2025/26). Every season before
+  holds the field as 0 for everyone. So `DC_FIRST = 2024`: an earlier season is "not recorded" even with the field
+  present. The vaastav archive has no DefCon column before 2025-26.
+- Where it bites: **only the 2025/26 test season.** Its archive priors (2023-24 + 2024-25) had no DefCon, so every
+  prior was a fake 0 at full weight; now DefCon gets no prior weight there. 2024/25 can't move: DefCon wasn't scored
+  then, so its DefCon rate is 0 whatever the weight. **The live model doesn't move**: the live window (2024/25 +
+  2025/26) recorded DefCon in both seasons, so the regenerated priors.json has `dc_mins == mins` for all 459 priors
+  and identical dc90; GW11 5-GW xP changes for 0 of 672 players (max |Δ| 0.0). This season's backtest is identical
+  with and without the status log.
+- **bench.py (candidate = fix, against main):**
+
+| Season | 1-GW picks | 5-GW picks | 1-GW picks CI | 5-GW picks CI | cap CI | top-5 CI | DC part (Brier) CI |
+|---|---|---|---|---|---|---|---|
+| 2026/27 (4 origins) | 4.36 → 4.36 | 18.24 → 18.24 | +0.00 | +0.00 | +0.00 | +0.00 | +0.00000 |
+| 2025/26 | 4.44 → 4.45 | 19.13 → 19.04 | +0.01 [−0.03, +0.05] | −0.09 [−0.23, +0.05] | −0.09 [−0.23, +0.00] | +0.15 [−0.03, +0.35] | −0.00137 [−0.00200, −0.00080] |
+| 2024/25 | 4.25 → 4.25 | 19.16 → 19.16 | +0.00 | +0.00 | +0.00 | +0.00 | +0.00000 (no DefCon) |
+
+  Pooled 2025/26 + 2024/25: **5-GW picks −0.045 [−0.116, +0.023]** (includes 0, not wholly below); **DC part
+  −0.00068 [−0.00099, −0.00040] better**. Every other part unchanged. No-harm: no CI entirely below zero (2025/26
+  captain touches 0 at its upper end). 2025/26 5-GW corr 0.524 → 0.522.
+- **Segments.** `backtest.py --compare` on this season (with and without status log): identical, nothing flagged. Same
+  segment check run on 2025/26 GW4–38 (scratch script feeding `backtest.compare`): no segment past the limits.
+  Headline MAE 1.8586 → 1.8657 (+0.007), corr 0.4115 → 0.4111, bias −0.049 → −0.024; largest moves DEF ΔMAE +0.014,
+  bias +0.045; top 30 ΔMAE +0.019, bias +0.050. Raw DefCon real/projected 1.38 → 1.15 (DEF 1.30 → 1.07, MID
+  1.50 → 1.27).
+- Decision: fixes a known error, CI includes zero, no segment worse → **Adopt as Marginal** (also meets the targeted
+  change row: DC part pooled interval clear of zero, 5-GW picks not wholly below zero). Rating: **Marginal**.
+- Note: this fix alone accounts for nearly all of the 18 Nov package V1's pooled 5-GW −0.047. The raw DefCon part is
+  now much nearer real, yet final MAE edges up: settings tuned while DefCon was deflated (calibration slope/intercept,
+  dc_blend, the Poisson tail) may now over-correct. That is for FL-160 (clean sheets and defender scoring) and FL-212
+  (2024/25 DefCon rebuild test), not this item.
 
 ## 18 Nov 2026 — FL-114 follow-up: defenders scoring outside clean sheets + cs_k retune (Don't adopt)
 

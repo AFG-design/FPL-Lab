@@ -13,6 +13,7 @@ the end-of-season order for every gameweek.
 Files are cached in archive/<season>/ (not committed).
 """
 import csv, json, os, urllib.request
+from make_priors import DC_FIRST
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +56,7 @@ def _priors(season, code_to_id):
     tot = defaultdict(lambda: defaultdict(float))
     last = {}
     for wt, s in zip((1.0, 2.0), seasons):
+        y_s = int(s[:4])
         try:
             rows = _rows(s, "players_raw.csv")
         except Exception:
@@ -72,7 +74,10 @@ def _priors(season, code_to_id):
             for k, src in (("xg", "expected_goals"), ("xa", "expected_assists"), ("bonus", "bonus"), ("saves", "saves"),
                            ("yc", "yellow_cards"), ("pts", "total_points"), ("starts", "starts")):
                 t[k] += wt * _num(r.get(src))
-            if r.get("defensive_contribution") not in (None, ""):
+            # FL-176: only a season whose CSV has the column (2025-26 on; vaastav has none for 2024-25 or before) adds
+            # DefCon and DefCon minutes. A season without it is "not recorded", never 0 DefCon. DC_FIRST guards a CSV
+            # that one day carries the column as 0 for seasons FPL never recorded, as history_past does.
+            if r.get("defensive_contribution") not in (None, "") and y_s >= DC_FIRST:
                 t["dc"] += wt * _num(r["defensive_contribution"])
                 t["dc_min"] += wt * m
             last[pid] = (s, r)
@@ -82,7 +87,10 @@ def _priors(season, code_to_id):
         s, r = last[pid]
         out[str(pid)] = {"season": s, "mins": round(m / t["w"]), "xg90": t["xg"] / m * 90, "xa90": t["xa"] / m * 90,
                          "bonus90": t["bonus"] / m * 90, "saves90": t["saves"] / m * 90,
-                         "dc90": t["dc"] / m * 90,
+                         # FL-176: DefCon over DefCon-recorded minutes only; dc_mins on the scale of "mins". dc_mins 0
+                         # (no recorded season) gives dc90 0, and fplmodel then gives the DefCon prior no weight.
+                         "dc90": t["dc"] / t["dc_min"] * 90 if t["dc_min"] else 0.0,
+                         "dc_mins": round(t["dc_min"] / t["w"]),
                          "yc90": t["yc"] / m * 90, "pts90": t["pts"] / m * 90, "last_pts": _num(r["total_points"], int),
                          "last_mins": _num(r["minutes"], int), "last_xgi": _num(r.get("expected_goal_involvements")),
                          "start_rate": min(1.0, t["starts"] / (38 * t["w"]))}   # as make_priors.py (FL-082)
