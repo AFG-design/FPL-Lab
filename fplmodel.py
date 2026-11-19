@@ -27,6 +27,9 @@ DEFAULTS = {
                            # season's 1-GW picks (CI below 0). Better this season at 4 origins: re-check about GW20.
     "w_pos": 450.0,        # pseudo-minutes of positional average
     "w_last": 600.0,       # pseudo-minutes of last-season rate
+    "dc_prior_mins": True, # FL-176: DefCon's last-season weight from the minutes that recorded DefCon (prior "dc_mins"),
+                           # not all minutes. False = the old behaviour (seasons without DefCon counted as 0 DefCon at
+                           # full weight), kept only so bench.py can pair the fix against it.
     "cred_recency": 0.9,   # how much this season counts against the priors: his minutes weighted by this per GW back.
                            # None = old behaviour (the recency-weighted minutes, which never pass ~450 at recency 0.8,
                            # so this season is capped at ~30% of a rate). recency still sets WHICH games count.
@@ -816,15 +819,30 @@ def project(ctx, as_of, horizon=6, params=None):
         pp = pos_prior[pos]
         w_last = P["w_last"] * min(1.0, pr["mins"] / 1500) if pr else 0.0
         key_last = {"xg": "xg90", "xa": "xa90", "bonus": "bonus90", "saves": "saves90", "yc": "yc90", "dc": "dc90"}
+        # FL-176: DefCon's prior counts only the minutes of seasons that recorded DefCon (pr["dc_mins"]): dc_mins 0 gives
+        # it no weight, so DefCon falls back to this season plus the positional prior. A prior without dc_mins (a
+        # priors.json from before FL-176) uses mins, as before; validate.py counts both cases for the Health page.
+        # Applies whatever the other DefCon settings are (no condition on any of them). Off (dc_prior_mins False): the
+        # old all-minutes rate, rebuilt from the prior (dc90 * dc_mins / mins), at the all-minutes weight.
+        dc_mins = pr.get("dc_mins") if pr else None
+        if not pr or dc_mins is None:
+            w_dc, last_dc = w_last, (pr["dc90"] if pr else 0.0)
+        elif P["dc_prior_mins"]:
+            w_dc, last_dc = P["w_last"] * min(1.0, dc_mins / 1500), pr["dc90"]
+        else:
+            w_dc, last_dc = w_last, (pr["dc90"] * dc_mins / pr["mins"] if pr["mins"] else 0.0)
 
         def rate(k):
             last = pr[key_last[k]] if pr else 0.0
+            w_last_k = w_last
+            if k == "dc":
+                last, w_last_k = last_dc, w_dc
             if P["cred_recency"] is None or den <= 0 or (P["cred_parts"] is not None and k not in P["cred_parts"]):
                 # off, no minutes this season (priors only, as before), or a rate left out of cred_parts: old formula
                 this, wt = num[k], den
             else:   # this season's recency-weighted rate (num / den), counted as `cred` minutes against the priors
                 this, wt = num[k] * cred / den, cred
-            return (this + last * w_last / 90 + pp[k] * P["w_pos"] / 90) / (wt + w_last + P["w_pos"]) * 90
+            return (this + last * w_last_k / 90 + pp[k] * P["w_pos"] / 90) / (wt + w_last_k + P["w_pos"]) * 90
 
         xg90, xa90, bo90, sv90, yc90, dc90 = (rate(k) for k in ("xg", "xa", "bonus", "saves", "yc", "dc"))
         sp90 = min(xg90, num["sp"] / (den + P["w_pos"]) * 90) if (sp and P["sp_match"]) else 0.0

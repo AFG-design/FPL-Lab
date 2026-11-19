@@ -1092,6 +1092,19 @@ def main(path):
     if _pp and _no_sr:
         warnings.append(f"priors.json: {_no_sr} of {len(_pp)} priors have no start_rate (built before FL-082, or a season "
                         f"with no starts); the model's start prior would guess it from minutes (start_prior is off)")
+    # FL-176: DefCon's prior weight comes from dc_mins (minutes of seasons that recorded DefCon). Warn, with counts, on
+    # each fallback: no dc_mins (priors.json from before FL-176: all minutes used, so a season without DefCon counts as
+    # 0 DefCon) and dc_mins 0 (no recorded season: the DefCon prior gets no weight). dc_mins outside 0..mins is an error:
+    # it can't happen from make_priors.py and would over-weight the prior.
+    _no_dcm = sum(1 for v in _pp.values() if "dc_mins" not in v)
+    _dcm0 = sum(1 for v in _pp.values() if v.get("dc_mins") == 0)
+    _bad_dcm = [k for k, v in _pp.items() if "dc_mins" in v and not (0 <= v["dc_mins"] <= v.get("mins", 0))]
+    if _pp and (_no_dcm or _dcm0):
+        warnings.append(f"priors.json DefCon prior (FL-176): {_no_dcm} of {len(_pp)} priors have no dc_mins, so all their "
+                        f"minutes are used (a season without DefCon counts as 0); {_dcm0} have dc_mins 0 (no season with "
+                        f"DefCon), so their DefCon prior gets no weight")
+    if _bad_dcm:
+        errors.append(f"priors.json: {len(_bad_dcm)} priors have dc_mins outside 0..mins (e.g. id {_bad_dcm[0]})")
     # FL-113: priors only from the seasons make_priors.py lists in priors.json "seasons" (the two calendar seasons
     # before this one). A file written before that field existed is not checked.
     pri = load(os.path.join(HERE, "priors.json")) or {}
