@@ -199,12 +199,44 @@ function rvTable(C, lg, sc, me) {
     <div class="tablebox league rv-table"><table><thead><tr><th class="n" scope="col">#</th><th scope="col">Manager</th><th class="n" scope="col">GW${g}${live ? '<span class="rv-c-live"> live</span>' : ""}</th><th class="n" scope="col">Hit</th><th class="n" scope="col">Total<small class="rv-gap-sm">gap</small></th><th class="n rv-c-gap" scope="col">${term("gap", "Gap")}</th><th class="rv-c-chips" scope="col">${term("chipsleft", "Chips left")}</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="note">Select a manager for team details, chips and a full comparison.</p>${notes.map(n => `<p class="note">${n}</p>`).join("")}</section>`;
 }
+/* FL-223: title odds (league_sim.py): each manager's chance of finishing 1st, top 3 and last, from simulating the rest of
+   the season for the whole league at once, plus your chance of 1st with each of your top 3 captain options next GW.
+   Assumptions are shown, never implied: squads held from the latest picks, highest-xP captain, auto-subs. Managers left
+   out (no picks, a Free Hit, no total) are counted ("N of M managers") and named; a league too big to load every squad
+   (or with no odds for another reason) shows the reason, never odds from part of it. No odds in the data: no panel. */
+const oddsPct = p => p == null ? "–" : p > 0.995 && p < 1 ? ">99%" : p < 0.01 && p < 1 ? (p > 0 ? "<1%" : "<0.1%") : Math.round(p * 100) + "%";
+function rvOdds(C, lg) {
+  const O = lg.odds;
+  if (!O) return "";
+  const head = `<div class="bar"><h3 id="rvo-h" class="rv-h">Title odds</h3>${O.ok ? `<span class="muted">${O.n === O.m ? `${O.m} managers` : `${O.n} of ${O.m} managers`} · GW${O.gws[0]}–${O.gws[1]}</span>` : ""}</div>`;
+  if (!O.ok) return `<section class="panel rv-odds" aria-labelledby="rvo-h">${head}<p class="note">No title odds for this league. ${esc(O.why || "")}</p></section>`;
+  const by = Object.fromEntries(lg.rows.map(r => [r.entry, r]));
+  const rows = O.rows, mine = rows.find(r => by[r.entry]?.me), lastMost = rows.slice().sort((a, b) => b.plast - a.plast)[0];
+  const show = rows.filter((r, i) => i < 5 || r === mine || r === lastMost);
+  const tr = r => { const m = by[r.entry] || {};
+    return `<tr class="${m.me ? "mine" : ""}"><td class="rv-mgr">${m.me ? `<span class="pname">${esc(m.player || "")}</span> <span class="pill good">You</span>` : `<span class="pname">${esc(m.player || "Manager " + r.entry)}</span>`}<span class="muted lg-team">${esc(m.team || "")} · ${m.total ?? "–"} pts now</span></td>
+      <td class="n"><b>${oddsPct(r.p1)}</b></td><td class="n">${oddsPct(r.p3)}</td><td class="n">${oddsPct(r.plast)}</td></tr>`; };
+  const table = rs => `<div class="tablebox league rv-table"><table><thead><tr><th scope="col">Manager</th><th class="n" scope="col">1st</th><th class="n" scope="col">Top 3</th><th class="n" scope="col">Last</th></tr></thead><tbody>${rs.map(tr).join("")}</tbody></table></div>`;
+  const more = rows.length > show.length ? `<details class="rv-odds-all"><summary>All ${rows.length} managers</summary>${table(rows)}</details>` : "";
+  let cap = "";
+  const co = O.captain?.options || [];
+  if (co.length) {
+    const spread = Math.max(...co.map(c => c.p1)) - Math.min(...co.map(c => c.p1));
+    cap = `<p class="rv-odds-cap"><b>Your captain for GW${O.captain.gw}:</b> ${co.map(c => `${esc(P[c.id]?.name || "Player " + c.id)} (${f1(c.xp)} xP) ${oddsPct(c.p1)}`).join(" · ")} <span class="muted">chance you finish 1st</span></p>
+      ${spread < 0.01 ? `<p class="note">Under 1 percentage point apart, which is within the simulation's margin: next week's captain barely moves your title chances.</p>` : ""}`;
+  }
+  const left = O.left_out?.length ? `<p class="note">Left out: ${O.left_out.map(x => `${esc(by[x.entry]?.player || "Manager " + x.entry)} (${esc(x.why)})`).join("; ")}. The odds are among the other ${O.n}.</p>` : "";
+  const notes = [`Chances from ${O.runs.toLocaleString("en-GB")} simulated rest-of-seasons (GW${O.gws[0]}–${O.gws[1]}) from today's league totals, using each player's projected points (xP), with team-mates and opponents sharing each match's scoreline.`,
+    `<span class="pill warn">Assumed</span> Every manager keeps their GW${O.picks_gw} squad and bench order to the end of the season: no transfers, hits or chips. Each week they captain their highest-xP starter, and automatic subs apply. Nobody's future transfers are known, so treat this as how the squads stand today, not a forecast.`];
+  if (O.in_play) notes.push(`GW${C.gw} is still being played: the totals include its points so far, but its remaining matches aren't simulated.`);
+  return `<section class="panel rv-odds" aria-labelledby="rvo-h">${head}${cap}${table(show)}${more}${left}${notes.map(n => `<p class="note">${n}</p>`).join("")}</section>`;
+}
 function vStandings(C, lg) {
   const sc = rvScores(C), me = lg.rows.find(r => r.me), R = rvRival(lg, me);
   const hero = R ? `<div class="rv-hero${sc.phase === "final" ? "" : " one"}">${sc.phase === "final" ? rvMoment(C, lg, me, R, sc) : ""}${rvProjection(C, lg, R)}</div>` : "";
   const table = rvTable(C, lg, sc, me), any = `<p class="rv-anyteam"><button type="button" class="linkish rv-go" data-rvh2h="0">Compare any team or FPL entry ID <span aria-hidden="true">→</span></button></p>`;
   // after a settled gameweek the rivalry leads; during play (and before kick-off) the table comes first
-  return rvStatus(C, sc) + (sc.phase === "final" ? hero + table : table + hero) + rvFeatured(C, lg) + any;
+  return rvStatus(C, sc) + (sc.phase === "final" ? hero + table : table + hero) + rvOdds(C, lg) + rvFeatured(C, lg) + any;
 }
 
 /* ---------- head-to-head with one manager: pin, replace or unpin, details, and where your teams differ ---------- */
