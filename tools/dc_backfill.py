@@ -17,6 +17,9 @@ Missing / late / ambiguous:
   - if more than MAX_FAILED (2%) of player summaries fail to download, or the new count drops below MIN_KEPT
     (85%) of the existing file, nothing is written and the script exits 1 so the previous file stays intact.
 
+Do not re-run: the file can only shrink as players leave the game, and a run that keeps 85-99% of players
+passes the safety check and quietly cuts coverage. archive_dc/2024-25.json is a frozen snapshot.
+
 Usage:
   python3 tools/dc_backfill.py                           # writes archive_dc/2024-25.json
   python3 tools/dc_backfill.py 2024-25 path/to/out.json
@@ -141,9 +144,17 @@ def main(season="2024-25", out=None):
     with open(tmp, "w") as f:
         json.dump(payload, f, separators=(",", ":"))
     os.replace(tmp, out)
+    skipped = sum(
+        1
+        for d in raw.values()
+        if d
+        for s in (d.get("history_past") or [])
+        if s.get("season_name") == target and not ((s.get("minutes") or 0) > 0 and s.get("defensive_contribution") is not None)
+    )
     print(
         f"dc_backfill: {payload['player_count']} players with {target} DefCon "
-        f"(of {payload['players_total']} current players, {payload['failed']} failed) -> {out}"
+        f"(of {payload['players_total']} current players, {skipped} {target} rows skipped [0 minutes or missing DefCon], "
+        f"{payload['failed']} failed) -> {out}"
     )
 
 

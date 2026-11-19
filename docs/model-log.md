@@ -10,7 +10,9 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
   known error, so revert only if the DC part gain has gone, not on 5-GW picks alone.
 - **archive_dc_backfill (FL-212)** (adopted 19 Nov 2026, entry below). Re-check at season end. Old value to test against:
   `{"archive_dc_backfill": false}`. Bench-fidelity change (does not move live projections); adopted at pooled 5-GW
-  −0.006 [−0.038, +0.027] and pooled DC part −0.00015 [−0.00023, −0.00008] better.
+  −0.006 [−0.038, +0.027] and pooled DC part −0.00015 [−0.00023, −0.00008] better. It fixes a known error (bench priors
+  out of line with live), so revert only if the DC part gain has gone, not on 5-GW picks alone; reverting puts the bench
+  back out of line with live.
 
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
@@ -33,7 +35,11 @@ from odds/archive/ since PR #24, 31 Oct 2026).
     reproduces main exactly).
   - **Hindsight check:** only `season_name == "2024/25"` rows are extracted from `history_past` (2024/25 season
     totals, known before 2025/26 GW1). Nothing from 2025/26 or later enters `archive_dc/2024-25.json` or 2025/26's
-    priors, and 2024/25's test priors (`2022-23` + `2023-24`) never touch it.
+    priors. Which players get a backfill is decided by who is still in FPL at the fetch (19 Nov 2026): 303 of 415
+    (73%) 2025/26 test-season players with 2024/25 minutes. The other 112, mostly relegated or sold, keep
+    `dc_mins = 0` as on main. That selection uses information from after 2025/26, but no 2025/26 outcome enters any
+    value, and both sides are scored on the same players, so it is accepted for a bench-only change. 2024/25's test
+    priors (`2022-23` + `2023-24`) never touch it.
   - **Bench-fidelity change only — live model unchanged:** `priors.json` is untouched and live GW11 5-GW xP moves
     for **0 of 672 players** (`max |Δ| = 0.0`). This changes how future tests are scored on 2025/26, not the live
     projections.
@@ -51,6 +57,8 @@ from odds/archive/ since PR #24, 31 Oct 2026).
     Every other part score `+0.00000`.
   - **No-harm:** 0 metrics with CI wholly below zero in any season (`cap` changed in 1 of 35 weeks in 2025/26,
     `+0.03 [+0.00, +0.09]`; 5-GW corr `0.522 → 0.522`).
+- **Comparability:** 2025/26 bench figures from this PR on use the backfilled priors (5-GW picks `18.97 → 18.96`, DC
+  part `0.0803 → 0.0800`), so earlier entries' 2025/26 numbers are not directly comparable.
 - **Segments (2025/26 GW4–38, same check as FL-176):** 0 segments tripped (`n >= 30`, `ΔMAE > 0.05` or `|Δbias| > 0.2`).
   Headline MAE `1.8637 → 1.8636` (`−0.0001`), corr `0.4114 → 0.4114`, bias `−0.0309 → −0.0308`; DEF `ΔMAE −0.0009`,
   MID `+0.0004`, top 30 `−0.0217`. This season's backtest is identical with and without the status log.

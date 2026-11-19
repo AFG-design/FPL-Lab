@@ -7,6 +7,8 @@ Tests:
   - switch off (use_dc_backfill=False) reproduces main exactly
   - hindsight guard: 2024/25 test season never uses 2024/25 backfill; 2025/26 test season uses only 2024/25
   - committed archive_dc/2024-25.json schema and (when vaastav CSVs are cached) code join & >=70% coverage check
+    (note: the 70% coverage test skips in CI because the vaastav archive isn't cached there, so it only fails
+    loudly in a local run)
 """
 import json
 import os
