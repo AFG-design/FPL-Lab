@@ -238,6 +238,7 @@ tr.sel td.sticky-col { background: color-mix(in srgb, var(--accent) 12%, var(--s
 /* .linkish (all: unset) is later in the cascade than components.css's .fx-club, so the club button fell back to inline
    and its badge sat above the name's baseline; two classes win it back */
 .linkish.fx-club { display: inline-flex; align-items: center; gap: 8px; }
+.fx-short { display: none; }
 
 /* phones: the two option groups wrap into equal tiles instead of scrolling sideways with labels cut in half */
 @media (max-width: 640px) {
@@ -249,6 +250,15 @@ tr.sel td.sticky-col { background: color-mix(in srgb, var(--accent) 12%, var(--s
 .fdr.cellchip { display: flex; width: 100%; min-width: 62px; padding: 6px 4px; font-size: var(--fs-sm); }
 .fdr.cellchip + .fdr.cellchip { margin-top: 2px; }
 .fdr.blank.cellchip, .fxc > .fdr.blank { display: flex; padding: 6px 4px; min-width: 62px; }
+
+/* FL-193: below 640px show crest + 3-letter short name in the sticky column so ~4 GW columns fit on phones; 640px+ unchanged */
+@media (max-width: 639px) {
+  .fx-full { display: none; }
+  .fx-short { display: inline; font-weight: 600; letter-spacing: .02em; }
+  .linkish.fx-club { gap: 5px; }
+  .fixtures td.sticky-col, .fixtures th.sticky-col { padding-left: 6px; padding-right: 6px; }
+  .fixtures .fdr.cellchip, .fixtures .fdr.blank.cellchip, .fixtures .fxc > .fdr.blank { min-width: 56px; }
+}
 
 /* ---------- mini-league ---------- */
 .league td { vertical-align: middle; }
@@ -385,6 +395,14 @@ tr.is-rival td { background: var(--accent-soft); }
 .xptable td.xsum { white-space: nowrap; }
 .xptable .xprice { display: none; }
 .xptable .xbar { display: inline-block; height: 4px; border-radius: 2px; background: var(--accent); vertical-align: middle; margin-right: 8px; }
+
+@media (max-width: 639px) {
+  /* FL-193: keep the sticky Player column compact below 640px so ~4 GW columns fit on phones; 640px+ unchanged */
+  .xptable td.sticky-col, .xptable th.sticky-col { padding-left: 8px; padding-right: 6px; }
+  .xptable .xwho { max-width: 104px; }
+  .xptable .xname { gap: 2px; }
+  .xptable .xname .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+}
 
 @media (max-width: 560px) {
   /* phones: price moves under the name; £ and xP/£m columns hidden so the gameweeks get the width */
