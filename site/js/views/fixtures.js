@@ -79,7 +79,7 @@ function vFixtures() {
     const tot = mode === "fdr" ? nMatch : sum, totTxt = mode === "fdr" ? String(nMatch) : sum.toFixed(1);
     const strength = mode === "fdr" ? "" : `<td class="n">${Math.round(mode === "att" ? st.att : mode === "def" ? st.def : st.pts)}%</td>`;
     const good = v => mode === "fdr" ? -v : v;   // higher is better for every sort key
-    return { name: t.name, avg: good(avg), total: tot, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish fx-club">${badge(t.id, 20)}<span>${t.name}</span></button></td>${cellList.slice(0, lead).join("")}${strength}<td class="n"><b>${avgTxt}</b></td><td class="n">${totTxt}</td>${cellList.slice(lead).join("")}</tr>` };
+    return { name: t.name, avg: good(avg), total: tot, html: `<tr class="${myTeams.has(t.id) ? "mine" : ""}"><td class="pname sticky-col"><button data-team="${t.id}" class="linkish fx-club" title="${esc(t.name)}" aria-label="${esc(t.name)}">${badge(t.id, 20)}<span class="fx-full">${t.name}</span><span class="fx-short" aria-hidden="true">${t.short}</span></button></td>${cellList.slice(0, lead).join("")}${strength}<td class="n"><b>${avgTxt}</b></td><td class="n">${totTxt}</td>${cellList.slice(lead).join("")}</tr>` };
   }).sort((a, b) => sortBy === "team" ? a.name.localeCompare(b.name) : b[sortBy] - a[sortBy] || a.name.localeCompare(b.name));
   const help = {
     fdr: "FPL's official fixture difficulty for each match, 1 easiest to 5 hardest. Easiest run first.",

@@ -84,7 +84,7 @@ function vXpTable() {
     return `<tr class="${MINE.has(p.id) ? "mine" : ""}">
       <td class="sticky-col"><span class="xplayer">
         <img class="shirt" src="${shirtURL(p)}" alt="" loading="lazy" onerror="this.remove()">
-        <span class="xwho"><span class="xname"><button data-p="${p.id}" class="pname linkish">${esc(p.name)}</button>
+        <span class="xwho"><span class="xname"><button data-p="${p.id}" class="pname linkish" title="${esc(p.full || p.name)}">${esc(p.name)}</button>
           <button type="button" class="xstar" data-xstar="${p.id}" aria-pressed="${star}" aria-label="${star ? "Remove" : "Add"} ${esc(p.name)} ${star ? "from" : "to"} starred players">${star ? "★" : "☆"}</button>
           ${p.status !== "a" ? `<span class="pill ${p.status === "d" ? "warn" : "bad"}" title="${esc(p.news || "Flagged")}">${fplChance(p.chance)}</span>` : ""}</span>
           <span class="muted xmeta">${T[p.team].short} <span class="xpos">${p.pos}</span><span class="xprice"> · ${money(p.price)}</span></span></span></span></td>
