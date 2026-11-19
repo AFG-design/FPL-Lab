@@ -260,24 +260,37 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi-text); } /* FL-181: 
 
 /* option tiles */
 
-/* Planner → My team: the three strategy cards, three across; on phones a row you swipe, one and a bit cards wide */
+/* Planner → My team: the three strategy cards, three across; on phones a row you swipe, with the next card peeking in.
+   FL-208: on phones the edge with more fades (scrollStrips, components/ui.js, bound in shell/events.js) and "Swipe for
+   all 3" shows while the row scrolls; neither shows when the cards fit. These are cards, not tabs: the Planner's tabs
+   still never fade (FL-090). */
 .pvstrats { display: grid; gap: 8px; }
 .pvstrats .bar { margin: 0; }
 .pvcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .pvcard { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 14px 16px; text-align: left; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); cursor: pointer; transition: border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
 .pvcard:active { transform: scale(.98); }
-.pvcard:focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+.pvcard:focus-visible { outline: 2px solid var(--hi); outline-offset: -4px; }   /* inside the card: the scrolling row clipped a ring drawn outside it (FL-208) */
 .pvc-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 650; }
 .pvc-g { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .pvc-gain { font-family: var(--display); font-size: 34px; font-weight: 700; line-height: 1; }
 .pvc-g small, .pvc-help { font-size: var(--fs-xs); color: var(--muted); }
 .pvc-now { font-size: var(--fs-sm); }
+.pvswipe { display: none; }
 
 @media (hover: hover) and (pointer: fine) { .pvcard:hover { border-color: var(--accent-text); } }
 
 @media (max-width: 760px) {
-  .pvcards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(250px, 82%); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 2px; }
+  /* 250px cards, narrower on small phones so at least 46px of the next card shows (at 320px it was 28px) */
+  .pvcards { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: min(250px, calc(100% - 56px)); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 2px; }
   .pvcard { scroll-snap-align: start; }
+
+  /* the FL-122 fade, kept inside this query: the classes are only re-checked on scroll, so a phone turned to the
+     three-across layout must not stay faded */
+  .pvcards.more-r { mask-image: linear-gradient(90deg, #000 80%, transparent); }
+  .pvcards.more-l { mask-image: linear-gradient(90deg, transparent, #000 20%); }
+  .pvcards.more-l.more-r { mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); }
+  .pvswipe { display: inline; font-size: var(--fs-xs); }
+  .pvstrats:not(:has(.pvcards.more-r, .pvcards.more-l)) .pvswipe { display: none; }
 }
 .gwsel { display: flex; gap: 6px; flex-wrap: wrap; }
 .gwsel button { border: 1px solid var(--line); background: var(--sunk); border-radius: var(--r-sm); padding: 6px 11px; font-weight: 650; min-width: 64px; text-align: left; }
