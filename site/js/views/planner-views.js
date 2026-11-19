@@ -144,6 +144,10 @@ function pvGwSel(weeks, g) {
 }
 
 /* ---------- My team ---------- */
+// FL-208: on phones the strategy cards are a row you swipe; say how many there are. The count is PV_MODES, not the
+// plans in this build: a strategy with no plan still has a card ("No plan in this build"), so "all 3" stays true.
+// CSS shows it only on phones and only while the row scrolls (components.css, .pvswipe).
+const pvSwipeHint = () => `<span class="pvswipe muted">Swipe for all ${PV_MODES.length}</span>`;
 function pvMine() {
   const base = pvBase(), g = pvGw(), wk = base.weeks.find(w => w.gw === g), t = wk.team;
   const sq = D.squad.map(s => s.id);
@@ -164,7 +168,7 @@ function pvMine() {
       <span class="pvc-help">${esc(MODE_HELP[m])}</span></button>`;
   }).join("");
   return `
-  <section class="pvstrats" aria-labelledby="pvStratsH"><div class="bar"><h3 id="pvStratsH">What each strategy would do</h3></div>
+  <section class="pvstrats" aria-labelledby="pvStratsH"><div class="bar"><h3 id="pvStratsH">What each strategy would do</h3>${pvSwipeHint()}</div>
     <div class="pvcards">${cards}</div>
     <p class="note">Gains are projected points over ${PG.length} GWs against keeping this team, ${GAIN_NOTE()}. Tap one to see its moves and the XI it leaves you.</p></section>
   <div class="plansum">
@@ -332,6 +336,10 @@ function bindPlannerViews() {
   // keep the open tab in sight when the tab row scrolls sideways (phones)
   const bar = document.querySelector(".pviews"), cur = bar?.querySelector('[aria-selected="true"]');
   if (bar && cur && bar.scrollWidth > bar.clientWidth) bar.scrollLeft = Math.max(0, cur.offsetLeft - (bar.clientWidth - cur.offsetWidth) / 2);
+  // FL-208: a strategy card reached with Tab scrolls fully into view (it used to keep focus while mostly off-screen);
+  // instant when reduced motion is on. No cards (another tab, season over): nothing to bind.
+  const cards = document.querySelector(".pvcards");
+  if (cards) cards.addEventListener("focusin", e => e.target.closest(".pvcard")?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: calm() ? "auto" : "smooth" }));
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = () => fn(el));
   on("[data-pview]", b => {
     let v = b.dataset.pview;

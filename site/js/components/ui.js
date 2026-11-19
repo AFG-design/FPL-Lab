@@ -102,8 +102,8 @@ function stateView({ kind = "empty", title, body = "", action = "" }) {
 }
 
 /* FL-122: a strip of tabs or options that is wider than its box scrolls sideways; fade the edge that has more, so it
-   shows there is more to swipe to, and bring the selected option into view. Used on Fixtures and Stats (bind() in
-   shell/events.js); the Planner's tabs are left alone (FL-090). A strip that fits gets no fade. */
+   shows there is more to swipe to, and bring the selected option into view. Used on Fixtures and Stats, and the
+   Planner's strategy cards (FL-208), from bind() in shell/events.js; the Planner's tabs are left alone (FL-090). A strip that fits gets no fade. */
 function scrollStrips(sel) {
   document.querySelectorAll(sel).forEach(row => {
     const edge = () => { row.classList.toggle("more-r", row.scrollLeft + row.clientWidth < row.scrollWidth - 4); row.classList.toggle("more-l", row.scrollLeft > 4); };

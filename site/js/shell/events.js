@@ -210,8 +210,11 @@ function bind() {
   bindTpEdit();   // "Editing saved path" bar in Your plan
   bindPlannerViews();   // Planner view tabs (views/planner-views.js)
   bindStatsMore();   // Goals & assists, Defence and Points leaders controls (views/stats-more.js)
-  // FL-122: strips that scroll sideways show it with a faded edge (components/ui.js), on Fixtures and Stats only
+  // FL-122: strips that scroll sideways show it with a faded edge (components/ui.js), on Fixtures and Stats.
+  // FL-208: and the Planner's strategy cards on My team. Never the Planner's tabs (.pviews, .gwsel, .pvstratseg: FL-090).
+  // The edge is checked on render and on scroll only, so a resize or late font can leave it stale until the next scroll.
   if (S.view === "fixtures" || S.view === "stats") scrollStrips("#app .seg");
+  if (S.view === "planner" && S.pview === "mine") scrollStrips("#app .pvcards");
   if (S.view === "fixtures") bindFixtures();
 }
 
