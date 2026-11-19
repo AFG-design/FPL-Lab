@@ -713,6 +713,17 @@ Regression coverage: live score changes versus pre-kick-off, partial and complet
 teams in a live GW, missing/provisional flags, and raw versus already-filtered live rows. Fresh build validation
 has zero errors (existing warnings: assumed GW8–9 targets and no GW11 match odds).
 
+## 1 Nov 2026 — mid-season strategy switch replay (planner; no result recorded; logged 19 Nov 2026)
+- Question: does switching strategy part-way through a season (e.g. Balanced until the run-in, then Chase rank to
+  catch up on rank) beat playing one strategy all season?
+- How: one commit (`0b1e789`, branch `feat/strategy-switch-test`, no PR) let `strategy_replay.py --modes` take a
+  switch as a team name: `balanced>chase:28` plays Balanced to GW27 and Chase rank from GW28 (`chase@5` haul weights
+  still work after the switch). Written the day PR #35 set the strategy budgets (Safe 0, Chase 2).
+- Result: none saved. The branch has only the code change; no numbers were committed or logged, and the 14 Nov branch
+  report (`docs/archive/branch-report-2026-11-14.md`) wrongly says the result is here. Main's `strategy_replay.py`
+  doesn't have the switch syntax. Verdict: nothing tested to adopt; to answer it, re-apply the 9-line change to
+  main's `strategy_replay.py` and replay 2025/26 and 2024/25 against plain Balanced and Chase rank.
+
 ## 1 Nov 2026 — double-gameweek simulation seeds (PR #40); DGW under-projection found
 - Bug (code review): fixture seed pid*1000 + g*10 + len(detail); detail[g] is set after the fixture loop, so both
   matches of a DGW shared one seed (identical start, rate and team-goal draws). Second fixture now has its own
