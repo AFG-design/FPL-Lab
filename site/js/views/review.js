@@ -73,7 +73,7 @@ function vReview() {
     <div class="panel"><div class="bar"><h2>GW${w.gw} review</h2><span class="muted">${w.pts} pts${w.hits ? ` (−${w.hits})` : ""} · average ${w.avg ?? "–"} · your best possible ${w.best_possible}</span></div>
       <ul class="alerts">${lines.map(([c, t]) => `<li class="${c}"><span>${t}</span></li>`).join("")}</ul></div>
     <div class="panel"><h3>Season so far</h3>
-      <div class="kpis">
+      <div class="kpis kpis-3">
         <div class="kpi"><span class="lbl">Lost to captaincy</span><b class="${Tt.cap_lost > 0 ? "down" : ""}">${Tt.cap_lost}</b><span class="delta muted">vs best captain in your XI</span></div>
         <div class="kpi"><span class="lbl">Left on bench</span><b>${Tt.bench}</b><span class="delta muted">excluding Bench Boost</span></div>
         <div class="kpi"><span class="lbl">Transfers net</span><b class="${Tt.tx_gain - Tt.hits >= 0 ? "up" : "down"}">${Tt.tx_gain - Tt.hits >= 0 ? "+" : ""}${Tt.tx_gain - Tt.hits}</b><span class="delta muted">after ${Tt.hits} pts of hits; Wildcard ${Tt.wc_gain >= 0 ? "+" : ""}${Tt.wc_gain}</span></div>

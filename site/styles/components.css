@@ -24,6 +24,10 @@ section.view { display: grid; gap: 20px; }
 .stat dd.accent { color: var(--hi-text); }
 .stat.big dd:first-of-type { font-size: var(--fs-num); }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.kpis.kpis-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kpis.kpis-3 .kpi { padding: 12px; }
+
+@media (max-width: 520px) { .kpis.kpis-3 { grid-template-columns: minmax(0, 1fr); } }
 .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
 .kpi b { display: block; font-size: var(--fs-num); font-weight: 650; line-height: 1.15; letter-spacing: -.02em; }
 .kpi .lbl, .plansum .lbl { font-size: var(--fs-label); font-weight: 600; letter-spacing: var(--ls-label); text-transform: uppercase; color: var(--faint); }
@@ -334,7 +338,12 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi-text); } /* FL-181: 
 .chip-na { display: block; }
 
 /* chips, compare */
-.chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+
+@media (max-width: 900px) { .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+@media (max-width: 480px) { .chips { grid-template-columns: minmax(0, 1fr); } }
+.chips-panel .verdict, .chips-panel .note { max-width: 75ch; }
 .chip { border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; background: var(--surface); }
 .chip h3 { font-size: var(--fs-lg); }
 .chip.used { background: var(--sunk); border-style: dashed; }
