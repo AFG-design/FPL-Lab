@@ -85,11 +85,16 @@ function livePanel({ showTeamScore = true } = {}) {
 /* ---------- Deadlines tab: countdown, this week's timeline, every deadline ahead ---------- */
 function weekTimeline() {
   const W = D.week; if (!W) return "";
-  const now = Date.now(), mine = new Set(D.squad.map(s => P[s.id]?.team));
+  const now = Date.now(), byTeam = {};
+  (D.squad || []).forEach(s => { const t = P[s.id]?.team; if (t != null) byTeam[t] = (byTeam[t] || 0) + 1; });
+  const yoursTag = ts => {
+    const n = [...new Set(ts)].reduce((sum, t) => sum + (byTeam[t] || 0), 0);
+    return n ? ` <span class="tag">${n} of yours</span>` : "";
+  };
   const items = [[W.deadline, "deadline", `<b>GW${W.gw} deadline</b> · ${countdown(W.deadline)} left`]];
   W.price_updates.forEach(d => items.push([d, "price", `Price changes <span class="muted">(${priceUpdateTxt(d, false)})</span>`]));
-  W.fixtures.forEach(([ko, h, a]) => items.push([ko, "ko", `<button data-team="${h}" class="linkish">${T[h].name}</button> v <button data-team="${a}" class="linkish">${T[a].name}</button>${mine.has(h) || mine.has(a) ? ' <span class="tag">your players</span>' : ""}`]));
-  W.europe.forEach(([c, d, ts]) => items.push([d + "T18:00:00Z", "eu", `${c}: ${ts.map(t => T[t]?.short).join(", ")}${ts.some(t => mine.has(t)) ? ' <span class="tag">your players</span>' : ""}`]));
+  W.fixtures.forEach(([ko, h, a]) => items.push([ko, "ko", `<button data-team="${h}" class="linkish">${T[h].name}</button> v <button data-team="${a}" class="linkish">${T[a].name}</button>${yoursTag([h, a])}`]));
+  W.europe.forEach(([c, d, ts]) => items.push([d + "T18:00:00Z", "eu", `${c}: ${ts.map(t => T[t]?.short).join(", ")}${yoursTag(ts)}`]));
   items.sort((x, y) => x[0].localeCompare(y[0]));
   const day = iso => new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short", timeZone: "Europe/London" });
   const time = (iso, k) => k === "eu" ? "Evening" : new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
@@ -100,15 +105,24 @@ function weekTimeline() {
 function vDeadlines() {
   const W = D.week;
   if (!W) return stateView({ title: "No deadline ahead", body: "The season's deadlines will appear here once FPL publishes the next gameweek." });
-  const g = W.gw, nx = W.fixtures[0], ahead = (W.deadlines || []).slice(0, 8);
-  const days = iso => Math.round((new Date(iso) - Date.now()) / 864e5);
+  const g = W.gw, nx = W.fixtures[0], ahead = (W.deadlines || []).slice(0, 8), now = Date.now();
+  // Match countdown()'s floor rounding so e.g. "3d 21h" in the hero never sits above "4 days" in the table.
+  // Missing or unparseable deadline date -> "–".
+  const inTxt = iso => {
+    if (!iso) return "–";
+    const ms = new Date(iso) - now;
+    if (Number.isNaN(ms)) return "–";
+    if (ms < 864e5) return countdown(iso);
+    const d = Math.floor(ms / 864e5);
+    return `${d} day${d === 1 ? "" : "s"}`;
+  };
   return `<div class="grid2">
     <div style="display:grid;gap:20px;align-content:start;min-width:0">
       <div class="panel dl-hero"><span class="lbl">GW${g} deadline</span><b id="dlCount">${countdown(W.deadline)}</b><span>${ukTime(W.deadline)}</span>
         ${nx ? `<span class="muted">First kick-off ${ukTime(nx[0])}: ${T[nx[1]].name} v ${T[nx[2]].name}</span>` : ""}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn primary" data-howto="${g}">${howtoLabel(g)}</button><button class="btn" data-ics="1">Add all deadlines to calendar</button></div></div>
       <div class="panel"><h3>Coming up</h3><div class="tablebox"><table><thead><tr><th>Gameweek</th><th>Deadline (UK)</th><th class="n">In</th></tr></thead>
-        <tbody>${ahead.map(([gw, d]) => `<tr><td>GW${gw}</td><td>${ukTime(d)}</td><td class="n">${new Date(d) - Date.now() < 864e5 ? countdown(d) : days(d) + " day" + (days(d) === 1 ? "" : "s")}</td></tr>`).join("")}</tbody></table></div>
+        <tbody>${ahead.map(([gw, d]) => `<tr><td>GW${gw}</td><td>${ukTime(d)}</td><td class="n">${inTxt(d)}</td></tr>`).join("")}</tbody></table></div>
         <p class="note">The calendar file adds every remaining deadline, each with reminders 24 hours and 2 hours before. Open it on your phone to import it.</p></div>
     </div>
     <div class="panel"><h3>This week</h3>${weekTimeline()}
