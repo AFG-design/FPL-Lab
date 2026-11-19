@@ -31,13 +31,14 @@ def main():
                   if (!p) throw Error('Need a keeper with a next-GW fixture');
                   D.players = [p]; p.status = 'd'; p.news = ''; p.p_start = 1;
                   p.s_min = [90,90,0]; p.ret = false;
-                  STARS.ids = {[p.id]: {price: p.price}};
                   S.q = ''; S.pos = 'ALL'; S.team = 'ALL'; S.maxp = ''; S.xquick = 'all';
                 }''', theme)
                 for chance in (None, 0, 75):
                     page.evaluate('chance => { D.players[0].chance = chance; }', chance)
                     expected = '!' if chance is None else f'{chance}%'
-                    for name, expression in (('players', 'vPlayers()'), ('xptable', 'vXpTable()'), ('watchlist', 'starsPanel()')):
+                    # The old 'watchlist' entry (starsPanel()) went with FL-187 (#226). Home's "Watchlist & changes"
+                    # panel is built inside vHome() and shows no status pill for starred players, so it isn't checked here.
+                    for name, expression in (('players', 'vPlayers()'), ('xptable', 'vXpTable()')):
                         page.evaluate("expression => { $('#app').innerHTML = eval(expression); }", expression)
                         assert page.locator('#app .pill.warn').first.inner_text() == expected, (name, chance)
                         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), name
