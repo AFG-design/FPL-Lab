@@ -252,7 +252,7 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--hi-text); } /* FL-181: 
 .stepcard .howto-btn { display: flex; width: fit-content; margin-top: 10px; }
 .stepcard .sbody { display: grid; gap: 6px; min-width: 0; }
 .stepcard .no { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: var(--fs-sm); background: var(--sunk); color: var(--muted); border: 1px solid var(--line); }
-.stepcard.act .no { background: var(--hi); color: var(--hi-fg); border-color: var(--hi); }
+.stepcard.act .no { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .stepcard.ok .no { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
 .stepcard h3 { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: var(--fs-lg); }
 .stepcard .do { font-size: 15px; font-weight: 600; }
@@ -563,7 +563,7 @@ dialog::backdrop { background: rgb(0 0 0 / 55%); }
 
 /* ---------- past team viewer ---------- */
 .pc.past .xp { font-size: 22px; }
-.pc.past.haul .xp { color: var(--hi-text); }
+.pc.past.haul .xp { color: var(--good); }
 .subtag { font-size: 11px; font-weight: 700; }
 .subtag.in { color: var(--good); }
 .subtag.out { color: var(--bad); }
