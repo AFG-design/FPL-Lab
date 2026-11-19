@@ -10,6 +10,40 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 19 Nov 2026 — FL-213: 2025/26 Europa and Conference League dates added; `eu_cut` re-benched (no model change, data completed)
+
+- **Data completed:** `openfootball/champions-league` still has no 2025/26 Europa League or Conference League files,
+  so FL-115 (13 Nov 2026) ran 2025/26 with Champions League dates only. Added `europe_hist_manual.json` from UEFA's
+  official 2025/26 match records (`match.uefa.com/v5/matches` / `uefa.com`, every stage including play-offs and the
+  final) for the three English clubs: **AVL** (UEL, 15 dates: 2025-09-25 to 2026-05-20), **NFO** (UEL, 16 dates:
+  2025-09-24 to 2026-05-07), and **CRY** (UECL, 17 dates: 2025-08-21 to 2026-05-27). `tools/europe_hist.py` now
+  merges the supplement when openfootball 404s (openfootball still wins if published later), clearing `"missing"`
+  to `[]`. 2025/26 European weeks in `bench.py`: 65 club-gameweeks (2024/25 unchanged at 49).
+- **Measured (`tools/europe_check.py`, regulars' start rate in window / outside it; live cut implies 0.93):**
+  - 2025/26: **1.056 [1.002, 1.110]** (530 player-games in window, 2,236 outside, 73 regulars), vs FL-115's
+    `1.034 [0.969, 1.102]` (UCL only).
+  - 2024/25: `0.980 [0.901, 1.055]` (393 in, 1,886 outside, 60 regulars; unchanged).
+  - This season to GW10 (`europe.json`): `0.969 [0.890, 1.042]` (234 in, 576 outside, 81 regulars; unchanged).
+- **Bench (`bench.py`, three variants only, listed before running: `eu_cut` 1.0, 0.98, 0.85 against live 0.93 on
+  `main` `05edf5c`):**
+
+  | Candidate | 2025/26 5-GW | 2024/25 5-GW | Pooled 5-GW (60 origins) | This season (4 origins) | Pooled Start Brier | CI wholly below zero |
+  |---|---|---|---|---|---|---|
+  | `eu_cut 1.0` | +0.02 [-0.09, +0.14] | -0.10 [-0.21, -0.01] | -0.040 [-0.118, +0.033] | -0.13 [-1.10, +0.68] | -0.00001 [-0.00010, +0.00009] | 2024/25 5-GW picks -0.10 [-0.21, -0.01] |
+  | `eu_cut 0.98` | -0.03 [-0.13, +0.06] | -0.03 [-0.10, +0.03] | -0.030 [-0.092, +0.025] | +0.02 [-0.27, +0.22] | -0.00004 [-0.00011, +0.00003] | none |
+  | `eu_cut 0.85` | -0.09 [-0.21, +0.04] | -0.05 [-0.13, +0.04] | -0.066 [-0.144, +0.010] | -0.11 [-0.55, +0.18] | +0.00042 [+0.00027, +0.00059] worse | 2024/25 1-GW picks -0.03 [-0.06, -0.00]; this season 1-GW picks -0.07 [-0.13, -0.01] |
+
+  5-GW totals (2025/26 / 2024/25 / this season): live 0.93 `19.10 / 19.16 / 18.24`; 1.0 `19.12 / 19.06 / 18.11`;
+  0.98 `19.07 / 19.14 / 18.26`; 0.85 `19.01 / 19.12 / 18.13`. 1-GW picks: live 0.93 `4.46 / 4.25 / 4.36`;
+  1.0 `4.43 / 4.24 / 4.34`; 0.98 `4.46 / 4.24 / 4.36`; 0.85 `4.45 / 4.22 / 4.30`. Pooled 60+ minutes Brier also
+  worsens at 1.0 (`+0.00024 [+0.00010, +0.00039]`) and 0.98 (`+0.00014 [+0.00005, +0.00024]`).
+- **Decision-table rows (CLAUDE.md):**
+  - `eu_cut 1.0` and `eu_cut 0.98`: **CI includes zero and the change is only a tweak (and doesn't qualify as a
+    targeted change)** → **Don't adopt** (`1.0` also has 2024/25 5-GW picks wholly below zero).
+  - `eu_cut 0.85`: **Any segment trips `--compare`** (no-harm rule: 1-GW picks CI wholly below zero in 2024/25 and
+    this season) → **Don't adopt until it is fixed or explained.**
+  - **Result: 0.93 still wins — no model change, data completed.** `eu_cut` left at 0.93.
+
 ## 18 Nov 2026 — FL-114 follow-up: defenders scoring outside clean sheets + cs_k retune (Don't adopt)
 
 - Idea (FL-114 "Next lever"): clean sheets were over-projected in 2024/25 and 2025/26 (real/proj 0.90), yet fixing

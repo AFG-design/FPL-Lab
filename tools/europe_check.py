@@ -8,8 +8,8 @@ the same day. A "regular" started at least REG of his club's league games that s
 definition and nobody is picked by how he did in one group). The ratio is his start rate inside the window over his
 rate outside it, pooled over regulars; the live model's cut (0.93) implies 0.93. 95% interval: bootstrap over club
 fixtures (a fixture's players move together). Seasons: 2024-25 and 2025-26 from the archive with europe_hist.json
-(2025-26 has the Champions League only: its Europa and Conference League files aren't published, so those clubs are
-left out rather than counted as "no Europe"); this season from raw/ and europe.json, as the live build reads it.
+(openfootball plus europe_hist_manual.json for 2025-26 Europa and Conference League); this season from raw/ and
+europe.json, as the live build reads it.
 """
 import csv, datetime as dt, json, os, random
 from collections import defaultdict

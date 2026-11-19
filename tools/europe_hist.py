@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
-"""Past seasons' European match dates for English clubs (FL-115), for testing the European rotation cut.
+"""Past seasons' European match dates for English clubs (FL-115, FL-213), for testing the European rotation cut.
 
     python3 tools/europe_hist.py          # downloads and writes europe_hist.json
 
 Source: openfootball/champions-league (public domain, CC0), plain-text fixture lists per season and competition:
 https://github.com/openfootball/champions-league. Free, no key. Each English club's match dates (every stage, as
 played) are kept per season under its FPL short name; build.py's europe.json stays the live source for this season.
+Competitions not published by openfootball (2025-26 UEL and UECL) are supplemented from europe_hist_manual.json
+(UEFA official fixtures/results); if openfootball later publishes a file, openfootball wins and the supplement entry
+is skipped.
 
 Missing or ambiguous, never guessed:
-  - a competition file that isn't published (2025-26 Europa and Conference League, as of 13 Nov 2026) is listed in
+  - a competition file that isn't published by openfootball and isn't in europe_hist_manual.json is listed in
     "missing", and its clubs simply have no dates that season; the bench then applies no cut to them;
-  - an English club name not in NAMES, or a date line that can't be read, stops the script (fails loudly).
+  - if europe_hist_manual.json is absent, the script prints that no supplement was loaded and continues with
+    openfootball only;
+  - an English club name not in NAMES (or a supplement short name not in NAMES.values()), a date line that can't be
+    read, or a supplement date outside the season (Jul-Jun) stops the script (fails loudly).
 """
 import datetime as dt, json, os, re, sys, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "europe_hist.json")
+MANUAL = os.path.join(HERE, "..", "europe_hist_manual.json")
 BASE = "https://raw.githubusercontent.com/openfootball/champions-league/master/{season}/{comp}.txt"
 SEASONS = ["2024-25", "2025-26"]
 COMPS = {"cl": "UCL", "el": "UEL", "conf": "UECL"}
@@ -23,6 +30,8 @@ NAMES = {"Arsenal FC": "ARS", "Aston Villa FC": "AVL", "Chelsea FC": "CHE", "Liv
          "Manchester United": "MUN", "Manchester United FC": "MUN", "Newcastle United FC": "NEW", "Tottenham Hotspur": "TOT",
          "Tottenham Hotspur FC": "TOT", "Nottingham Forest FC": "NFO", "Crystal Palace FC": "CRY", "Brighton & Hove Albion FC": "BHA",
          "West Ham United FC": "WHU", "Everton FC": "EVE", "Fulham FC": "FUL", "Bournemouth": "BOU", "AFC Bournemouth": "BOU"}
+VALID_SHORTS = set(NAMES.values())
+VALID_COMPS = set(COMPS.values())
 MONTHS = {m: i for i, m in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 1)}
 DATE = re.compile(r"^\s{2}(Mon|Tue|Wed|Thu|Fri|Sat|Sun) ([A-Z][a-z]{2}) (\d{1,2})(?: (\d{4}))?\s*$")
 ENG = re.compile(r"([A-Z][A-Za-z0-9 .&'-]*?) \(ENG\)")
@@ -48,6 +57,55 @@ def parse(text, season):
     return {k: sorted(v) for k, v in sorted(out.items())}
 
 
+def _season_bounds(season):
+    """(start, end) inclusive for a 'YYYY-YY' season (1 Jul YYYY to 30 Jun YYYY+1)."""
+    if not re.fullmatch(r"\d{4}-\d{2}", season):
+        sys.exit(f"europe_hist: invalid season {season!r} in manual supplement")
+    y0 = int(season[:4])
+    if int(season[5:]) != (y0 + 1) % 100:
+        sys.exit(f"europe_hist: invalid season {season!r} in manual supplement")
+    return dt.date(y0, 7, 1), dt.date(y0 + 1, 6, 30)
+
+
+def merge_manual(res, manual):
+    """Validate and merge manual supplement entries into `res` in place.
+    Openfootball wins: any season+competition not in res['missing'] is skipped (and printed).
+    Returns list of skipped 'YYYY-YY COMP' keys."""
+    skipped = []
+    used = False
+    for season, comps in manual.get("seasons", {}).items():
+        lo, hi = _season_bounds(season)
+        for label, clubs_map in comps.items():
+            if label not in VALID_COMPS:
+                sys.exit(f"europe_hist: unknown competition {label!r} in manual supplement ({season})")
+            for short, dates in clubs_map.items():
+                if short not in VALID_SHORTS:
+                    sys.exit(f"europe_hist: unknown club {short!r} in manual supplement ({season} {label}); add it to NAMES")
+                if not dates:
+                    sys.exit(f"europe_hist: empty date list for {short} in manual supplement ({season} {label})")
+                for raw in dates:
+                    try:
+                        d = dt.date.fromisoformat(raw)
+                    except (TypeError, ValueError):
+                        sys.exit(f"europe_hist: invalid date {raw!r} for {short} in manual supplement ({season} {label})")
+                    if not (lo <= d <= hi):
+                        sys.exit(f"europe_hist: date {raw!r} outside {season} ({lo}..{hi}) for {short} in manual supplement")
+            key = f"{season} {label}"
+            if key not in res["missing"]:
+                print(f"europe_hist: skipped manual supplement for {key} (openfootball published it)")
+                skipped.append(key)
+                continue
+            season_clubs = res["seasons"].setdefault(season, {})
+            for short, dates in sorted(clubs_map.items()):
+                season_clubs.setdefault(short, {})[label] = sorted(set(dates))
+            res["seasons"][season] = dict(sorted(season_clubs.items()))
+            res["missing"].remove(key)
+            used = True
+    if used and manual.get("source"):
+        res["supplement_source"] = manual["source"]
+    return skipped
+
+
 def main():
     res = {"source": "openfootball/champions-league (CC0), https://github.com/openfootball/champions-league", "seasons": {}, "missing": []}
     for season in SEASONS:
@@ -64,7 +122,13 @@ def main():
             for short, dates in parse(text, season).items():
                 clubs.setdefault(short, {})[label] = dates
         res["seasons"][season] = clubs
-    json.dump(res, open(OUT, "w"), indent=1)
+    if os.path.exists(MANUAL):
+        with open(MANUAL) as f:
+            merge_manual(res, json.load(f))
+    else:
+        print(f"europe_hist: no manual supplement at {MANUAL}; continuing with openfootball only")
+    with open(OUT, "w") as f:
+        json.dump(res, f, indent=1)
     for s, c in res["seasons"].items():
         print(s, {k: sum(len(d) for d in v.values()) for k, v in c.items()})
     print("missing:", res["missing"] or "none")
