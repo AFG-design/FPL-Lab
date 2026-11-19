@@ -80,28 +80,38 @@ footer { margin-top: auto; padding: 0 16px 32px; font-size: var(--fs-xs); color:
 }
 
 @media (max-width: 899px) {
-  .topbar { gap: 14px; }
+  .topbar {
+    gap: 3px 6px;
+    padding: calc(4px + env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 5px max(14px, env(safe-area-inset-left));
+  }
   .team { grid-template-columns: minmax(0, 1fr); flex: 1 1 0; }
-  .score { order: 3; width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .team .wordmark, .team .sub { display: none; }
+  .team h1 { font-size: 21px; }
+  .score { order: 4; width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .score .stat { gap: 0; }
 
-  /* phones: the deadline is one full-width line under the team name, so neither the name nor the three numbers wrap */
-  .dlpill { order: 2; width: 100%; }
-  .dlpill .deadline { gap: 10px; min-height: 44px; padding: 6px 12px; }
-  .dl-cd { font-size: 22px; }
-  .dl-txt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }
-  .team h1 { font-size: 26px; }
-  .score .stat dd:first-of-type { font-size: 23px; }
-  .score .stat dt { white-space: nowrap; font-size: 11px; letter-spacing: .05em; line-height: 1.25; }
-  .score .stat-sub { font-size: 11px; }
+  /* FL-207: phones put the deadline pill inline with the team name so the header stays <=100px tall without dropping any stat label */
+  .dlpill { order: 1; width: auto; }
+  .topbar .searchbtn { order: 2; }
+  .topbar .theme-toggle { order: 3; }
+  .dlpill .deadline {
+    flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    min-height: 40px; padding: 3px 9px; border-radius: 10px;
+  }
+  .dl-cd { font-size: 15px; line-height: 1.05; }
+  .dl-txt { display: block; min-width: 0; }
+  .dl-l { display: block; font-size: 11px; line-height: 1.05; letter-spacing: .04em; white-space: nowrap; }
+  .dlpill .stat-sub { display: none; }
+  .theme-toggle.icon-only { width: 40px; height: 40px; }
+  .score .stat dd:first-of-type { font-size: 18px; line-height: 1.05; }
+  .score .stat dt { white-space: nowrap; font-size: 11px; letter-spacing: .04em; line-height: 1.15; }
+  .score .stat-sub { font-size: 11px; line-height: 1.15; }
 }
 
-@media (max-width: 340px) {
-  .score .stat dt { white-space: normal; }
-}
-
-@media (max-width: 420px) {
-  .team h1 { font-size: 24px; }
-  .score .stat dd:first-of-type { font-size: 22px; }
+@media (max-width: 360px) {
+  .topbar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .team h1 { font-size: 19px; }
+  .dlpill .deadline { padding: 3px 7px; }
   .score .stat-sub { white-space: normal; }
 }
 
