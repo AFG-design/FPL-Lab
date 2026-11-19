@@ -49,6 +49,8 @@ DEFAULTS = {
     "cal_int": 0.33,
     "sim_sigma": 0.5,      # uncertainty in each player's true scoring rate (log scale) in the simulation
     "sim_match": True,     # shift simulated scores so their average equals the projection
+    "fx_out": False,       # FL-223: also return each fixture's simulation inputs (players[pid]["fx"]) for league_sim.py.
+                           # Output only: xP, detail and dist are the same with it on or off (league_sim.py checks).
     "sim": 0,              # simulated outcomes per fixture for points distributions (0 = off; build.py uses 4000).
                            # 2025/26 + 2026/27 check: chance of 10+ / 6+ / 2-or-fewer error 0.111 vs 0.119 for a normal
                            # curve on the variance formula (no model 0.122). The formula still fits the spread better,
@@ -621,8 +623,11 @@ def market_ratings(ctx, as_of, P):
     return rating, league
 
 
-def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90, mu_f, mu_a, sv_rate, p_dc, b_exp, yc90):
-    """One fixture, N simulated outcomes: (raw points, appeared) arrays. Parts follow project()."""
+def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90, mu_f, mu_a, sv_rate, p_dc, b_exp, yc90,
+                 gf=None, ga=None):
+    """One fixture, N simulated outcomes: (raw points, appeared) arrays. Parts follow project().
+    gf / ga: the club's goals for / against in each run, when the caller draws one shared scoreline per fixture
+    (league_sim.py, FL-223). None (project()): drawn here per player, as before."""
     u = rng.random(N)
     start = u < ps
     sub = (u >= ps) & (u < ps + pb)
@@ -634,8 +639,9 @@ def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90
     if P["sim_sigma"]:  # we only estimate his true scoring rate: draw it per run
         q = np.exp(P["sim_sigma"] * rng.standard_normal(N) - P["sim_sigma"] ** 2 / 2)
         g90, a90 = g90 * q, a90 * q
-    gf = rng.poisson(mu_f, N)
-    ga = rng.poisson(P["cs_k"] * mu_a, N)
+    if gf is None:
+        gf = rng.poisson(mu_f, N)
+        ga = rng.poisson(P["cs_k"] * mu_a, N)
     goals = rng.binomial(gf, np.clip(f * g90 / max(mu_f, 1e-6), 0, 0.95))
     assists = rng.binomial(gf - goals, np.clip(f * a90 / max(mu_f - np.mean(g90) * f.mean(), 0.05), 0, 0.95))
     appeared = start | sub
@@ -667,13 +673,21 @@ def _sim_fixture(rng, N, pos, scoring, P, ps, pb, p60s, m_start, m_sub, g90, a90
     return pts.astype(float), appeared
 
 
+def match_mean(samples, appeared, xp, rng):
+    """The runs where he plays gain or lose whole points at random so the average matches the projection (xp).
+    No run where he plays: unchanged (nothing to shift; his xP is then ~0 anyway)."""
+    if not appeared.any():
+        return samples
+    d = (xp - samples.mean()) / appeared.mean()
+    step = np.floor(d) + (rng.random(len(samples)) < d - np.floor(d))
+    return samples + np.where(appeared, step, 0.0)
+
+
 def _dist(samples, appeared=None, xp=None, rng=None):
     """Summary of a simulated points distribution (whole-number FPL scores). With xp, the runs where
     he plays gain or lose whole points at random so the average matches the projection."""
     if xp is not None and appeared is not None and appeared.any():
-        d = (xp - samples.mean()) / appeared.mean()
-        step = np.floor(d) + (rng.random(len(samples)) < d - np.floor(d))
-        samples = samples + np.where(appeared, step, 0.0)
+        samples = match_mean(samples, appeared, xp, rng)
     q = np.percentile(samples, [10, 90])
     return {"sd": round(float(samples.std()), 2), "p10": round(float((samples >= 10).mean()), 3),
             "p6": round(float((samples >= 6).mean()), 3), "blank": round(float((samples <= 2).mean()), 3),
@@ -932,7 +946,7 @@ def project(ctx, as_of, horizon=6, params=None):
         ch_now = e.get("chance_of_playing_next_round")
         ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
-        per_gw, detail, dist, assumed = {}, {}, {}, set()
+        per_gw, detail, dist, assumed, fx_ = {}, {}, {}, set(), {}
         xm_next = ps_next = p60_next = 0.0
         start_next = sub_next = None   # chance of starting / coming on in one match next gameweek; None: no match (blank)
         base_min = (p_start, p_sub, m_start, m_sub)
@@ -1001,6 +1015,17 @@ def project(ctx, as_of, horizon=6, params=None):
                     comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
                 comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
                 comp["cards"] -= yc90 * m / 90
+                if P["fx_out"] and (ps + pb) > 0.01:
+                    # FL-223: the same inputs the sim below passes to _sim_fixture, plus the fixture (home, away),
+                    # so league_sim.py can draw one scoreline per fixture and share it out to both clubs' players
+                    fx_.setdefault(g, []).append({
+                        "h": tid if home else opp, "a": opp if home else tid, "home": home,
+                        "args": (pos, min(1.0, ps), min(1.0 - min(1.0, ps), pb), p60_given_start, m_start, m_sub,
+                                 P["goal_mult"] * xg90 * atk, P["assist_mult"] * xa90 * atk, mu_f, mu_a,
+                                 sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0,
+                                 (p_dc, p_dc_sub) if P["dc_fixture"] else p_dc,
+                                 P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90,
+                                 yc90)})
                 if P["sim"] and (ps + pb) > 0.01:
                     # one random stream per FIXTURE: in a double gameweek the second match used to reuse the first
                     # one's seed, so both had identical start, rate and team-goal draws (overstated haul and blank
@@ -1037,6 +1062,7 @@ def project(ctx, as_of, horizon=6, params=None):
             "start_guess": start_guess,   # FL-030: weight of the arrival price-band guess in his start chance (0 = none)
             "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
             "start_next": start_next, "sub_next": sub_next,
+            **({"fx": fx_} if P["fx_out"] else {}),
         }
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}
 

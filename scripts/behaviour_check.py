@@ -737,7 +737,8 @@ def check_fixture_horizon(page):
       out.est = document.querySelectorAll(".fixtures .fx-est").length;
       out.estInModelWeeks = [...document.querySelectorAll(".fixtures tbody tr:first-child td.fxc")].slice(0, GWS.length).some(td => td.querySelector(".fx-est"));
       S.fxSort = "team"; render();
-      const names = [...document.querySelectorAll(".fixtures tbody .fx-club")].map(x => x.lastElementChild.textContent);
+      // The full name, which the page sorts by. Since FL-193 the cell also holds a short code (.fx-short) after it.
+      const names = [...document.querySelectorAll(".fixtures tbody .fx-club .fx-full")].map(x => x.textContent);
       out.sortedTeam = names.join("|") === [...names].sort((a, b) => a.localeCompare(b)).join("|");
       S.fxSort = "total"; render();
       const tots = [...document.querySelectorAll(".fixtures tbody tr")].map(tr => +tr.children[3].textContent);

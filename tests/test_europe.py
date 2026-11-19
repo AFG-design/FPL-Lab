@@ -43,10 +43,12 @@ class Readers(unittest.TestCase):
         self.assertEqual(fm.europe_dates("/no/such/file.json", teams), {})
 
     def test_history_by_season(self):
-        teams = [{"id": 7, "short_name": "AVL"}]
-        got = fm.europe_dates(str(ROOT / "europe_hist.json"), teams, "2024-25")
-        self.assertIn(D(2025, 4, 15), got[7])           # Villa's Champions League quarter-final second leg
-        self.assertEqual(fm.europe_dates(str(ROOT / "europe_hist.json"), teams, "2025-26"), {})   # Villa: no 2025-26 file
+        teams = [{"id": 7, "short_name": "AVL"}, {"id": 14, "short_name": "MUN"}]
+        got25 = fm.europe_dates(str(ROOT / "europe_hist.json"), teams, "2024-25")
+        self.assertIn(D(2025, 4, 15), got25[7])         # Villa's Champions League quarter-final second leg
+        got26 = fm.europe_dates(str(ROOT / "europe_hist.json"), teams, "2025-26")
+        self.assertIn(D(2026, 5, 20), got26[7])         # Villa's 2025/26 Europa League final (from manual supplement)
+        self.assertNotIn(14, got26)                     # Man Utd: not in Europe in 2025/26
 
 
 class Parser(unittest.TestCase):
@@ -69,6 +71,57 @@ class Parser(unittest.TestCase):
     def test_unknown_english_club_fails_loudly(self):
         with self.assertRaises(SystemExit):
             europe_hist.parse("  Tue Sep 17 2024\n    18:45  Mystery Town FC (ENG) v X (ITA) 1-0\n", "2024-25")
+
+
+class ManualSupplement(unittest.TestCase):
+    def test_merges_and_updates_missing(self):
+        res = {"seasons": {"2025-26": {"ARS": {"UCL": ["2025-09-16"]}}},
+               "missing": ["2025-26 UEL", "2025-26 UECL"]}
+        manual = {
+            "source": ["https://www.uefa.com/uefaeuropaleague/history/seasons/2026/matches/"],
+            "seasons": {
+                "2025-26": {
+                    "UEL": {"AVL": ["2026-05-20", "2025-09-25"], "NFO": ["2025-09-24"]},
+                    "UECL": {"CRY": ["2025-08-21"]},
+                }
+            },
+        }
+        skipped = europe_hist.merge_manual(res, manual)
+        self.assertEqual(skipped, [])
+        self.assertEqual(res["missing"], [])
+        self.assertEqual(res["seasons"]["2025-26"]["AVL"], {"UEL": ["2025-09-25", "2026-05-20"]})
+        self.assertEqual(res["seasons"]["2025-26"]["NFO"], {"UEL": ["2025-09-24"]})
+        self.assertEqual(res["seasons"]["2025-26"]["CRY"], {"UECL": ["2025-08-21"]})
+        self.assertEqual(res["seasons"]["2025-26"]["ARS"], {"UCL": ["2025-09-16"]})
+        self.assertEqual(res["supplement_source"], manual["source"])
+
+    def test_openfootball_wins_when_not_missing(self):
+        res = {"seasons": {"2025-26": {"AVL": {"UEL": ["2025-09-25"]}}}, "missing": []}
+        manual = {"seasons": {"2025-26": {"UEL": {"AVL": ["2025-10-02"]}}}}
+        skipped = europe_hist.merge_manual(res, manual)
+        self.assertEqual(skipped, ["2025-26 UEL"])
+        self.assertEqual(res["seasons"]["2025-26"]["AVL"]["UEL"], ["2025-09-25"])
+
+    def test_bad_club_name_fails_loudly(self):
+        res = {"seasons": {"2025-26": {}}, "missing": ["2025-26 UEL"]}
+        manual = {"seasons": {"2025-26": {"UEL": {"XXX": ["2025-09-25"]}}}}
+        with self.assertRaises(SystemExit):
+            europe_hist.merge_manual(res, manual)
+
+    def test_date_outside_season_fails_loudly(self):
+        res = {"seasons": {"2025-26": {}}, "missing": ["2025-26 UEL"]}
+        for bad_date in ("2025-06-30", "2026-07-01", "not-a-date"):
+            manual = {"seasons": {"2025-26": {"UEL": {"AVL": [bad_date]}}}}
+            with self.assertRaises(SystemExit):
+                europe_hist.merge_manual(res, manual)
+
+    def test_committed_europe_hist_has_no_missing(self):
+        with open(ROOT / "europe_hist.json") as f:
+            hist = json.load(f)
+        self.assertEqual(hist["missing"], [])
+        self.assertIn("UEL", hist["seasons"]["2025-26"]["AVL"])
+        self.assertIn("UEL", hist["seasons"]["2025-26"]["NFO"])
+        self.assertIn("UECL", hist["seasons"]["2025-26"]["CRY"])
 
 
 if __name__ == "__main__":
