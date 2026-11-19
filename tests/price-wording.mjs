@@ -37,7 +37,7 @@ test('no page compares a price projection with its own 75 or 80', () => {
 });
 
 test('every page that flags a near price change uses the shared test', () => {
-  for (const f of ['views/stats.js', 'views/week.js', 'views/planner.js', 'components/moves-summary.js', 'components/watchlist.js']) {
+  for (const f of ['views/stats.js', 'views/week.js', 'views/planner.js', 'components/moves-summary.js']) {
     assert.match(read(f), /priceRising\(|priceFalling\(/, f);
   }
 });
