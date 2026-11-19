@@ -1303,6 +1303,12 @@ h4.rv-h { font-size: 20px; }
 
 .rv-gap-sm { display: none; }
 
+/* FL-223: title odds */
+.rv-odds-cap { margin: 0 0 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.rv-odds-all { margin: 8px 0 4px; }
+.rv-odds-all summary { padding: 6px 0; }
+.rv-odds .pill { margin-right: 4px; }
+
 @media (width < 768px) {
   .rv-c-gap, .rv-c-chips { display: none; }
   .rv-gap-sm { display: block; font-size: 11px; font-weight: 600; line-height: 1.2; }
@@ -1314,7 +1320,7 @@ h4.rv-h { font-size: 20px; }
 @media (width < 1024px) { .rv-c-chips { display: none; } }
 
 @media (width < 420px) {
-  .rv-standings { padding: 14px 10px; }
+  .rv-standings, .rv-odds { padding: 14px 10px; }
   .rv-table th, .rv-table td { padding-left: 5px; padding-right: 5px; }
   .rv-table .lg-rank { grid-template-columns: auto; gap: 0; place-items: end; }
   .rv-table .tag, .rv-c-live { display: none; }

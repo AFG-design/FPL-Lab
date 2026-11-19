@@ -18,6 +18,7 @@ from backtest import evaluate, baseline, evaluate_horizons, band, head_to_head
 import optimise
 import squad_state
 import fpl_score
+import league_sim
 import decision_journal
 import deadline_snapshot
 import setpiece_log
@@ -981,9 +982,17 @@ def build_field_and_leagues():
             fresh = {}
             try:
                 d = get(f"/leagues-classic/{lg['id']}/standings/")
-                for r in d["standings"]["results"]:
+                res_ = list(d["standings"]["results"])
+                # FL-223: FPL pages standings 50 at a time; crowd.py loads page 2 for leagues of 51-70, so this does too
+                # (rows beyond 50 had no total, rank or GW points). Page 2 failing: those rows stay blank, as before.
+                if len(lg["members"]) > 50 and d["standings"].get("has_next"):
+                    try:
+                        res_ += get(f"/leagues-classic/{lg['id']}/standings/?page_standings=2")["standings"]["results"]
+                    except Exception as ex_:
+                        print(f"league {lg['id']} standings page 2 failed: {ex_}")
+                for r in res_:
                     fresh[r["entry"]] = r
-                me_rank = next((r for r in d["standings"]["results"] if r["entry"] == TEAM_ID), None)
+                me_rank = next((r for r in res_ if r["entry"] == TEAM_ID), None)
             except Exception:
                 me_rank = None
             rows = []
@@ -1038,6 +1047,49 @@ def build_field_and_leagues():
                      # label; a sample from before these fields existed gives None (not known), never "complete"
                      "complete": crowd.get("complete"), "failed": crowd.get("failed"),
                      "rank_assumed": crowd["near"].get("rank_assumed")}
+
+
+def build_league_odds():
+    """FL-223: title odds for each small mini-league (league_sim.py): P(1st), P(top 3), P(last) per manager, and your
+    P(1st) with each of your top 3 captain options next gameweek. Projections are the model's own over every remaining
+    gameweek (fx_out only adds each fixture's simulation inputs; the first HORIZON gameweeks equal the published xP).
+    Missing / late / ambiguous (league_sim.py's docstring has the full list): no crowd sample -> no odds; a rival with
+    no picks, Free Hit picks or no league total is left out and named; a league crowd.py only part-sampled gets no odds
+    and says why. Your squad is the one you own going forward (own_picks: after a Free Hit, the restored one)."""
+    global league_odds_check
+    league_odds_check = None
+    if not crowd_out or not crowd:
+        return
+    t_ = time.time()
+    gws = [e["id"] for e in events if next_gw and e["id"] >= next_gw]
+    long_ = project(ctx, next_gw, len(gws), {"fx_out": True}) if gws else None
+    P = dict(DEFAULTS)
+    rows_by = {lg["id"]: {r["entry"]: r for r in lg["rows"]} for lg in crowd_out["leagues"]}
+    my_pk = [[p["element"], p["multiplier"]] for p in own_picks["picks"]] if own_picks else None
+
+    def picks_of(e_id):
+        if e_id == TEAM_ID:
+            return (my_pk, None) if my_pk and len(my_pk) == 15 else (None, "your picks didn't load")
+        pk = crowd["rivals"].get(str(e_id))
+        if not pk:
+            return None, "picks didn't load"
+        if pk.get("chip") == "freehit":
+            return None, f"on a Free Hit in GW{crowd['gw']}, so their own squad isn't in the saved picks"
+        if len(pk["p"]) != 15:
+            return None, "picks incomplete"
+        return pk["p"], None
+
+    totals_of = lambda lid, e_id: rows_by.get(lid, {}).get(e_id, {}).get("total")
+    lgs = [{"id": lg["id"], "size": lg["size"], "members": [r["entry"] for r in lg["rows"]]} for lg in crowd_out["leagues"]]
+    pos = {i: POS[e["element_type"]] for i, e in elements.items()}
+    odds, league_odds_check = league_sim.league_odds(
+        lgs, picks_of, totals_of, pos, long_["players"] if long_ else {}, long_["upcoming"] if long_ else {}, gws,
+        ctx["scoring"], P, TEAM_ID, crowd["gw"], crowd_out["in_play"])
+    for lg in crowd_out["leagues"]:
+        lg["odds"] = odds.get(lg["id"])
+    crowd_out["odds_check"] = {"gw": next_gw, "means": league_odds_check or {}}
+    print(f"league odds: {sum(1 for o in odds.values() if o.get('ok'))} of {len(odds)} leagues, "
+          f"{len(gws)} GWs x {league_sim.RUNS} runs, {time.time() - t_:.1f}s")
 
 
 def build_weekly_review():
@@ -2116,7 +2168,7 @@ def write_output():
 
 STEPS = (fetch_fpl, load_sources, prepare_context, project_players, read_squad, build_player_stats, make_plans,
          measure_accuracy, log_weekly_accuracy, score_head_to_head, check_absence_rule, find_biggest_misses,
-         list_chips_and_gameweeks, build_live_gameweek, build_field_and_leagues, build_weekly_review,
+         list_chips_and_gameweeks, build_live_gameweek, build_field_and_leagues, build_league_odds, build_weekly_review,
          build_chip_ledger, score_decisions, define_log_helpers, track_template, build_season_ledger,
          score_you_vs_model, build_decision_journal, track_set_pieces, build_team_trends, build_afg_suggestion,
          log_news_history, keep_returners, track_prices, rate_squad, fetch_watch_teams, assemble_output,

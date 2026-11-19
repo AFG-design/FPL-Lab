@@ -119,6 +119,56 @@ def check_rival_subs(D, errors):
                               f"his picks (starter off, bench player on, each once)")
 
 
+def check_league_odds(D, errors, warnings):
+    """FL-223: mini-league title odds (league_sim.py). Per league with odds: P(1st) and P(last) each sum to 100% and
+    P(top 3) to 300% (fewer managers: 100% each); every chance is 0-100%; the managers counted plus those left out are
+    the league; the run covers every gameweek from the next one to the last. The simulated average of every player
+    in the sim is within 0.1 of his xP next gameweek, and that xP is the published one (so the season-long projection
+    the sim uses agrees with the site's). A league with no odds must say why. Data from before FL-223: not checked."""
+    cr = D.get("crowd") or {}
+    meta = D.get("meta") or {}
+    nxt, last = meta.get("next_gw"), meta.get("last_gw") or 38
+    for lg in cr.get("leagues") or []:
+        o, tag = lg.get("odds"), f"League odds {lg.get('name')}"
+        if o is None:
+            continue
+        if not o.get("ok"):
+            if not o.get("why"):
+                errors.append(f"{tag}: no odds and no reason given")
+            continue
+        rows = o.get("rows") or []
+        n = len(rows)
+        if n != o.get("n") or n + len(o.get("left_out") or []) != o.get("m") or n < 2:
+            errors.append(f"{tag}: {n} rows, n={o.get('n')}, {len(o.get('left_out') or [])} left out, m={o.get('m')}")
+        for k, want in (("p1", 1), ("plast", 1), ("p3", min(3, n))):
+            tot = sum(r.get(k) or 0 for r in rows)
+            if abs(tot - want) > 0.005 * max(1, n / 10):
+                errors.append(f"{tag}: {k} sums to {tot:.3f}, expected {want}")
+        if any(not (0 <= r.get(k, -1) <= 1) for r in rows for k in ("p1", "p3", "plast")):
+            errors.append(f"{tag}: a chance outside 0-100%")
+        want_gws = (last - nxt + 1) if nxt else 0
+        if o.get("n_gws") != want_gws or (o.get("gws") or [None])[0] != nxt:
+            errors.append(f"{tag}: simulates {o.get('n_gws')} GWs from GW{(o.get('gws') or [None])[0]}, expected "
+                          f"{want_gws} from GW{nxt}")
+        cap = o.get("captain")
+        if cap and (len(cap.get("options") or []) > 3 or any(not (0 <= c.get("p1", -1) <= 1) for c in cap["options"])):
+            errors.append(f"{tag}: captain comparison has more than 3 options or a chance outside 0-100%")
+        if o.get("left_out"):
+            warnings.append(f"{tag}: {len(o['left_out'])} of {o.get('m')} managers left out "
+                            f"({', '.join(sorted({x['why'] for x in o['left_out']}))})")
+    chk = cr.get("odds_check")
+    if chk and chk.get("means"):
+        xp = {str(p["id"]): (p.get("xp") or {}).get(str(chk.get("gw")), 0.0) for p in D.get("players") or []}
+        bad = [(k, m, x) for k, (m, x) in chk["means"].items() if abs(m - x) > 0.1]
+        if bad:
+            errors.append(f"League odds: {len(bad)} players' simulated average is more than 0.1 from their xP, e.g. "
+                          f"player {bad[0][0]}: {bad[0][1]:.2f} v {bad[0][2]:.2f}")
+        off = [k for k, (m, x) in chk["means"].items() if k in xp and abs(x - xp[k]) > 0.011]
+        if off:
+            errors.append(f"League odds: the season-long projection disagrees with the published GW{chk.get('gw')} xP "
+                          f"for {len(off)} players, e.g. player {off[0]}")
+
+
 def check_awards(D, errors, warnings):
     """Weekly honours (awards.py -> data.json "awards"): each league's latest settled week. Medals follow competition
     ranking within an award: values best first, equal values share a rank, the next rank skips (1, 1, 3), only ranks 1-3
@@ -1033,6 +1083,7 @@ def main(path):
                           f"chance {pl.get('chance')}, minutes {pl.get('mins')}, news {pl.get('news')!r} don't support it")
     check_arrivals(D, errors)
     check_rival_subs(D, errors)
+    check_league_odds(D, errors, warnings)
     check_awards(D, errors, warnings)
     # FL-082: make_priors.py writes start_rate; a prior without it uses fplmodel's minutes guess (inert while start_prior
     # is 0). Warn rather than fail: priors.json built before FL-082 has none until the Monday Priors run.
