@@ -639,7 +639,6 @@ tr.is-rival td { background: var(--accent-soft); }
 .lm-mine { font-size: var(--fs-xs); color: var(--muted); }
 .gwscores { display: grid; gap: 16px; min-width: 0; }
 .gwscores:focus { outline: none; }
-#watchlist:focus { outline: none; }
 
 /* actual-points cards: match state under the number. Bench and subbed-off players: a dashed border, the muted number
    and the "Not counted" / "Subbed off" line mark them. No opacity: dimming the card took its text below AA (FL-123). */

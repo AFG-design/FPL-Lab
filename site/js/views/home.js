@@ -196,7 +196,7 @@ function vNext() {
         return `<li><button class="linkish pname" data-p="${i}">${esc(P[i].name)}</button> · ${money(P[i].price)}${dp ? ` <span class="${dp > 0 ? "up" : "down"}">${dp > 0 ? "▲" : "▼"}${Math.abs(dp).toFixed(1)}</span>` : ""} · ${f1(xpFrom(i, g, PG.length))} xP over ${PG.length} GWs</li>`; }).join("")}
       ${news.slice(0, 3).map(([t, id, , cur]) => `<li class="${newsCls(cur[0])}"><button class="linkish pname" data-p="${id}">${esc(P[id].name)}</button>: ${newsLine(cur)} <span class="muted">· ${agoTxt(t)}</span></li>`).join("")}</ul>`
     : `<p class="muted side-empty">Nobody on your watchlist and no news on your players this week. Star a player from his info panel to follow him.</p>`,
-    `<button class="btn sm" data-scrollto="watchlist">Open watchlist →</button>`, `<span class="muted">${stars.length} starred</span>`);
+    "", `<span class="muted">${stars.length} starred</span>`);
 
   // needs attention: availability, minutes, money and plan validity
   const att = c.risks.filter(r => r[0] === "bad" || r[0] === "warn");
@@ -207,7 +207,7 @@ function vNext() {
     att.length ? `<span class="pill warn">${att.length} to check</span>` : `<span class="pill good">Clear</span>`);
 
   return `${hero}<div class="home-main">${left}<div class="home-side">${board}<div class="home-side2">${na}${qr}${wl}</div></div></div>${prevGwStrip()}
-    <div class="grid2">${squadRatingPanel()}<div id="watchlist" tabindex="-1">${starsPanel()}</div></div>`;
+    ${squadRatingPanel()}`;
 }
 // The pitch's plan-week preview: which plan and which of its gameweeks the pitch shows. In memory only, so every visit
 // (and every reload) opens on your own plan's next-deadline team; nothing here changes your plan or the Planner's state.
