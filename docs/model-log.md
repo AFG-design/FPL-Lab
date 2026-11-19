@@ -45,6 +45,12 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   Pooled 2025/26 + 2024/25: **5-GW picks −0.045 [−0.116, +0.023]** (includes 0, not wholly below); **DC part
   −0.00068 [−0.00099, −0.00040] better**. Every other part unchanged. No-harm: no CI entirely below zero (2025/26
   captain touches 0 at its upper end). 2025/26 5-GW corr 0.524 → 0.522.
+- **Re-run after FL-213 merged** (2025/26 now with Europa and Conference League dates; same switch pairing): pooled
+  5-GW picks **−0.063 [−0.133, +0.009]** (still includes 0); pooled DC part **−0.00069 [−0.00100, −0.00041] better**.
+  2025/26: 1-GW picks 4.46 → 4.46, +0.00 [−0.03, +0.04]; 5-GW picks 19.10 → 18.97, −0.13 [−0.27, +0.01]; captain −0.09
+  [−0.23, +0.00]; top-5 +0.15 [−0.03, +0.35]; DC part −0.00139 [−0.00202, −0.00083]. This season and 2024/25 are
+  unchanged. 2025/26 segment check: no segment past the limits (MAE 1.8570 → 1.8640, DEF ΔMAE +0.014, top 30 +0.021);
+  raw DefCon real/projected 1.39 → 1.16. Same decision row.
 - **Segments.** `backtest.py --compare` on this season (with and without status log): identical, nothing flagged. Same
   segment check run on 2025/26 GW4–38 (scratch script feeding `backtest.compare`): no segment past the limits.
   Headline MAE 1.8586 → 1.8657 (+0.007), corr 0.4115 → 0.4111, bias −0.049 → −0.024; largest moves DEF ΔMAE +0.014,
