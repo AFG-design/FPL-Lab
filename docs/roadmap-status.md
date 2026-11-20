@@ -17,6 +17,7 @@ Checked against the git log on `main` and the backlog sheet on 20 Nov (evening).
   - Tested, not adopted: FL-214 per-player European cut (#242), FL-160 defender bonus multiplier `def_bonus_mult`, kept at 1.0 (#246), FL-216 Bzzoiro set-piece xG as an Understat stand-in (#243).
   - Data: FL-213 2025/26 Europa and Conference League dates (#236).
   - Features and fixes: FL-223 mini-league title odds (#238), FL-207 98 px phone header (#230), FL-193, FL-196, FL-187, FL-192, FL-195, FL-202, FL-208, FL-211; reports FL-198 (accessibility, #235) and FL-210 (`--hi` uses, #234); FL-206 visual audit 2 (#207).
+- **Also merged on the evening of 18 Nov,** after the 18 Nov section below was written: #208–#223 (FL-179 to FL-186, FL-197, FL-203, FL-204, FL-205, FL-209, and the wide-monitor layout #208–#209).
 - **ID clash fixed (20 Nov):** #247 and #248 used FL-224, which was already the Gemini team-news labels test. Git can't be renamed, so FL-224 now means `dc_blend` in the sheet and the Gemini test is **FL-233**.
 - **Still open in Cycle 2:** FL-098 backup scheduler (first real test: GW11 window, Sat 21 Nov 05:00–11:00 UTC), FL-175 and FL-174 (start chance), FL-199 team-news collector, FL-226 light-mode focus rings, FL-134 ep_next blend (after GW12), FL-021 player-odds re-test (GW12–13), FL-229 style data (PR #249 open).
 - **Dropped 20 Nov:** FL-215 ClubElo test. ClubElo's API returned HTTP 502 on every try in both Antigravity batches.
