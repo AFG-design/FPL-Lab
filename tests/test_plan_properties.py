@@ -164,8 +164,9 @@ def problems(plan, players, squad, sell, bank, ft0, *, max_hits=None, week1_move
         out.append(f"ft_left {plan['ft_left']}, FPL's rules give {ft}")
     if abs(plan["xp_total"] - total) > 0.05:
         out.append(f"xp_total {plan['xp_total']} but the weeks add up to {total:.2f}")
-    if abs(plan["value"] - (plan["xp_total"] + ft_value * plan["ft_left"])) > 0.011:
-        out.append(f"value {plan['value']} isn't xp_total + {ft_value} x ft_left")
+    want_bonus = optimise.ft_bonus(plan["ft_left"], ft_value=ft_value, ft_scale=None if ft_value == 0 else optimise.FT_SCALE)
+    if abs(plan["value"] - (plan["xp_total"] + want_bonus)) > 0.011:
+        out.append(f"value {plan['value']} isn't xp_total + {want_bonus:.2f} for {plan['ft_left']} FTs")
     return out
 
 

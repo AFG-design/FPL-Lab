@@ -11,7 +11,7 @@ function setup(crowd) {
   const ctx = vm.createContext({location: {hash: ''}, crowd,
     myTeam: () => team, scoreMoves: () => score, baseScore: () => score, mk: x => x,
     verdict: () => ({t:'Strong', c:'good'}), CUT_WEEK: [2, 1.5], threats: () => [], vPill: () => '',
-    term: (_, label) => label, MODES: {balanced:'Balanced'}, ftValue: () => 1.5,
+    term: (_, label) => label, MODES: {balanced:'Balanced'}, ftValue: () => 1.5, ftBonus: n => 1.5 * n,
     priceRising: () => false, priceFalling: () => false,
     planLeft: () => 1, planSpan: g => `GW${g}`});   // plan.js is stubbed here (a 1-GW plan); no player has a price projection
   for (const file of ['core/state', 'core/model', 'views/week', 'views/planner']) {

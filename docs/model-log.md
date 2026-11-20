@@ -16,6 +16,9 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
 - **dc_r 10 (FL-177)** (adopted 20 Nov 2026, entry below). Re-check at season end. Old value to test against:
   `{"dc_r": null}`. Targeted change (DefCon part): adopted at pooled DC part −0.00013 [−0.00021, −0.00006] better and
   pooled 5-GW +0.016 [−0.023, +0.058]. Revert if the DC part gain has gone.
+- **FT_SCALE (2.0, 1.6, 1.3, 1.1) (FL-165)** (adopted 20 Nov 2026, entry below). Re-check with the planner replay at
+  season end. Old value to test against: `FT_SCALE = None` (flat `FT_VALUE = 1.5`). Adopted at +236 pts across 2
+  seasons × 3 strategies (6/6 cells positive, 0 hits). Revert if the replay gain has gone.
 
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
@@ -44,7 +47,7 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   blocked on (1) verifying free public-site redistribution in Bzzoiro's Data licence and (2) confirming the 11.2%
   blank-player shots are an FPL-Core-Insights mapping gap rather than missing in Bzzoiro's own API.
 
-## 20 Nov 2026 — FL-165: Banked free-transfer value — planner replay study (V2 falling scale qualifies; left OFF by default pending decision)
+## 20 Nov 2026 — FL-165: Banked free-transfer value — falling scale `(2.0, 1.6, 1.3, 1.1)` (Adopt as Marginal — planner)
 
 - **Why:** `optimise.FT_VALUE = 1.5` (flat per banked FT) was chosen by judgement, not measured. Planner-only study
   (projections untouched; `bench.py` and `backtest.py` do not change).
@@ -89,13 +92,13 @@ from odds/archive/ since PR #24, 31 Oct 2026).
     2025-26 (`−35`).
   - **V3 (V2 + `MIN_PROFIT = 0.5`)** hurts all three strategies in 2025-26 (`−8 / −29 / −25`) by cutting rolls (8–10 vs
     15–16) and burning FTs on marginal moves.
-- **Implementation & status:** wired behind `optimise.FT_SCALE = None` (**switched OFF by default** pending user
-  decision, so live behaviour and `data.json` are unchanged), with full parity in `site/plan-solver.js`,
-  `site/js/core/plan.js`, `validate.py`, and `tests/test_ft_scale.py`.
+- **Implementation & status:** switched ON (`optimise.FT_SCALE = (2.0, 1.6, 1.3, 1.1)`, shipped via `plan_rules.ft_scale`),
+  with full solver and UI parity in `site/plan-solver.js`, `site/js/core/plan.js`, `site/js/views/{home,week,planner,decisions,tpaths,school}.js`,
+  `validate.py`, and `tests/test_ft_scale.py`. Undo by setting `optimise.FT_SCALE = None`.
 - **Decision-table row:** Planner-only change (outside the projection `bench.py` decision table; judged on multi-season
-  replay across all strategies with all FPL rules intact) → **Would adopt V2 (`FT_SCALE = (2.0, 1.6, 1.3, 1.1)`)**,
-  stopped for user decision with setting off by default. Rating: **Marginal** (consistent 6/6 cell win across 2 seasons
-  × 3 strategies, +39 pts/season average, though 2 seasons of stateful squad trajectories carry path variance).
+  replay across all strategies with all FPL rules intact) → **Adopt as Marginal (planner)** on 20 Nov 2026. Re-check
+  with the planner replay at season end against `FT_SCALE = None`. Rating: **Marginal** (consistent 6/6 cell win across
+  2 seasons × 3 strategies, +39 pts/season average, though 2 seasons of stateful squad trajectories carry path variance).
 
 ## 20 Nov 2026 — FL-177: DefCon negative-binomial tail, `dc_r` 10 (Adopt as Marginal — targeted change, DC part)
 

@@ -11,7 +11,8 @@ from unittest.mock import patch
 import validate
 import optimise
 # what build.py always ships in plan_rules beside the budgets (FL-075 settings, FL-108 margin, FL-125 ft_value)
-SETTINGS = {**optimise.planner_settings(5), "ft_value": 1.5, "recommend_margin": optimise.RECOMMEND_MARGIN}
+# Existing synthetic fixtures below compute value with flat ft_value=1.5, so ft_scale is None here (tested separately).
+SETTINGS = {**optimise.planner_settings(5), "ft_value": 1.5, "ft_scale": None, "recommend_margin": optimise.RECOMMEND_MARGIN}
 from squad_state import validation_source
 
 
@@ -275,6 +276,21 @@ class Validator(unittest.TestCase):
         self.run_check("isn't xP")
         self.D["plans"]["roll"] = plan(243.0, 4, 7.38)    # points-only gain: a different baseline from chase_roll
         self.run_check("no-transfers baseline")
+
+    def test_ft_scale_value_check(self):
+        """FL-165: with plan_rules.ft_scale set, validate.py checks value = xp_total + ft_scale bonus and rejects flat."""
+        w = {"gw": 11, "in": [], "out": [], "xi": list(range(1, 12)), "bench": list(range(12, 16)),
+             "captain": 1, "vice": 2, "ft": 1, "hits": 0, "bank": 1.0, "xp": 50}
+        self.D["plans"] = {
+            "roll": {"weeks": [w], "xp_total": 243.0, "ft_left": 4, "value": 247.9, "vs_none": 5.0, "vs_balanced": 0.0},
+            "chase_roll": {"weeks": [w], "xp_total": 242.54, "ft_left": 3, "value": 246.14, "vs_none": 3.24, "vs_balanced": -1.76},
+        }
+        self.D["plan_rules"] = {**SETTINGS, "ft_scale": [2.0, 1.6, 1.3, 1.1], "tie": 0.1, "recommend_margin": 0.5}
+        self.D["recommended"] = {"balanced": None, "safe": None, "chase": None}
+        self.run_check()
+        # flat 1.5 * 4 = 6.0 instead of 4.9 must fail
+        self.D["plans"]["roll"]["value"] = 249.0
+        self.run_check("for 4 FTs banked")
 
     def test_deadline_parse_failure_remains_a_warning(self):
         self.D["meta"]["deadline"] = "2026-11-09T12:00:00+00:00"

@@ -14,8 +14,8 @@ function weekCalls() {
   const moves0 = me.moves0, later = me.later;
   const roll = pl[mk("roll")] ? scoreMoves(planMoves(pl[mk("roll")])) : baseScore();
   // projected points and the assumed value of banked transfers, kept apart so neither hides in the other
-  // banked free transfers at the build's value (plan_rules.ft_value via ftValue(), FL-075; it was a fixed 1.5 here)
-  const ptsVsRoll = me.score.tot - roll.tot, ftBank = ftValue() * (me.score.ftLeft - roll.ftLeft);
+  // banked free transfers at the build's value (plan_rules.ft_scale / ft_value via ftBonus(), FL-075, FL-165)
+  const ptsVsRoll = me.score.tot - roll.tot, ftBank = ftBonus(me.score.ftLeft) - ftBonus(roll.ftLeft);
   const vsRoll = ptsVsRoll + ftBank;
   const tV = moves0.length ? verdict(vsRoll) : verdict(-vsRoll + 1, 3, 1.5);
   // lineup

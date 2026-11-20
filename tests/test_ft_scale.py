@@ -8,9 +8,9 @@ import optimise
 
 
 class TestFtScale(unittest.TestCase):
-    def test_off_by_default(self):
-        self.assertIsNone(optimise.FT_SCALE)
-        self.assertNotIn("ft_scale", optimise.planner_settings(5))
+    def test_enabled_by_default(self):
+        self.assertEqual(optimise.FT_SCALE, (2.0, 1.6, 1.3, 1.1))
+        self.assertEqual(optimise.planner_settings(5)["ft_scale"], [2.0, 1.6, 1.3, 1.1])
 
     def test_ft_bonus_flat_and_scale(self):
         self.assertAlmostEqual(optimise.ft_bonus(1, ft_value=1.5, ft_scale=None), 1.5)

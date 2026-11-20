@@ -225,12 +225,12 @@ function vTpaths() {
   <details class="panel tp-more"><summary>Strategy details: field ownership, haul chance, free transfers left</summary>${pvCompare()}</details>`;
 }
 function tpCalc(rows, hold) {
-  const ftv = 1.5;
+  const sc = ftScale();
   return `<p class="note">For each path: <b>cells</b> are the best XI's projected points that week with the captain doubled, before hits. <b>Net xP</b> = the sum of the cells − 4 × hits (each hit counted once). <b>vs Hold</b> = Net xP − Hold's ${f1(hold.sc.tot)}, both as shown to one decimal. Every row uses the same starting squad, bank, free transfers and forecast (updated ${whenTxt(D.meta.built)}). Hold keeps your 15 and still picks the best XI and captain each week. Model rows use the optimiser's own lineups; saved paths keep the strategy and captain choices they were saved with.</p>
-    <p class="note">The optimiser and the verdicts elsewhere also give each free transfer still banked at the end an assumed value of ${ftv} points. That is a planning assumption, not projected points, so it is shown here and kept out of Net xP.</p>
+    <p class="note">${sc ? `The optimiser and the verdicts elsewhere also value banked free transfers left at the end on a falling scale (${sc.map(f1).join("/")} for the 2nd–5th; 0 for the 1st)` : `The optimiser and the verdicts elsewhere also give each free transfer still banked at the end an assumed value of ${f1(ftValue())} points`}. That is a planning assumption, not projected points, so it is shown here and kept out of Net xP.</p>
     <div class="tablebox"><table><thead><tr><th>Path</th><th class="n">Sum of cells</th><th class="n">Hits</th><th class="n">Net xP</th><th class="n">FT left at end</th><th class="n">Banked FT value (assumed)</th></tr></thead>
     <tbody>${rows.map(r => { const sum = r.sc.weeks.reduce((a, w) => a + w.team.pts, 0), h = r.sc.weeks.reduce((a, w) => a + w.hits, 0);
-      return `<tr><td>${esc(r.name)}</td><td class="n">${f1(sum)}</td><td class="n">${h ? "−" + 4 * h : "0"}</td><td class="n"><b>${f1(r.sc.tot)}</b></td><td class="n">${r.sc.ftLeft}</td><td class="n muted">${f1(ftv * r.sc.ftLeft)}</td></tr>`; }).join("")}</tbody></table></div>`;
+      return `<tr><td>${esc(r.name)}</td><td class="n">${f1(sum)}</td><td class="n">${h ? "−" + 4 * h : "0"}</td><td class="n"><b>${f1(r.sc.tot)}</b></td><td class="n">${r.sc.ftLeft}</td><td class="n muted">${f1(ftBonus(r.sc.ftLeft))}</td></tr>`; }).join("")}</tbody></table></div>`;
 }
 // the selected path and gameweek, in one strip under the table
 function tpStrip(r, g, rows) {

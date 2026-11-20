@@ -121,7 +121,7 @@ async function schoolBest(r) {
     const players = {};
     D.players.forEach(p => { players[p.id] = { pos: p.pos, team: p.team, price: p.price, xp: p.xp || {}, ok: p.ok !== false }; });
     const sol = await window.FPLSolver.solve(highs, { ...settings, players, squad: [], sell: {}, bank: r.budget, ft0: 5, gws: r.gws,
-      hit: 0, ftValue: 0, maxMovesWeek: 15, freezeAfter: 1, maxHits: null, locked: [], banned: [] }, () => { SOLVE.highs = null; return getHighs(); });
+      hit: 0, ftValue: 0, ftScale: null, maxMovesWeek: 15, freezeAfter: 1, maxHits: null, locked: [], banned: [] }, () => { SOLVE.highs = null; return getHighs(); });
     r.best = sol.value; r.bestNote = null;
   } catch (e) {
     r.best = null; r.bestNote = `the best 15 for this money couldn't be worked out (${e.message || e}), so the rating is against the top-10k only`;
