@@ -24,6 +24,82 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 20 Nov 2026 — FL-160: Defender bonus multiplier `def_bonus_mult` (Don't adopt — keep `1.0`)
+
+- **Why:** raw bonus for DEF and GKP is under-projected in both checkable seasons (real/projected DEF `1.21` in
+  2025/26 and `1.18`–`1.21` this season; GKP `1.21` and `1.61`–`1.63`), while MID is roughly right this season
+  (`0.97`–`1.00`). On 18 Nov (issue #194), `def_bonus_mult = 1.2` was benched inside a package with the DefCon prior
+  fix and `dc_r 10`. With `dc_r 10` (FL-177) now on main, this tests `def_bonus_mult` **on its own**.
+- **Change:** `DEFAULTS["def_bonus_mult"] = 1.0` in `fplmodel.py` (multiplies `bonus_scale` for DEF and GKP only in
+  `comp["bonus"]`, `fx_out`, and `bexp`; MID and FWD unchanged). Any non-number, bool, NaN/Inf, or value `<= 0` raises
+  `ValueError` (no silent default). **Identity check:** `def_bonus_mult = 1.0` reproduces main (`0160bb7`, with
+  `dc_r = 10`) to every printed digit on `bench.py` and both `backtest.py` runs (without and with status log).
+- **Pre-registered variants (listed in the PR before running; no others):** V1 `1.1`, V2 `1.2` (#194's value), V3
+  `1.3`, each against main (`1.0`). `cs_k`, `dc_blend`, `bonus_scale` and `dc_r` untouched.
+- **bench.py (candidate − main; all three seasons score Bonus, so pooled Bonus covers 2024/25 + 2025/26; `bench.py`
+  has no pooled 1-GW interval, so 1-GW is reported per season):**
+
+| | V1 `1.1` | V2 `1.2` | V3 `1.3` |
+|---|---|---|---|
+| **Pooled Bonus part (sq. error)** | −0.00007 [−0.00021, +0.00008] ~0 | +0.00001 [−0.00027, +0.00031] ~0 | +0.00024 [−0.00019, +0.00068] ~0 |
+| 2025/26 Bonus part | −0.00006 [−0.00028, +0.00015] | +0.00003 [−0.00040, +0.00047] | +0.00028 [−0.00036, +0.00094] |
+| 2024/25 Bonus part | −0.00007 [−0.00027, +0.00011] | −0.00000 [−0.00040, +0.00035] | +0.00020 [−0.00041, +0.00072] |
+| This season Bonus part | −0.00022 [−0.00070, +0.00025] | −0.00026 [−0.00122, +0.00069] | −0.00013 [−0.00156, +0.00132] |
+| **Pooled 5-GW picks (60 origins)** | −0.007 [−0.028, +0.014] ~0 | −0.023 [−0.056, +0.010] ~0 | −0.030 [−0.076, +0.016] ~0 |
+| 5-GW picks 2025/26 (main 18.99) | 18.98, −0.01 [−0.05, +0.03] | 18.97, −0.02 [−0.08, +0.04] | 18.93, −0.06 [−0.14, +0.02] |
+| 5-GW picks 2024/25 (main 19.16) | 19.16, −0.00 [−0.01, +0.01] | 19.14, −0.03 [−0.06, +0.00] | 19.16, +0.00 [−0.05, +0.04] |
+| 5-GW picks this season (main 18.23, 4 origins) | 18.23, +0.00 [+0.00, +0.00] | 18.32, +0.09 [+0.00, +0.27] | 18.32, +0.09 [+0.00, +0.28] |
+| 1-GW picks 2025/26 (main 4.46) | 4.46, −0.00 [−0.01, +0.01] | 4.45, −0.01 [−0.03, +0.00] | 4.45, −0.01 [−0.03, +0.01] |
+| 1-GW picks 2024/25 (main 4.25) | 4.24, −0.01 [−0.02, +0.00] | 4.24, −0.01 [−0.02, +0.00] | 4.24, **−0.01 [−0.02, −0.00]** ⚠ |
+| 1-GW picks this season (main 4.35) | 4.37, +0.01 [−0.01, +0.06] | 4.38, +0.03 [−0.01, +0.07] | 4.39, +0.03 [−0.01, +0.08] |
+| Captain 2025/26 / 2024/25 / this | +0.00 / +0.00 / +0.00 | −0.14 [−0.43, +0.00] / +0.00 / +0.00 | −0.26 [−0.66, +0.00] / +0.00 / +0.12 |
+| Top-5 2025/26 / 2024/25 / this | +0.03 / −0.03 / −0.07 | +0.02 / **−0.06 [−0.13, −0.01]** ⚠ / −0.03 | −0.02 / −0.01 / −0.03 |
+| No-harm trips (CI wholly < 0) | None | **2024/25 top-5** | **2024/25 1-GW picks** |
+
+  Every other part score is `+0.00000` in every season. Why Bonus squared error does not clear zero even where mean
+  ratio improves: bonus is sparse and discrete (`0/1/2/3`), so lifting expected bonus on DEF/GKP raises squared error
+  on the ~90% of zero-bonus appearances about as much as it lowers error on bonus games.
+- **backtest.py --compare:**
+  - This season GW3–10 (without / with status log): **0 segments past limits** for all three. Base MAE `1.8270` /
+    `1.7676`, corr `0.4281` / `0.4439`; V1 `+0.0009 / +0.0008` (corr `+0.0002`); V2 `+0.0019 / +0.0017` (`+0.0003`);
+    V3 `+0.0028 / +0.0025` (`+0.0005 / +0.0004`).
+  - **2025/26 GW4–38 segment check** (projections built as `bench.run_archive`, fed to `backtest.compare`; main
+    `n=12847`, MAE `1.8674`): **0 segments past limits** for all three. MAE V1 `+0.0012`, V2 `+0.0025`, V3 `+0.0037`;
+    MID and FWD ΔMAE / Δbias `+0.000`.
+- **Bonus calibration (raw real/projected, 1-fixture weeks; `1.00` = right level; ⚠ = DEF/GKP `< 0.95`):**
+
+| Season | Segment | main (`1.0`) | V1 (`1.1`) | V2 (`1.2`) | V3 (`1.3`) |
+|---|---|---:|---:|---:|---:|
+| 2025/26 | all | 1.20 | 1.16 | 1.12 | 1.09 |
+| | GKP | 1.21 | 1.10 | 1.01 | **0.93** ⚠ |
+| | DEF | 1.21 | 1.10 | 1.01 | **0.93** ⚠ |
+| | MID / FWD | 1.22 / 1.13 | 1.22 / 1.13 | 1.22 / 1.13 | 1.22 / 1.13 |
+| | top 30 | 1.43 | 1.38 | 1.31 | 1.27 |
+| This season (no status log) | all | 1.14 | 1.10 | 1.07 | 1.03 |
+| | GKP | 1.61 | 1.46 | 1.34 | 1.24 |
+| | DEF | 1.18 | 1.07 | 0.98 | **0.91** ⚠ |
+| | MID / FWD | 0.97 / 1.33 | 0.97 / 1.33 | 0.97 / 1.33 | 0.97 / 1.33 |
+| | top 30 | 1.28 | 1.27 | 1.21 | 1.19 |
+| This season (status log) | all | 1.17 | 1.13 | 1.09 | 1.06 |
+| | GKP | 1.63 | 1.48 | 1.36 | 1.25 |
+| | DEF | 1.21 | 1.10 | 1.01 | **0.93** ⚠ |
+| | MID / FWD | 1.00 / 1.36 | 1.00 / 1.36 | 1.00 / 1.36 | 1.00 / 1.36 |
+| | top 30 | 1.30 | 1.28 | 1.23 | 1.22 |
+
+  MID and FWD ratios are unchanged to every printed digit across all three variants and both seasons.
+- **Live effect (best variant V1 `1.1` vs main `1.0`, GW11 on same data):** GW11 xP mean `+0.0032`, max `+0.040`; 5-GW
+  xP moves by `> 0.1` for **14 of 473 players** (8 DEF, 6 GKP, 0 MID/FWD). Biggest 5-GW movers: Trafford (GKP, `+0.21`),
+  Gabriel (DEF, `+0.18`), Vuskovic (DEF, `+0.15`), De Cuyper (DEF, `+0.14`), Konsa (DEF, `+0.13`), Roefs (GKP, `+0.13`),
+  Raya (GKP, `+0.12`). Recommended GW11 plans for team `8122679` are unchanged (roll across all three strategies).
+- **Decision-table row:**
+  - V1 (`1.1`): `CI includes zero and the change is only a tweak (and doesn't qualify as a targeted change)` (pooled
+    Bonus CI includes zero `−0.00007 [−0.00021, +0.00008]`, pooled 5-GW picks `−0.007 [−0.028, +0.014]`) → **Don't adopt**.
+  - V2 (`1.2`) and V3 (`1.3`): `Any segment trips --compare` (no-harm trips in 2024/25: V2 top-5, V3 1-GW picks; plus
+    pooled Bonus worse and V3 pushes DEF/GKP below `0.95`) → **Don't adopt**.
+  - Keep `def_bonus_mult = 1.0`. Rating: **Coin flip**. Next: `cs_k` retune on its own (clean sheets over-projected in
+    2025/26 at `0.90` but under-projected this season at `1.13` — treat as a tweak with a hard bar), then top-30 DefCon
+    over-projection (~`0.87`; `dc_blend` and final calibration).
+
 ## 20 Nov 2026 — FL-216: Bzzoiro Sports Data set-piece xG vs Understat (Analysis only — verdict: No, not as-is)
 
 - **Idea:** Understat occasionally goes stale (`89 of 100` finished matches as of 19 Nov 2026, last updated 1 Nov).

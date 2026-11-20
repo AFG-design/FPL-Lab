@@ -50,6 +50,8 @@ DEFAULTS = {
                            # 10: Adopt as Marginal (20 Nov 2026, model log; targeted change, DC part); re-check at season
                            # end against {"dc_r": null}, revert if the DC part gain has gone.
     "bonus_scale": 0.8,
+    "def_bonus_mult": 1.0, # FL-160: bonus multiplier for DEF and GKP only (1.0 = current behaviour; MID/FWD unchanged).
+                           # Must be a finite number > 0 (not bool); any other value raises (no silent default).
     "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections). FL-114 (13 Nov): 1.0
                            # not adopted (5-GW picks CI includes 0 in both past seasons)
     "goal_mult": 0.88,     # scales goal expectation. FL-114 (13 Nov): 1.0 not adopted (5-GW picks CI includes 0 in
@@ -731,6 +733,9 @@ def _dist(samples, appeared=None, xp=None, rng=None):
 
 def project(ctx, as_of, horizon=6, params=None):
     P = dict(DEFAULTS, **(params or {}))
+    dbm = P["def_bonus_mult"]
+    if isinstance(dbm, bool) or not isinstance(dbm, (int, float)) or not math.isfinite(dbm) or dbm <= 0:
+        raise ValueError(f"def_bonus_mult must be a finite number > 0, got {dbm!r}")
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
     rating, league = team_ratings(ctx, as_of, P)
     H = P["home"]
@@ -1048,7 +1053,8 @@ def project(ctx, as_of, horizon=6, params=None):
                     comp["dc"] += (ps * p_dc + pb * p_dc_sub) * scoring["defensive_contribution"][pos]
                 else:
                     comp["dc"] += p_dc * p60 * scoring["defensive_contribution"][pos]
-                comp["bonus"] += P["bonus_scale"] * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
+                bscale = P["bonus_scale"] if (pos in ("MID", "FWD") or dbm == 1.0) else P["bonus_scale"] * dbm
+                comp["bonus"] += bscale * bo90 * m / 90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3)
                 comp["cards"] -= yc90 * m / 90
                 if P["fx_out"] and (ps + pb) > 0.01:
                     # FL-223: the same inputs the sim below passes to _sim_fixture, plus the fixture (home, away),
@@ -1059,7 +1065,7 @@ def project(ctx, as_of, horizon=6, params=None):
                                  P["goal_mult"] * xg90 * atk, P["assist_mult"] * xa90 * atk, mu_f, mu_a,
                                  sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0,
                                  (p_dc, p_dc_sub) if P["dc_fixture"] else p_dc,
-                                 P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90,
+                                 bscale * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90,
                                  yc90)})
                 if P["sim"] and (ps + pb) > 0.01:
                     # one random stream per FIXTURE: in a double gameweek the second match used to reuse the first
@@ -1067,7 +1073,7 @@ def project(ctx, as_of, horizon=6, params=None):
                     # chances). The first fixture keeps its old seed, so single-fixture weeks are unchanged.
                     seed = pid * 1000 + g * 10 + len(detail)
                     rng = np.random.default_rng(seed if j == 0 else [pid, g, len(detail), j])
-                    bexp = P["bonus_scale"] * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
+                    bexp = bscale * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
                                             p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
                                             P["assist_mult"] * xa90 * atk, mu_f, mu_a,
