@@ -19,7 +19,7 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
 - **FT_SCALE (2.0, 1.6, 1.3, 1.1) (FL-165)** (adopted 20 Nov 2026, entry below). Re-check with the planner replay at
   season end. Old value to test against: `FT_SCALE = None` (flat `FT_VALUE = 1.5`). Adopted at +236 pts across 2
   seasons × 3 strategies (6/6 cells positive, 0 hits). Revert if the replay gain has gone.
-- **dc_blend 15 (FL-XXX)** (adopted 20 Nov 2026, entry below). Re-check at season end. Old value to test against:
+- **dc_blend 15 (FL-224)** (adopted 20 Nov 2026, entry below). Re-check at season end. Old value to test against:
   `{"dc_blend": 4}`. Targeted change (DefCon part): adopted at pooled DC part −0.00037 [−0.00054, −0.00021] better and
   pooled 5-GW +0.045 [−0.010, +0.098]. Revert if the DC part gain has gone.
 
@@ -27,7 +27,7 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
-## 20 Nov 2026 — FL-XXX: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
+## 20 Nov 2026 — FL-224: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
 
 - **Why:** after FL-177 (`dc_r 10`), raw DefCon is near the right level for the pool (2025/26 all `1.08`, DEF `1.05`,
   MID `1.13`), but the top 30 projected each GW are over-projected (`0.88` in 2025/26; `0.83` / `0.86` this season,

@@ -1,4 +1,4 @@
-"""FL-XXX: unit tests for dc_blend validation and n=0, dc_blend=0 fallback."""
+"""FL-224: unit tests for dc_blend validation and n=0, dc_blend=0 fallback."""
 import unittest
 
 import fplmodel

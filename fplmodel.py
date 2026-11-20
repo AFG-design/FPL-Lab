@@ -43,7 +43,7 @@ DEFAULTS = {
     "cred_parts": ["xg", "dc"],   # rates cred_recency applies to; None = every rate (tested: worse for bonus, saves)
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
-    "dc_blend": 15.0,      # FL-XXX: pseudo-games for DC hit-rate shrinkage toward p_dc_model. Must be finite >= 0
+    "dc_blend": 15.0,      # FL-224: pseudo-games for DC hit-rate shrinkage toward p_dc_model. Must be finite >= 0
                            # (not bool; any other value raises; n=0 with dc_blend=0 falls back to p_dc_model).
                            # 15.0: Adopt as Marginal (20 Nov 2026, model log; targeted change, DC part); re-check at
                            # season end against {"dc_blend": 4.0}, revert if the DC part gain has gone.
