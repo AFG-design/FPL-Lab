@@ -74,13 +74,13 @@ class ModelMaths(unittest.TestCase):
                 fm.p_at_least_nb(5.0, 10, bad)
 
     def test_dc_tail(self):
-        # FL-177: dc_r None is exactly the Poisson tail (main's numbers); r > 0 the negative binomial; 0 raises
+        # FL-177: dc_r None is exactly the Poisson tail (the old numbers); r > 0 the negative binomial; 0 raises
         for mu, k in ((0.0, 10), (4.0, 10), (9.5, 12)):
             self.assertEqual(fm.dc_tail(mu, k, None), fm.p_at_least(mu, k))
             self.assertEqual(fm.dc_tail(mu, k, 10), fm.p_at_least_nb(mu, k, 10))
         with self.assertRaises(ValueError):
             fm.dc_tail(5.0, 10, 0)
-        self.assertIsNone(fm.DEFAULTS["dc_r"])
+        self.assertEqual(fm.DEFAULTS["dc_r"], 10)   # adopted 20 Nov 2026 (model log); None restores Poisson
 
     def test_exp_floor_div_matches_the_full_sum(self):
         # goals conceded: FPL takes a point per whole 2 conceded. The model only calls this for goals against (d=2), at

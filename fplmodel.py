@@ -44,9 +44,11 @@ DEFAULTS = {
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
-    "dc_r": None,          # FL-177: tail for the DefCon chance (p_dc_model, p_dc_sub; dc_tail). None = Poisson (main);
-                           # r > 0 = negative binomial with the same mean and size r (variance mu + mu^2/r, a fatter
-                           # tail). Any other value raises. Other p_at_least callers stay Poisson.
+    "dc_r": 10,            # FL-177: tail for the DefCon chance (p_dc_model, p_dc_sub; dc_tail). r > 0 = negative
+                           # binomial with the same mean and size r (variance mu + mu^2/r, a fatter tail); None = Poisson
+                           # (the old behaviour). Any other value raises. Other p_at_least callers stay Poisson.
+                           # 10: Adopt as Marginal (20 Nov 2026, model log; targeted change, DC part); re-check at season
+                           # end against {"dc_r": null}, revert if the DC part gain has gone.
     "bonus_scale": 0.8,
     "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections). FL-114 (13 Nov): 1.0
                            # not adopted (5-GW picks CI includes 0 in both past seasons)
