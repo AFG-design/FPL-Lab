@@ -30,6 +30,11 @@ DEFAULTS = {
     "dc_prior_mins": True, # FL-176: DefCon's last-season weight from the minutes that recorded DefCon (prior "dc_mins"),
                            # not all minutes. False = the old behaviour (seasons without DefCon counted as 0 DefCon at
                            # full weight), kept only so bench.py can pair the fix against it.
+    "archive_dc_backfill": True,  # FL-212: archive.py uses committed FPL 2024/25 DefCon backfill (archive_dc/2024-25.json)
+                                  # when a past season's vaastav CSV lacks defensive_contribution. False = main before FL-212.
+                                  # Bench-only for projections (live model unchanged); tools/train_xmins_sell.py and
+                                  # tools/retrain_minutes.py call archive.load_season too, so a retrain on 2025-26 now gets
+                                  # the backfill by default.
     "cred_recency": 0.9,   # how much this season counts against the priors: his minutes weighted by this per GW back.
                            # None = old behaviour (the recency-weighted minutes, which never pass ~450 at recency 0.8,
                            # so this season is capped at ~30% of a rate). recency still sets WHICH games count.

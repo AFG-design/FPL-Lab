@@ -49,8 +49,20 @@ def _num(v, cast=float):
         return cast(0)
 
 
-def _priors(season, code_to_id):
+def load_dc_backfill(season):
+    """FL-212: committed FPL history_past DefCon snapshot for a past season (e.g. archive_dc/2024-25.json), or None."""
+    path = os.path.join(HERE, "archive_dc", f"{season}.json")
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        return json.load(f)
+
+
+def _priors(season, code_to_id, use_dc_backfill=None):
     """Per-90 priors from the two seasons before `season` (weights 1:2), like make_priors.py."""
+    if use_dc_backfill is None:
+        from fplmodel import DEFAULTS
+        use_dc_backfill = bool(DEFAULTS.get("archive_dc_backfill", False))
     y = int(season[:4])
     seasons = [f"{y - 2}-{str(y - 1)[2:]}", f"{y - 1}-{str(y)[2:]}"]
     tot = defaultdict(lambda: defaultdict(float))
@@ -61,6 +73,12 @@ def _priors(season, code_to_id):
             rows = _rows(s, "players_raw.csv")
         except Exception:
             continue
+        # FL-212: when vaastav's CSV has no defensive_contribution column (2024-25), optionally fall back to the
+        # committed FPL history_past backfill (archive_dc/<season>.json), keyed by FPL "code". Players absent from
+        # the backfill (left the game before the fetch) keep dc_mins = 0, as before. Only seasons >= DC_FIRST qualify,
+        # and only the exact prior season file s is read (no hindsight from the test season).
+        has_csv_dc = any(r.get("defensive_contribution") not in (None, "") for r in rows)
+        dc_bf = (load_dc_backfill(s) or {}).get("players", {}) if (use_dc_backfill and not has_csv_dc and y_s >= DC_FIRST) else {}
         for r in rows:
             if r.get("element_type") == "5":   # assistant managers (2024/25 on)
                 continue
@@ -80,6 +98,11 @@ def _priors(season, code_to_id):
             if r.get("defensive_contribution") not in (None, "") and y_s >= DC_FIRST:
                 t["dc"] += wt * _num(r["defensive_contribution"])
                 t["dc_min"] += wt * m
+            elif dc_bf:
+                bf = dc_bf.get(str(r["code"]))
+                if bf and bf.get("minutes", 0) > 0 and bf.get("dc") is not None:
+                    t["dc"] += wt * float(bf["dc"])
+                    t["dc_min"] += wt * float(bf["minutes"])
             last[pid] = (s, r)
     out = {}
     for pid, t in tot.items():
@@ -97,7 +120,7 @@ def _priors(season, code_to_id):
     return {"players": out}
 
 
-def load_season(season, scoring_from):
+def load_season(season, scoring_from, use_dc_backfill=None):
     """scoring_from: a current bootstrap-static (for game_config scoring rules)."""
     teams = {int(r["id"]): r for r in _rows(season, "teams.csv")}
     name_to_id = {r["name"]: tid for tid, r in teams.items()}
@@ -156,7 +179,7 @@ def load_season(season, scoring_from):
     boot = {"elements": elements, "teams": [{"id": tid, "short_name": t["short_name"], "name": t["name"]} for tid, t in teams.items()],
             "game_config": scoring_from["game_config"],
             "events": [{"id": g, "finished": True} for g in range(1, 39)]}
-    priors = _priors(season, {r["code"]: pid for pid, r in praw.items()})
+    priors = _priors(season, {r["code"]: pid for pid, r in praw.items()}, use_dc_backfill=use_dc_backfill)
 
     def team_at(pid, gw):
         c = club.get(pid)
