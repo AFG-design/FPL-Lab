@@ -19,10 +19,107 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
 - **FT_SCALE (2.0, 1.6, 1.3, 1.1) (FL-165)** (adopted 20 Nov 2026, entry below). Re-check with the planner replay at
   season end. Old value to test against: `FT_SCALE = None` (flat `FT_VALUE = 1.5`). Adopted at +236 pts across 2
   seasons × 3 strategies (6/6 cells positive, 0 hits). Revert if the replay gain has gone.
+- **dc_blend 15 (FL-XXX)** (adopted 20 Nov 2026, entry below). Re-check at season end. Old value to test against:
+  `{"dc_blend": 4}`. Targeted change (DefCon part): adopted at pooled DC part −0.00037 [−0.00054, −0.00021] better and
+  pooled 5-GW +0.045 [−0.010, +0.098]. Revert if the DC part gain has gone.
 
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
+
+## 20 Nov 2026 — FL-XXX: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
+
+- **Why:** after FL-177 (`dc_r 10`), raw DefCon is near the right level for the pool (2025/26 all `1.08`, DEF `1.05`,
+  MID `1.13`), but the top 30 projected each GW are over-projected (`0.88` in 2025/26; `0.83` / `0.86` this season,
+  without / with status log). Hypothesis: players reach the top 30 partly on a run of DefCon hits, so with `dc_blend 4`
+  their raw season hit rate (`hits / n`) dominates and over-projects them. More shrinkage toward `p_dc_model` (which
+  uses `dc90` with `cred_recency` and the `dc_r 10` tail) should pull the top 30 toward `1.00` while barely moving the
+  pool.
+- **Diagnostic on main (`dc_blend 4`, 1-fixture weeks, outfield):** hypothesis confirmed — in both seasons `p_dc_model`
+  is almost exact on the top 30 (`real/model = 1.04` in 2025/26, `1.02` this season), while `own_hit` sits far above
+  realised hit rates and pulls `p_dc_blend` up (`real/blend = 0.87`):
+
+| Season | Group (n) | Mean `own_hit` | Mean `p_dc_model` (st) | Mean `p_dc_blend` (st) | Real hit (st) | Uncond `real/blend` | Uncond `real/model` |
+|---|---|---:|---:|---:|---:|---:|---:|
+| **2025/26** | Whole pool (12,804) | 0.155 | 0.162 | 0.160 | 0.190 | 1.09 | 1.10 |
+| | **Top 30** (1,050) | **0.291** | 0.228 | 0.271 | 0.237 | **0.87** | **1.04** |
+| | Top 30 DEF (521) | 0.411 | 0.309 | 0.380 | 0.326 | 0.86 | 1.06 |
+| | Top 30 MID (424) | 0.209 | 0.180 | 0.200 | 0.175 | 0.85 | 0.95 |
+| | Top 30 FWD (105) | 0.016 | 0.019 | 0.016 | 0.042 | 2.48 | 2.16 |
+| **This season** | Whole pool (2,908) | 0.152 | 0.154 | 0.152 | 0.180 | 1.14 | 1.15 |
+| (no SL) | **Top 30** (240) | **0.266** | 0.196 | 0.230 | 0.197 | **0.87** | **1.02** |
+| | Top 30 DEF (112) | 0.456 | 0.317 | 0.390 | 0.371 | 0.98 | 1.20 |
+| | Top 30 MID (90) | 0.141 | 0.128 | 0.128 | 0.060 | 0.48 | 0.47 |
+| | Top 30 FWD (38) | 0.000 | 0.004 | 0.002 | 0.000 | 0.00 | 0.00 |
+
+- **Change:** `DEFAULTS["dc_blend"] = 15.0` in `fplmodel.py` (no new code path). Added strict validation in `project()`:
+  `dc_blend` must be a finite number `>= 0` (not `bool`), else `ValueError` (no silent default). When `dc_blend == 0`
+  and a player has `n == 0` prior starts/60+ GWs, both paths explicitly fall back to `p_dc_model` instead of dividing
+  by zero (`tests/test_dc_blend.py`). **Identity check:** `dc_blend = 4.0` reproduces main (`8d198a5`) to every printed
+  digit on `bench.py` and both `backtest.py` runs.
+- **Pre-registered variants (listed in the PR before running; no others):** V1 `dc_blend = 8` (PR #28's value), V2
+  `dc_blend = 15`, V3 `dc_blend = 30`, each against main (`4`). All other params untouched.
+- **bench.py (candidate − main).** Only 2025/26 and this season score DefCon, so the **pooled DC interval is in effect
+  2025/26 alone**; 2024/25 is identical to every printed digit for all three. `bench.py` has no pooled 1-GW interval,
+  so 1-GW picks are reported per season.
+
+| | V1 `8` | V2 `15` | V3 `30` |
+|---|---|---|---|
+| **Pooled DC part (Brier)** | −0.00025 [−0.00036, −0.00016] better | **−0.00037 [−0.00054, −0.00021] better** | −0.00036 [−0.00060, −0.00014] better |
+| 2025/26 DC part | −0.00051 [−0.00071, −0.00032] | −0.00073 [−0.00107, −0.00041] | −0.00073 [−0.00118, −0.00027] |
+| This season DC part | −0.00054 [−0.00090, −0.00009] better | −0.00058 [−0.00122, +0.00019] | −0.00041 [−0.00127, +0.00066] |
+| **Pooled 5-GW picks (60 origins)** | +0.027 [−0.026, +0.077] | **+0.045 [−0.010, +0.098]** | +0.034 [−0.040, +0.105] |
+| 5-GW picks 2025/26 (main 18.99) | 19.04, +0.05 [−0.05, +0.15] | 19.08, +0.09 [−0.02, +0.19] | 19.06, +0.07 [−0.08, +0.20] |
+| 5-GW picks 2024/25 (main 19.16) | 19.16, +0.00 | 19.16, +0.00 | 19.16, +0.00 |
+| 5-GW picks this season (main 18.23, 4 origins) | 18.72, +0.49 [+0.16, +0.81] | 18.56, +0.33 [−0.19, +0.76] | 18.71, +0.48 [−0.17, +0.88] |
+| 1-GW picks 2025/26 (main 4.46) | 4.45, −0.01 [−0.06, +0.04] | 4.46, +0.00 [−0.06, +0.07] | 4.44, −0.01 [−0.08, +0.06] |
+| 1-GW picks this season (main 4.35) | 4.38, +0.03 [−0.03, +0.09] | 4.40, +0.05 [−0.02, +0.13] | 4.44, +0.09 [+0.01, +0.17] |
+| Captain 2025/26 | +0.06 [+0.00, +0.14] (2/35 wks) | +0.06 [+0.00, +0.14] (2/35 wks) | +0.34 [+0.03, +0.86] (4/35 wks) |
+| Top-5 2025/26 | −0.09 [−0.23, +0.03] | −0.13 [−0.32, +0.05] | −0.12 [−0.37, +0.14] |
+| Captain / top-5 this season | +0.00 / +0.00 | −1.12 [−3.38, +0.00] (1/8) / +0.03 | −1.12 [−3.38, +0.00] (1/8) / −0.17 |
+| No-harm trips (CI wholly < 0) | None | None | None |
+
+  Every other part score is `+0.00000` in every season.
+- **backtest.py --compare:**
+  - This season GW3–10 (without / with status log): **V1 and V2 have 0 segments past limits.** **V3 (`30`) trips
+    `--compare`** on `Top 30 projected / top 30 each GW (MAE worse)` both without and with status log. Base MAE
+    `1.8270` / `1.7676`, corr `0.4281` / `0.4439`; V1 `+0.0001 / +0.0001` (corr `+0.0008 / +0.0007`); V2
+    `+0.0001 / +0.0001` (`+0.0013 / +0.0010`); V3 `+0.0001 / +0.0002` (`+0.0016 / +0.0013`).
+  - **2025/26 GW4–38 segment check** (built as `bench.run_archive`, fed to `backtest.compare`; main `n=12847`, MAE
+    `1.8674`, matching FL-160 exactly): **0 segments past limits** for all three. MAE V1 `+0.0002`, V2 `+0.0006`,
+    V3 `+0.0009`.
+- **DefCon calibration (raw real/projected, 1-fixture weeks; `1.00` = right level):**
+
+| Season | Segment | main (`4`) | V1 (`8`) | V2 (`15`) | V3 (`30`) |
+|---|---|---:|---:|---:|---:|
+| 2025/26 | all | 1.08 | 1.08 | 1.08 | 1.08 |
+| | DEF | 1.05 | 1.05 | 1.06 | 1.07 |
+| | MID | 1.13 | 1.12 | 1.11 | 1.11 |
+| | **top 30** | **0.88** ⚠ | **0.92** ⚠ | **0.95** (0.945) | 0.97 |
+| This season (no status log) | all | 1.08 | 1.09 | 1.09 | 1.09 |
+| | DEF | 1.12 | 1.13 | 1.14 | 1.14 |
+| | MID | 1.02 | 1.01 | 1.01 | 1.00 |
+| | **top 30** | **0.83** ⚠ | **0.89** ⚠ | **0.96** | 1.02 |
+| This season (status log) | all | 1.12 | 1.12 | 1.13 | 1.13 |
+| | DEF | 1.16 | 1.17 | 1.17 | 1.18 |
+| | MID | 1.06 | 1.05 | 1.04 | 1.04 |
+| | **top 30** | **0.86** ⚠ | **0.92** ⚠ | **0.96** | 1.04 |
+
+  No variant pushes `all`, `DEF`, or `MID` below `0.95` in any season.
+- **Live effect, V2 (`15` vs `4`, GW11 on same data):** GW11 xP mean `−0.0008` (min `−0.289`, max `+0.104`). 5-GW xP
+  moves by `> 0.1` for **154 of 473 players** (`91` up, `63` down; `80` DEF, `73` MID, `1` FWD, `0` GKP). Biggest
+  fallers (high-DefCon hot-streak regulars): Mainoo (MID `−1.43`), Palacios (MID `−1.08`), Disasi (DEF `−0.95`), Lerma
+  (MID `−0.78`), Murillo (DEF `−0.69`), Silva (DEF `−0.67`), Konsa (DEF `−0.66`), Pinnock (DEF `−0.66`). Biggest
+  risers: Reinildo (DEF `+0.51`), Boscagli (DEF `+0.48`), Maatsen (DEF `+0.45`), Castagne (DEF `+0.39`). Recommended
+  GW11 plans for team `8122679` are unchanged (`roll`, `safe_roll`, `chase_roll`).
+- **Choice among qualifiers:** V3 (`30`) trips `--compare` (disqualified). V1 (`8`) and V2 (`15`) both meet the
+  targeted-change row. **V2 (`dc_blend = 15`) is adopted** (judgement call — the row allows either): it delivers a
+  48% larger pooled DC Brier gain (`−0.00037` vs `−0.00025`), higher pooled 5-GW picks (`+0.045` vs `+0.027`), and
+  pulls top-30 DefCon to `0.95–0.96` across both seasons (whereas V1 leaves top-30 at `0.89–0.92`).
+- **Decision-table row:** `Targeted change: the targeted part's pooled interval is clear of zero in the right
+  direction, the pooled 5-GW picks interval is not wholly below zero, and no segment worse` → **Adopt as Marginal**.
+  Rating: **Marginal** (DC part clearly better; 5-GW picks interval includes zero). Re-check at season end against
+  `{"dc_blend": 4}`.
 
 ## 20 Nov 2026 — FL-160: Defender bonus multiplier `def_bonus_mult` (Don't adopt — keep `1.0`)
 
