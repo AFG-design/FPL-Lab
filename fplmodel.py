@@ -44,6 +44,11 @@ DEFAULTS = {
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
     "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
+    "dc_r": 10,            # FL-177: tail for the DefCon chance (p_dc_model, p_dc_sub; dc_tail). r > 0 = negative
+                           # binomial with the same mean and size r (variance mu + mu^2/r, a fatter tail); None = Poisson
+                           # (the old behaviour). Any other value raises. Other p_at_least callers stay Poisson.
+                           # 10: Adopt as Marginal (20 Nov 2026, model log; targeted change, DC part); re-check at season
+                           # end against {"dc_r": null}, revert if the DC part gain has gone.
     "bonus_scale": 0.8,
     "assist_mult": 1.2,    # FPL awards more assists than xA (rebounds, won pens, deflections). FL-114 (13 Nov): 1.0
                            # not adopted (5-GW picks CI includes 0 in both past seasons)
@@ -172,6 +177,31 @@ def p_at_least(mu, k):
     if mu <= 0:
         return 0.0
     return max(0.0, 1 - sum(poisson(i, mu) for i in range(k)))
+
+
+def p_at_least_nb(mu, k, r):
+    """FL-177: P(X >= k) for a negative binomial with mean mu and size r (variance mu + mu^2/r). Stable recurrence,
+    no new dependency: pmf(0) = p^r with p = r / (r + mu), pmf(i) = pmf(i-1) * (i - 1 + r) / i * (1 - p). As r grows it
+    tends to p_at_least (Poisson). mu <= 0 -> 0.0, as p_at_least. r must be > 0 (raises otherwise: no silent default)."""
+    if r is None or not r > 0:
+        raise ValueError(f"p_at_least_nb: size r must be > 0, got {r!r}")
+    if mu <= 0:
+        return 0.0
+    if k <= 0:
+        return 1.0
+    p = r / (r + mu)
+    term = math.exp(r * math.log(p))
+    below = term
+    for i in range(1, k):
+        term *= (i - 1 + r) / i * (1 - p)
+        below += term
+    return max(0.0, 1 - below)
+
+
+def dc_tail(mu, k, r):
+    """FL-177: chance of k+ defensive contributions at expected count mu. r None: Poisson (p_at_least, exactly main's
+    numbers); r > 0: negative binomial of size r; anything else raises in p_at_least_nb."""
+    return p_at_least(mu, k) if r is None else p_at_least_nb(mu, k, r)
 
 
 US_TO_FPL = {"BRI": "BHA", "FLH": "FUL", "LED": "LEE", "NOT": "NFO"}
@@ -935,7 +965,7 @@ def project(ctx, as_of, horizon=6, params=None):
             if s and s["minutes"] >= 60:
                 n60 += 1
                 hits += ctx["dc_hit"][pid].get(g, False)
-        p_dc_model = p_at_least(dc90 * min(90, m_start) / 90, thr) if pos != "GKP" else 0.0
+        p_dc_model = dc_tail(dc90 * min(90, m_start) / 90, thr, P["dc_r"]) if pos != "GKP" else 0.0
         p_dc = (hits + p_dc_model * P["dc_blend"]) / (n60 + P["dc_blend"]) if pos != "GKP" else 0.0
         p_dc_sub = 0.0
         if P["dc_fixture"] and pos != "GKP":
@@ -945,7 +975,7 @@ def project(ctx, as_of, horizon=6, params=None):
             # his minutes off the bench. Missing per-fixture data (no explain rows): no history, so the model alone.
             st_fx = [r for g in hist_gws for r in ctx.get("dc_fx", {}).get(pid, {}).get(g, ()) if r[2]]
             p_dc = (sum(r[1] for r in st_fx) + p_dc_model * P["dc_blend"]) / (len(st_fx) + P["dc_blend"])
-            p_dc_sub = p_at_least(dc90 * min(90, m_sub) / 90, thr)
+            p_dc_sub = dc_tail(dc90 * min(90, m_sub) / 90, thr, P["dc_r"])
 
         tid = e["team"]
         ch_now = e.get("chance_of_playing_next_round")
