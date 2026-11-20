@@ -1,4 +1,4 @@
-# FPL Lab roadmap: where we left off (18 Nov 2026)
+# FPL Lab roadmap: where we left off (20 Nov 2026)
 
 **The backlog sheet is the source of truth for what's next.** Google Sheet "FPL Lab feature backlog":
 - **Board** shows what's Next, In progress and Done.
@@ -7,6 +7,20 @@
 - **How it works** has the rules: capture first, one branch and one PR per item, and a review at the end of each cycle.
 
 This file keeps the context and the decisions. It doesn't keep a second to-do list.
+
+## Status at 20 Nov 2026
+Checked against the git log on `main` and the backlog sheet on 20 Nov (evening). The sheet is still the source of truth.
+
+- **Cycle 1 reviewed 19 Nov: 34 of 34 shipped.** FL-172 (this file) carried over to Cycle 2.
+- **Cycle 2 (20 Nov–3 Dec), main goal v1.4 Model check-ups.** Merged 19–20 Nov:
+  - Model, on probation (re-check list at the top of `docs/model-log.md`): FL-176 DefCon priors use DefCon minutes only (#237), FL-212 bench priors use FPL's backfilled 2024/25 DefCon (#240), FL-177 DefCon `dc_r 10` tail (#241), FL-224 DefCon shrinkage `dc_blend 15` (#247, hot-run check #248), FL-165 falling free-transfer scale switched on (#244, #245).
+  - Tested, not adopted: FL-214 per-player European cut (#242), FL-160 defender bonus multiplier `def_bonus_mult`, kept at 1.0 (#246), FL-216 Bzzoiro set-piece xG as an Understat stand-in (#243).
+  - Data: FL-213 2025/26 Europa and Conference League dates (#236).
+  - Features and fixes: FL-223 mini-league title odds (#238), FL-207 98 px phone header (#230), FL-193, FL-196, FL-187, FL-192, FL-195, FL-202, FL-208, FL-211; reports FL-198 (accessibility, #235) and FL-210 (`--hi` uses, #234); FL-206 visual audit 2 (#207).
+- **ID clash fixed (20 Nov):** #247 and #248 used FL-224, which was already the Gemini team-news labels test. Git can't be renamed, so FL-224 now means `dc_blend` in the sheet and the Gemini test is **FL-233**.
+- **Still open in Cycle 2:** FL-098 backup scheduler (first real test: GW11 window, Sat 21 Nov 05:00–11:00 UTC), FL-175 and FL-174 (start chance), FL-199 team-news collector, FL-226 light-mode focus rings, FL-134 ep_next blend (after GW12), FL-021 player-odds re-test (GW12–13), FL-229 style data (PR #249 open).
+- **Dropped 20 Nov:** FL-215 ClubElo test. ClubElo's API returned HTTP 502 on every try in both Antigravity batches.
+- **Understat still down since 1 Nov.** The site keeps the last good data and warns; FL-229's backfill waits until Understat is back.
 
 ## Status at 18 Nov 2026
 Checked against the git log on `main` and the backlog sheet on 18 Nov. The sheet is still the source of truth; the sections below this one are kept as they were written.
