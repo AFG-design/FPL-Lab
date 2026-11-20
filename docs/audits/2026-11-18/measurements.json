@@ -1,0 +1,349 @@
+{
+ "1_health_1440": {
+  "scrollWidth": 1280,
+  "clientWidth": 1104,
+  "headers": [
+   "Source",
+   "Updated",
+   "Details",
+   "How often",
+   "Status"
+  ],
+  "statusVisibleWithoutScroll": false,
+  "howOftenWhiteSpace": "nowrap"
+ },
+ "3_model_chart": {
+  "svgWidth": 760,
+  "parentWidth": 1144,
+  "widthRatio": 0.66,
+  "clippedTexts": [
+   "GW10"
+  ],
+  "tickFontSize": "13px"
+ },
+ "6_heading_gaps": {
+  "afg": {
+   "hText": "AFG suggestion \u00b7 GW11",
+   "gapPx": 0,
+   "hMarginBottom": "0px"
+  },
+  "vsmodel": {
+   "hText": "You vs the model",
+   "gapPx": 0,
+   "hMarginBottom": "0px"
+  },
+  "school": {
+   "hText": "FPL School",
+   "gapPx": 0,
+   "hMarginBottom": "0px"
+  }
+ },
+ "7_fixtures_1440": {
+  "display": "inline-flex",
+  "alignItems": "center",
+  "gap": "8px",
+  "crestWidth": 20,
+  "centerDeltaPx": 0
+ },
+ "9_10_13_home_1440": {
+  "headings": [
+   [
+    "H2",
+    "GW11 team \u00b7 Roll plan",
+    "\"Barlow Condensed\"",
+    "22px",
+    "uppercase"
+   ],
+   [
+    "H3",
+    "GW11 decisions",
+    "Inter",
+    "17px",
+    "none"
+   ],
+   [
+    "H3",
+    "TransfersCoin flip4free tran",
+    "Inter",
+    "11px",
+    "uppercase"
+   ],
+   [
+    "H3",
+    "CaptainCoin flip Field's pic",
+    "Inter",
+    "11px",
+    "uppercase"
+   ],
+   [
+    "H3",
+    "LineupCoin flip0.1xP closest",
+    "Inter",
+    "11px",
+    "uppercase"
+   ],
+   [
+    "H3",
+    "Needs attention",
+    "Inter",
+    "17px",
+    "none"
+   ],
+   [
+    "H3",
+    "Quick research",
+    "Inter",
+    "17px",
+    "none"
+   ],
+   [
+    "H3",
+    "Watchlist & changes",
+    "Inter",
+    "17px",
+    "none"
+   ],
+   [
+    "H3",
+    "Squad rating",
+    "\"Barlow Condensed\"",
+    "22px",
+    "uppercase"
+   ],
+   [
+    "H3",
+    "Watchlist",
+    "\"Barlow Condensed\"",
+    "22px",
+    "uppercase"
+   ]
+  ],
+  "watchlistMatches": [
+   "H3#:Watchlist & changes",
+   "DIV#watchlist:WatchlistNobody on your radar ",
+   "H3#:Watchlist"
+  ],
+  "coinFlipCount": 3,
+  "h1s": [
+   "BACK2BACK",
+   "No moves planned. Haaland capt"
+  ]
+ },
+ "11_players_1440": {
+  "panelTopToTheadPx": 149,
+  "panelTopToRow1Px": 184,
+  "row1ViewportTopPx": 381,
+  "checkboxSize": [
+   15,
+   15
+  ],
+  "checkboxCellSize": [
+   15,
+   21
+  ]
+ },
+ "14_rivals_1440": {
+  "pinButtons": [
+   "Pin this league to Current GW",
+   "Remove Current GW pin"
+  ],
+  "topCards": []
+ },
+ "15_pheads": {
+  "week": {
+   "firstTag": "DIV.homeswitch",
+   "firstHeading": "H1:No moves planned. Haaland ca",
+   "insidePanel": false
+  },
+  "afg": {
+   "firstTag": "DIV.panel afg-hero",
+   "firstHeading": "H2:AFG suggestion \u00b7 GW11",
+   "insidePanel": true
+  },
+  "planner": {
+   "firstTag": "HEADER.page-title",
+   "firstHeading": "H1:Planner",
+   "insidePanel": false
+  },
+  "rivals": {
+   "firstTag": "DIV.rv-head",
+   "firstHeading": "H2:Rivals",
+   "insidePanel": false
+  },
+  "deadlines": {
+   "firstTag": "DIV.grid2",
+   "firstHeading": null,
+   "insidePanel": null
+  },
+  "review": {
+   "firstTag": "DIV.grid2",
+   "firstHeading": "H2:GW10 review",
+   "insidePanel": true
+  },
+  "fixtures": {
+   "firstTag": "DIV.panel fixtures",
+   "firstHeading": "H2:Fixtures",
+   "insidePanel": true
+  },
+  "players": {
+   "firstTag": "DIV.seg subnav",
+   "firstHeading": "H2:Players",
+   "insidePanel": true
+  },
+  "stats": {
+   "firstTag": "DIV.seg subnav",
+   "firstHeading": null,
+   "insidePanel": null
+  },
+  "xptable": {
+   "firstTag": "DIV.seg subnav",
+   "firstHeading": "H2:Expected points",
+   "insidePanel": true
+  },
+  "chips": {
+   "firstTag": "DIV.panel",
+   "firstHeading": "H2:Chip planner",
+   "insidePanel": true
+  },
+  "model": {
+   "firstTag": "DIV.seg subnav",
+   "firstHeading": "H2:Head to head: FPL Lab v FPL'",
+   "insidePanel": true
+  },
+  "health": {
+   "firstTag": "DIV.seg subnav",
+   "firstHeading": null,
+   "insidePanel": null
+  },
+  "vsmodel": {
+   "firstTag": "DIV.panel vm-streak",
+   "firstHeading": "H2:You vs the model",
+   "insidePanel": true
+  },
+  "school": {
+   "firstTag": "DIV.panel",
+   "firstHeading": "H2:FPL School",
+   "insidePanel": true
+  }
+ },
+ "18_school": {
+  "text": "FPL SCHOOL\n\nType any team ID (the number in the address of their Points page on the FPL site) for a rating and one suggested move. Read-only: nothing is saved, and the rest of the app stays on your team.\n\nReview",
+  "childCount": 4
+ },
+ "8_mobile_header_390": {
+  "topbarHeight": 227,
+  "metaBottom": 285,
+  "stats": [
+   {
+    "text": "OVERALL RANK | 45,146 | \u25b2 3,095",
+    "rect": [
+     114,
+     54
+    ]
+   },
+   {
+    "text": "POINTS | 711 | GW10: 68",
+    "rect": [
+     114,
+     54
+    ]
+   },
+   {
+    "text": "BANK | \u00a30.7m | 3 free transfers",
+    "rect": [
+     114,
+     54
+    ]
+   }
+  ],
+  "deadlinePill": "2d 18h | GW11 DEADLINE | Sat 21 Nov, 11:00",
+  "pitchTopPx": 979
+ },
+ "11_players_390": {
+  "panelTopToRow1Px": 397,
+  "row1ViewportTopPx": 747,
+  "checkboxSizeTouch": [
+   15,
+   15
+  ]
+ },
+ "12_planner_tabs_390": {
+  "scrollWidth": 403,
+  "clientWidth": 356,
+  "tabs": [
+   {
+    "text": "My team",
+    "left": 18,
+    "right": 98,
+    "clipped": false
+   },
+   {
+    "text": "Suggested Balanced +6.7",
+    "left": 100,
+    "right": 200,
+    "clipped": false
+   },
+   {
+    "text": "Transfer paths",
+    "left": 202,
+    "right": 326,
+    "clipped": false
+   },
+   {
+    "text": "Your plan 4 moves",
+    "left": 328,
+    "right": 415,
+    "clipped": true
+   }
+  ],
+  "maskImage": "none",
+  "parentClass": "pvhead"
+ },
+ "7_17_fixtures_390": {
+  "tableboxWidth": 320,
+  "cells": [
+   {
+    "text": "Aston Villa",
+    "w": 137,
+    "visibleFrac": 1,
+    "sticky": "sticky"
+   },
+   {
+    "text": "SUN\n2",
+    "w": 68,
+    "visibleFrac": 1,
+    "sticky": "static"
+   },
+   {
+    "text": "ips\n2",
+    "w": 68,
+    "visibleFrac": 1,
+    "sticky": "static"
+   },
+   {
+    "text": "EVE\n3",
+    "w": 68,
+    "visibleFrac": 0.68,
+    "sticky": "static"
+   },
+   {
+    "text": "2.5",
+    "w": 76,
+    "visibleFrac": 0,
+    "sticky": "static"
+   },
+   {
+    "text": "6",
+    "w": 69,
+    "visibleFrac": 0,
+    "sticky": "static"
+   },
+   {
+    "text": "CRY\n2",
+    "w": 68,
+    "visibleFrac": 0,
+    "sticky": "static"
+   }
+  ]
+ }
+}

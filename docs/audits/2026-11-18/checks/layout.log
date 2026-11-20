@@ -1,0 +1,45 @@
+
+> layout
+> python3 scripts/layout_check.py
+
+ok   phone   week
+ok   phone   afg
+ok   phone   planner
+ok   phone   rivals
+ok   phone   deadlines
+ok   phone   review
+ok   phone   fixtures
+ok   phone   players
+ok   phone   stats
+ok   phone   xptable
+ok   phone   chips
+ok   phone   model
+ok   phone   health
+ok   phone   vsmodel
+ok   phone   school
+ok   phone   week-current
+ok   phone   planner-paths
+ok   phone   week-kits
+ok   desktop week
+ok   desktop afg
+ok   desktop planner
+ok   desktop rivals
+ok   desktop deadlines
+ok   desktop review
+ok   desktop fixtures
+ok   desktop players
+ok   desktop stats
+ok   desktop xptable
+ok   desktop chips
+ok   desktop model
+ok   desktop health
+ok   desktop vsmodel
+ok   desktop school
+ok   desktop week-current
+ok   desktop planner-paths
+ok   desktop week-kits
+
+72 requests to other sites failed (not counted as failures), e.g. failed https://api.github.com/repos/AFG-design/FPL-Lab/actions/workflows/refresh.yml/runs?per_page=20&t=1795019902750
+
+Screenshots in layout-shots/
+All 15 views fine at 390px and 1280px.

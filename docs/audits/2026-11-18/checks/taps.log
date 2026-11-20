@@ -1,0 +1,8 @@
+
+> taps
+> python3 scripts/tap_check.py
+
+Under 40x40px on touch: 0 kind(s), 0 control(s)
+Controls inside a <summary>: 0 kind(s), 0 control(s)
+aria-pressed on role=tab: 0 kind(s), 0 control(s)
+Every control is at least 40x40px on touch, none sits inside a <summary>, and no tab carries aria-pressed.
