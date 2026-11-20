@@ -101,6 +101,44 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   Rating: **Marginal** (DC part clearly better; 5-GW picks interval includes zero). Re-check at season end against
   `{"dc_r": null}`. Next: FL-160 (clean sheets and defender scoring) builds on this, with `dc_r` 10 as its base.
 
+## 19 Nov 2026 — FL-214: Per-player midweek European minutes for `eu_cut` (Don't adopt)
+
+- **Idea:** `fplmodel` currently applies `eu_cut = 0.93` to every starter at a club in a European week
+  (`ctx["congestion"]`). FL-115 (13 Nov) and FL-213 (19 Nov) suggested the cut works via tired legs / early subs
+  rather than fewer starts. Test applying `eu_cut` only to players who actually played midweek, using per-player
+  European minutes from **FPL-Core-Insights (olbauday), test data only** (`By Tournament/<UCL|UEL|UECL>/GW*/playermatchstats.csv`
+  + `matches.csv`, downloaded at run time to git-ignored `archive/fpl-core-insights/`, never committed).
+- **Join rate & hindsight check:**
+  - `2025/26`: **236 / 236 (100.0%)** unique European `player_id`s map 1:1 via `players.csv` `player_code` to FPL
+    `code` (`1,070` `(pid, gw)` midweek plays strictly before that GW's deadline, `0.5–5.0` days before earliest GW kickoff).
+  - `2026/27`: **214 / 214 (100.0%)** (`550` `(pid, gw)` midweek plays strictly before deadline).
+  - `2024/25`: FPL-Core-Insights has no `By Tournament` files for `2024-2025`, so `2024/25` stays on club-level
+    `ctx["congestion"]` (V1 & V2 identical to main on 2024/25).
+  - Within-player diagnostic (regulars with ≥2 starts in last 3 GWs, comparing `eu_60+` weeks vs their own non-EU
+    weeks): `2025/26` start `0.835` vs `0.775` (ratio `1.077`), `60+` `0.761` vs `0.729` (`1.044`); `2026/27` start
+    `0.867` vs `0.854` (`1.016`), `60+` `0.794` vs `0.826` (`0.961`, used as V3's re-fitted `eu_cut = 0.96`). Playing
+    midweek confirms a player is fit, which partially offsets fatigue; dropping the cut on non-midweek club-mates
+    removes the club-level rotation effect.
+- **Three pre-registered variants (tested off `main` `b46c5b6`, no model code changed):**
+  - **V1:** `eu_cut = 0.93` only for players with `60+` midweek European minutes before the deadline.
+  - **V2:** `eu_cut = 0.93` scaled linearly by `min(1, midweek_mins / 90)` (`0` mins = no cut).
+  - **V3:** V1 with `eu_cut = 0.96` (re-fitted to the measured `2026/27` 60+ ratio `0.961`).
+- **bench.py (all 3 seasons, candidate − main `b46c5b6`):**
+
+| Variant | 2025/26 1-GW picks | 2025/26 5-GW picks | Pooled 5-GW (60 origins) | This season 5-GW (4 origins) | Pooled Start Brier | Pooled 60+ Brier | No-harm trips (CI wholly < 0) |
+|---|---|---|---|---|---|---|---|
+| **V1** (`60+`, `0.93`) | 4.46 → 4.42 (`−0.04 [−0.07, −0.01]`) | 18.96 → 18.96 (`+0.01 [−0.11, +0.13]`) | `+0.003 [−0.057, +0.064]` | 18.24 → 17.58 (`−0.66 [−1.04, −0.21]`) | `+0.00008 [−0.00001, +0.00019]` | **`+0.00009 [+0.00000, +0.00019]` worse** | 2025/26 1-GW picks; this season 5-GW picks |
+| **V2** (`m/90`, `0.93`) | 4.46 → 4.42 (`−0.04 [−0.09, −0.00]`) | 18.96 → 18.94 (`−0.02 [−0.14, +0.10]`) | `−0.010 [−0.069, +0.051]` | 18.24 → 17.64 (`−0.59 [−1.01, −0.18]`) | `+0.00008 [−0.00001, +0.00019]` | **`+0.00010 [+0.00001, +0.00020]` worse** | 2025/26 1-GW picks; this season 5-GW picks |
+| **V3** (`60+`, `0.96`) | 4.46 → 4.44 (`−0.02 [−0.06, +0.02]`) | 18.96 → 18.98 (`+0.02 [−0.11, +0.14]`) | `+0.005 [−0.060, +0.064]` | 18.24 → 17.79 (`−0.45 [−0.96, +0.03]`) | `+0.00001 [−0.00006, +0.00009]` | **`+0.00012 [+0.00004, +0.00022]` worse** | this season top-5 (`−0.47 [−1.05, −0.05]`) |
+
+  - `2025/26` captain CI: `−0.14 [−0.43, +0.00]` (changed in 1 of 35 weeks) in all three; top-5 `−0.09 [−0.34, +0.14]` (V1), `−0.03 [−0.24, +0.17]` (V2), `−0.06 [−0.31, +0.17]` (V3).
+  - `2024/25`: V1 & V2 identical (`4.25 / 19.16`, `+0.00`); V3 `19.16 → 19.15` (`−0.01 [−0.07, +0.03]`).
+- **Backtest (`backtest.py --compare`, 2026/27 GW3–10, without / with status log):**
+  - 0 segments past limits (`MAE +0.05`, `bias ±0.2`, `n >= 30`) in any variant.
+  - Without status log (base MAE `1.8220`, corr `0.4280`): V1 `+0.0006 / −0.0005`, V2 `+0.0008 / −0.0010`, V3 `+0.0017 / +0.0002`.
+  - With status log (base MAE `1.7628`, corr `0.4440`): V1 `+0.0003 / −0.0004`, V2 `+0.0006 / −0.0008`, V3 `+0.0014 / +0.0003`.
+- **Decision-table row (all three):** `Any segment trips --compare` (no-harm trips in every variant, plus pooled 60+ minutes Brier clearly worse in all three and pooled 5-GW picks CI includes 0) → **Don't adopt**. Rating: **Coin flip**. *(Note: even if a variant had won, it could not be adopted yet because there is no permanent free source for per-player European minutes.)*
+
 ## 19 Nov 2026 — FL-212: 2025/26 archive priors use FPL's backfilled 2024/25 DefCon (Adopt as Marginal — bench-fidelity change)
 
 - **Context (logged in FL-176 below):** FPL backfilled 2024/25 `defensive_contribution` in `element-summary`
