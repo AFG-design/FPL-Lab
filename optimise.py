@@ -66,12 +66,27 @@ def spread(players, mult, eo, gw):
 # Points a free transfer still banked at the end of the plan is worth. Part of every plan's VALUE (below), so it is in
 # vs_none / vs_balanced too; data.json's plan_rules.ft_value carries it to the Planner (FL-125).
 FT_VALUE = 1.5
+# FL-165: optional falling per-FT value for 2nd..5th banked FT (e.g. (2.0, 1.6, 1.3, 1.1)). Off by default (None =
+# flat FT_VALUE) pending decision. Must be 4 non-increasing non-negative numbers so the LP fills them in order.
+FT_SCALE = None
+_UNSET = object()
+
+
+def ft_bonus(ft_left, ft_value=FT_VALUE, ft_scale=_UNSET):
+    """Points credited for banking ft_left free transfers (1..5) at the end of a plan."""
+    if ft_scale is _UNSET:
+        ft_scale = FT_SCALE
+    if ft_scale is not None:
+        if len(ft_scale) != 4 or any(w < 0 for w in ft_scale) or any(ft_scale[i] < ft_scale[i + 1] for i in range(3)):
+            raise ValueError(f"ft_scale must be 4 non-increasing non-negative weights (2nd..5th FT), got {ft_scale!r}")
+        return sum(ft_scale[:max(0, int(ft_left) - 1)])
+    return ft_value * ft_left
 
 
 def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W, ft_value=FT_VALUE,
-          hit=HIT, week1_moves=None, max_moves_week=MAX_MOVES_WEEK, banned=(), locked=(), time_limit=40,
-          eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0, floor=None,
-          max_hits=None):
+          ft_scale=_UNSET, hit=HIT, week1_moves=None, max_moves_week=MAX_MOVES_WEEK, banned=(), locked=(),
+          time_limit=40, eo=None, lam=0.0, eo_weeks=2, freeze_after=None, haul_w=0.0, hit_margin=0.0, nail_w=0.0,
+          floor=None, max_hits=None):
     """players: {id: {pos, team, price(£m), xp:{gw: float}, ok:bool}}; squad: list of ids;
     sell: {id: selling price £m}; bank £m; ft0: free transfers for the first gameweek.
 
@@ -179,12 +194,21 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
                 variance(players[i]["pos"], xp[i, w]) * (xi[i][w] * _k(1 - 2 * eo.get(i, 0.0), lam) + cp[i][w] * _k(3 - 2 * eo.get(i, 0.0), lam))
                 for i in pool if xp[i, w] > 0))
         obj.append(-d * (hit + hit_margin) * hits[w])
-    obj.append(ft_value * ft[len(gws)])
+    if ft_scale is _UNSET:
+        ft_scale = FT_SCALE
+    if ft_scale is not None:
+        ft_bonus(1, ft_value, ft_scale)   # validate shape & monotonicity
+        ft_b = [pulp.LpVariable(f"ftb_{i}", lowBound=0, upBound=1) for i in range(4)]
+        m += ft[len(gws)] == 1 + pulp.lpSum(ft_b)
+        ft_term = pulp.lpSum(ft_scale[i] * ft_b[i] for i in range(4))
+    else:
+        ft_term = ft_value * ft[len(gws)]
+    obj.append(ft_term)
     m += pulp.lpSum(obj)
-    # VALUE: plain projected points over the plan (XI + captain, no decay), minus 4 per hit, plus ft_value for each
-    # free transfer still banked at the end. The same measure as vs_roll in build.py, so budgets read as points.
+    # VALUE: plain projected points over the plan (XI + captain, no decay), minus 4 per hit, plus banked-FT value
+    # (ft_value * ft_left, or ft_scale sum when set). The same measure as vs_roll in build.py, so budgets read as points.
     value = (pulp.lpSum(xp[i, w] * (xi[i][w] + cp[i][w]) for i in pool for w in W)
-             - hit * pulp.lpSum(hits[w] for w in W) + ft_value * ft[len(gws)])
+             - hit * pulp.lpSum(hits[w] for w in W) + ft_term)
     if floor is not None:
         m += value >= floor
     LAST_FAIL[0] = None
@@ -229,7 +253,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
     total = sum(wk["xp"] for wk in weeks) - hit * sum(wk["hits"] for wk in weeks)
     ft_left = v(ft[len(gws)])
     return {"weeks": weeks, "xp_total": round(total, 2), "objective": round(pulp.value(m.objective), 2),
-            "ft_left": ft_left, "value": round(total + ft_value * ft_left, 2), "optimal": optimal}
+            "ft_left": ft_left, "value": round(total + ft_bonus(ft_left, ft_value, ft_scale), 2), "optimal": optimal}
 
 
 # ---------------------------------------------------------------- strategies
@@ -307,9 +331,12 @@ def planner_settings(n_gws):
     objective's decay and bench weight, hits, the weekly move cap, how many weeks the ownership term covers and the
     variance formula. The Safe and Chase weights (STRATEGY) and the budgets are shipped beside these in plan_rules.
     n_gws: the plan's length, for eo_weeks when EO_WEEKS is None (the whole plan)."""
-    return {"pool": dict(POOL), "decay": DECAY, "bench_w": BENCH_W, "hit": HIT, "max_moves_week": MAX_MOVES_WEEK,
-            "eo_weeks": EO_WEEKS or n_gws,
-            "variance": {k: list(v) for k, v in VARIANCE.items()}, "variance_other": list(VARIANCE_OTHER)}
+    out = {"pool": dict(POOL), "decay": DECAY, "bench_w": BENCH_W, "hit": HIT, "max_moves_week": MAX_MOVES_WEEK,
+           "eo_weeks": EO_WEEKS or n_gws,
+           "variance": {k: list(v) for k, v in VARIANCE.items()}, "variance_other": list(VARIANCE_OTHER)}
+    if FT_SCALE is not None:
+        out["ft_scale"] = list(FT_SCALE)
+    return out
 
 
 def strategy_plans(players, squad, sell, bank, ft0, gws, options, eo=None, modes=("balanced", "safe", "chase"), **kw):

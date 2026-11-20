@@ -1196,6 +1196,7 @@ def main(path):
     # the same keep-the-squad baseline for every plan (one figure, one baseline). Plans without these fields were
     # already reported above.
     ftv = rules.get("ft_value")
+    ftsc = rules.get("ft_scale")
     if plans and rules and (is_bad(ftv) or ftv < 0):
         errors.append(f"plan_rules.ft_value is {ftv!r}: the Planner's 'vs no transfers' can't match the plans")
     elif plans and rules:
@@ -1203,8 +1204,9 @@ def main(path):
         for k, pl in plans.items():
             if any(is_bad(pl.get(f)) for f in ("value", "xp_total", "ft_left", "vs_none")):
                 continue
-            if abs(pl["value"] - (pl["xp_total"] + ftv * pl["ft_left"])) > 0.02:
-                errors.append(f"Plan {k}: value {pl['value']} isn't xP {pl['xp_total']} + {ftv:g} x {pl['ft_left']} FTs banked")
+            bonus = sum(ftsc[:max(0, int(pl["ft_left"]) - 1)]) if isinstance(ftsc, list) and len(ftsc) == 4 else ftv * pl["ft_left"]
+            if abs(pl["value"] - (pl["xp_total"] + bonus)) > 0.02:
+                errors.append(f"Plan {k}: value {pl['value']} isn't xP {pl['xp_total']} + {bonus:.2f} for {pl['ft_left']} FTs banked")
             bases[k] = pl["value"] - pl["vs_none"]
         if bases and max(bases.values()) - min(bases.values()) > 0.03:
             errors.append(f"Plans disagree on the no-transfers baseline (value - vs_none from {min(bases.values()):.2f} "
