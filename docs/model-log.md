@@ -35,6 +35,11 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   - **GW2–4** add only completed GWs `1..k-1` stats and finished-match results.
   - Same approximations as `strategy_replay.py` / `bench.py`: no historical injury flags (`use_flags=False`), overall ownership stands in for rank-band EO, simple auto-subs, and **2024-25 Assistant Manager chip is omitted** (~30–50 pts for active managers).
   - **Tuning-bias caveat:** `2024-25` and `2025-26` were used to tune current model and planner settings, so these replay totals are likely flattering compared with unseen future seasons.
+- **Field-score bias (Fix 2):** The replay's ownership-weighted `field` proxy runs well below real season medians:
+  - **2024-25:** replay `field` = **1,730.8** vs real 50% median **~1,984** (**−253 pts** low).
+  - **2025-26:** replay `field` = **1,636.6** vs real 50% median **~1,871** (**−234 pts** low).
+  - **Likely cause:** the proxy leaves out chips, transfers, hits, and real captaincy (it uses the single most-owned player as captain and scales ownership-weighted points by `11/15`).
+  - **`--field real-avg` availability:** `strategy_replay.py` now supports `--field real-avg` using `events[].average_entry_score` strictly for completed GWs `< k` (proven causal by `tests/test_season_replay.py`, failing loudly if missing). However, the `vaastav/Fantasy-Premier-League` archive for `2024-25` and `2025-26` does not include `events[].average_entry_score` (only `raw/bootstrap.json` for `2026-27` has it), so the Lever 3b re-run on `2024-25`/`2025-26` is skipped rather than inventing per-GW averages.
 - **Chip rules enforced (0 FPL rule violations across all 60 runs / 100+ simulated team-seasons):**
   - `2024-25`: `WC1` (GW1–19), `WC2` (GW20–38), `FH`/`BB`/`TC` (GW1–38); Assistant Manager omitted.
   - `2025-26`: two full sets — `WC1/FH1/BB1/TC1` (GW1–19, expire after GW19) and `WC2/FH2/BB2/TC2` (GW20–38).
@@ -44,29 +49,32 @@ from odds/archive/ since PR #24, 31 Oct 2026).
 
 ### Part 1 — Full-season replay (5-seed mean and range, live `FT_SCALE` on)
 
-**2024-25** (replay `field` = 1,730.8; 0 rule violations):
+**2024-25** (replay `field` proxy = 1,730.8 vs ~1,984 real median; 0 rule violations):
 
-| Chip method | Strategy | Real pts (range) | GW1–4 (range) | Moves | Hits | Rolls | Mean chip pts (weeks across seeds) |
-|---|---|---|---|---:|---:|---:|---|
-| Simple | Balanced | **2,309.4** (2,200–2,360) | 240.2 (227–259) | 33.6 | 0.0 | 13.2 | BB@33 +8.6, FH@34 +23.2, TC@32 +11.0, WC1@5/11/19 +66.8, WC2@24/25 +92.0 |
-| Simple | Play safe | **2,312.2** (2,228–2,406) | 242.2 (227–256) | 33.6 | 0.0 | 12.0 | BB@33 +6.6, FH@34 +22.8, TC@32 +10.4, WC1@5/11/19 +66.8, WC2@25–38 +68.4 |
-| Simple | Chase rank | **2,366.8** (2,345–2,432) | 242.8 (236–257) | 34.2 | 0.2 | 13.2 | BB@33 +8.8, FH@34 +24.2, TC@32 +19.2, WC1@5/6/19 +60.2, WC2@23/25/30 +69.0 |
-| Solver | Balanced | **2,311.4** (2,192–2,370) | 240.2 (227–259) | 34.6 | 0.0 | 10.8 | BB@35/37 +15.2, FH@38 +5.2, TC@33 +10.4, WC1@5/11/19 +66.8, WC2@22/25 +51.2 |
-| Solver | Play safe | **2,325.4** (2,247–2,404) | 242.2 (227–256) | 34.2 | 0.0 | 11.2 | BB@35/37/38 +10.0, FH@33/34/38 +6.4, TC@33/38 +7.6, WC1@5/11/19 +66.0, WC2@22/25/30 +52.0 |
-| Solver | Chase rank | **2,312.6** (2,273–2,415) | 242.8 (236–257) | 34.2 | 0.2 | 12.6 | BB@36–38 +8.2, FH@33–38 −1.2, TC@33/38 +7.0, WC1@5/6/19 +61.0, WC2@22–30 +49.6 |
+| Chip method | Strategy | Real pts (range) | GW1–4 (range) | Moves | Hits | Rolls | BB / TC / FH net gain (weeks) | WC GW score (weeks) |
+|---|---|---|---:|---:|---:|---:|---|---|
+| Simple | Balanced | **2,309.4** (2,200–2,360) | 240.2 (227–259) | 33.6 | 0.0 | 13.2 | BB@33 +8.6, FH@34 +23.2, TC@32 +11.0 | WC1@5/11/19: 66.8, WC2@24/25: 92.0 |
+| Simple | Play safe | **2,312.2** (2,228–2,406) | 242.2 (227–256) | 33.6 | 0.0 | 12.0 | BB@33 +6.6, FH@34 +22.8, TC@32 +10.4 | WC1@5/11/19: 66.8, WC2@25–38: 68.4 |
+| Simple | Chase rank | **2,366.8** (2,345–2,432) | 242.8 (236–257) | 34.2 | 0.2 | 13.2 | BB@33 +8.8, FH@34 +24.2, TC@32 +19.2 | WC1@5/6/19: 60.2, WC2@23/25/30: 69.0 |
+| Solver | Balanced | **2,311.4** (2,192–2,370) | 240.2 (227–259) | 34.6 | 0.0 | 10.8 | BB@35/37 +15.2, FH@38 +5.2, TC@33 +10.4 | WC1@5/11/19: 66.8, WC2@22/25: 51.2 |
+| Solver | Play safe | **2,325.4** (2,247–2,404) | 242.2 (227–256) | 34.2 | 0.0 | 11.2 | BB@35/37/38 +10.0, FH@33/34/38 +6.4, TC@33/38 +7.6 | WC1@5/11/19: 66.0, WC2@22/25/30: 52.0 |
+| Solver | Chase rank | **2,312.6** (2,273–2,415) | 242.8 (236–257) | 34.2 | 0.2 | 12.6 | BB@36–38 +8.2, FH@33–38 **−1.2**, TC@33/38 +7.0 | WC1@5/6/19: 61.0, WC2@22–30: 49.6 |
 
-**2025-26** (replay `field` = 1,636.6; 0 rule violations):
+**2025-26** (replay `field` proxy = 1,636.6 vs ~1,871 real median; 0 rule violations):
 
-| Chip method | Strategy | Real pts (range) | GW1–4 (range) | Moves | Hits | Rolls | Mean chip pts (weeks across seeds) |
-|---|---|---|---|---:|---:|---:|---|
-| Simple | Balanced | **2,163.0** (2,092–2,227) | 220.0 (191–248) | 32.4 | 0.0 | 14.4 | BB1@18 +6.0, BB2@33 +7.0, FH1@17 +9.0, FH2@34 +20.6, TC1@19 +6.0, TC2@36 +5.0, WC1@4/6 +75.0, WC2@23/27 +41.8 |
-| Simple | Play safe | **2,172.2** (2,103–2,217) | 222.0 (180–248) | 32.0 | 0.0 | 15.8 | BB1@18 +7.2, BB2@33 +7.0, FH1@17 +13.6, FH2@34 +21.2, TC1@19 +6.0, TC2@36 +5.0, WC1@4 +80.2, WC2@23/27/28 +54.2 |
-| Simple | Chase rank | **2,212.4** (2,148–2,251) | 227.8 (200–251) | 33.2 | 0.2 | 12.8 | BB1@18 +6.6, BB2@33 +2.8, FH1@17 +5.2, FH2@34 +20.8, TC1@19 +6.0, TC2@36 +5.0, WC1@4 +80.6, WC2@23–25 +70.4 |
-| Solver | Balanced | **2,166.8** (2,062–2,230) | 226.0 (215–248) | 32.8 | 0.0 | 14.6 | BB1@15/17 +4.0, BB2@33/37/38 +11.4, FH1@19 +2.6, FH2@33/34 +29.0, TC1@18 +7.0, TC2@36 +5.0, WC1@3/4/6 +74.8, WC2@23/27 +41.0 |
-| Solver | Play safe | **2,173.6** (2,140–2,240) | 230.2 (221–248) | 32.0 | 0.0 | 15.8 | BB1@17 +7.0, BB2@37/38 +8.0, FH1@19 +1.6, FH2@36 +19.4, TC1@18 +7.0, TC2@37/38 +3.4, WC1@3/4 +80.2, WC2@27/28/31 +56.4 |
-| Solver | Chase rank | **2,228.4** (2,169–2,272) | 231.2 (217–251) | 33.0 | 0.2 | 15.4 | BB1@13/15/17 +12.2, BB2@38 +4.0, FH1@19 −4.6, FH2@33/34/36 +32.6, TC1@18 +7.0, TC2@36/37 +5.2, WC1@3/4 +80.2, WC2@23/29 +52.6 |
+| Chip method | Strategy | Real pts (range) | GW1–4 (range) | Moves | Hits | Rolls | BB / TC / FH net gain (weeks) | WC GW score (weeks) |
+|---|---|---|---:|---:|---:|---:|---|---|
+| Simple | Balanced | **2,163.0** (2,092–2,227) | 220.0 (191–248) | 32.4 | 0.0 | 14.4 | BB1@18 +6.0, BB2@33 +7.0, FH1@17 +9.0, FH2@34 +20.6, TC1@19 +6.0, TC2@36 +5.0 | WC1@4/6: 75.0, WC2@23/27: 41.8 |
+| Simple | Play safe | **2,172.2** (2,103–2,217) | 222.0 (180–248) | 32.0 | 0.0 | 15.8 | BB1@18 +7.2, BB2@33 +7.0, FH1@17 +13.6, FH2@34 +21.2, TC1@19 +6.0, TC2@36 +5.0 | WC1@4: 80.2, WC2@23/27/28: 54.2 |
+| Simple | Chase rank | **2,212.4** (2,148–2,251) | 227.8 (200–251) | 33.2 | 0.2 | 12.8 | BB1@18 +6.6, BB2@33 +2.8, FH1@17 +5.2, FH2@34 +20.8, TC1@19 +6.0, TC2@36 +5.0 | WC1@4: 80.6, WC2@23–25: 70.4 |
+| Solver | Balanced | **2,166.8** (2,062–2,230) | 226.0 (215–248) | 32.8 | 0.0 | 14.6 | BB1@15/17 +4.0, BB2@33/37/38 +11.4, FH1@19 +2.6, FH2@33/34 +29.0, TC1@18 +7.0, TC2@36 +5.0 | WC1@3/4/6: 74.8, WC2@23/27: 41.0 |
+| Solver | Play safe | **2,173.6** (2,140–2,240) | 230.2 (221–248) | 32.0 | 0.0 | 15.8 | BB1@17 +7.0, BB2@37/38 +8.0, FH1@19 +1.6, FH2@36 +19.4, TC1@18 +7.0, TC2@37/38 +3.4 | WC1@3/4: 80.2, WC2@27/28/31: 56.4 |
+| Solver | Chase rank | **2,228.4** (2,169–2,272) | 231.2 (217–251) | 33.0 | 0.2 | 15.4 | BB1@13/15/17 +12.2, BB2@38 +4.0, FH1@19 **−4.6**, FH2@33/34/36 +32.6, TC1@18 +7.0, TC2@36/37 +5.2 | WC1@3/4: 80.2, WC2@23/29: 52.6 |
 
-*(Chip points: BB = net bench gain over normal XI+auto-subs; TC = extra 1× captain pts; FH = net gain over pre-FH XI; WC = GW real score.)*
+- **Chip column note (Fix 3):** `WC GW score` is the total real points scored in the Wildcard week, **not** a net gain, so it is not comparable with `BB` (bench gain over normal XI+auto-subs), `TC` (extra 1× captain pts), or `FH` (net gain over pre-FH XI).
+- **Weak chip results flagged for follow-up (not fixed here):**
+  - **Negative FH:** `2024-25` solver Chase FH averaged **−1.2** and `2025-26` solver Chase FH1 averaged **−4.6**. *Obvious cause in code:* `choose_chip()` holds FH waiting for a high BGW threshold (`22`/`16` xP) until forced expiry on GW19/GW38 (normal single gameweeks where the held squad already fields 11 starters), then swaps into noisy 1-week punts.
+  - **Weak BB (+4 to +15) and TC (+5 to +19)** vs roughly `+15–30` typical for an elite manager. *Obvious causes in code:* (a) the transfer solver runs with `BENCH_W = 0.1` and never builds a bench or doubles *into* a planned BB/TC week, and (b) solver's `20` xP BB threshold is rarely cleared by a `0.1`-weighted bench on a DGW, pushing BB onto forced-expiry single gameweeks (GW37–38).
 
 ### Part 2 — Approximate overall rank estimate & gap to Top 10k
 
@@ -92,20 +100,39 @@ Cut-offs bracketed from official `fantasy.premierleague.com` entry-history table
 | Lever | 2024-25 Δ pts | 2025-26 Δ pts | Pooled Δ pts | Cells positive | Hits/season | Rating |
 |---|---:|---:|---:|---|---:|---|
 | **3a. Solver chips vs simple rule** (all 3 strategies) | −13.0 | +7.1 | **−3.0** | 14 / 30 (4/15, 10/15) | 0.1 | **Coin flip** (naive thresholds lost to simple BGW34 FH / DGW32 TC in 2024-25) |
-| **3b. Pre-registered switching** vs Balanced / Safe / Chase (solver chips) | −18.8 / −32.8 / −20.0 | +20.8 / +14.0 / −40.8 | **−36.8** vs best fixed | 14 / 30 vs all fixed (2/10 vs best fixed) | 0.0 | **Coin flip** (locked into `safe` ~26–27 GWs once ahead of field; missed Chase upside) |
+| **3b. Pre-registered switching** vs Balanced / Safe / Chase (solver chips, proxy field) | −18.8 / −32.8 / −20.0 | +20.8 / +14.0 / −40.8 | **−36.8** vs best fixed | 14 / 30 vs all fixed (2/10 vs best fixed) | 0.0 | **Coin flip** (proxy field biased ~234–253 pts low, so rule locked into `safe` ~26–27 GWs) |
+| **3b re-test (real field)** | skipped | skipped | — | — | — | **Not run:** `vaastav` archive for 2024-25 & 2025-26 lacks `events[].average_entry_score` |
 | **3c. Balanced selective hits, margin = 2** (> +6 gross, vs `MAX_HITS=0`) | −19.2 | −69.4 | **−44.3** | 3 / 10 (2/5, 1/5) | 3.7 | **Coin flip / Harmful** (worse in both seasons) |
 | **3c. Balanced selective hits, margin = 4** (> +8 gross, vs `MAX_HITS=0`) | −36.6 | −13.2 | **−24.9** | 2 / 10 (2/5, 1/5) | 1.5 | **Coin flip / Harmful** (worse in both seasons) |
 
-### Part 4 — Hindsight ceiling (HINDSIGHT DIAGNOSTIC ONLY — never shipped)
+### Part 4 — Greedy weekly hindsight (HINDSIGHT DIAGNOSTIC ONLY — never shipped, not a ceiling)
 
-*Every number below uses hindsight (real points) and is a diagnostic upper bound only. Greedy 1-week-at-a-time selection can slightly understate the true dynamic-programming hindsight ceiling.*
+*Every number below uses hindsight (real points) and is a diagnostic only — **not** a ceiling or upper bound. Choosing on this week's real points favours using transfers now over banking them, so greedy weekly hindsight can score below a fixed strategy on individual seeds.*
 
-| Season | Best fixed (hindsight, solver chips) | Weekly hindsight ceiling (solver chips) | Weekly picks mix (Bal / Safe / Chase) | Ceiling vs best fixed | Est. ceiling rank | Ceiling gap to Top 10k | Share recovered by Lever 3b |
-|---|---:|---:|---|---:|---|---:|---:|
-| 2024-25 | Play safe: **2,325.4** | **2,350.4** (2,199–2,443, 0 hits) | 32.2 / 3.2 / 2.6 | **+25.0** | ~968k | **−250** | −131% (−32.8 pts) |
-| 2025-26 | Chase rank: **2,228.4** | **2,252.0** (2,203–2,293, 0 hits) | 34.6 / 1.4 / 2.0 | **+23.6** | ~419k | **−148** | −173% (−40.8 pts) |
+**Per-seed comparison (solver chips, greedy weekly hindsight vs THAT seed's best fixed strategy):**
 
-- **Verdict & priority order:** Even a weekly hindsight strategy oracle adds only **~24 pts/season**, leaving **~148–250 pts** to Top 10k. None of Levers 3a (reactive chip thresholds), 3b (strategy switching), or 3c (Balanced selective hits) should be shipped. Closing the Top-10k gap requires: (1) minutes/start-chance & live team-news accuracy (FL-174, FL-175, FL-199, FL-131), (2) underlying projection & DGW/captaincy accuracy (FL-053, FL-134, FL-021, FL-229), and (3) chip-aware multi-GW transfer setup (FL-005) rather than reactive chip triggers.
+| Season | Seed | Balanced | Play safe | Chase rank | Best fixed (that seed) | Greedy weekly hindsight | Δ vs that seed's best fixed | Flag |
+|---|---:|---:|---:|---:|---|---:|---:|---|
+| 2024-25 | 0 | 2,330 | 2,325 | 2,290 | Balanced (2,330) | 2,382 | +52 | |
+| 2024-25 | 1 | 2,370 | 2,318 | 2,415 | Chase (2,415) | 2,321 | **−94** | **BELOW best fixed** |
+| 2024-25 | 2 | 2,192 | 2,247 | 2,277 | Chase (2,277) | 2,199 | **−78** | **BELOW best fixed** |
+| 2024-25 | 3 | 2,321 | 2,333 | 2,308 | Safe (2,333) | 2,407 | +74 | |
+| 2024-25 | 4 | 2,344 | 2,404 | 2,273 | Safe (2,404) | 2,443 | +39 | |
+| **2024-25 mean** | | 2,311.4 | 2,325.4 | 2,312.6 | **2,351.8** (per-seed best) | **2,350.4** (est. ~968k, −250 to 10k) | **−1.4** | **2/5 seeds below** |
+| 2025-26 | 0 | 2,062 | 2,151 | 2,252 | Chase (2,252) | 2,281 | +29 | |
+| 2025-26 | 1 | 2,230 | 2,163 | 2,272 | Chase (2,272) | 2,293 | +21 | |
+| 2025-26 | 2 | 2,150 | 2,240 | 2,200 | Safe (2,240) | 2,203 | **−37** | **BELOW best fixed** |
+| 2025-26 | 3 | 2,207 | 2,140 | 2,249 | Chase (2,249) | 2,270 | +21 | |
+| 2025-26 | 4 | 2,185 | 2,174 | 2,169 | Balanced (2,185) | 2,213 | +28 | |
+| **2025-26 mean** | | 2,166.8 | 2,173.6 | 2,228.4 | **2,239.6** (per-seed best) | **2,252.0** (est. ~419k, −148 to 10k) | **+12.4** | **1/5 seeds below** |
+
+*(Weekly picks mix, mean GWs/season: 2024-25 = 32.2 Bal / 3.2 Safe / 2.6 Chase; 2025-26 = 34.6 Bal / 1.4 Safe / 2.0 Chase; 0 hits in both seasons.)*
+
+- **Verdict & evidence-ordered next items (Fix 1 & Fix 4):** Strategy switching looks small based on the pre-registered rule in Lever 3b losing (`−36.8 pts` vs best fixed, though proxy-field bias kept it in `safe`) — not based on Part 4. Selective Balanced hits (Lever 3c) lost in both seasons (`−24.9` to `−44.3 pts`), validating `MAX_HITS["balanced"] = 0`. Ordered by **measured evidence first, untested ideas after**:
+  1. **Chip quality & chip-aware planning (FL-005 + chip timing follow-up)** — *measured in this replay:* FH went negative (`−1.2`, `−4.6` on forced expiry) and BB (`+4 to +15`) / TC (`+5 to +19`) fell well below typical elite `+15–30` because transfers aren't planned into chip weeks and reactive thresholds missed real doubles/blanks.
+  2. **Underlying projection & DGW/captaincy accuracy (FL-053, FL-134, FL-021, FL-229)** — *measured context:* earlier model-log changes moved 5-GW picks by only about `+0.1 to +0.5` points, so small tweaks alone won't close a ~170–290 pt gap, though DGW under-projection (FL-053) compounds directly with chip weeks.
+  3. **Start-chance & live team news (FL-174, FL-175, FL-199, FL-131)** — *not testable in this replay (`use_flags=False`)*.
+  4. **Skip / do not build:** automated strategy switching (Lever 3b lost on proxy field; re-test only if per-GW real averages are added for past seasons) and selective Balanced hits (Lever 3c lost across both margins and both seasons).
 
 ## 20 Nov 2026 — FL-224: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
 

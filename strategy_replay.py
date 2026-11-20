@@ -24,8 +24,14 @@ FL-230 extensions (analysis & replay tooling only; never changes fplmodel.py or 
         otherwise -> balanced.
   - --balanced-hit-margin M: FL-230 Lever 3c, allow Balanced at most 1 hit/GW only when projected gain over the
     5-GW plan window exceeds 4 + M (i.e. value_with_hit >= value_no_hit + M * hits).
-  - --hindsight: FL-230 Part 4 (HINDSIGHT DIAGNOSTIC ONLY — never shipped): each GW from the same current squad,
-    solves all 3 strategies and keeps the one with highest THIS-WEEK real points (after hits).
+  - --greedy-hindsight: FL-230 Part 4 (GREEDY WEEKLY HINDSIGHT DIAGNOSTIC ONLY — never shipped, not a ceiling):
+    each GW from the same current squad, solves all 3 strategies and keeps the one with highest THIS-WEEK real
+    points (after hits). Because choosing on this week's real points favours using transfers now over banking them,
+    it can score below a fixed strategy on individual seeds.
+  - --field proxy|real-avg: field benchmark used for vs_field and --switch. `proxy` (default) uses ownership-weighted
+    points (leaves out chips, transfers, hits and real captaincy, so it runs ~235-253 pts below real season medians);
+    `real-avg` uses official `events[].average_entry_score` strictly for completed GWs < k (fails loudly if the
+    season archive lacks per-GW averages — no silent fallback).
   - --cache-dir DIR: cache/load precomputed rolling-origin projections (pickle) so multi-seed runs stay fast and
     share byte-identical projections.
 
@@ -495,13 +501,40 @@ def apply_week(t, w0, chip_id, sell, pl, gw, chip_pool, allow_hit, prev_held_ove
     return hits
 
 
+def real_avg_table(boot):
+    """Extract {gw: float(average_entry_score)} from boot['events'] for finished GWs with a real average score."""
+    out = {}
+    for ev in (boot or {}).get("events", []):
+        gid = ev.get("id")
+        avg = ev.get("average_entry_score")
+        if gid and ev.get("finished") and avg is not None and float(avg) > 0:
+            out[int(gid)] = float(avg)
+    return out
+
+
+def causal_field_sum(field_by_gw, k):
+    """Cumulative field score strictly from completed gameweeks < k (never reads GW k or later)."""
+    return sum(v for g, v in field_by_gw.items() if g < k)
+
+
 def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
-           chips="none", switch=False, balanced_hit_margin=None, hindsight=False,
-           cache_dir=None, quiet=False):
+           chips="none", switch=False, balanced_hit_margin=None, greedy_hindsight=False,
+           field_mode="proxy", cache_dir=None, quiet=False):
     ctx, team_at = bench._season(season)
     price, own = season_tables(season)
     last = max(price)
     k_to = min(k_to, last)
+    real_avgs = None
+    if field_mode == "real-avg":
+        real_avgs = real_avg_table(ctx.get("boot"))
+        missing = [g for g in range(k_from, k_to + 1) if g not in real_avgs]
+        if missing:
+            raise ValueError(
+                f"--field real-avg unavailable for {season}: missing events[].average_entry_score for "
+                f"{len(missing)} GWs (e.g. GW{missing[0]}). No silent fallback."
+            )
+    elif field_mode != "proxy":
+        raise ValueError(f"unknown field_mode {field_mode!r}; expected 'proxy' or 'real-avg'")
     dgw, bgw = fixture_calendar(ctx["fixtures"], last)
     chip_pool = season_chips(season) if chips != "none" else {}
     simple_sched = simple_chip_schedule(season, dgw, bgw) if chips == "simple" else {}
@@ -521,8 +554,8 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
     start = wc["weeks"][0]["xi"] + wc["weeks"][0]["bench"]
     bank0 = round(100.0 - sum(pl0[i]["price"] for i in start), 1)
 
-    if hindsight:
-        run_names = ("hindsight_weekly",)
+    if greedy_hindsight:
+        run_names = ("greedy_hindsight",)
     elif switch:
         run_names = ("switch",)
     else:
@@ -531,7 +564,7 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
     def init_team():
         return {
             "squad": list(start), "buy": {i: pl0[i]["price"] for i in start}, "bank": bank0, "ft": 1,
-            "real": [], "proj": [], "field": [], "gws": [],
+            "real": [], "proj": [], "field": [], "field_by_gw": {}, "gws": [],
             "hits": 0, "moves": 0, "rolls": 0,
             "avail_chips": dict(chip_pool), "used_chips": set(), "chip_log": [],
             "mode_log": [], "violations": [],
@@ -551,7 +584,10 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
         mins = {pid: ctx["pstats"].get(pid, {}).get(k, {}).get("minutes", 0) for pid in pl}
         o = own.get(k, {})
         top = max(pl, key=lambda pid: o.get(pid, 0))
-        field = sum(o.get(pid, 0) * pts.get(pid, 0) for pid in pl) * 11 / 15 + pts.get(top, 0)
+        if field_mode == "real-avg":
+            field = real_avgs[k]
+        else:
+            field = sum(o.get(pid, 0) * pts.get(pid, 0) for pid in pl) * 11 / 15 + pts.get(top, 0)
         eo = {pid: o.get(pid, 0.0) for pid in pl}
 
         # Ensure any held player missing from price list still exists in pl/pts/mins
@@ -569,9 +605,9 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
             sell = {i: fpl_sell(t["buy"][i], pl[i]["price"]) for i in t["squad"]}
             prev_held_over = optimise.club_over(t["squad"], pl)
 
-            if hindsight:
-                # Part 4 HINDSIGHT DIAGNOSTIC: solve all 3 strategies from the same current squad,
-                # pick the one with highest THIS-WEEK real points (after hits)
+            if greedy_hindsight:
+                # Part 4 GREEDY WEEKLY HINDSIGHT DIAGNOSTIC (not a ceiling): solve all 3 strategies from the same
+                # current squad, pick the one with highest THIS-WEEK real points (after hits)
                 best_choice = None
                 for m_cand in MODES:
                     base_r = solve_mode_plan(m_cand, pl, t["squad"], sell, t["bank"], t["ft"], gws, eo, pick)
@@ -590,7 +626,9 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
                 t["mode_log"].append(picked_m)
             else:
                 if switch:
-                    m_cur = switch_mode(k, sum(t["real"]), sum(t["field"]))
+                    # Strictly causal: uses only completed GWs < k
+                    cum_field = causal_field_sum(t["field_by_gw"], k)
+                    m_cur = switch_mode(k, sum(t["real"]), cum_field)
                     t["mode_log"].append(m_cur)
                 else:
                     m_cur = name
@@ -610,14 +648,20 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
             w0 = used_r["weeks"][0]
             hits = apply_week(t, w0, c_id, sell, pl, k, chip_pool, allow_hit, prev_held_over)
             if c_id is not None:
-                t["chip_log"].append({"chip": c_id, "gw": k, "pts": round(chip_pts, 1), "gw_real": round(real, 1)})
+                entry = {"chip": c_id, "gw": k, "gw_real": round(real, 1)}
+                if chip_kind(c_id) == "WC":
+                    entry["wc_gw_score"] = round(real, 1)
+                else:
+                    entry["pts"] = round(chip_pts, 1)
+                t["chip_log"].append(entry)
             t["real"].append(real)
             t["proj"].append(w0["xp"] - 4 * hits)
             t["field"].append(field)
+            t["field_by_gw"][k] = field
             t["gws"].append(k)
 
         if not quiet:
-            line = "  ".join(f"{m[:10]} {teams[m]['real'][-1]:4.0f}" for m in run_names)
+            line = "  ".join(f"{m[:16]} {teams[m]['real'][-1]:4.0f}" for m in run_names)
             print(f"  {season} GW{k}: {line}   field {field:5.1f}   ({time.time() - t0:.0f}s)", flush=True)
     return teams
 
@@ -664,8 +708,10 @@ def main():
     ap.add_argument("--switch", action="store_true", help="FL-230 Lever 3b: pre-registered strategy-switching rule")
     ap.add_argument("--balanced-hit-margin", type=float, default=None,
                     help="FL-230 Lever 3c: allow Balanced <=1 hit/GW when 5-GW gain > 4 + M")
-    ap.add_argument("--hindsight", action="store_true",
-                    help="FL-230 Part 4 (HINDSIGHT DIAGNOSTIC ONLY): pick best strategy each week using real points")
+    ap.add_argument("--greedy-hindsight", action="store_true",
+                    help="FL-230 Part 4 (GREEDY WEEKLY HINDSIGHT DIAGNOSTIC ONLY — not a ceiling): pick best strategy each week using real points")
+    ap.add_argument("--field", choices=("proxy", "real-avg"), default="proxy",
+                    help="field benchmark: proxy (ownership-weighted) or real-avg (official events[].average_entry_score for GWs < k)")
     ap.add_argument("--cache-dir", default=None, help="directory to cache/load rolling-origin projections")
     ap.add_argument("--quiet", action="store_true", help="suppress per-GW progress output")
     a = ap.parse_args()
@@ -680,15 +726,20 @@ def main():
         res[s] = summary(replay(
             s, a.k_from, a.k_to, a.sim, tuple(a.modes.split(",")), a.seed, a.pick,
             chips=a.chips, switch=a.switch, balanced_hit_margin=a.balanced_hit_margin,
-            hindsight=a.hindsight, cache_dir=a.cache_dir, quiet=a.quiet,
+            greedy_hindsight=a.greedy_hindsight, field_mode=a.field,
+            cache_dir=a.cache_dir, quiet=a.quiet,
         ))
-        print(f"\n{s}  (GW{a.k_from}-{a.k_to}, chips={a.chips}, seed={a.seed})")
-        print(f"{'':16s} {'real':>6s} {'gw1-4':>6s} {'proj':>7s} {'field':>7s} {'vs_fld':>8s} {'hits':>5s} {'moves':>6s} {'rolls':>6s} {'viol':>5s}")
+        print(f"\n{s}  (GW{a.k_from}-{a.k_to}, chips={a.chips}, field={a.field}, seed={a.seed})")
+        print(f"{'':18s} {'real':>6s} {'gw1-4':>6s} {'proj':>7s} {'field':>7s} {'vs_fld':>8s} {'hits':>5s} {'moves':>6s} {'rolls':>6s} {'viol':>5s}")
         for m, r in res[s].items():
-            print(f"{m:16s} {r['real']:6.0f} {r['gw1_4']:6.0f} {r['proj']:7.1f} {r['field']:7.1f} {r['vs_field']:+8.1f} "
+            print(f"{m:18s} {r['real']:6.0f} {r['gw1_4']:6.0f} {r['proj']:7.1f} {r['field']:7.1f} {r['vs_field']:+8.1f} "
                   f"{r['hits']:5d} {r['moves']:6d} {r['rolls']:6d} {r['violations']:5d}")
             if r["chips"]:
-                cstr = ", ".join(f"{c['chip']}@GW{c['gw']}({c['pts']:+.0f})" for c in r["chips"])
+                cstr = ", ".join(
+                    f"{c['chip']}@GW{c['gw']}(WC GW score {c['wc_gw_score']:.0f})" if "wc_gw_score" in c
+                    else f"{c['chip']}@GW{c['gw']}({c['pts']:+.0f})"
+                    for c in r["chips"]
+                )
                 print(f"  chips: {cstr}")
             if r["mode_counts"]:
                 print(f"  modes: {r['mode_counts']}")

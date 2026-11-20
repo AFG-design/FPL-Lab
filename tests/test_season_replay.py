@@ -198,6 +198,36 @@ class TestChipRulesAndAudit(unittest.TestCase):
         self.assertEqual(sr.switch_mode(15, 480, 400), "balanced")
         self.assertEqual(sr.switch_mode(30, 1080, 1000), "chase")
 
+    def test_real_avg_field_ignores_gw_k_and_later(self):
+        """Real-average field for GW k must read only completed GWs < k (zero lookahead into GW k or later)."""
+        boot_base = {
+            "events": [
+                {"id": g, "finished": g <= 14, "average_entry_score": 50 + g if g <= 14 else 0}
+                for g in range(1, 21)
+            ]
+        }
+        boot_mut = copy.deepcopy(boot_base)
+        # Mutate GW 12 and all later GWs to extreme values
+        for ev in boot_mut["events"]:
+            if ev["id"] >= 12:
+                ev["finished"] = True
+                ev["average_entry_score"] = 9999
+        avgs_base = sr.real_avg_table(boot_base)
+        avgs_mut = sr.real_avg_table(boot_mut)
+        # Unfinished events (GW15-20) are excluded from boot_base
+        self.assertNotIn(15, avgs_base)
+        # For every k <= 12, causal_field_sum reads strictly g < k, so mutating g >= 12 changes nothing
+        for k in (1, 5, 11, 12):
+            self.assertEqual(
+                sr.causal_field_sum(avgs_base, k),
+                sr.causal_field_sum(avgs_mut, k),
+                f"real-avg field at GW{k} leaked data from GW >= {k}",
+            )
+            self.assertEqual(
+                sr.switch_mode(k, 650, sr.causal_field_sum(avgs_base, k)),
+                sr.switch_mode(k, 650, sr.causal_field_sum(avgs_mut, k)),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
