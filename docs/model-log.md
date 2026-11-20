@@ -112,6 +112,21 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   (MID `−0.78`), Murillo (DEF `−0.69`), Silva (DEF `−0.67`), Konsa (DEF `−0.66`), Pinnock (DEF `−0.66`). Biggest
   risers: Reinildo (DEF `+0.51`), Boscagli (DEF `+0.48`), Maatsen (DEF `+0.45`), Castagne (DEF `+0.39`). Recommended
   GW11 plans for team `8122679` are unchanged (`roll`, `safe_roll`, `chase_roll`).
+- **Supporting check, added after merge: do players on a DefCon run keep it up?** (`tools/dc_hot_runs.py`, report only.
+  Run in review because the biggest live fallers looked suspicious: Mainoo had hit DefCon in 6 of 6 starts this season
+  at 15.3 per 90.) In 2025/26, outfield players with an own hit rate of 0.8+ over 5+ starts before the forecast week,
+  scored on their starts that week (built as `bench.run_archive`):
+
+| 2025/26 | Player-weeks | Real hit rate | `dc_blend 4` projected (Brier) | `dc_blend 15` projected (Brier) |
+|---|---:|---:|---:|---:|
+| GW4–12 | 20 | 0.450 | 0.694 (0.3192) | 0.569 (0.2713) |
+| GW13–38 | 14 | 0.643 | 0.737 (0.2445) | 0.634 (0.2340) |
+| All | 34 | 0.529 | 0.712 (0.2884) | 0.596 (0.2559) |
+
+  Players on a run regress sharply, most of all early in the season (where this season is now). `15` is nearer the
+  real rate in both halves and still over-projects them early, so the live falls for hot-run players are the change
+  working, not a bug. The sample is small (34 player-weeks, one season), so this supports the bench result and does
+  not decide anything. Re-run it at the season-end re-check, with this season added once it has enough weeks.
 - **Choice among qualifiers:** V3 (`30`) trips `--compare` (disqualified). V1 (`8`) and V2 (`15`) both meet the
   targeted-change row. **V2 (`dc_blend = 15`) is adopted** (judgement call — the row allows either): it delivers a
   48% larger pooled DC Brier gain (`−0.00037` vs `−0.00025`), higher pooled 5-GW picks (`+0.045` vs `+0.027`), and
