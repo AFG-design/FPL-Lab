@@ -43,7 +43,10 @@ DEFAULTS = {
     "cred_parts": ["xg", "dc"],   # rates cred_recency applies to; None = every rate (tested: worse for bonus, saves)
     "pen_xg": 0.05,        # extra xG per 90 for the first-choice penalty taker
     "min_window": 5,       # gameweeks of minutes history
-    "dc_blend": 4.0,       # pseudo-games for DC hit-rate shrinkage
+    "dc_blend": 15.0,      # FL-224: pseudo-games for DC hit-rate shrinkage toward p_dc_model. Must be finite >= 0
+                           # (not bool; any other value raises; n=0 with dc_blend=0 falls back to p_dc_model).
+                           # 15.0: Adopt as Marginal (20 Nov 2026, model log; targeted change, DC part); re-check at
+                           # season end against {"dc_blend": 4.0}, revert if the DC part gain has gone.
     "dc_r": 10,            # FL-177: tail for the DefCon chance (p_dc_model, p_dc_sub; dc_tail). r > 0 = negative
                            # binomial with the same mean and size r (variance mu + mu^2/r, a fatter tail); None = Poisson
                            # (the old behaviour). Any other value raises. Other p_at_least callers stay Poisson.
@@ -736,6 +739,9 @@ def project(ctx, as_of, horizon=6, params=None):
     dbm = P["def_bonus_mult"]
     if isinstance(dbm, bool) or not isinstance(dbm, (int, float)) or not math.isfinite(dbm) or dbm <= 0:
         raise ValueError(f"def_bonus_mult must be a finite number > 0, got {dbm!r}")
+    dcb = P["dc_blend"]
+    if isinstance(dcb, bool) or not isinstance(dcb, (int, float)) or not math.isfinite(dcb) or dcb < 0:
+        raise ValueError(f"dc_blend must be a finite number >= 0, got {dcb!r}")
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
     rating, league = team_ratings(ctx, as_of, P)
     H = P["home"]
@@ -971,7 +977,7 @@ def project(ctx, as_of, horizon=6, params=None):
                 n60 += 1
                 hits += ctx["dc_hit"][pid].get(g, False)
         p_dc_model = dc_tail(dc90 * min(90, m_start) / 90, thr, P["dc_r"]) if pos != "GKP" else 0.0
-        p_dc = (hits + p_dc_model * P["dc_blend"]) / (n60 + P["dc_blend"]) if pos != "GKP" else 0.0
+        p_dc = ((hits + p_dc_model * dcb) / (n60 + dcb) if (n60 + dcb) > 0 else p_dc_model) if pos != "GKP" else 0.0
         p_dc_sub = 0.0
         if P["dc_fixture"] and pos != "GKP":
             # FL-080: FPL has no minutes gate on defensive contributions, and a double is two chances, not one. The
@@ -979,7 +985,7 @@ def project(ctx, as_of, horizon=6, params=None):
             # counts), blended with the rate model at his minutes when starting; per SUB appearance, the rate model at
             # his minutes off the bench. Missing per-fixture data (no explain rows): no history, so the model alone.
             st_fx = [r for g in hist_gws for r in ctx.get("dc_fx", {}).get(pid, {}).get(g, ()) if r[2]]
-            p_dc = (sum(r[1] for r in st_fx) + p_dc_model * P["dc_blend"]) / (len(st_fx) + P["dc_blend"])
+            p_dc = (sum(r[1] for r in st_fx) + p_dc_model * dcb) / (len(st_fx) + dcb) if (len(st_fx) + dcb) > 0 else p_dc_model
             p_dc_sub = dc_tail(dc90 * min(90, m_sub) / 90, thr, P["dc_r"])
 
         tid = e["team"]
