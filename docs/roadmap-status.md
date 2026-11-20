@@ -22,6 +22,11 @@ Checked against the git log on `main` and the backlog sheet on 20 Nov (evening).
 - **Still open in Cycle 2:** FL-098 backup scheduler (first real test: GW11 window, Sat 21 Nov 05:00–11:00 UTC), FL-175 and FL-174 (start chance), FL-199 team-news collector, FL-226 light-mode focus rings, FL-134 ep_next blend (after GW12), FL-021 player-odds re-test (GW12–13), FL-229 style data (PR #249 open).
 - **Dropped 20 Nov:** FL-215 ClubElo test. ClubElo's API returned HTTP 502 on every try in both Antigravity batches.
 - **Understat still down since 1 Nov.** The site keeps the last good data and warns; FL-229's backfill waits until Understat is back.
+- **FL-230 full-season replay & lever priorities (20 Nov, analysis PR):** Replaying GW1–38 with chips on `2024-25` and `2025-26` (5 seeds, live `FT_SCALE`, 0 rule violations; likely flattering because these seasons tuned current settings) puts FPL Lab at roughly **~620k–1.4M** overall (**~170–290 pts** short of Top 10k; ~30–50 pts of 2024-25's gap is the omitted Assistant Manager chip, and replays run without live injury flags). Even a weekly **hindsight** strategy oracle only adds **+24–25 pts** over the best fixed strategy. **Build order to close the gap:**
+  1. **Start-chance & live team news first** (FL-174, FL-175, FL-199, FL-131) — missed starts and captain blanks cost far more than planner tuning.
+  2. **Underlying projection & DGW/captaincy accuracy** (FL-053 DGW under-projection, FL-134 `ep_next` blend, FL-021 player odds, FL-229 style data) — closing ~170–290 pts needs ~4.5–7.5 real pts/GW from better projections.
+  3. **Chip-aware multi-GW transfer setup** (FL-005 chip pins by GW) — reactive chip thresholds (Lever 3a, −3 pts pooled) didn't beat a simple DGW/BGW rule; real chip gain requires planning transfers *into* pinned chip weeks.
+  4. **Skip / do not build:** automated strategy switching (Lever 3b, −37 pts vs best fixed; hindsight ceiling only +24 pts) and selective hits for Balanced (Lever 3c, −25 to −44 pts; keep `MAX_HITS["balanced"] = 0`).
 
 ## Status at 18 Nov 2026
 Checked against the git log on `main` and the backlog sheet on 18 Nov. The sheet is still the source of truth; the sections below this one are kept as they were written.
