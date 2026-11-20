@@ -1818,7 +1818,7 @@ def rate_squad():
         gws_r = proj_gws[:PLAN_GWS]
         budget = bank + sum(sell.values())
         try:
-            wc = optimise.solve(opt_players, [], {}, budget, 5, gws_r, hit=0, ft_value=0, max_moves_week=15, freeze_after=1, time_limit=60)
+            wc = optimise.solve(opt_players, [], {}, budget, 5, gws_r, hit=0, ft_value=0, ft_scale=None, max_moves_week=15, freeze_after=1, time_limit=60)
         except Exception as ex:
             print("squad rating solve failed:", ex); wc = None
         field_eo = {}

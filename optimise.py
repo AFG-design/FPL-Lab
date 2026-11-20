@@ -66,9 +66,9 @@ def spread(players, mult, eo, gw):
 # Points a free transfer still banked at the end of the plan is worth. Part of every plan's VALUE (below), so it is in
 # vs_none / vs_balanced too; data.json's plan_rules.ft_value carries it to the Planner (FL-125).
 FT_VALUE = 1.5
-# FL-165: optional falling per-FT value for 2nd..5th banked FT (e.g. (2.0, 1.6, 1.3, 1.1)). Off by default (None =
-# flat FT_VALUE) pending decision. Must be 4 non-increasing non-negative numbers so the LP fills them in order.
-FT_SCALE = None
+# FL-165: falling per-FT value for 2nd..5th banked FT (adopted 20 Nov 2026). Set to None to revert to flat FT_VALUE.
+# Must be 4 non-increasing non-negative numbers so the LP fills them in order.
+FT_SCALE = (2.0, 1.6, 1.3, 1.1)
 _UNSET = object()
 
 
@@ -195,7 +195,7 @@ def solve(players, squad, sell, bank, ft0, gws, *, decay=DECAY, bench_w=BENCH_W,
                 for i in pool if xp[i, w] > 0))
         obj.append(-d * (hit + hit_margin) * hits[w])
     if ft_scale is _UNSET:
-        ft_scale = FT_SCALE
+        ft_scale = None if ft_value == 0 else FT_SCALE
     if ft_scale is not None:
         ft_bonus(1, ft_value, ft_scale)   # validate shape & monotonicity
         ft_b = [pulp.LpVariable(f"ftb_{i}", lowBound=0, upBound=1) for i in range(4)]

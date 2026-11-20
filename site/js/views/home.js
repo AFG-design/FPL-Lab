@@ -119,7 +119,7 @@ function vNext() {
         <div><dt>Projected vs rolling</dt><dd>${sgn(c.ptsVsRoll)} xP</dd></div>
         <div><dt>Banked transfers (assumed)</dt><dd>${sgn(c.ftValue)}</dd></div>
       </dl>
-      <p class="dc-sub">The ${horizon} projection includes lineup, captaincy and all transfer hits. The verdict also values each extra free transfer left at the end at ${ftValue()} points.</p>
+      <p class="dc-sub">The ${horizon} projection includes lineup, captaincy and all transfer hits. ${ftScale() ? `The verdict also values banked free transfers left at the end on a falling scale (${ftScale().map(f1).join("/")} for the 2nd–5th).` : `The verdict also values each extra free transfer left at the end at ${ftValue()} points.`}</p>
     </details>`;
   const tAct = `${n || decisionAlternative() ? '<button class="btn sm" data-decision="roll">Compare with saving the transfer</button>' : '<span class="note">Saving is recommended; no valid transfer alternative is available.</span>'}<button class="btn sm" data-plgo="edit:suggest">Compare transfers →</button>${n ? `<button class="btn sm" data-howto="${g}">Make these moves on FPL</button>` : ""}`;
 

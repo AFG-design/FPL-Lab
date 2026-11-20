@@ -121,7 +121,9 @@ function solverProblems(inp, r) {
     value += (chip === "bboost" ? played : xi).reduce((a, i) => a + x(i), 0) + x(wk.captain) * (chip === "3xc" ? 2 : 1) - inp.hit * wk.hits;
   });
   if (r.ftLeft !== ft) out.push(`ftLeft ${r.ftLeft}, FPL's rules give ${ft}`);
-  value += inp.ftValue * ft;
+  value += Array.isArray(inp.ftScale) && inp.ftScale.length === 4
+    ? inp.ftScale.slice(0, Math.max(0, ft - 1)).reduce((a, b) => a + b, 0)
+    : inp.ftValue * ft;
   if (Math.abs(value - r.value) > 0.02) out.push(`value ${r.value.toFixed(2)}, its weeks add up to ${value.toFixed(2)}`);
   return out;
 }
