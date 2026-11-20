@@ -44,6 +44,59 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   blocked on (1) verifying free public-site redistribution in Bzzoiro's Data licence and (2) confirming the 11.2%
   blank-player shots are an FPL-Core-Insights mapping gap rather than missing in Bzzoiro's own API.
 
+## 20 Nov 2026 — FL-165: Banked free-transfer value — planner replay study (V2 falling scale qualifies; left OFF by default pending decision)
+
+- **Why:** `optimise.FT_VALUE = 1.5` (flat per banked FT) was chosen by judgement, not measured. Planner-only study
+  (projections untouched; `bench.py` and `backtest.py` do not change).
+- **Step 1 — Direct measurement of a banked FT:** paired 5-GW MILP solves at `ft0` vs `ft0 + 1` across 20 rolling
+  origins (every 3rd GW, GW5–32 in `2025-26` and `2024-25`; `n = 80` pairs, `max_hits=0`). Each extra banked FT has
+  sharply diminishing marginal value, matching the shape of `open-fpl-solver`'s falling scale:
+
+| Step | n | Real 5-GW gain (mean) | Real 5-GW gain (median) | Projected 5-GW gain |
+|---|---:|---:|---:|---:|
+| `1 → 2 FT` | 20 | +6.80 | +5.00 | +3.58 |
+| `2 → 3 FT` | 20 | +3.25 | +3.00 | +2.46 |
+| `3 → 4 FT` | 20 | +1.80 | +4.00 | +1.62 |
+| `4 → 5 FT` | 20 | +1.40 | +0.50 | +1.56 |
+| **All steps (`1→2..4→5`)** | **80** | **+3.31** | **+2.50** | **+2.30** |
+
+- **Pre-registered variants (no others):**
+  - **V1:** flat `FT_VALUE = 3.3` (measured mean), `MIN_PROFIT = 1.0`.
+  - **V2:** falling scale `(2.0, 1.6, 1.3, 1.1)` for 2nd..5th banked FT (`open-fpl-solver` scale), `MIN_PROFIT = 1.0`.
+  - **V3:** V2 falling scale with `MIN_PROFIT = 0.5`.
+- **Step 2 — 2-season planner replay (`2025-26` + `2024-25`, GW5–38, `sim=600`, identical precomputed projections
+  across all 4 variants; real points net of hits, moves / hits / rolls):**
+
+| Season | Strategy | main (`1.5`, `1.0`) | V1 (`3.3`, `1.0`) | V2 (`2.0/1.6/1.3/1.1`, `1.0`) | V3 (V2 + `0.5`) |
+|---|---|---:|---:|---:|---:|
+| **2025-26** | Balanced | 1884 (32mv 0h 15rol) | 1926 (**+42**, 32mv 0h 15rol) | 1903 (**+19**, 33mv 0h 15rol) | 1876 (−8, 33mv 0h 8rol) |
+| | Play safe | 1863 (32mv 0h 13rol) | 1979 (**+116**, 32mv 0h 16rol) | 1873 (**+10**, 32mv 0h 16rol) | 1834 (−29, 34mv 0h 10rol) |
+| | Chase rank | 1898 (32mv 0h 13rol) | 1863 (−35, 33mv 0h 14rol) | 1967 (**+69**, 32mv 0h 16rol) | 1873 (−25, 33mv 0h 9rol) |
+| **2024-25** | Balanced | 2027 (34mv 0h 13rol) | 2065 (**+38**, 32mv 0h 16rol) | 2076 (**+49**, 34mv 0h 12rol) | 2067 (+40, 32mv 0h 12rol) |
+| | Play safe | 2100 (34mv 0h 9rol) | 2049 (−51, 30mv 0h 14rol) | 2147 (**+47**, 32mv 0h 15rol) | 2123 (+23, 32mv 0h 11rol) |
+| | Chase rank | 2044 (36mv 2h 14rol) | 2114 (**+70**, 31mv 0h 14rol) | 2086 (**+42**, 30mv 0h 15rol) | 2068 (+24, 33mv 0h 15rol) |
+| **2-season total** | **Balanced** | 3911 (66mv 0h 28rol) | 3991 (**+80**) | 3979 (**+68**) | 3943 (+32) |
+| | **Play safe** | 3963 (66mv 0h 22rol) | 4028 (**+65**) | 4020 (**+57**) | 3957 (−6) |
+| | **Chase rank** | 3942 (68mv 2h 27rol) | 3977 (**+35**) | 4053 (**+111**) | 3941 (−1) |
+| | **Sum across 3 strategies** | — | **+180** (4/6 cells positive) | **+236** (**6/6 cells positive**) | +25 (3/6 cells positive) |
+
+- **Rules check:** 0 hits on Balanced and Play safe across every variant and season; Chase ≤ 1 hit/wk (0 hits in V1/V2/V3
+  vs 2 hits in `main`); 5-FT cap never exceeded (`maxFT = 5`); 0 budget/club/formation violations.
+- **Takeaway:**
+  - **V2 (`2.0 / 1.6 / 1.3 / 1.1`, `MIN_PROFIT = 1.0`)** beats `main` in **all 6 of 6** (season × strategy) cells
+    (`+19 / +10 / +69` in 2025-26; `+49 / +47 / +42` in 2024-25; total `+236` across 3 strategies, 0 hits).
+  - **V1 (`3.3`)** also gains overall (`+180`, Balanced `+80`), but drops Play safe in 2024-25 (`−51`) and Chase in
+    2025-26 (`−35`).
+  - **V3 (V2 + `MIN_PROFIT = 0.5`)** hurts all three strategies in 2025-26 (`−8 / −29 / −25`) by cutting rolls (8–10 vs
+    15–16) and burning FTs on marginal moves.
+- **Implementation & status:** wired behind `optimise.FT_SCALE = None` (**switched OFF by default** pending user
+  decision, so live behaviour and `data.json` are unchanged), with full parity in `site/plan-solver.js`,
+  `site/js/core/plan.js`, `validate.py`, and `tests/test_ft_scale.py`.
+- **Decision-table row:** Planner-only change (outside the projection `bench.py` decision table; judged on multi-season
+  replay across all strategies with all FPL rules intact) → **Would adopt V2 (`FT_SCALE = (2.0, 1.6, 1.3, 1.1)`)**,
+  stopped for user decision with setting off by default. Rating: **Marginal** (consistent 6/6 cell win across 2 seasons
+  × 3 strategies, +39 pts/season average, though 2 seasons of stateful squad trajectories carry path variance).
+
 ## 20 Nov 2026 — FL-177: DefCon negative-binomial tail, `dc_r` 10 (Adopt as Marginal — targeted change, DC part)
 
 - **Why:** the 18 Nov FL-114 follow-up (issue #194) benched the DefCon prior fix, `dc_r` 10 and `def_bonus_mult` 1.2

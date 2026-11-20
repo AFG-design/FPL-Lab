@@ -14,6 +14,7 @@
     if (!rules) return null;
     const s = { pool: rules.pool, decay: rules.decay, benchW: rules.bench_w, hit: rules.hit, maxMovesWeek: rules.max_moves_week,
       eoWeeks: rules.eo_weeks, ftValue: rules.ft_value, variance: rules.variance, varianceOther: rules.variance_other };
+    if (rules.ft_scale != null) s.ftScale = rules.ft_scale;
     return NEEDED.every(k => s[k] != null) ? s : null;
   }
   function variance(inp, pos, x) { const [a, b] = inp.variance[pos] || inp.varianceOther; return a * x + b * x * x; }
@@ -176,17 +177,25 @@
       obj.push(term(-d * (hit + (inp.hitMargin || 0)), `h_${w}`));
       gen.push(`h_${w}`);
     }
-    obj.push(term(ftValue, `f_${gws.length}`));
+    const ftScale = Array.isArray(inp.ftScale) && inp.ftScale.length === 4 ? inp.ftScale : null;
+    if (ftScale) {
+      con(` f_${gws.length} - ftb_0 - ftb_1 - ftb_2 - ftb_3`, "=", 1);
+      ftScale.forEach((w, i) => obj.push(term(w, `ftb_${i}`)));
+    } else {
+      obj.push(term(ftValue, `f_${gws.length}`));
+    }
     if (inp.floor != null) {
       let val = "";
       W.forEach(w => { const g = gws[w], c = chipAt[g], own = c === "freehit" ? fz : sq; ids.forEach(i => { const x = P[i].xp[g] || 0;
         if (x) val += (c === "bboost" ? term(x, own(i, w)) : term(x, xi(i, w))) + term(x * (c === "3xc" ? 2 : 1), cp(i, w)); }); val += term(-hit, `h_${w}`); });
-      val += term(ftValue, `f_${gws.length}`);
+      if (ftScale) ftScale.forEach((w, i) => { val += term(w, `ftb_${i}`); });
+      else val += term(ftValue, `f_${gws.length}`);
       con(val, ">=", inp.floor);
     }
     for (let w = 0; w <= gws.length; w++) gen.push(`f_${w}`);
     const bounds = [` f_0 = ${inp.ft0}`];
     for (let w = 1; w <= gws.length; w++) bounds.push(` 1 <= f_${w} <= 5`);
+    if (ftScale) for (let i = 0; i < 4; i++) bounds.push(` 0 <= ftb_${i} <= 1`);
     W.forEach(w => bounds.push(` h_${w} >= 0`, ` b_${w} >= 0`));
     const lp = `Maximize\n obj:${obj.join("")}\nSubject To\n${cons.join("\n")}\nBounds\n${bounds.join("\n")}\nGeneral\n ${gen.join(" ")}\nBinary\n ${bin.join(" ")}\nEnd\n`;
     return { lp, ids, chipAt };
@@ -206,10 +215,12 @@
       weeks.push({ gw: g, xi: ids.filter(i => v(`x_${i}_${w}`)), captain: ids.find(i => v(`c_${i}_${w}`)), hits: v(`h_${w}`), ft: v(`f_${w}`), chip, squad });
     });
     const ftEnd = v(`f_${inp.gws.length}`), ftValue = inp.ftValue;
+    const ftScale = Array.isArray(inp.ftScale) && inp.ftScale.length === 4 ? inp.ftScale : null;
+    const ftBonus = ftScale ? ftScale.slice(0, Math.max(0, ftEnd - 1)).reduce((a, b) => a + b, 0) : ftValue * ftEnd;
     const x = (i, g) => inp.players[i]?.xp[g] || 0;
     const pts = weeks.reduce((a, w) => a + (w.chip === "bboost" ? w.squad : w.xi).reduce((b, i) => b + x(i, w.gw), 0)
       + x(w.captain, w.gw) * (w.chip === "3xc" ? 2 : 1) - inp.hit * w.hits, 0);
-    return { moves, weeks, objective: sol.ObjectiveValue, ftLeft: ftEnd, value: pts + ftValue * ftEnd };
+    return { moves, weeks, objective: sol.ObjectiveValue, ftLeft: ftEnd, value: pts + ftBonus };
   }
 
   // HiGHS (wasm) sometimes aborts or runs off its memory on a real input; the module can't be trusted after that,

@@ -247,8 +247,12 @@ const baseScore = () => _base || (_base = scoreMoves([], null, baseChips()));
 // plan_rules.ft_value -> 1.5, optimise.FT_VALUE; validate.py errors when plans are published without it, so the
 // fallback only covers an old copy cached on the device.
 const ftValue = () => D.plan_rules?.ft_value ?? 1.5;
-const gainVsNone = (sc, base) => sc.tot - base.tot + ftValue() * (sc.ftLeft - base.ftLeft);
-const GAIN_NOTE = () => `after hits, with each free transfer banked at the end worth ${f1(ftValue())}`;
+const ftScale = () => Array.isArray(D.plan_rules?.ft_scale) ? D.plan_rules.ft_scale : null;
+const ftBonus = n => { const sc = ftScale(); return sc ? sc.slice(0, Math.max(0, n - 1)).reduce((a, b) => a + b, 0) : ftValue() * n; };
+const gainVsNone = (sc, base) => sc.tot - base.tot + ftBonus(sc.ftLeft) - ftBonus(base.ftLeft);
+const GAIN_NOTE = () => ftScale()
+  ? `after hits, with banked free transfers valued on a falling scale (${ftScale().map(f1).join("/")})`
+  : `after hits, with each free transfer banked at the end worth ${f1(ftValue())}`;
 function sandboxSummary() {
   const sc = scoreMoves(SB.moves), base = baseScore();
   sc.weeks.forEach((w, i) => w.base = base.weeks[i].team.pts);
