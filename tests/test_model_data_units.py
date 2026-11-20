@@ -2,7 +2,7 @@
 
 Each test checks a function against an independent calculation or a hand-built case, so a quiet bug in the maths or a
 join shows up here instead of in a review. Covered:
-  fplmodel: poisson, p_at_least, exp_floor_div (goals, saves, DefCon and goals-conceded points rest on them),
+  fplmodel: poisson, p_at_least, p_at_least_nb / dc_tail (FL-177), exp_floor_div (goals, saves, DefCon and goals-conceded points rest on them),
             out_weeks, late_news_absences, news_absences (the injured-v-dropped rules)
   odds: outcome_probs, fit_lambdas, match_fixtures (market odds -> expected goals, joined to FPL fixtures)
   understat: match_players (one-to-one Understat -> FPL, too-close matches rejected)
@@ -49,6 +49,38 @@ class ModelMaths(unittest.TestCase):
             self.assertAlmostEqual(fm.p_at_least(mu, k), ref, 10)
         xs = [fm.p_at_least(mu, 10) for mu in (4, 6, 8, 10, 12)]
         self.assertEqual(xs, sorted(xs))   # more expected contributions, more likely to reach 10
+
+    def test_p_at_least_nb(self):
+        # FL-177: negative binomial tail with mean mu and size r, against the closed form with lgamma
+        def nb_ref(i, mu, r):
+            p = r / (r + mu)
+            return math.exp(math.lgamma(i + r) - math.lgamma(r) - math.lgamma(i + 1) + r * math.log(p) + i * math.log(1 - p))
+        for mu, k, r in ((8.0, 10, 5), (10.5, 12, 10), (3.0, 10, 20), (12.0, 12, 0.7), (1.0, 1, 5)):
+            ref = 1 - sum(nb_ref(i, mu, r) for i in range(k))
+            self.assertAlmostEqual(fm.p_at_least_nb(mu, k, r), ref, 10, (mu, k, r))
+            # a distribution with mean mu and variance mu + mu^2 / r
+            m1 = sum(i * nb_ref(i, mu, r) for i in range(400))
+            m2 = sum(i * i * nb_ref(i, mu, r) for i in range(400))
+            self.assertAlmostEqual(m1, mu, 6)
+            self.assertAlmostEqual(m2 - m1 ** 2, mu + mu * mu / r, 4)
+        self.assertEqual(fm.p_at_least_nb(0, 10, 5), 0.0)
+        self.assertEqual(fm.p_at_least_nb(4.0, 0, 5), 1.0)
+        # large r tends to the Poisson tail; a smaller r fattens the tail above the mean, thins it below
+        self.assertAlmostEqual(fm.p_at_least_nb(9.0, 10, 1e7), fm.p_at_least(9.0, 10), 5)
+        self.assertGreater(fm.p_at_least_nb(6.0, 10, 5), fm.p_at_least(6.0, 10))
+        self.assertLess(fm.p_at_least_nb(14.0, 10, 5), fm.p_at_least(14.0, 10))
+        for bad in (0, -1, None):
+            with self.assertRaises(ValueError):
+                fm.p_at_least_nb(5.0, 10, bad)
+
+    def test_dc_tail(self):
+        # FL-177: dc_r None is exactly the Poisson tail (main's numbers); r > 0 the negative binomial; 0 raises
+        for mu, k in ((0.0, 10), (4.0, 10), (9.5, 12)):
+            self.assertEqual(fm.dc_tail(mu, k, None), fm.p_at_least(mu, k))
+            self.assertEqual(fm.dc_tail(mu, k, 10), fm.p_at_least_nb(mu, k, 10))
+        with self.assertRaises(ValueError):
+            fm.dc_tail(5.0, 10, 0)
+        self.assertIsNone(fm.DEFAULTS["dc_r"])
 
     def test_exp_floor_div_matches_the_full_sum(self):
         # goals conceded: FPL takes a point per whole 2 conceded. The model only calls this for goals against (d=2), at
