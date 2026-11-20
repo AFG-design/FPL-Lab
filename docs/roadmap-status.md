@@ -1,4 +1,4 @@
-# FPL Lab roadmap: where we left off (5 Nov 2026)
+# FPL Lab roadmap: where we left off (20 Nov 2026)
 
 **The backlog sheet is the source of truth for what's next.** Google Sheet "FPL Lab feature backlog":
 - **Board** shows what's Next, In progress and Done.
@@ -7,6 +7,31 @@
 - **How it works** has the rules: capture first, one branch and one PR per item, and a review at the end of each cycle.
 
 This file keeps the context and the decisions. It doesn't keep a second to-do list.
+
+## Status at 20 Nov 2026
+Checked against the git log on `main` and the backlog sheet on 20 Nov (evening). The sheet is still the source of truth.
+
+- **Cycle 1 reviewed 19 Nov: 34 of 34 shipped.** FL-172 (this file) carried over to Cycle 2.
+- **Cycle 2 (20 Nov–3 Dec), main goal v1.4 Model check-ups.** Merged 19–20 Nov:
+  - Model, on probation (re-check list at the top of `docs/model-log.md`): FL-176 DefCon priors use DefCon minutes only (#237), FL-212 bench priors use FPL's backfilled 2024/25 DefCon (#240), FL-177 DefCon `dc_r 10` tail (#241), FL-224 DefCon shrinkage `dc_blend 15` (#247, hot-run check #248), FL-165 falling free-transfer scale switched on (#244, #245).
+  - Tested, not adopted: FL-214 per-player European cut (#242), FL-160 defender bonus multiplier `def_bonus_mult`, kept at 1.0 (#246), FL-216 Bzzoiro set-piece xG as an Understat stand-in (#243).
+  - Data: FL-213 2025/26 Europa and Conference League dates (#236).
+  - Features and fixes: FL-223 mini-league title odds (#238), FL-207 98 px phone header (#230), FL-193, FL-196, FL-187, FL-192, FL-195, FL-202, FL-208, FL-211; reports FL-198 (accessibility, #235) and FL-210 (`--hi` uses, #234); FL-206 visual audit 2 (#207).
+- **Also merged on the evening of 18 Nov,** after the 18 Nov section below was written: #208–#223 (FL-179 to FL-186, FL-197, FL-203, FL-204, FL-205, FL-209, and the wide-monitor layout #208–#209).
+- **ID clash fixed (20 Nov):** #247 and #248 used FL-224, which was already the Gemini team-news labels test. Git can't be renamed, so FL-224 now means `dc_blend` in the sheet and the Gemini test is **FL-233**.
+- **Still open in Cycle 2:** FL-098 backup scheduler (first real test: GW11 window, Sat 21 Nov 05:00–11:00 UTC), FL-175 and FL-174 (start chance), FL-199 team-news collector, FL-226 light-mode focus rings, FL-134 ep_next blend (after GW12), FL-021 player-odds re-test (GW12–13), FL-229 style data (PR #249 open).
+- **Dropped 20 Nov:** FL-215 ClubElo test. ClubElo's API returned HTTP 502 on every try in both Antigravity batches.
+- **Understat still down since 1 Nov.** The site keeps the last good data and warns; FL-229's backfill waits until Understat is back.
+
+## Status at 18 Nov 2026
+Checked against the git log on `main` and the backlog sheet on 18 Nov. The sheet is still the source of truth; the sections below this one are kept as they were written.
+
+- **Cycle 1 (6–19 Nov): all 34 items done.** That includes four rows added on 18 Nov for work that shipped without an FL ID: FL-168 squad rating floor (#151), FL-169 this-week transfer comparisons (save, keep, captain, Bench Boost; direct commits 14–15 Nov), FL-170 saved plans explain what changed since their last review (direct commit 15 Nov), and FL-040 mini-league extras, delivered by the Rivals redesign (#174) and the pinned rival on Current GW.
+- **Cycle 2 (20 Nov–3 Dec): 8 of 9 done before it starts.** FL-090 Planner redesign (#165, follow-ups #167, #170, #171), FL-149 (You vs the model keeps its own tab), FL-156 Players review (#157–#161), FL-159, FL-161, FL-130 (#185), FL-163 (#186), FL-162 (#187; live model unchanged). Left: **FL-021**, the player-odds re-test at GW12–13, now set to Next.
+- **Cycles 3 and 4 need re-planning at the 19 Nov review.** Everything proposed for them (FL-030, FL-065, FL-053, FL-005) was done on 13 Nov, so the "Proposed later cycles" section below is out of date.
+- **Open backlog:** FL-160 clean sheets and defender scoring as one package, FL-131 xmins_sell decision (shadow check after GW14, decide before the GW15 deadline), FL-134 ep_next blend, FL-135 decision replay on 2026/27, FL-158 build.py except blocks, FL-164 captain card wording, FL-165 banked free transfer value, FL-171 mini-league points heatmap (split from FL-040).
+- **In progress:** FL-098 backup scheduler. The first real test is the GW11 deadline window, Sat 21 Nov 05:00–11:00 UTC.
+- **Process note:** several changes on 14–15 Nov went straight to `main` without an FL ID or a PR. Keep to one ID, one branch and one PR per item so the cycle review can count them.
 
 ## Status at 11 Nov 2026
 Written from the git log on `main`, not from the sheet. The sheet is still the source of truth; if they disagree, the sheet wins. The text below this section is as it was on 5 Nov.
