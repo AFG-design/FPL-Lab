@@ -21,6 +21,29 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 20 Nov 2026 — FL-216: Bzzoiro Sports Data set-piece xG vs Understat (Analysis only — verdict: No, not as-is)
+
+- **Idea:** Understat occasionally goes stale (`89 of 100` finished matches as of 19 Nov 2026, last updated 1 Nov).
+  Compared `2026/27` shot-level set-piece xG from **FPL-Core-Insights (olbauday), test data only** (`GW1..10/shots.csv`,
+  sourced from Bzzoiro Sports Data; downloaded to git-ignored `archive/fpl-core-insights/`, never committed) against
+  FPL Lab's Understat figures (`site/shots.json`, `understat/fpl_players.json`). Full write-up:
+  [docs/fl-216-shots-vs-understat.md](fl-216-shots-vs-understat.md). No bench run (analysis only, no model change).
+- **Results (2026/27 GW1–9 same window, excl. `throw-in-set-piece` to match Understat `C + S + F`):**
+  - Per player (`253` union, `224` both, `25` Understat-only, `4` Bzzoiro-only): `r = 0.7646` union / **`0.8694`** on
+    shared players; mean diff `−0.0413` xG (`48.51` vs `59.78` total). Including `throw-in-set-piece`: `r = 0.7160`
+    union / `0.8274` shared (`58.18` vs `59.78`). All-shots xG (GW1–9, `n = 368`): `r = 0.8917`.
+  - Per team (`n = 20`, excl. throw-ins): `r = 0.7676`, mean diff `−0.5636` xG (incl. throw-ins: `r = 0.6416`, `−0.0798`).
+  - Full GW1–10 (incl. 11 matches Understat is missing): player `r = 0.6700`, team `r = 0.5920` (`66.01` vs `59.78`).
+  - **Missing shots:** **276 of 2,466 GW1–9 shots (11.2%)** (`70` set-piece; `314/2,738 = 11.5%` through GW10) have
+    blank `player_id` and `player_name` in the export, leaving 25 Understat players at `0` and under-counting clubs
+    like Arsenal (`1.57` vs `3.64`).
+- **Terms & xG provenance:** [sports.bzzoiro.com](https://sports.bzzoiro.com/) (`Bzzoiro LLC`) offers a free football
+  API token (7,500 req/day), but its `Terms of Service` and `Data licence` pages were not fetchable here (public
+  redistribution unverified) and its upstream shot-data vendor / xG formula are not publicly documented.
+- **Verdict: No (not as-is).** Technically close enough on mapped players (`r = 0.87` SP, `0.89` all shots), but
+  blocked on (1) verifying free public-site redistribution in Bzzoiro's Data licence and (2) confirming the 11.2%
+  blank-player shots are an FPL-Core-Insights mapping gap rather than missing in Bzzoiro's own API.
+
 ## 20 Nov 2026 — FL-177: DefCon negative-binomial tail, `dc_r` 10 (Adopt as Marginal — targeted change, DC part)
 
 - **Why:** the 18 Nov FL-114 follow-up (issue #194) benched the DefCon prior fix, `dc_r` 10 and `def_bonus_mult` 1.2
