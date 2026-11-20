@@ -8,7 +8,11 @@ Understat's per-shot data has pitch location and xG. We count:
                       (no id), so these are tallied per club + name and looked up through the player's own
                       club(s), whether or not he has taken a shot himself (see created_counts)
 Finished matches are cached in understat/shots.json, so each run only downloads new games.
-Writes understat/fpl_players.json keyed by FPL element id.
+Writes understat/fpl_players.json keyed by FPL element id, and understat/teams.json: each club's per-match pressing
+(PPDA) and deep completions from Understat's league feed (FL-229, for the style matchups of FL-225).
+Shot rows (cache v3): [player id, name, X, Y, xG, result, situation, assister, side, shot type, last action]. Last
+action (Understat's "lastAction": Cross, Throughball, Rebound...) is new in v3; a row from a v2 cache carries "" there
+until its match is downloaded again (see load_cache).
 Usage: python3 understat.py [SEASON_START_YEAR]
 """
 import gzip, json, os, re, sys, time, unicodedata, urllib.request, difflib
@@ -146,6 +150,102 @@ def fpl(path):
         return json.load(r)
 
 
+CACHE_V = 3
+REFETCH_MAX = 120   # v2 matches downloaded again per run to pick up last action (0.4 s each, so under a minute)
+
+
+def shot_row(s, side):
+    """One cached shot row from an Understat getMatchData shot. Last action is kept as Understat sends it ("None" is
+    one of its values: no action recorded); a shot with no lastAction field at all gets "", so validate.py can count
+    how many shots really carry it (FL-229; the field could not be checked while Understat was down)."""
+    return [int(s["player_id"]), s["player"], float(s["X"]), float(s["Y"]), round(float(s["xG"]), 4),
+            s["result"], s["situation"], s.get("player_assisted") or "", side, s.get("shotType", ""),
+            s.get("lastAction") or ""]
+
+
+def match_shots(d):
+    return [shot_row(s, side) for side in ("h", "a") for s in d["shots"][side]]
+
+
+def load_cache(path, season):
+    """The shot cache for `season`, upgraded to v3. A v2 cache of the same season keeps every match (so nothing is
+    lost while Understat is down): its rows get "" for last action and the match is left without "la", which marks it
+    for a fresh download (refetch_ids). Another season, another version, or an unreadable file starts empty."""
+    try:
+        cache = json.load(open(path))
+    except Exception:
+        return {"season": season, "v": CACHE_V, "matches": {}}
+    if cache.get("season") != season or cache.get("v") not in (2, CACHE_V):
+        return {"season": season, "v": CACHE_V, "matches": {}}
+    if cache["v"] == 2:
+        for m in cache["matches"].values():
+            m["shots"] = [r + [""] for r in m["shots"]]
+            m.pop("la", None)
+        cache["v"] = CACHE_V
+    return cache
+
+
+def refetch_ids(cache, limit=REFETCH_MAX):
+    """Matches cached before v3 (no "la" flag), oldest first, at most `limit` per run."""
+    old = sorted((m["date"], mid) for mid, m in cache["matches"].items() if not m.get("la"))
+    return [mid for _, mid in old[:limit]]
+
+
+def last_action_stats(cache):
+    """(matches downloaded with last action, matches still waiting for it, share of their shots that carry one).
+    Share is None when no v3 match has shots yet."""
+    la = [m for m in cache["matches"].values() if m.get("la")]
+    shots = [r for m in la for r in m["shots"]]
+    share = round(sum(1 for r in shots if len(r) > 10 and r[10]) / len(shots), 3) if shots else None
+    return len(la), len(cache["matches"]) - len(la), share
+
+
+def team_history(league):
+    """{Understat short code: {"title", "us_id", "matches": [...]}} from the league feed's per-match team history:
+    date, home/away, PPDA (passes allowed per defensive action, so LOW = intense pressing) as [opponent passes,
+    defensive actions] for and allowed, deep completions (passes completed within about 20 m of goal) for and allowed,
+    xG and non-penalty xG for and against. Raw counts are stored, not ratios, so a later rolling average can weight
+    them properly. A team title with no short code in the fixture list is returned in `unmapped` and left out (printed,
+    and counted in meta for validate.py); a match row missing a field is skipped and counted in `bad_rows`."""
+    code_of = {}
+    for m in league.get("dates", []):
+        for side in ("h", "a"):
+            code_of[m[side]["title"]] = m[side]["short_title"]
+    out, unmapped, bad = {}, [], 0
+    for tid, t in (league.get("teams") or {}).items():
+        code = code_of.get(t["title"])
+        if not code:
+            unmapped.append(t["title"]); continue
+        rows = []
+        for h in t.get("history", []):
+            try:
+                rows.append({"date": h["date"][:10], "h_a": h["h_a"],
+                             "ppda": [int(h["ppda"]["att"]), int(h["ppda"]["def"])],
+                             "ppda_allowed": [int(h["ppda_allowed"]["att"]), int(h["ppda_allowed"]["def"])],
+                             "deep": int(h["deep"]), "deep_allowed": int(h["deep_allowed"]),
+                             "xg": round(float(h["xG"]), 3), "xga": round(float(h["xGA"]), 3),
+                             "npxg": round(float(h["npxG"]), 3), "npxga": round(float(h["npxGA"]), 3)})
+            except (KeyError, TypeError, ValueError):
+                bad += 1
+        out[code] = {"title": t["title"], "us_id": str(tid), "matches": sorted(rows, key=lambda r: r["date"])}
+    return out, sorted(unmapped), bad
+
+
+def download_matches(cache, ids, info):
+    """Download `ids` into the cache (info: id -> league "dates" entry). A failed download keeps any row already
+    cached (a v2 row stays usable for everything but last action). Returns the ids that failed."""
+    failed = []
+    for mid in ids:
+        d = fetch(f"https://understat.com/getMatchData/{mid}", f"https://understat.com/match/{mid}")
+        if not d:
+            failed.append(mid); continue
+        m = info[mid]
+        cache["matches"][mid] = {"date": m["datetime"][:10], "h": m["h"]["short_title"], "a": m["a"]["short_title"],
+                                 "shots": match_shots(d), "la": True}
+        time.sleep(0.4)
+    return failed
+
+
 def main():
     global SEASON
     boot = fpl("/bootstrap-static/")
@@ -159,27 +259,21 @@ def main():
 
     os.makedirs(OUTDIR, exist_ok=True)
     cache_path = os.path.join(OUTDIR, "shots.json")
-    try:
-        cache = json.load(open(cache_path))
-        if cache.get("season") != SEASON or cache.get("v") != 2:
-            cache = {"season": SEASON, "v": 2, "matches": {}}
-    except Exception:
-        cache = {"season": SEASON, "v": 2, "matches": {}}
+    cache = load_cache(cache_path, SEASON)
 
     done = [m for m in league["dates"] if m.get("isResult")]
+    info = {m["id"]: m for m in done}
     new = [m for m in done if m["id"] not in cache["matches"]]
-    for m in new:
-        d = fetch(f"https://understat.com/getMatchData/{m['id']}", f"https://understat.com/match/{m['id']}")
-        if not d:
-            continue
-        shots = []
-        for side in ("h", "a"):
-            for s in d["shots"][side]:
-                shots.append([int(s["player_id"]), s["player"], float(s["X"]), float(s["Y"]), round(float(s["xG"]), 4),
-                              s["result"], s["situation"], s.get("player_assisted") or "", side, s.get("shotType", "")])
-        cache["matches"][m["id"]] = {"date": m["datetime"][:10], "h": m["h"]["short_title"], "a": m["a"]["short_title"], "shots": shots}
-        time.sleep(0.4)
+    failed = download_matches(cache, [m["id"] for m in new], info)
+    redo = [mid for mid in refetch_ids(cache) if mid in info]
+    failed_redo = download_matches(cache, redo, info)
     json.dump(cache, open(cache_path, "w"), separators=(",", ":"))
+    teams, teams_unmapped, teams_bad = team_history(league)
+    for t in teams_unmapped:
+        print(f"Understat team with no short code in the fixture list: {t!r}; left out of teams.json")
+    with open(os.path.join(OUTDIR, "teams.json"), "w") as f:
+        json.dump({"season": SEASON, "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "teams": teams},
+                  f, separators=(",", ":"))
 
     # ---- map Understat matches to FPL gameweeks (by teams and date)
     fpl_teams = {t["short_name"]: t["id"] for t in boot["teams"]}
@@ -207,7 +301,8 @@ def main():
         tids = {side: fpl_teams.get(US_TO_FPL.get(m[side], m[side])) for side in ("h", "a")}
         for side in ("h", "a"):
             team_sp[tids[side]]["games"] += 1
-        for pid, pname, x, y, xg, res, sit, assister, side, stype in m["shots"]:
+        for row in m["shots"]:
+            pid, pname, x, y, xg, res, sit, assister, side, stype = row[:10]   # [10], last action, isn't used here
             team = m[side]
             other = "a" if side == "h" else "h"
             kind = "sp" if sit in SET else ("pen" if sit == "Penalty" else "op")
@@ -292,6 +387,12 @@ def main():
             # 3+ Understat key passes but no chance created in the shot rows (the two should broadly agree)
             "cc_ambiguous": sum(1 for upid in mapping if upid in shared_ids), "cc_no_code": len(no_code),
             "kp_no_cc": sum(1 for r in out.values() if r["kp"] >= 3 and r["cc"] == 0)}
+    # FL-229 health figures (validate.check_understat_style): matches with last action, matches still waiting for a
+    # fresh download, the share of their shots carrying it, downloads that failed this run, and teams.json coverage
+    la_n, la_wait, la_share = last_action_stats(cache)
+    meta.update({"v": CACHE_V, "la_matches": la_n, "la_pending": la_wait, "la_share": la_share,
+                 "failed": len(failed) + len(failed_redo), "teams": len(teams), "teams_unmapped": len(teams_unmapped),
+                 "teams_bad_rows": teams_bad})
     teams_out = {str(t): {k: round(v, 2) for k, v in d.items()} for t, d in team_sp.items() if t}
     json.dump({"meta": meta, "players": out, "teams": teams_out}, open(os.path.join(OUTDIR, "fpl_players.json"), "w"), separators=(",", ":"))
     print(meta)

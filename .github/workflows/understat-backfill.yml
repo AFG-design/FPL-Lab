@@ -1,0 +1,57 @@
+name: Backfill Understat seasons
+
+# Manual only (FL-229). Saves past seasons' Understat shots (with last action) and team pressing data to
+# understat/archive/<season>.json for bench.py, so FL-225's style matchups can be tested on 2024/25 and 2025/26.
+# tools/understat_backfill.py writes what it fetched even when some matches fail (the next run resumes), marks such
+# a season "complete": false, and exits 1, so a partial season is committed but the run shows as failed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      seasons:
+        description: "Understat season start years, space-separated"
+        required: false
+        default: "2024 2025"
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Download the seasons
+        id: dl
+        continue-on-error: true
+        env:
+          SEASONS: ${{ github.event.inputs.seasons }}
+        run: python3 tools/understat_backfill.py $SEASONS
+      - name: Commit if changed
+        run: |
+          git config user.name "fpl-lab-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -d understat/archive ]; then git add understat/archive/; fi
+          git diff --cached --quiet || git commit -m "Backfill Understat seasons ($SEASONS)"
+          python3 scripts/push_data.py
+        env:
+          SEASONS: ${{ github.event.inputs.seasons }}
+      - name: Fail if a season is incomplete
+        if: steps.dl.outcome != 'success'
+        run: |
+          echo "::error::At least one season is incomplete or Understat was unavailable; re-run to resume"
+          exit 1
+      - name: Keep generated data if publishing fails
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: failed-understat-backfill-${{ github.run_attempt }}
+          path: |
+            understat/archive/

@@ -54,6 +54,9 @@ Warnings (printed, and saved in data.json "health" for the Health page; never fa
     3+ key passes but none created (kp_no_cc), any player left uncredited because he shares a club and name with
     another (cc_ambiguous), or a team title with no short code (cc_no_code). A file without these fields (built
     before they existed) is not checked.
+  - FL-229 Understat style data (fpl_players.json meta, check_understat_style): under 90% of shots carrying a last
+    action once 10+ matches have it, matches still waiting to be re-downloaded with it, failed match downloads, and
+    teams.json without exactly 20 clubs or with clubs or rows left out. A meta from before FL-229 is not checked.
   - an input that didn't load or is past its schedule: last-season priors (missing, or over 15 days old), match odds
     (missing, or over 48 hours old) and the ownership sample (missing, or for an earlier gameweek); see check_sources
   - selling-informed xMins (shadow while xmins_sell is off): skipped, players with a next-GW fixture it didn't
@@ -422,6 +425,38 @@ def check_created(us_meta, warnings):
     if us_meta.get("cc_no_code"):
         warnings.append(f"Understat: {us_meta['cc_no_code']} team titles have no short code, so their players' "
                         "chances created are not counted")
+
+
+LA_MIN_SHARE = 0.9   # FL-229: share of shots that should carry Understat's last action once it is being saved
+LA_MIN_MATCHES = 10  # judge the share only once this many matches have been downloaded with it
+
+
+def check_understat_style(us_meta, warnings):
+    """FL-229: the Understat data the style matchups (FL-225) will be built on: last action on each shot (cache v3)
+    and teams.json (per-match pressing and deep completions). Warnings only: nothing on the site or in the model uses
+    it yet. Missing / late / ambiguous: a meta from before FL-229 (no "v") is not checked; while Understat is down the
+    meta isn't rewritten, so the stale-file warning in check_understat is the one that shows; a share that can't be
+    worked out yet (no v3 match) is not judged."""
+    if us_meta.get("v") is None:
+        return
+    share, n = us_meta.get("la_share"), us_meta.get("la_matches") or 0
+    if share is not None and n >= LA_MIN_MATCHES and share < LA_MIN_SHARE:
+        warnings.append(f"Understat: only {share:.0%} of shots in {n} matches carry a last action (cross, through "
+                        f"ball...), below {LA_MIN_SHARE:.0%}; the style matchups' transition channel can't be built")
+    if us_meta.get("la_pending"):
+        warnings.append(f"Understat: {us_meta['la_pending']} matches cached before last action was saved are still "
+                        "waiting to be downloaded again (up to 120 a run)")
+    if us_meta.get("failed"):
+        warnings.append(f"Understat: {us_meta['failed']} match downloads failed in the last run (retried next run)")
+    t = us_meta.get("teams")
+    if t is not None and t != 20:
+        warnings.append(f"Understat teams.json has {t} clubs, not 20 (pressing and deep-completion data)")
+    if us_meta.get("teams_unmapped"):
+        warnings.append(f"Understat: {us_meta['teams_unmapped']} clubs in the league feed have no short code, so "
+                        "they are missing from teams.json")
+    if us_meta.get("teams_bad_rows"):
+        warnings.append(f"Understat: {us_meta['teams_bad_rows']} team match rows were missing a field and left out "
+                        "of teams.json")
 
 
 def check_squad(D, detail, errors, warnings):
@@ -926,7 +961,9 @@ def main(path):
     dup_fpl += [int(k) for k, v in us.items() if int(k) in ov.values() and ov.get(v["us_id"]) != int(k)]
     if dup_fpl:
         errors.append(f"FPL ids with more than one Understat source (check understat_overrides.json): {sorted(set(dup_fpl))}")
-    check_created((load(os.path.join(HERE, "understat", "fpl_players.json")) or {}).get("meta") or {}, warnings)
+    us_meta_ = (load(os.path.join(HERE, "understat", "fpl_players.json")) or {}).get("meta") or {}
+    check_created(us_meta_, warnings)
+    check_understat_style(us_meta_, warnings)
 
     check_understat(D["meta"], warnings)
     # decision journal (D5a): every move is accounted for once, every player mentioned has a row, and the model's plan is
