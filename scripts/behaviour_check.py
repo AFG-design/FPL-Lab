@@ -289,13 +289,17 @@ TPATHS = r"""async () => {
   _pv = { key: "", res: {} }; // discard rows calculated with the live allowance
   setDrafts([]); setPlan([], "custom"); SB.ov = {}; S.mode = "balanced"; setHorizon(5);
   const g = PG[0], g2 = PG[1], sq = squadAt(g), bank = D.manager.bank;
-  const best = (pos, not, cap) => D.players.filter(p => p.pos === pos && !not.includes(p.id) && p.ok !== false && p.price <= cap + 1e-9).sort((a, b) => xpFrom(b.id, g, 5) - xpFrom(a.id, g, 5))[0];
+  const best = (pos, not, cap, curSq) => {
+    const cc = clubCounts(curSq);
+    return D.players.filter(p => p.pos === pos && !not.includes(p.id) && p.ok !== false && p.price <= cap + 1e-9 && (cc[p.team] || 0) < 3).sort((a, b) => xpFrom(b.id, g, 5) - xpFrom(a.id, g, 5))[0];
+  };
   // a player you own whose selling price differs from his market price, if there is one
   const sv = D.squad.find(s => Math.abs(s.sell - P[s.id].price) > 0.05) || D.squad.find(s => P[s.id].pos !== "GKP");
-  const inn = best(P[sv.id].pos, sq, sv.sell + bank);
+  const inn = best(P[sv.id].pos, sq, sv.sell + bank, sq.filter(i => i !== sv.id));
   const free = [{ gw: g, out: sv.id, in: inn.id }];
   const sq2 = sq.map(i => i === sv.id ? inn.id : i), used = [...sq2], outs = sq2.filter(i => P[i].pos === "DEF" && i !== inn.id).slice(0, 3);
-  const paid = [...free, ...outs.map(o => { const b = best("DEF", used, sellPrice(o)); used.push(b.id); return { gw: g2, out: o, in: b.id }; })];
+  let curSq = [...sq2];
+  const paid = [...free, ...outs.map(o => { const b = best("DEF", used, sellPrice(o), curSq.filter(i => i !== o)); used.push(b.id); curSq = curSq.map(i => i === o ? b.id : i); return { gw: g2, out: o, in: b.id }; })];
   const rich = D.players.filter(p => p.pos === "FWD" && !sq.includes(p.id)).sort((a, b) => b.price - a.price)[0];
   const cheapF = sq.filter(i => P[i].pos === "FWD").sort((a, b) => sellPrice(a) - sellPrice(b))[0];
   const broke = [{ gw: g, out: cheapF, in: rich.id }];
@@ -1010,7 +1014,8 @@ PLANNER_FLOWS = r"""async () => {
   if (!SB.moves.some(x => x.in === n.id) || S.mode !== "safe") out.push("Make active didn't apply the draft and its strategy");
   if (!myTeam().xi.concat(myTeam().bench).includes(n.id)) out.push("This week doesn't follow the activated draft");
   if (typeof recTeam === "function" && !(n.id in recTeam().mult) && myTeam().xi.includes(n.id)) out.push("Rivals doesn't follow the activated draft");
-  setView("week"); if (!document.querySelector("#app").innerText.includes(P[n.id].name)) out.push("This week page doesn't show the activated draft's signing");
+  // FL-240: during a live matchday Home opens on Current GW; switch to Next GW to verify the draft signing.
+  S.home = "next"; setView("week"); if (!document.querySelector("#app").innerText.includes(P[n.id].name)) out.push("This week page doesn't show the activated draft's signing");
   setView("planner");
   if (!document.querySelector(".pe-active [data-undoplan]")) out.push("no Undo next to the active plan after Make active");
   document.querySelector(".pe-active [data-undoplan]").click();

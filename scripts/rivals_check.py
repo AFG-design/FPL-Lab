@@ -42,6 +42,16 @@ def variant(d, kind):
     d = json.loads(json.dumps(d))
     C, L = d["crowd"], d.get("live")
     if kind in ("final", "long"):
+        # FL-240: a mid-matchday data.json has crowd.in_play=True; force settled-GW state so "final" and "long"
+        # always test the post-GW view (including .rv-moment) regardless of when the build ran.
+        C["in_play"] = False
+        if d.get("meta"):
+            d["meta"]["cur_finished"] = True
+        if L:
+            L.update(finished=True, in_play=False)
+            for f in L.get("fixtures") or ():
+                f["started"] = True
+                f["done"] = True
         if kind == "long":   # long names: the longest FPL allows and then some, unbroken
             lg = next(l for l in C["leagues"] if l["id"] == LEAGUE)
             lg["rows"][1].update(player="Maximilian-Alexander Featherstonehaugh-Wolstenholme", team="Abcdefghijklmnopqrstuvwxyz0123")
