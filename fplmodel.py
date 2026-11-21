@@ -120,6 +120,10 @@ DEFAULTS = {
                            # with no 60-minute gate (FPL has none); False = old behaviour (per GW, 60+ minutes only)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
+    "xmins_no_hist_guard": True,  # FL-175: do not feed history_gws==0 (all-NaN history) players into xMins XGBoost
+                                  # (which sent NaN down the starter branch -> ~0.94 p_start for unused bench players).
+                                  # Uses last-season start_rate where available, else 0 (then FL-030 ARRIVAL_START).
+                                  # Must be bool; False = old behaviour for bench.py pairing.
 }
 
 
@@ -742,6 +746,9 @@ def project(ctx, as_of, horizon=6, params=None):
     dcb = P["dc_blend"]
     if isinstance(dcb, bool) or not isinstance(dcb, (int, float)) or not math.isfinite(dcb) or dcb < 0:
         raise ValueError(f"dc_blend must be a finite number >= 0, got {dcb!r}")
+    use_nhg = P["xmins_no_hist_guard"]
+    if not isinstance(use_nhg, bool):
+        raise ValueError(f"xmins_no_hist_guard must be a bool, got {use_nhg!r}")
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
     rating, league = team_ratings(ctx, as_of, P)
     H = P["home"]
@@ -826,10 +833,11 @@ def project(ctx, as_of, horizon=6, params=None):
         import xmins
         skip = ctx.get("out", {}) if P["xmins_skip_out"] else None
         moved = ctx.get("moved") if P["new_signings"] else None
-        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, moved)
+        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, moved, require_history=use_nhg)
     xm_sell = {}
     if P["xmins"] and P["xmins_sell"]:
-        xm_sell, _ = xmins.predict_sell(ctx, as_of, team_gws, kick, upcoming, skip, ctx.get("moved") if P["new_signings"] else None)
+        xm_sell, _ = xmins.predict_sell(ctx, as_of, team_gws, kick, upcoming, skip,
+                                        ctx.get("moved") if P["new_signings"] else None, require_history=use_nhg)
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -945,7 +953,9 @@ def project(ctx, as_of, horizon=6, params=None):
             m_sub = msub / sub if sub else 20
             p60_given_start = p60s / st if st else 0.75
         else:
-            p_start = p_sub = 0.0
+            p_start = (min(1.0, max(0.0, pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230))))
+                       if (use_nhg and pr) else 0.0)
+            p_sub = 0.0
             m_start, m_sub, p60_given_start = 75, 20, 0.75
         if pid in xm_pred:
             # p60_given_start stays from his own starts (the external model has no 60+ output)
