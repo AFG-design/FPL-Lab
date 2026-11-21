@@ -158,6 +158,13 @@ from odds/archive/ since PR #24, 31 Oct 2026).
   play-chance bias mostly reshuffled rotation players and pulled some regularly-subbed attackers slightly down relative
   to 90-minute keepers without improving squad selection.
 
+## 20 Nov 2026 — Style-matchup 3-channel probe (No-Go, read-only)
+
+- **Why:** Test whether splitting a team's projected attacking xP across its players by style matchup adds signal the fixture odds don't price. Channels: `aerial_cross` (open-play headers, 184 shots), `half_space` (open-play non-headers, X ≥ 0.78, Y ∈ [0.20, 0.38) ∪ (0.62, 0.80], 606 shots), `set_piece` (corners, set pieces, direct free kicks, 599 shots). Transition dropped (no usable signal).
+- **Method:** `/tmp` script, using only data from before each gameweek. Team defensive leak z-scores (EWMA λ = 0.85, last 10 matches, shrinkage k = 5) dotted with player channel shares (shrinkage k = 5, normalised to 1). Zero-sum: centred on the team's expected starters, then rescaled to keep each team's baseline xP total. Tested on 2026/27 GW4–9 (n = 2,309 player-GWs). 2024-25 and 2025-26 have no shot-level data.
+- **Results:** Baseline RMSE 2.6187. Zero-sum α 0.03–0.15: ΔRMSE −0.0000 to +0.0003, all 95% CIs cross zero. 2/6 GWs improved. G+A Spearman .2150 → .2137. Top-1 captain unchanged. Differentials (<10% current ownership, n = 2,099, almost the whole pool) show no difference. Non-zero-sum α = 0.06: +0.0021 [−0.0004, +0.0046], trends worse, consistent with odds already pricing team matchups.
+- **Decision:** No-Go. Not worth collecting historical shot archives. The `sp_match` result points the same way.
+
 ## 20 Nov 2026 — FL-224: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
 
 - **Why:** after FL-177 (`dc_r 10`), raw DefCon is near the right level for the pool (2025/26 all `1.08`, DEF `1.05`,
