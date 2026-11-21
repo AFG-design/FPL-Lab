@@ -27,6 +27,50 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 20 Nov 2026 — FL-236: 3-bucket minutes model (Don't adopt as default — parked opt-in)
+
+- **Why:** the bucketed backtest baseline (`FL-235`, `docs/experiments/bucketed-backtest-baseline.md`) showed the default
+  model over-estimates `P(mins > 0)` by **+7.1 percentage points** in both past seasons (`+0.0710` in 2024/25, `+0.0703`
+  in 2025/26), because `fplmodel.py` combines `xmins`'s conditional `cameo_model` as `p_sub = min(xc, 1 - xs)` rather
+  than `(1 - xs) * xc`. Extends FL-162 (which retrained the existing 4 boosters without changing the representation) by
+  testing a nested 3-bucket probability structure directly.
+- **What was tested (`--minutes-model=3bucket`, draft PR #254, kept opt-in; default bit-for-bit unchanged):**
+  - Nested probabilities per player per fixture: `0 <= p_90 <= p_60 <= p_play <= 1` (`P(mins>0)`, `P(mins>=60)`,
+    `P(mins>=85)`), with appearance points and clean sheet eligibility coming straight from `p_play` and `p_60`, keeper
+    European turnaround cut barely applied (`0.99` vs `eu_cut = 0.93` for outfield), pre-deadline injury/doubt flags
+    (no hindsight), and the returning-from-absence ramp.
+  - **Per-player play-chance fix:** `p_play = p_start + (1 - p_start) * min(1, 1.12 * xc)` plus a 30% blend toward
+    recent appearance rate (capped at `0.95`) for fit regular starters (`st/wsum >= 0.85`, `p_start >= 0.65`, `>= 3`
+    recent club games).
+  - **`cal_int` refit (3bucket only):** cross-season fits gave `0.4814` (2024/25; OOS 2025/26 bias `−0.0339`) and
+    `0.5262` (2025/26; OOS 2024/25 bias `+0.0337`), midpoint `0.50`, then re-aligned to `0.45` after the play-chance
+    lift to hold pooled xP bias within `±0.02`. **Caveat:** the final `cal_int = 0.45` was adjusted using both seasons.
+  - **Per-player 60–84 minute bucket mean:** replaced the fixed 74-minute mean with a recency-weighted player mean
+    shrunk (`w = 0.25`) toward positional priors (`75/75/74/74`).
+- **Wins (part probabilities):**
+  - **Player CS log-loss:** `−0.01676 [−0.02196, −0.01169]` **better** pooled (`0.3952 → 0.3784`, `n = 22,561`; both
+    seasons clear of zero).
+  - **60+ minutes Brier:** `−0.00244 [−0.00284, −0.00204]` **better** pooled (`0.1598 → 0.1574`, `n = 25,471`; both
+    seasons clear of zero).
+  - **`>0` mins Brier & calibration:** pooled Brier `0.1420 → 0.1347`; overall calibration `+0.0707 → +0.0069`, calibrated
+    within `~2pt` in every `p_start` band (`0.0–0.2`: `+0.018`, `0.2–0.5`: `+0.001`, `0.5–0.8`: `+0.004`, `0.8–0.9`:
+    `+0.007`, `0.9–1.0`: `+0.003` at `0.952` vs actual `0.949`).
+- **No gain where it counts:**
+  - **Bucketed total xP (pooled 2024/25 + 2025/26, `n = 25,850`):** RMSE `2.6626 → 2.6637`, MAE `1.8135 → 1.8152`,
+    bias `−0.0043 → −0.0028` (`+0.0141` in 2024/25, `−0.0200` in 2025/26), **Top-50 Spearman `0.1501 → 0.1463`**
+    (`0.1948 → 0.1692` in 2024/25, `0.1053 → 0.1233` in 2025/26).
+  - **`bench.py` pooled 5-GW picks (60 origins):** **`−0.057 [−0.149, +0.032] ~0`** (2025/26 `19.08 → 19.05`,
+    `−0.03 [−0.14, +0.08]`; 2024/25 `19.16 → 19.08`, `−0.09 [−0.23, +0.06]`).
+  - **No-harm trip:** 2024/25 1-GW picks `4.25 → 4.20`, **`−0.05 [−0.09, −0.01]`** (CI wholly below zero). Pooled
+    Goals Poisson dev. (`+0.00092`) and Bonus sq. error (`+0.00048`) also slightly worse.
+  - **`backtest.py --compare` (2026/27 GW3–10, without & with status log):** **fails on `Top 30 projected / top 30
+    each GW`** (`ΔMAE +0.148`, `Δbias −0.139` with status log).
+- **Decision-table row:** `Any segment trips --compare` (plus 2024/25 1-GW picks no-harm trip) → **Don't adopt as
+  default; parked as opt-in (`--minutes-model=3bucket`)**. Rating: **Coin flip / No-go for default**.
+- **Lesson:** better minutes and clean-sheet probabilities did not improve picks or top-50 ranking; fixing the `+7pt`
+  play-chance bias mostly reshuffled rotation players and pulled some regularly-subbed attackers slightly down relative
+  to 90-minute keepers without improving squad selection.
+
 ## 20 Nov 2026 — FL-224: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
 
 - **Why:** after FL-177 (`dc_r 10`), raw DefCon is near the right level for the pool (2025/26 all `1.08`, DEF `1.05`,

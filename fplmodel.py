@@ -120,7 +120,23 @@ DEFAULTS = {
                            # with no 60-minute gate (FPL has none); False = old behaviour (per GW, 60+ minutes only)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
+    "minutes_model": "default", # FL-236: "default" (current start/cameo model) or "3bucket" (nested p_play / p_60 / p_90).
+                                # Any other value raises ValueError (no silent fallback).
 }
+
+# FL-236: 3-bucket minutes model constants (strictly nested 0 <= p_90 <= p_60 <= p_play <= 1).
+# Bucket conditional means: 1-59 mins (25), 60-84 mins (74), 85-90 mins (90).
+# Positional priors for P(>=60 | start) and P(>=85 | >=60); prior weight 0.25 matches min_recency=0.4 scale
+# (max 5-GW weight sum is ~1.65, so 0.25 gives ~13% shrinkage for regulars and 100% fallback when st=0).
+THREE_BUCKET_MEANS = (25.0, 74.0, 90.0)
+THREE_BUCKET_PRIOR_W = 0.25
+THREE_BUCKET_P60_PRIOR = {"GKP": 0.98, "DEF": 0.88, "MID": 0.76, "FWD": 0.75}
+THREE_BUCKET_P85_PRIOR = {"GKP": 0.99, "DEF": 0.88, "MID": 0.62, "FWD": 0.58}
+THREE_BUCKET_M6084_PRIOR = {"GKP": 75.0, "DEF": 75.0, "MID": 74.0, "FWD": 74.0}
+THREE_BUCKET_GKP_EU_CUT = 0.99   # keepers barely affected by European turnaround (vs eu_cut for outfield)
+THREE_BUCKET_CAL_INT = 0.45      # refit cal_int for 3bucket p_play (keeps pooled bias within +-0.02 after Step 2)
+THREE_BUCKET_CAMEO_SCALE = 1.12  # conditional cameo calibration: removes -2 to -3.6pp p_play under-prediction in 0.0-0.8 bands
+THREE_BUCKET_REG_PLAY_W = 0.30   # blend weight toward recent appearance rate (capped at 0.95) for fit regular starters
 
 
 
@@ -742,6 +758,10 @@ def project(ctx, as_of, horizon=6, params=None):
     dcb = P["dc_blend"]
     if isinstance(dcb, bool) or not isinstance(dcb, (int, float)) or not math.isfinite(dcb) or dcb < 0:
         raise ValueError(f"dc_blend must be a finite number >= 0, got {dcb!r}")
+    mmod = P["minutes_model"]
+    if mmod not in ("default", "3bucket"):
+        raise ValueError(f"minutes_model must be 'default' or '3bucket', got {mmod!r}")
+    use_3b = mmod == "3bucket"
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
     rating, league = team_ratings(ctx, as_of, P)
     H = P["home"]
@@ -919,7 +939,7 @@ def project(ctx, as_of, horizon=6, params=None):
             recent = [g for g in hist_gws[-P["min_window"]:]]
             returning = False
         mrec = P["min_recency"] or P["recency"]
-        wsum = st = sub = mstart = msub = p60s = 0.0
+        wsum = st = sub = mstart = msub = p60s = p85s = w6084 = m6084 = 0.0
         for g in recent:
             w = mrec ** (as_of - 1 - g)
             wsum += w
@@ -930,6 +950,10 @@ def project(ctx, as_of, horizon=6, params=None):
                 st += w
                 mstart += w * min(90, s["minutes"])
                 p60s += w * (s["minutes"] >= 60)
+                p85s += w * (s["minutes"] >= 85)
+                if 60 <= s["minutes"] < 85:
+                    w6084 += w
+                    m6084 += w * s["minutes"]
             elif s["minutes"] > 0:
                 sub += w
                 msub += w * s["minutes"]
@@ -947,11 +971,13 @@ def project(ctx, as_of, horizon=6, params=None):
         else:
             p_start = p_sub = 0.0
             m_start, m_sub, p60_given_start = 75, 20, 0.75
+        xc_raw = None
         if pid in xm_pred:
             # p60_given_start stays from his own starts (the external model has no 60+ output)
             xs_, xc_, xms_, xmc_ = xm_pred[pid]
             p_start, m_start, m_sub = xs_, xms_, xmc_
             p_sub = min(xc_, 1 - xs_)   # bench chance unconditional, capped at 1 - start chance
+            xc_raw = xc_
         start_guess = 0.0
         if P["new_signings"] and not pr and e.get("now_cost"):
             # FL-030: new to the Premier League (no prior: no PL minutes in the last two seasons). With no history the
@@ -968,6 +994,25 @@ def project(ctx, as_of, horizon=6, params=None):
                 guess = next(v for lim, v in ARRIVAL_START if c_ <= lim)
                 p_start = start_guess * guess + (1 - start_guess) * p_start
                 p_sub = min(p_sub, 1 - p_start)
+        if use_3b:
+            # FL-236: base nested probabilities 0 <= p_90 <= p_60 <= p_play <= 1.
+            # When xmins is active, cameo_model predicts P(cameo | didn't start); scale slightly (THREE_BUCKET_CAMEO_SCALE)
+            # so squad/rotation bands stay calibrated, and keep fit regular starters near their real appearance rate (~0.95).
+            if xc_raw is not None:
+                xc_eff = min(1.0, xc_raw * THREE_BUCKET_CAMEO_SCALE)
+                p_play_b = min(1.0, max(0.0, p_start + (1.0 - p_start) * xc_eff))
+            else:
+                p_play_b = min(1.0, max(0.0, p_start + p_sub))
+            if len(recent) >= 3 and wsum > 0 and (st / wsum) >= 0.85 and p_start >= 0.65 and not returning:
+                reg_play = min(0.95, (st + sub) / wsum)
+                if reg_play > p_play_b:
+                    p_play_b = (1.0 - THREE_BUCKET_REG_PLAY_W) * p_play_b + THREE_BUCKET_REG_PLAY_W * reg_play
+            pw = THREE_BUCKET_PRIOR_W
+            p60_gs_3b = (p60s + pw * THREE_BUCKET_P60_PRIOR[pos]) / (st + pw)
+            p_60_b = min(p_play_b, max(0.0, p_start * p60_gs_3b))
+            p85_g60_3b = (p85s + pw * THREE_BUCKET_P85_PRIOR[pos]) / (p60s + pw)
+            p_90_b = min(p_60_b, max(0.0, p_60_b * p85_g60_3b))
+            m_mid_3b = min(84.0, max(60.0, (m6084 + pw * THREE_BUCKET_M6084_PRIOR[pos]) / (w6084 + pw)))
         # ---- DC hit probability
         thr = ctx["dc_thr"].get(pos, 99)
         hits = n60 = 0
@@ -993,7 +1038,7 @@ def project(ctx, as_of, horizon=6, params=None):
         ret = return_date(e) if P["use_flags"] and e["status"] != "a" else None
         still_out = P["use_flags"] and (e["status"] in OUT_STATUS or (ch_now is not None and ch_now <= 25))
         per_gw, detail, dist, assumed, fx_ = {}, {}, {}, set(), {}
-        xm_next = ps_next = p60_next = 0.0
+        xm_next = ps_next = p60_next = p_play_next = p90_next = 0.0
         start_next = sub_next = None   # chance of starting / coming on in one match next gameweek; None: no match (blank)
         base_min = (p_start, p_sub, m_start, m_sub)
         if pid in xm_sell:   # selling-informed values for the next GW (gws[0]) only, same combine rule
@@ -1019,26 +1064,56 @@ def project(ctx, as_of, horizon=6, params=None):
             comp = defaultdict(float)
             sim_pts = sim_app = None
             cong = P["eu_cut"] if (tid, g) in ctx.get("congestion", ()) else 1.0
+            rmp = 1.0
             if returning:  # managers ease players back in: fewer starts, more bench appearances
                 ramp = P["return_ramp"]
-                j = k - (1 if still_out else 0)
-                cong *= ramp[j] if 0 <= j < len(ramp) else (ramp[0] if j < 0 else 1.0)
+                j_r = k - (1 if still_out else 0)
+                rmp = ramp[j_r] if 0 <= j_r < len(ramp) else (ramp[0] if j_r < 0 else 1.0)
+                cong *= rmp
+            pplay_gw = 0.0
             for j, (opp, home, mu_f, mu_a, fdr) in enumerate(upcoming[tid].get(g, [])):
-                ps, pb = p_start * av * cong, p_sub * av
-                pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
-                m = ps * m_start + pb * m_sub
-                if k == 0:
-                    ps_next += ps; p60_next += p60_given_start * ps
-                    start_next, sub_next = ps, pb   # the same for each match of a double, so never above 100%
-                    xm_next += m          # expected minutes next gameweek, after flags, rotation and return ramp
-                p60 = ps * p60_given_start
+                if use_3b:
+                    eu_3b = (THREE_BUCKET_GKP_EU_CUT if pos == "GKP" else P["eu_cut"]) if (tid, g) in ctx.get("congestion", ()) else 1.0
+                    m60 = eu_3b * rmp
+                    m90 = (eu_3b ** 1.5) * (rmp ** 1.3)
+                    mplay = 1.0 - (1.0 - m60) * 0.3   # 70% of rested/ramped starters still appear off the bench
+                    pp_base = min(1.0, max(0.0, p_start + (1.0 - p_start) * min(1.0, xm_sell[pid][1] * THREE_BUCKET_CAMEO_SCALE))) if (k == 0 and pid in xm_sell) else p_play_b
+                    p6_base = min(pp_base, max(0.0, p_start * p60_gs_3b)) if (k == 0 and pid in xm_sell) else p_60_b
+                    p9_base = min(p6_base, max(0.0, p6_base * p85_g60_3b)) if (k == 0 and pid in xm_sell) else p_90_b
+                    p_play = min(1.0, max(0.0, pp_base * av * mplay))
+                    p60 = min(p_play, max(0.0, p6_base * av * m60))
+                    p90 = min(p60, max(0.0, p9_base * av * m90))
+                    m_short, _, m_full = THREE_BUCKET_MEANS
+                    m_mid = m_mid_3b
+                    m = (p_play - p60) * m_short + (p60 - p90) * m_mid + p90 * m_full
+                    ps = min(p_play, max(p60, p_start * av * m60))
+                    pb = max(0.0, p_play - ps)
+                    ms_eff = ((p60 - p90) * m_mid + p90 * m_full) / p60 if p60 > 1e-9 else m_mid
+                    mc_eff = m_short
+                    p60_gs_eff = p60 / ps if ps > 1e-9 else 0.0
+                    pplay_gw += p_play
+                    if k == 0:
+                        ps_next += ps; p60_next += p60; p_play_next += p_play; p90_next += p90
+                        start_next, sub_next = ps, pb
+                        xm_next += m
+                else:
+                    ps, pb = p_start * av * cong, p_sub * av
+                    pb += p_start * av * (1 - cong) * 0.7  # rested starters usually still come off the bench
+                    m = ps * m_start + pb * m_sub
+                    if k == 0:
+                        ps_next += ps; p60_next += p60_given_start * ps
+                        start_next, sub_next = ps, pb   # the same for each match of a double, so never above 100%
+                        xm_next += m          # expected minutes next gameweek, after flags, rotation and return ramp
+                    p60 = ps * p60_given_start
+                    p_play = ps + pb
+                    ms_eff, mc_eff, p60_gs_eff = m_start, m_sub, p60_given_start
                 atk = mu_f / max(0.3, league * rating[tid]["att"])
                 if sp90:  # set-piece threat scales with how much this opponent concedes from set pieces
                     eg = P["goal_mult"] * ((xg90 - sp90) * atk + sp90 * sp_fac.get(opp, 1.0) ** P["sp_match"]) * m / 90
                 else:
                     eg = P["goal_mult"] * xg90 * atk * m / 90
                 ea = P["assist_mult"] * xa90 * atk * m / 90
-                comp["mins"] += (ps + pb) * scoring["short_play"] + p60 * (scoring["long_play"] - scoring["short_play"])
+                comp["mins"] += p_play * scoring["short_play"] + p60 * (scoring["long_play"] - scoring["short_play"])
                 comp["goals"] += eg * scoring["goals_scored"][pos]
                 comp["assists"] += ea * scoring["assists"]
                 pcs = math.exp(-P["cs_k"] * mu_a)
@@ -1051,7 +1126,7 @@ def project(ctx, as_of, horizon=6, params=None):
                         # FL-079: a save point needs 3 saves in the minutes he actually plays, so work out a start and
                         # a sub appearance separately and weight by their chances. Spreading his expected minutes
                         # over every case understated it (50% to start: 0.20 v 0.33 points).
-                        comp["saves"] += (ps * saves_pts(sv_rate * m_start) + pb * saves_pts(sv_rate * m_sub)) \
+                        comp["saves"] += (ps * saves_pts(sv_rate * ms_eff) + pb * saves_pts(sv_rate * mc_eff)) \
                             * scoring["saves"]
                     else:
                         comp["saves"] += saves_pts(sv_rate * m) * scoring["saves"]
@@ -1067,7 +1142,7 @@ def project(ctx, as_of, horizon=6, params=None):
                     # so league_sim.py can draw one scoreline per fixture and share it out to both clubs' players
                     fx_.setdefault(g, []).append({
                         "h": tid if home else opp, "a": opp if home else tid, "home": home,
-                        "args": (pos, min(1.0, ps), min(1.0 - min(1.0, ps), pb), p60_given_start, m_start, m_sub,
+                        "args": (pos, min(1.0, ps), min(1.0 - min(1.0, ps), pb), p60_gs_eff, ms_eff, mc_eff,
                                  P["goal_mult"] * xg90 * atk, P["assist_mult"] * xa90 * atk, mu_f, mu_a,
                                  sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0,
                                  (p_dc, p_dc_sub) if P["dc_fixture"] else p_dc,
@@ -1081,7 +1156,7 @@ def project(ctx, as_of, horizon=6, params=None):
                     rng = np.random.default_rng(seed if j == 0 else [pid, g, len(detail), j])
                     bexp = bscale * bo90 * (atk ** 0.5 if pos in ("MID", "FWD") else (pcs / 0.3) ** 0.3) * m / 90
                     sp_, sa_ = _sim_fixture(rng, P["sim"], pos, scoring, P, min(1.0, ps), min(1.0 - min(1.0, ps), pb),
-                                            p60_given_start, m_start, m_sub, P["goal_mult"] * xg90 * atk,
+                                            p60_gs_eff, ms_eff, mc_eff, P["goal_mult"] * xg90 * atk,
                                             P["assist_mult"] * xa90 * atk, mu_f, mu_a,
                                             sv90 * (mu_a / league) ** 0.6 if pos == "GKP" else 0.0,
                                             (p_dc, p_dc_sub) if P["dc_fixture"] else p_dc, bexp, yc90)
@@ -1089,8 +1164,12 @@ def project(ctx, as_of, horizon=6, params=None):
                     sim_app = sa_.astype(float) if sim_app is None else sim_app + sa_
             raw = sum(comp.values())
             nfx = len(upcoming[tid].get(g, []))
-            pplay = min(1.0, (p_start + p_sub) * av)
-            per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
+            if use_3b:
+                cal_int_3b = P["cal_int"] if (params and "cal_int" in params) else THREE_BUCKET_CAL_INT
+                per_gw[g] = P["cal_slope"] * raw + cal_int_3b * pplay_gw if nfx else 0.0
+            else:
+                pplay = min(1.0, (p_start + p_sub) * av)
+                per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
             if asm and nfx and per_gw[g] > 0:
                 assumed.add(g)
             detail[g] = dict(comp)
@@ -1109,6 +1188,7 @@ def project(ctx, as_of, horizon=6, params=None):
             "start_guess": start_guess,   # FL-030: weight of the arrival price-band guess in his start chance (0 = none)
             "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
             "start_next": start_next, "sub_next": sub_next,
+            **({"p_play_next": p_play_next, "p90_next": p90_next} if use_3b else {}),
             **({"fx": fx_} if P["fx_out"] else {}),
         }
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}
