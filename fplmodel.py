@@ -120,6 +120,10 @@ DEFAULTS = {
                            # with no 60-minute gate (FPL has none); False = old behaviour (per GW, 60+ minutes only)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
+    "xmins_no_hist_guard": True,  # FL-175: do not feed history_gws==0 (all-NaN history) players into xMins XGBoost
+                                  # (which sent NaN down the starter branch -> ~0.94 p_start for unused bench players).
+                                  # Uses last-season start_rate where available, else 0 (then FL-030 ARRIVAL_START).
+                                  # Must be bool; False = old behaviour for bench.py pairing.
 }
 
 
@@ -742,6 +746,9 @@ def project(ctx, as_of, horizon=6, params=None):
     dcb = P["dc_blend"]
     if isinstance(dcb, bool) or not isinstance(dcb, (int, float)) or not math.isfinite(dcb) or dcb < 0:
         raise ValueError(f"dc_blend must be a finite number >= 0, got {dcb!r}")
+    use_nhg = P["xmins_no_hist_guard"]
+    if not isinstance(use_nhg, bool):
+        raise ValueError(f"xmins_no_hist_guard must be a bool, got {use_nhg!r}")
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
     rating, league = team_ratings(ctx, as_of, P)
     H = P["home"]
@@ -822,14 +829,17 @@ def project(ctx, as_of, horizon=6, params=None):
             team_gws[tid].add(g)
 
     xm_pred = {}
+    xm_no_hist = set()
     if P["xmins"]:
         import xmins
         skip = ctx.get("out", {}) if P["xmins_skip_out"] else None
         moved = ctx.get("moved") if P["new_signings"] else None
-        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, moved)
+        xm_pred = xmins.predict(ctx, as_of, team_gws, kick, upcoming, skip, moved,
+                                require_history=use_nhg, skipped_no_hist=xm_no_hist)
     xm_sell = {}
     if P["xmins"] and P["xmins_sell"]:
-        xm_sell, _ = xmins.predict_sell(ctx, as_of, team_gws, kick, upcoming, skip, ctx.get("moved") if P["new_signings"] else None)
+        xm_sell, _ = xmins.predict_sell(ctx, as_of, team_gws, kick, upcoming, skip,
+                                        ctx.get("moved") if P["new_signings"] else None, require_history=use_nhg)
     out = {}
     for pid, e in elements.items():
         pos = POS[e["element_type"]]
@@ -952,6 +962,14 @@ def project(ctx, as_of, horizon=6, params=None):
             xs_, xc_, xms_, xmc_ = xm_pred[pid]
             p_start, m_start, m_sub = xs_, xms_, xmc_
             p_sub = min(xc_, 1 - xs_)   # bench chance unconditional, capped at 1 - start chance
+        elif pid in xm_no_hist:
+            # FL-175: xMins skipped this player because history_gws == 0 (all-NaN history sent XGBoost down the
+            # starter branch -> ~0.94). Use last season's start_rate when a PL prior exists, else 0.0 (which
+            # FL-030 ARRIVAL_START then replaces with the price-band guess when new_signings is on).
+            p_start = (min(1.0, max(0.0, pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230))))
+                       if pr else 0.0)
+            p_sub = 0.0
+            m_start, m_sub, p60_given_start = 75, 20, 0.75
         start_guess = 0.0
         if P["new_signings"] and not pr and e.get("now_cost"):
             # FL-030: new to the Premier League (no prior: no PL minutes in the last two seasons). With no history the
@@ -1104,7 +1122,7 @@ def project(ctx, as_of, horizon=6, params=None):
             "xmin": xm_next,
             "xmin_base": (p_start * m_start + p_sub * m_sub) * (availability(e, 0) if P["use_flags"] else 1.0),
             "has_prior": bool(pr),
-            "min_src": "xmins" if pid in xm_pred else "counts",   # counts: no fixture in the horizon for the xMins inputs
+            "min_src": "xmins" if pid in xm_pred else ("no_history" if pid in xm_no_hist else "counts"),   # no_history: FL-175 guard; counts: no fixture in horizon or xmins off
             "min_src_next": "xmins_sell" if pid in xm_sell else None,
             "start_guess": start_guess,   # FL-030: weight of the arrival price-band guess in his start chance (0 = none)
             "returning": returning, "n_hist": len(recent), "ps_next": ps_next, "p60_next": p60_next,
