@@ -120,7 +120,13 @@ DEFAULTS = {
                            # with no 60-minute gate (FPL has none); False = old behaviour (per GW, 60+ minutes only)
     "return_ramp": (0.6, 0.7),  # start chance vs normal in the 1st and 2nd game back; 2025/26 regulars
                                 # returning after 2+ games out started 49% then 59% of the time (normal ~86%)
+    "goal_sum_fix": False,      # FL-237: share each team's expected goals (mu_f) and expected assists
+                                # (GOAL_SUM_ASSIST_RATIO * mu_f) among its players by minutes x threat (no betting odds,
+                                # no set-piece data). Must be bool; any other value raises (no silent default).
 }
+
+# FL-237: FPL assists per expected team goal (~0.85; actual A/mu_f is 0.844 in 2024-25 and 0.877 in 2025-26)
+GOAL_SUM_ASSIST_RATIO = 0.85
 
 
 
@@ -742,6 +748,11 @@ def project(ctx, as_of, horizon=6, params=None):
     dcb = P["dc_blend"]
     if isinstance(dcb, bool) or not isinstance(dcb, (int, float)) or not math.isfinite(dcb) or dcb < 0:
         raise ValueError(f"dc_blend must be a finite number >= 0, got {dcb!r}")
+    use_gsf = P["goal_sum_fix"]
+    if not isinstance(use_gsf, bool):
+        raise ValueError(f"goal_sum_fix must be a bool, got {use_gsf!r}")
+    gsf_fx = defaultdict(list) if use_gsf else None
+    gsf_pplay = {} if use_gsf else None
     elements, teams, pstats, scoring = ctx["elements"], ctx["teams"], ctx["pstats"], ctx["scoring"]
     rating, league = team_ratings(ctx, as_of, P)
     H = P["home"]
@@ -1038,6 +1049,9 @@ def project(ctx, as_of, horizon=6, params=None):
                 else:
                     eg = P["goal_mult"] * xg90 * atk * m / 90
                 ea = P["assist_mult"] * xa90 * atk * m / 90
+                if use_gsf:
+                    # FL-237: share team mu_f by minutes x attacking threat only (no player betting odds, no set-piece data)
+                    gsf_fx[(tid, g, j)].append((pid, pos, max(0.0, xg90) * m / 90, max(0.0, xa90) * m / 90, mu_f))
                 comp["mins"] += (ps + pb) * scoring["short_play"] + p60 * (scoring["long_play"] - scoring["short_play"])
                 comp["goals"] += eg * scoring["goals_scored"][pos]
                 comp["assists"] += ea * scoring["assists"]
@@ -1091,6 +1105,8 @@ def project(ctx, as_of, horizon=6, params=None):
             nfx = len(upcoming[tid].get(g, []))
             pplay = min(1.0, (p_start + p_sub) * av)
             per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
+            if use_gsf and nfx:
+                gsf_pplay[(pid, g)] = pplay * nfx
             if asm and nfx and per_gw[g] > 0:
                 assumed.add(g)
             detail[g] = dict(comp)
@@ -1111,6 +1127,25 @@ def project(ctx, as_of, horizon=6, params=None):
             "start_next": start_next, "sub_next": sub_next,
             **({"fx": fx_} if P["fx_out"] else {}),
         }
+    if use_gsf:
+        # FL-237: reallocate each fixture's team expected goals (mu_f) and expected assists
+        # (GOAL_SUM_ASSIST_RATIO * mu_f) across its squad in proportion to minutes x threat.
+        new_g, new_a = defaultdict(float), defaultdict(float)
+        for (_tid, g, _j), entries in gsf_fx.items():
+            wg_tot = sum(wg for _, _, wg, _, _ in entries)
+            wa_tot = sum(wa for _, _, _, wa, _ in entries)
+            mu_f = entries[0][4]
+            for pid, pos, wg, wa, _ in entries:
+                eg_new = mu_f * (wg / wg_tot) if wg_tot > 0 else 0.0
+                ea_new = (GOAL_SUM_ASSIST_RATIO * mu_f) * (wa / wa_tot) if wa_tot > 0 else 0.0
+                new_g[(pid, g)] += eg_new * scoring["goals_scored"][pos]
+                new_a[(pid, g)] += ea_new * scoring["assists"]
+        for (pid, g), pp_nfx in gsf_pplay.items():
+            d = out[pid]["detail"][g]
+            d["goals"] = new_g[(pid, g)]
+            d["assists"] = new_a[(pid, g)]
+            raw = sum(d.values())
+            out[pid]["xp"][g] = P["cal_slope"] * raw + P["cal_int"] * pp_nfx
     return {"players": out, "rating": rating, "league": league, "gws": gws, "upcoming": upcoming}
 
 

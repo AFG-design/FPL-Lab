@@ -950,6 +950,8 @@ if __name__ == "__main__":
                          "per season and pooled across past archive seasons")
     ap.add_argument("--seasons", default=",".join(BUCKETED_SEASONS),
                     help="comma-separated archive seasons for --bucketed (default: 2024-25,2025-26)")
+    ap.add_argument("--goal-sum-fix", action="store_true",
+                    help="FL-237: opt-in team goal/assist share reallocation so player totals match team mu_f")
     args = ap.parse_args()
     if args.compare:
         sys.exit(1 if compare(*args.compare) else 0)
@@ -958,6 +960,8 @@ if __name__ == "__main__":
         if not seasons:
             ap.error("--seasons must name at least one season")
         params = json.loads(args.params)
+        if args.goal_sum_fix:
+            params["goal_sum_fix"] = True
         report = bucketed_eval(seasons=seasons, params=params)
         print_bucketed(report)
         if args.json:
@@ -999,6 +1003,8 @@ if __name__ == "__main__":
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
     params = json.loads(args.params)
+    if args.goal_sum_fix:
+        params["goal_sum_fix"] = True
     if params:
         print("Params:", params)
     head = evaluate(ctx, gws, params=params, verbose=True)
