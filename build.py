@@ -1885,6 +1885,7 @@ def assemble_output():
                  # FL-065: player-weeks whose club then couldn't be told (their xG goes to no club; no opponent adjustment)
                  "club_ambiguous": [list(x) for x in ctx["club_ambiguous"]],
                  "minutes_model": {"xmins_on": bool(DEFAULTS["xmins"]), "xmins": _msrc.get("xmins", 0),
+                                   "no_history": _msrc.get("no_history", 0),
                                    "counts": _msrc.get("counts", 0), "xmins_sell_on": bool(DEFAULTS["xmins_sell"]),
                                    "fixture_players": sum(_msrc.values()),
                                    "sell": dict(sell_info, **({k: shadow[k] for k in ("n", "sell_nan", "error") if k in shadow}
