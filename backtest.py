@@ -675,6 +675,265 @@ def compare(base_path, new_path):
     return len(flagged)
 
 
+# ---------------------------------------------------------------- bucketed four-area backtest (FL-235)
+BUCKETED_SEASONS = ("2024-25", "2025-26")
+
+
+def _ranks(v):
+    """Average ranks for ties (0-indexed), matching bench._ranks."""
+    order = sorted(range(len(v)), key=lambda i: v[i])
+    r = [0.0] * len(v)
+    i = 0
+    while i < len(order):
+        j = i
+        while j + 1 < len(order) and v[order[j + 1]] == v[order[i]]:
+            j += 1
+        avg = (i + j) / 2.0
+        for k in range(i, j + 1):
+            r[order[k]] = avg
+        i = j + 1
+    return r
+
+
+def spearman(xs, ys):
+    """Spearman rank correlation with average ranks for ties, or None if undefined."""
+    if len(xs) < 3 or len(xs) != len(ys):
+        return None
+    return corr(_ranks(xs), _ranks(ys))
+
+
+def collect_bucketed_season(season, params=None, gws=range(4, 39)):
+    """Collect raw per-observation records for one archive season (no pooling, no cross-season state).
+
+    Missing/late/ambiguous inputs:
+    - Archive CSVs and raw/bootstrap.json (for game_config scoring) are loaded via bench._season(); missing files
+      raise loudly.
+    - Betting odds come from odds/archive/<season>.json; if absent, bench._season() prints a warning and runs
+      odds-free.
+    - Archive seasons carry no historical injury flags, so projections run with use_flags=False (as bench.py does).
+    - Single-fixture pool rows only are scored for Minutes, Player CS and Goals & Assists (doubles sum stats across
+      two matches). Players missing live stats in GW k, or fixtures without final scores for Team CS, are skipped
+      rather than silently scored as 0.
+    """
+    import bench  # lazy import: bench.py imports backtest at top level
+    from fplmodel import DEFAULTS, POS
+
+    P = {**DEFAULTS, **(params or {})}
+    ctx, team_at = bench._season(season, P.get("archive_dc_backfill"))
+    nfx = _one_fixture(ctx)
+    sc = ctx["scoring"]
+    cs_k = P["cs_k"]
+
+    minutes, team_cs, player_cs, ga = [], [], [], []
+    xp_by_gw = {}
+    for k in gws:
+        cx = dict(ctx)
+        cx["elements"] = {pid: dict(e, team=team_at(pid, k) or e["team"]) for pid, e in ctx["elements"].items()}
+        cx["team_gw_xg"] = bench._xg_at(ctx, team_at, k)
+        proj = project(cx, k, horizon=1, params=dict(params or {}, use_flags=False))
+        res = proj["players"]
+
+        # Team clean sheets: match each projected fixture (tid, opp, home) to its finished score in GW k.
+        fx_cs = defaultdict(list)
+        for f in cx["fixtures"]:
+            if f.get("event") != k or f.get("team_h_score") is None or f.get("team_a_score") is None:
+                continue
+            fx_cs[(f["team_h"], f["team_a"], True)].append(1.0 if f["team_a_score"] == 0 else 0.0)
+            fx_cs[(f["team_a"], f["team_h"], False)].append(1.0 if f["team_h_score"] == 0 else 0.0)
+        used = defaultdict(int)
+        for tid, by_gw in proj["upcoming"].items():
+            for opp, home, _mf, ma_, _fdr in by_gw.get(k, ()):
+                key = (tid, opp, home)
+                idx = used[key]
+                if idx < len(fx_cs.get(key, ())):
+                    used[key] = idx + 1
+                    pcs = min(1.0, max(0.0, math.exp(-cs_k * ma_)))
+                    team_cs.append((pcs, fx_cs[key][idx]))
+
+        gw_xp = []
+        for pid, r in res.items():
+            if not _in_pool(cx, pid, k):
+                continue
+            a = cx["pts_gw"].get(pid, {}).get(k)
+            if a is not None:
+                gw_xp.append((pid, r["xp"].get(k, 0.0), float(a)))
+            e = cx["elements"][pid]
+            s = cx["pstats"].get(pid, {}).get(k)
+            if s is None or nfx.get((e["team"], k)) != 1:
+                continue
+            pos = POS[e["element_type"]]
+            d = r["detail"].get(k, {})
+
+            # Area 1: minutes (>0 mins, >=60 mins, xMin)
+            if r.get("p_play_next") is not None:
+                p_play = min(1.0, max(0.0, r["p_play_next"]))
+            elif r.get("start_next") is not None and r.get("sub_next") is not None:
+                p_play = min(1.0, max(0.0, r["start_next"] + r["sub_next"]))
+            else:
+                p_play = min(1.0, max(0.0, r.get("p_start", 0.0) + r.get("p_sub", 0.0)))
+            y_play = 1.0 if s["minutes"] > 0 else 0.0
+            p60 = min(1.0, max(0.0, r["p60_next"]))
+            y60 = 1.0 if s["minutes"] >= 60 else 0.0
+            minutes.append((p_play, y_play, p60, y60, float(r["xmin"]), float(s["minutes"])))
+
+            # Area 2: player clean sheets (positions that score CS points)
+            if sc["clean_sheets"][pos]:
+                p_pcs = min(1.0, max(0.0, d.get("cs", 0.0) / sc["clean_sheets"][pos]))
+                player_cs.append((p_pcs, 1.0 if s["clean_sheets"] > 0 else 0.0))
+
+            # Area 3: goals & assists (expected counts vs actual counts)
+            eg = d.get("goals", 0.0) / sc["goals_scored"][pos]
+            ea = d.get("assists", 0.0) / sc["assists"]
+            ga.append((eg, float(s["goals_scored"]), ea, float(s["assists"])))
+
+        if gw_xp:
+            xp_by_gw[k] = gw_xp
+
+    return {
+        "season": season,
+        "gws": list(gws),
+        "minutes": minutes,
+        "team_cs": team_cs,
+        "player_cs": player_cs,
+        "ga": ga,
+        "xp_by_gw": xp_by_gw,
+    }
+
+
+def _err_stats(pairs):
+    n = len(pairs)
+    if not n:
+        return {"n": 0, "rmse": None, "mae": None, "bias": None}
+    return {
+        "n": n,
+        "rmse": math.sqrt(sum((p - a) ** 2 for p, a in pairs) / n),
+        "mae": sum(abs(p - a) for p, a in pairs) / n,
+        "bias": sum(p - a for p, a in pairs) / n,
+    }
+
+
+def summarize_bucketed(obs):
+    """Compute all four bucketed areas directly from one observation bundle (one season or pooled raw rows)."""
+    # 1. Minutes
+    mn = obs["minutes"]
+    n_mn = len(mn)
+    if n_mn:
+        min_out = {
+            "n": n_mn,
+            "play_brier": sum((p - y) ** 2 for p, y, _, _, _, _ in mn) / n_mn,
+            "play_cal": sum(p - y for p, y, _, _, _, _ in mn) / n_mn,
+            "p60_brier": sum((p6 - y6) ** 2 for _, _, p6, y6, _, _ in mn) / n_mn,
+            "p60_cal": sum(p6 - y6 for _, _, p6, y6, _, _ in mn) / n_mn,
+            "xmin_mae": sum(abs(xm - am) for _, _, _, _, xm, am in mn) / n_mn,
+            "xmin_rmse": math.sqrt(sum((xm - am) ** 2 for _, _, _, _, xm, am in mn) / n_mn),
+        }
+    else:
+        min_out = {"n": 0, "play_brier": None, "play_cal": None, "p60_brier": None, "p60_cal": None,
+                   "xmin_mae": None, "xmin_rmse": None}
+
+    # 2. Clean sheets
+    tcs, pcs = obs["team_cs"], obs["player_cs"]
+    cs_out = {
+        "team_n": len(tcs),
+        "team_brier": sum((p - y) ** 2 for p, y in tcs) / len(tcs) if tcs else None,
+        "team_logloss": sum(_logloss(p, bool(y)) for p, y in tcs) / len(tcs) if tcs else None,
+        "player_n": len(pcs),
+        "player_brier": sum((p - y) ** 2 for p, y in pcs) / len(pcs) if pcs else None,
+        "player_logloss": sum(_logloss(p, bool(y)) for p, y in pcs) / len(pcs) if pcs else None,
+    }
+
+    # 3. Goals & assists
+    ga = obs["ga"]
+    g_err = _err_stats([(eg, ag) for eg, ag, _, _ in ga])
+    a_err = _err_stats([(ea, aa) for _, _, ea, aa in ga])
+    ga_err = _err_stats([(eg + ea, ag + aa) for eg, ag, ea, aa in ga])
+    ga_out = {
+        "n": len(ga),
+        "goals_rmse": g_err["rmse"], "goals_mae": g_err["mae"],
+        "assists_rmse": a_err["rmse"], "assists_mae": a_err["mae"],
+        "ga_rmse": ga_err["rmse"], "ga_mae": ga_err["mae"],
+    }
+
+    # 4. Total xP (deterministic tie-break by pid, never actual points)
+    xp_pairs, top50_sp = [], []
+    for _gw, rows in sorted(obs["xp_by_gw"].items()):
+        for _pid, p, a in rows:
+            xp_pairs.append((p, a))
+        top50 = sorted(rows, key=lambda r: (-r[1], r[0]))[:50]
+        sp = spearman([r[1] for r in top50], [r[2] for r in top50])
+        if sp is not None:
+            top50_sp.append(sp)
+    xp_err = _err_stats(xp_pairs)
+    xp_out = {
+        "n": xp_err["n"],
+        "gws": len(obs["xp_by_gw"]),
+        "rmse": xp_err["rmse"],
+        "mae": xp_err["mae"],
+        "bias": xp_err["bias"],
+        "top50_spearman": sum(top50_sp) / len(top50_sp) if top50_sp else None,
+        "top50_gws": len(top50_sp),
+    }
+
+    return {"minutes": min_out, "clean_sheets": cs_out, "goals_assists": ga_out, "xp": xp_out}
+
+
+def bucketed_eval(seasons=BUCKETED_SEASONS, params=None, gws=range(4, 39), collector=None):
+    """Run the four-area backtest independently for each season, then pool the raw observations."""
+    collect = collector or collect_bucketed_season
+    per_season = {}
+    pooled_obs = {"minutes": [], "team_cs": [], "player_cs": [], "ga": [], "xp_by_gw": {}}
+    for s in seasons:
+        obs = collect(s, params=params, gws=gws)
+        per_season[s] = summarize_bucketed(obs)
+        pooled_obs["minutes"].extend(obs["minutes"])
+        pooled_obs["team_cs"].extend(obs["team_cs"])
+        pooled_obs["player_cs"].extend(obs["player_cs"])
+        pooled_obs["ga"].extend(obs["ga"])
+        for gw, rows in obs["xp_by_gw"].items():
+            pooled_obs["xp_by_gw"][(s, gw)] = rows
+    return {
+        "seasons": per_season,
+        "pooled": summarize_bucketed(pooled_obs),
+        "params": dict(params or {}),
+    }
+
+
+def print_bucketed(report):
+    """Print per-season and pooled four-area tables."""
+    rows = [(s, report["seasons"][s]) for s in report["seasons"]] + [("Pooled", report["pooled"])]
+    if report.get("params"):
+        print("Params:", report["params"])
+    print("\n1. Minutes (single-fixture weeks, a-priori pool; cal = pred - act)")
+    print(f"  {'Season':8} {'n':>6} {'>0 Brier':>9} {'>0 cal':>8} {'>=60 Brier':>11} {'>=60 cal':>9} {'xMin MAE':>9} {'xMin RMSE':>10}")
+    for label, d in rows:
+        m = d["minutes"]
+        print(f"  {label:8} {m['n']:6d} {_f(m['play_brier'], '9.4f')} {_f(m['play_cal'], '+8.4f')} "
+              f"{_f(m['p60_brier'], '11.4f')} {_f(m['p60_cal'], '+9.4f')} "
+              f"{_f(m['xmin_mae'], '9.2f')} {_f(m['xmin_rmse'], '10.2f')}")
+
+    print("\n2. Clean sheets (team: all finished fixtures; player: single-fixture pool, GKP/DEF/MID)")
+    print(f"  {'Season':8} {'team n':>6} {'Team Brier':>11} {'Team LL':>9} {'plyr n':>7} {'Plyr Brier':>11} {'Plyr LL':>9}")
+    for label, d in rows:
+        c = d["clean_sheets"]
+        print(f"  {label:8} {c['team_n']:6d} {_f(c['team_brier'], '11.4f')} {_f(c['team_logloss'], '9.4f')} "
+              f"{c['player_n']:7d} {_f(c['player_brier'], '11.4f')} {_f(c['player_logloss'], '9.4f')}")
+
+    print("\n3. Goals & assists (single-fixture weeks, a-priori pool; expected vs actual counts)")
+    print(f"  {'Season':8} {'n':>6} {'G RMSE':>8} {'G MAE':>8} {'A RMSE':>8} {'A MAE':>8} {'G+A RMSE':>9} {'G+A MAE':>8}")
+    for label, d in rows:
+        g = d["goals_assists"]
+        print(f"  {label:8} {g['n']:6d} {_f(g['goals_rmse'], '8.4f')} {_f(g['goals_mae'], '8.4f')} "
+              f"{_f(g['assists_rmse'], '8.4f')} {_f(g['assists_mae'], '8.4f')} "
+              f"{_f(g['ga_rmse'], '9.4f')} {_f(g['ga_mae'], '8.4f')}")
+
+    print("\n4. Total xP (all weeks, a-priori pool; bias = pred - act; Top-50 Spearman = mean per GW)")
+    print(f"  {'Season':8} {'n':>6} {'GWs':>4} {'RMSE':>8} {'MAE':>8} {'bias':>8} {'Top-50 Sp':>10}")
+    for label, d in rows:
+        x = d["xp"]
+        print(f"  {label:8} {x['n']:6d} {x['gws']:4d} {_f(x['rmse'], '8.4f')} {_f(x['mae'], '8.4f')} "
+              f"{_f(x['bias'], '+8.4f')} {_f(x['top50_spearman'], '10.4f')}")
+
+
 if __name__ == "__main__":
     import argparse, os
     ap = argparse.ArgumentParser(description="Backtest the projection model on this season's finished gameweeks.")
@@ -686,9 +945,26 @@ if __name__ == "__main__":
     ap.add_argument("--params", default="{}", help="JSON of model params to override (e.g. '{\"xmins\": true}')")
     ap.add_argument("--quick", action="store_true", help="skip the no-priors run and the baseline")
     ap.add_argument("--compare", nargs=2, metavar=("BASE", "NEW"), help="compare two --json files and stop")
+    ap.add_argument("--bucketed", action="store_true",
+                    help="grade the model in four areas (minutes, clean sheets, goals & assists, total xP) "
+                         "per season and pooled across past archive seasons")
+    ap.add_argument("--seasons", default=",".join(BUCKETED_SEASONS),
+                    help="comma-separated archive seasons for --bucketed (default: 2024-25,2025-26)")
     args = ap.parse_args()
     if args.compare:
         sys.exit(1 if compare(*args.compare) else 0)
+    if args.bucketed:
+        seasons = tuple(s.strip() for s in args.seasons.split(",") if s.strip())
+        if not seasons:
+            ap.error("--seasons must name at least one season")
+        params = json.loads(args.params)
+        report = bucketed_eval(seasons=seasons, params=params)
+        print_bucketed(report)
+        if args.json:
+            with open(args.json, "w") as f:
+                json.dump(report, f, indent=1)
+            print(f"\nWrote {args.json}")
+        sys.exit(0)
     raw = args.raw
     boot = json.load(open(f"{raw}/bootstrap.json"))
     fixtures = json.load(open(f"{raw}/fixtures.json"))
