@@ -23,7 +23,8 @@ def _scoring():
 def _make_ctx(double_gw6=False):
     teams = [{"id": 1, "short_name": "ARS", "name": "Arsenal"},
              {"id": 2, "short_name": "BRE", "name": "Brentford"},
-             {"id": 3, "short_name": "CHE", "name": "Chelsea"}]
+             {"id": 3, "short_name": "CHE", "name": "Chelsea"},
+             {"id": 4, "short_name": "FUL", "name": "Fulham"}]
     elements = [
         {"id": 1, "element_type": 1, "team": 1, "web_name": "GK1", "status": "a", "chance_of_playing_next_round": None, "now_cost": 55, "penalties_order": None},
         {"id": 2, "element_type": 2, "team": 1, "web_name": "DEF1", "status": "a", "chance_of_playing_next_round": None, "now_cost": 60, "penalties_order": None},
@@ -32,6 +33,7 @@ def _make_ctx(double_gw6=False):
         {"id": 5, "element_type": 3, "team": 2, "web_name": "MID2", "status": "a", "chance_of_playing_next_round": None, "now_cost": 70, "penalties_order": None},
         {"id": 6, "element_type": 4, "team": 2, "web_name": "FWD2", "status": "a", "chance_of_playing_next_round": None, "now_cost": 75, "penalties_order": None},
         {"id": 7, "element_type": 3, "team": 3, "web_name": "MID3", "status": "a", "chance_of_playing_next_round": None, "now_cost": 80, "penalties_order": None},
+        {"id": 8, "element_type": 4, "team": 4, "web_name": "FWD4", "status": "a", "chance_of_playing_next_round": None, "now_cost": 65, "penalties_order": None},
     ]
     fixtures = []
     fid = 1
@@ -39,6 +41,13 @@ def _make_ctx(double_gw6=False):
         fixtures.append({
             "id": fid, "event": g, "team_h": 1 if g % 2 else 2, "team_a": 2 if g % 2 else 1,
             "team_h_score": 2 if g < 6 else None, "team_a_score": 1 if g < 6 else None,
+            "team_h_difficulty": 3, "team_a_difficulty": 3,
+            "kickoff_time": f"2026-09-{g:02d}T14:00:00Z", "finished": g < 6,
+        })
+        fid += 1
+        fixtures.append({
+            "id": fid, "event": g, "team_h": 3 if g % 2 else 4, "team_a": 4 if g % 2 else 3,
+            "team_h_score": 1 if g < 6 else None, "team_a_score": 1 if g < 6 else None,
             "team_h_difficulty": 3, "team_a_difficulty": 3,
             "kickoff_time": f"2026-09-{g:02d}T14:00:00Z", "finished": g < 6,
         })
@@ -63,6 +72,7 @@ def _make_ctx(double_gw6=False):
             {"id": 5, "stats": {"minutes": 90, "starts": 1, "goals_scored": 0, "assists": 1, "clean_sheets": 0, "goals_conceded": 2, "saves": 0, "bonus": 0, "yellow_cards": 0, "red_cards": 0, "total_points": 5, "expected_goals": "0.25", "expected_assists": "0.35", "defensive_contribution": 5}, "explain": []},
             {"id": 6, "stats": {"minutes": 90, "starts": 1, "goals_scored": 1, "assists": 0, "clean_sheets": 0, "goals_conceded": 2, "saves": 0, "bonus": 2, "yellow_cards": 0, "red_cards": 0, "total_points": 8, "expected_goals": "0.50", "expected_assists": "0.10", "defensive_contribution": 2}, "explain": []},
             {"id": 7, "stats": {"minutes": 90, "starts": 1, "goals_scored": 0, "assists": 0, "clean_sheets": 0, "goals_conceded": 0, "saves": 0, "bonus": 0, "yellow_cards": 0, "red_cards": 0, "total_points": 2, "expected_goals": "0.30", "expected_assists": "0.20", "defensive_contribution": 4}, "explain": []},
+            {"id": 8, "stats": {"minutes": 90, "starts": 1, "goals_scored": 1, "assists": 0, "clean_sheets": 0, "goals_conceded": 1, "saves": 0, "bonus": 1, "yellow_cards": 0, "red_cards": 0, "total_points": 7, "expected_goals": "0.40", "expected_assists": "0.15", "defensive_contribution": 2}, "explain": []},
         ]}
     return fplmodel.prepare(boot, fixtures, live)
 
