@@ -133,6 +133,7 @@ THREE_BUCKET_PRIOR_W = 0.25
 THREE_BUCKET_P60_PRIOR = {"GKP": 0.98, "DEF": 0.88, "MID": 0.76, "FWD": 0.75}
 THREE_BUCKET_P85_PRIOR = {"GKP": 0.99, "DEF": 0.88, "MID": 0.62, "FWD": 0.58}
 THREE_BUCKET_GKP_EU_CUT = 0.99   # keepers barely affected by European turnaround (vs eu_cut for outfield)
+THREE_BUCKET_CAL_INT = 0.50      # refit cal_int for 3bucket p_play (cross-season midpoint: 0.4814 on 24-25, 0.5262 on 25-26)
 
 
 
@@ -1147,7 +1148,8 @@ def project(ctx, as_of, horizon=6, params=None):
             raw = sum(comp.values())
             nfx = len(upcoming[tid].get(g, []))
             if use_3b:
-                per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay_gw if nfx else 0.0
+                cal_int_3b = P["cal_int"] if (params and "cal_int" in params) else THREE_BUCKET_CAL_INT
+                per_gw[g] = P["cal_slope"] * raw + cal_int_3b * pplay_gw if nfx else 0.0
             else:
                 pplay = min(1.0, (p_start + p_sub) * av)
                 per_gw[g] = P["cal_slope"] * raw + P["cal_int"] * pplay * nfx if nfx else 0.0
