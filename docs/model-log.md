@@ -27,6 +27,22 @@ What has been tested on the projection model, with results, so ideas aren't re-t
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
 
+## 21 Nov 2026 — FL-237: Goal-sum fix (Don't adopt)
+
+- **Tested:** the opt-in `--goal-sum-fix` allocated each team's expected goals in proportion to minutes × `xg90`
+  and expected assists in proportion to minutes × `xa90`. Player projections then summed exactly to the respective
+  team totals. The fix used no odds or set-piece data. [Draft PR #256](https://github.com/AFG-design/FPL-Lab/pull/256)
+- **Gap before the fix:** summed player goals were 14.7% below team totals in GW11 of 2026/27. The full-season gap
+  was −6.4% in 2024/25 and −1.7% in 2025/26. Some teams overshot their totals, including WOL (+29%) and WHU (+19%).
+- **Results:** on `bench.py`, pooled 5-GW picks fell by 0.110 (candidate − main: −0.110, 95% CI [−0.213, −0.009]),
+  with the whole interval below zero. In 2024/25, 5-GW picks fell by 0.29 (95% CI [−0.45, −0.15]) and Top-5
+  tripped the no-harm rule. xP MAE rose from 1.8135 to 1.8199. Top-50 Spearman fell from 0.1948 to 0.1716 in
+  2024/25. With the status log, `--compare` failed on the top 30 (ΔMAE +0.098).
+- **Cause:** own goals and goals by players outside the pool explain part of the gap. Allocating that shortfall
+  to regular attackers overrated them. Tavernier, Palmer, Watkins and Trossard each gained 0.4 to 0.6 xP.
+- **Verdict: Don't adopt.** When team and player goal totals disagreed, the player totals were the better guide.
+  Keep the player shares and address any discrepancy in the team totals.
+
 ## 20 Nov 2026 — FL-224: DefCon shrinkage `dc_blend` 15 (Adopt as Marginal — targeted change, DC part)
 
 - **Why:** after FL-177 (`dc_r 10`), raw DefCon is near the right level for the pool (2025/26 all `1.08`, DEF `1.05`,
