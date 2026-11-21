@@ -9,6 +9,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import shutil
 import sys
@@ -18,8 +19,56 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "tests" / "fixtures" / "season_end_api.json.gz"
+CROWD_FIXTURE = ROOT / "tests" / "fixtures" / "season_end_crowd.json.gz"
 API = "https://fantasy.premierleague.com/api"
 TEAM_ID = "8122679"
+_GW_FILE_RE = re.compile(r"_gw(\d+)\.json$")
+
+
+def _trim_gws_dict(gws, cur):
+    """Keep only integer-keyed gameweek entries <= cur."""
+    if not isinstance(gws, dict):
+        return gws
+    return {k: v for k, v in gws.items() if not (k.isdigit() and int(k) > cur)}
+
+
+def _align_repo_to_gw(repo, cur):
+    """Make the temporary repo copy match the recorded API fixture's gameweek (cur).
+
+    main's live crowd/latest.json, crowd/history.json and history/ files advance on every gameweek
+    rollover, while season_end_api.json.gz is frozen at cur (GW10) with events truncated to <= cur.
+    Without aligning the copy to cur, build.py crashes at crowd['gw'] > cur (StopIteration) and
+    validate.py fails on settled awards past cur_gw. Runs before prepare(repo) so tests can still
+    override or corrupt any file in the copy.
+    """
+    crowd_dir = repo / "crowd"
+    crowd_dir.mkdir(exist_ok=True)
+    with gzip.open(CROWD_FIXTURE, "rt") as f:
+        (crowd_dir / "latest.json").write_text(f.read())
+
+    hist_dir = repo / "history"
+    if hist_dir.is_dir():
+        for p in list(hist_dir.iterdir()):
+            m = _GW_FILE_RE.search(p.name)
+            if m and int(m.group(1)) > cur:
+                p.unlink()
+
+    for rel in (Path("crowd") / "history.json", Path("history") / "status.json"):
+        p = repo / rel
+        if p.exists():
+            data = json.loads(p.read_text())
+            if isinstance(data, dict) and isinstance(data.get("gws"), dict):
+                data["gws"] = _trim_gws_dict(data["gws"], cur)
+                p.write_text(json.dumps(data))
+
+    awards_p = hist_dir / "awards.json"
+    if awards_p.exists():
+        data = json.loads(awards_p.read_text())
+        if isinstance(data, dict) and isinstance(data.get("leagues"), dict):
+            for lg in data["leagues"].values():
+                if isinstance(lg, dict) and isinstance(lg.get("gws"), dict):
+                    lg["gws"] = _trim_gws_dict(lg["gws"], cur)
+            awards_p.write_text(json.dumps(data))
 
 
 def season_end(api):
@@ -46,10 +95,11 @@ def offline_build(test_case, prepare=None, api_change=None):
     # build.py reads and writes history/, odds/ and friends next to itself: work on a copy, never the real repo
     shutil.copytree(ROOT, repo, ignore=shutil.ignore_patterns(".git", "node_modules", "site", "tests"))
     (repo / "site").mkdir()
-    if prepare:
-        prepare(repo)
     with gzip.open(FIXTURE, "rt") as f:
         api, cur = season_end(json.load(f))
+    _align_repo_to_gw(repo, cur)
+    if prepare:
+        prepare(repo)
     if api_change:
         api_change(api)
 
