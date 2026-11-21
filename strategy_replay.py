@@ -46,6 +46,7 @@ Needs raw/bootstrap.json (scoring rules) like bench.py, and downloads the archiv
 """
 import argparse, copy, json, math, os, pickle, random, statistics, sys, time
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 import archive
 import bench
@@ -54,6 +55,50 @@ from fplmodel import project, POS
 
 H = 5
 MODES = ("balanced", "safe", "chase")
+
+FIXTURE_DATES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "replay_fixture_dates.json")
+
+# Official 2025-26 AFCON rule: all managers topped up to 5 free transfers entering GW16.
+# Source: https://www.premierleague.com/en/news/4362102/whats-new-in-202526-fantasy-extra-transfers-for-afcon
+FT_TOPUP = {("2025-26", 16): 5}
+
+
+def apply_ft_topup(ft, season, gw):
+    """Apply any official season-specific free-transfer top-up entering GW `gw`."""
+    top = FT_TOPUP.get((season, gw))
+    return max(ft, top) if top is not None else ft
+
+
+def _parse_iso(ts):
+    return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def load_fixture_dates(path=FIXTURE_DATES_PATH):
+    """Load official blank/double GW confirmation timestamps from replay_fixture_dates.json."""
+    with open(path) as f:
+        data = json.load(f)
+    return {k: v for k, v in data.items() if not k.startswith("_")}
+
+
+def gw_deadlines(fixtures, boot=None, last_gw=38):
+    """Return {gw: datetime} deadline for each GW (first fixture kickoff minus 90 min, fallback to boot events)."""
+    by_gw = defaultdict(list)
+    for f in fixtures:
+        ev = f.get("event")
+        ko = f.get("kickoff_time")
+        if ev and ko:
+            by_gw[int(ev)].append(_parse_iso(ko))
+    out = {}
+    for g in range(1, last_gw + 1):
+        if g in by_gw:
+            out[g] = min(by_gw[g]) - timedelta(minutes=90)
+    if boot:
+        for ev in boot.get("events", []):
+            gid = ev.get("id")
+            dl = ev.get("deadline_time")
+            if gid and dl and int(gid) not in out:
+                out[int(gid)] = _parse_iso(dl)
+    return out
 
 
 def fpl_sell(buy, price):
@@ -116,26 +161,64 @@ def fixture_calendar(fixtures, last_gw=38):
     return dgw, bgw
 
 
-def simple_chip_schedule(season, dgw, bgw):
-    """Pre-assign BB, TC, FH weeks for the 'simple' chip rule using ONLY fixture counts (never real points).
+def causal_fixture_calendar(fixtures, season, k, conf_dates=None, boot=None, last_gw=38):
+    """Return (dgw, bgw) as known before GW k's deadline.
+    Any future double or blank (g >= k) not officially confirmed before GW k's deadline is masked to 0
+    (treated as a normal single-fixture week). Past GWs (g < k) are retained.
+    """
+    dgw_all, bgw_all = fixture_calendar(fixtures, last_gw)
+    deadlines = gw_deadlines(fixtures, boot=boot, last_gw=last_gw)
+    dl_k = deadlines.get(k)
+    if conf_dates is None:
+        conf_dates = load_fixture_dates()
+    entries = conf_dates.get(season)
+    confirmed = {}
+    if entries is not None:
+        for e in entries:
+            confirmed[(int(e["gw"]), e["kind"])] = _parse_iso(e["confirmed_at"])
+    dgw, bgw = {}, {}
+    for g in range(1, last_gw + 1):
+        if g < k:
+            dgw[g] = dgw_all[g]
+            bgw[g] = bgw_all[g]
+        elif g == k and entries is None:
+            # Current GW's own fixtures are known at GW k deadline even in synthetic tests without a season entry
+            dgw[g] = dgw_all[g]
+            bgw[g] = bgw_all[g]
+        else:
+            d_ts = confirmed.get((g, "DGW"))
+            b_ts = confirmed.get((g, "BGW"))
+            dgw[g] = dgw_all[g] if (dgw_all[g] > 0 and dl_k is not None and d_ts is not None and d_ts <= dl_k) else 0
+            bgw[g] = bgw_all[g] if (bgw_all[g] > 0 and dl_k is not None and b_ts is not None and b_ts <= dl_k) else 0
+    return dgw, bgw
+
+
+def simple_chip_schedule(season, dgw, bgw, avail_chips=None, k=1, prev_fh_gw=None):
+    """Causally assign remaining BB, TC, FH weeks from GW k onward using ONLY the causal (dgw, bgw) calendar
+    known at GW k (never future unconfirmed doubles/blanks, never real points).
     WC is handled causally week-by-week (no future-projection lookahead).
     """
-    pool = season_chips(season)
+    pool = avail_chips if avail_chips is not None else season_chips(season)
     sched = {}   # chip_id -> gw
     used = set()
-    # Assign BB first (biggest DGW), then TC (next biggest DGW), then FH (biggest BGW)
+    # Assign BB first (biggest confirmed DGW), then TC (next biggest confirmed DGW), then FH (biggest confirmed BGW)
     for kind in ("BB", "TC", "FH"):
         for cid, (lo, hi) in pool.items():
-            if chip_kind(cid) != kind:
+            if chip_kind(cid) != kind or hi < k:
                 continue
-            cand = [g for g in range(lo, hi + 1) if g not in used]
+            start = max(lo, k)
+            cand = [g for g in range(start, hi + 1) if g not in used]
+            if kind == "FH" and prev_fh_gw is not None:
+                cand = [g for g in cand if g != prev_fh_gw + 1]
+            if not cand:
+                continue
             if kind in ("BB", "TC"):
                 best_n = max(dgw.get(g, 0) for g in cand)
                 if best_n > 0:
                     # tie-break: later GW in window
                     g_pick = max(g for g in cand if dgw.get(g, 0) == best_n)
                 else:
-                    # No DGW in window (e.g. 2025-26 1st half): place near end of half
+                    # No confirmed DGW in window: place near end of half
                     g_pick = hi - 1 if kind == "BB" and (hi - 1) in cand else max(cand)
             else:  # FH
                 best_n = max(bgw.get(g, 0) for g in cand)
@@ -236,7 +319,7 @@ def load_or_build_cache(season, k_from, k_to, sim, cache_dir, ctx, team_at, pric
 
 
 def audit_week(gw, squad, bank, ft, xi, bench, cap, pl, moved, chip_id, chip_pool, used_chips,
-               hits, allow_hit, prev_held_over):
+               hits, allow_hit, prev_held_over, ft_before=None, prev_fh_gw=None, season=None):
     """Strict independent FPL rule checker. Returns list of violation strings (empty = legal)."""
     errs = []
     if bank < -0.05:
@@ -276,6 +359,29 @@ def audit_week(gw, squad, bank, ft, xi, bench, cap, pl, moved, chip_id, chip_poo
             lo, hi = chip_pool[chip_id]
             if not (lo <= gw <= hi):
                 errs.append(f"GW{gw}: chip {chip_id} outside window {lo}..{hi}")
+        if chip_kind(chip_id) == "FH" and prev_fh_gw is not None and gw == prev_fh_gw + 1:
+            errs.append(f"GW{gw}: consecutive Free Hit (previous FH in GW{prev_fh_gw})")
+    if ft_before is not None:
+        if not (1 <= ft_before <= 5):
+            errs.append(f"GW{gw}: ft_before {ft_before} out of 1..5")
+        if season is not None and (season, gw) in FT_TOPUP and ft_before < FT_TOPUP[(season, gw)]:
+            errs.append(f"GW{gw}: missing {season} GW{gw} FT top-up (ft_before {ft_before} < {FT_TOPUP[(season, gw)]})")
+        if moved < 0 or hits < 0:
+            errs.append(f"GW{gw}: negative transfer count (moved={moved}, hits={hits})")
+        kind = chip_kind(chip_id) if chip_id else None
+        if kind in ("WC", "FH"):
+            if hits != 0:
+                errs.append(f"GW{gw}: {kind} charged {hits} hits (expected 0)")
+            exp_ft = max(1, min(5, ft_before))
+            if ft != exp_ft:
+                errs.append(f"GW{gw}: {kind} ft_after {ft} != expected {exp_ft} (ft_before={ft_before})")
+        else:
+            exp_hits = max(0, moved - ft_before)
+            if hits != exp_hits:
+                errs.append(f"GW{gw}: hits {hits} != expected {exp_hits} (moved={moved}, ft_before={ft_before})")
+            exp_ft = 1 if moved > ft_before else min(5, ft_before - moved + 1)
+            if ft != exp_ft:
+                errs.append(f"GW{gw}: ft_after {ft} != expected {exp_ft} (moved={moved}, ft_before={ft_before})")
     if hits > 0 and not allow_hit:
         errs.append(f"GW{gw}: unexpected hit ({hits})")
     return errs
@@ -315,13 +421,18 @@ def solve_mode_plan(m, pl, squad, sell, bank, ft, gws, eo, pick, balanced_hit_ma
 
 
 def choose_chip(chip_mode, k, pl, gws, squad, sell, bank, ft, base_plan,
-                avail_chips, dgw, bgw, simple_sched, time_limit=4, wc_cache=None):
-    """Decide whether to play an available chip on GW k using ONLY projections & fixture counts (zero real points).
+                avail_chips, dgw, bgw, simple_sched=None, time_limit=4, wc_cache=None,
+                prev_fh_gw=None, season=None):
+    """Decide whether to play an available chip on GW k using ONLY projections & causal fixture counts
+    (zero real points, zero unconfirmed future doubles/blanks, never consecutive Free Hits).
     Returns (chip_id or None, chip_plan or None).
     """
     if chip_mode == "none" or not avail_chips:
         return None, None
-    in_window = {cid: win for cid, win in avail_chips.items() if win[0] <= k <= win[1]}
+    in_window = {
+        cid: win for cid, win in avail_chips.items()
+        if win[0] <= k <= win[1] and not (chip_kind(cid) == "FH" and prev_fh_gw is not None and k == prev_fh_gw + 1)
+    }
     if not in_window:
         return None, None
 
@@ -356,8 +467,11 @@ def choose_chip(chip_mode, k, pl, gws, squad, sell, bank, ft, base_plan,
         return _rebase_plan(raw, squad)
 
     if chip_mode == "simple":
+        sched = simple_sched if simple_sched is not None else simple_chip_schedule(
+            season or "2024-25", dgw, bgw, avail_chips=avail_chips, k=k, prev_fh_gw=prev_fh_gw
+        )
         # Check scheduled BB / TC / FH first
-        for cid, target_gw in simple_sched.items():
+        for cid, target_gw in sched.items():
             if cid in in_window and target_gw == k:
                 kind = chip_kind(cid)
                 if kind == "FH":
@@ -367,7 +481,7 @@ def choose_chip(chip_mode, k, pl, gws, squad, sell, bank, ft, base_plan,
                 else:
                     return cid, base_plan
         # Check causal WC trigger on non-scheduled weeks
-        sched_gws = {simple_sched[c] for c in in_window if c in simple_sched}
+        sched_gws = {sched[c] for c in in_window if c in sched}
         for cid, (lo, hi) in in_window.items():
             if chip_kind(cid) != "WC":
                 continue
@@ -381,7 +495,7 @@ def choose_chip(chip_mode, k, pl, gws, squad, sell, bank, ft, base_plan,
                         return cid, wc
         return None, None
 
-    # chip_mode == "solver": evaluate every available chip using GW k projections only
+    # chip_mode == "solver": evaluate every available chip using GW k projections and causal calendar only
     candidates = []   # (forced_flag, net_score, cid, plan)
     # Group by window end `hi` to detect forced expiry (n_expiring >= remaining weeks in half)
     by_hi = defaultdict(list)
@@ -461,20 +575,23 @@ def score_week(w0, chip_id, pts, mins, pl, pre_fh_xi_real=None):
     return real, 0.0
 
 
-def apply_week(t, w0, chip_id, sell, pl, gw, chip_pool, allow_hit, prev_held_over):
+def apply_week(t, w0, chip_id, sell, pl, gw, chip_pool, allow_hit, prev_held_over, season=None):
     """Apply week-0 transfers, FT update, chip consumption, and FPL rule audit to team state `t`."""
     kind = chip_kind(chip_id) if chip_id else None
     moved = len(w0["in"])
     hits = 0 if kind in ("WC", "FH") else w0["hits"]
+    ft_before = t["ft"]
+    prev_fh_gw = t.get("last_fh_gw")
 
     if kind == "FH":
         # Audit the FH week squad itself (15 players, budget, club limit, XI, captain)
         fh_squad = [i for i in t["squad"] if i not in w0["out"]] + list(w0["in"])
         fh_bank = round(t["bank"] + sum(sell[o_] for o_ in w0["out"]) - sum(pl[i_]["price"] for i_ in w0["in"]), 1)
         # FPL 2024/25+: FH keeps banked FTs unchanged (1..5), squad reverts after GW
-        next_ft = max(1, min(5, t["ft"]))
+        next_ft = max(1, min(5, ft_before))
         errs = audit_week(gw, fh_squad, fh_bank, next_ft, w0["xi"], w0["bench"], w0["captain"], pl,
-                          moved, chip_id, chip_pool, t["used_chips"], 0, allow_hit, prev_held_over)
+                          moved, chip_id, chip_pool, t["used_chips"], 0, allow_hit, prev_held_over,
+                          ft_before=ft_before, prev_fh_gw=prev_fh_gw, season=season)
         t["ft"] = next_ft
     else:
         for o_ in w0["out"]:
@@ -484,19 +601,22 @@ def apply_week(t, w0, chip_id, sell, pl, gw, chip_pool, allow_hit, prev_held_ove
         t["bank"] = round(t["bank"], 1)
         if kind == "WC":
             # FPL 2024/25+: WC keeps banked FTs unchanged (1..5)
-            t["ft"] = max(1, min(5, t["ft"]))
+            t["ft"] = max(1, min(5, ft_before))
         else:
             t["hits"] += hits
             t["moves"] += moved
             if moved == 0:
                 t["rolls"] += 1
-            t["ft"] = 1 if moved > t["ft"] else min(5, t["ft"] - moved + 1)
+            t["ft"] = 1 if moved > ft_before else min(5, ft_before - moved + 1)
         errs = audit_week(gw, t["squad"], t["bank"], t["ft"], w0["xi"], w0["bench"], w0["captain"], pl,
-                          moved, chip_id, chip_pool, t["used_chips"], hits, allow_hit, prev_held_over)
+                          moved, chip_id, chip_pool, t["used_chips"], hits, allow_hit, prev_held_over,
+                          ft_before=ft_before, prev_fh_gw=prev_fh_gw, season=season)
 
     if chip_id is not None:
         t["used_chips"].add(chip_id)
         t["avail_chips"].pop(chip_id, None)
+        if kind == "FH":
+            t["last_fh_gw"] = gw
     t["violations"].extend(errs)
     return hits
 
@@ -535,9 +655,8 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
             )
     elif field_mode != "proxy":
         raise ValueError(f"unknown field_mode {field_mode!r}; expected 'proxy' or 'real-avg'")
-    dgw, bgw = fixture_calendar(ctx["fixtures"], last)
+    conf_dates = load_fixture_dates() if chips != "none" else {}
     chip_pool = season_chips(season) if chips != "none" else {}
-    simple_sched = simple_chip_schedule(season, dgw, bgw) if chips == "simple" else {}
     proj_cache = load_or_build_cache(season, k_from, k_to, sim, cache_dir, ctx, team_at, price, last)
     t0 = time.time()
 
@@ -566,7 +685,7 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
             "squad": list(start), "buy": {i: pl0[i]["price"] for i in start}, "bank": bank0, "ft": 1,
             "real": [], "proj": [], "field": [], "field_by_gw": {}, "gws": [],
             "hits": 0, "moves": 0, "rolls": 0,
-            "avail_chips": dict(chip_pool), "used_chips": set(), "chip_log": [],
+            "avail_chips": dict(chip_pool), "used_chips": set(), "last_fh_gw": None, "chip_log": [],
             "mode_log": [], "violations": [],
         }
 
@@ -589,6 +708,9 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
         else:
             field = sum(o.get(pid, 0) * pts.get(pid, 0) for pid in pl) * 11 / 15 + pts.get(top, 0)
         eo = {pid: o.get(pid, 0.0) for pid in pl}
+        dgw_k, bgw_k = causal_fixture_calendar(
+            ctx["fixtures"], season, k, conf_dates=conf_dates, boot=ctx.get("boot"), last_gw=last
+        ) if chips != "none" else ({}, {})
 
         # Ensure any held player missing from price list still exists in pl/pts/mins
         for t in teams.values():
@@ -602,17 +724,34 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
 
         for name in run_names:
             t = teams[name]
+            t["ft"] = apply_ft_topup(t["ft"], season, k)
             sell = {i: fpl_sell(t["buy"][i], pl[i]["price"]) for i in t["squad"]}
             prev_held_over = optimise.club_over(t["squad"], pl)
 
             if greedy_hindsight:
                 # Part 4 GREEDY WEEKLY HINDSIGHT DIAGNOSTIC (not a ceiling): solve all 3 strategies from the same
                 # current squad, pick the one with highest THIS-WEEK real points (after hits)
+                opts = ([("best", None), ("roll", 0), ("one", 1), ("two", 2)] + ([("three", 3)] if t["ft"] >= 3 else [])
+                        if pick == "app" else [("best", None)])
+                all_plans, _ = optimise.strategy_plans(pl, t["squad"], sell, t["bank"], min(t["ft"], 5), gws, opts,
+                                                       eo=eo, modes=MODES, time_limit=5)
+                fallback_r = None
                 best_choice = None
                 for m_cand in MODES:
-                    base_r = solve_mode_plan(m_cand, pl, t["squad"], sell, t["bank"], t["ft"], gws, eo, pick)
+                    if pick == "app":
+                        key = app_pick(all_plans, m_cand) or app_pick(all_plans, "balanced")
+                        base_r = all_plans.get(key) if key else None
+                    else:
+                        key = "best" if m_cand == "balanced" else f"{m_cand}_best"
+                        base_r = all_plans.get(key) or all_plans.get("best")
+                    if not base_r:
+                        if fallback_r is None:
+                            fallback_r = optimise.solve(pl, t["squad"], sell, t["bank"], min(t["ft"], 5), gws,
+                                                        week1_moves=0, freeze_after=0)
+                        base_r = fallback_r
                     c_id, c_plan = choose_chip(chips, k, pl, gws, t["squad"], sell, t["bank"], t["ft"], base_r,
-                                               t["avail_chips"], dgw, bgw, simple_sched, wc_cache=wc_cache)
+                                               t["avail_chips"], dgw_k, bgw_k, wc_cache=wc_cache,
+                                               prev_fh_gw=t["last_fh_gw"], season=season)
                     used_r = c_plan if c_plan is not None else base_r
                     w0 = used_r["weeks"][0]
                     pre_fh_real = None
@@ -635,7 +774,8 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
                 base_r = solve_mode_plan(m_cur, pl, t["squad"], sell, t["bank"], t["ft"], gws, eo, pick,
                                          balanced_hit_margin=balanced_hit_margin)
                 c_id, c_plan = choose_chip(chips, k, pl, gws, t["squad"], sell, t["bank"], t["ft"], base_r,
-                                           t["avail_chips"], dgw, bgw, simple_sched, wc_cache=wc_cache)
+                                           t["avail_chips"], dgw_k, bgw_k, wc_cache=wc_cache,
+                                           prev_fh_gw=t["last_fh_gw"], season=season)
                 used_r = c_plan if c_plan is not None else base_r
                 w0 = used_r["weeks"][0]
                 pre_fh_real = None
@@ -646,7 +786,7 @@ def replay(season, k_from, k_to, sim, modes=MODES, seed=0, pick="best",
                 allow_hit = (m_base == "chase") or (m_base == "balanced" and balanced_hit_margin is not None)
 
             w0 = used_r["weeks"][0]
-            hits = apply_week(t, w0, c_id, sell, pl, k, chip_pool, allow_hit, prev_held_over)
+            hits = apply_week(t, w0, c_id, sell, pl, k, chip_pool, allow_hit, prev_held_over, season=season)
             if c_id is not None:
                 entry = {"chip": c_id, "gw": k, "gw_real": round(real, 1)}
                 if chip_kind(c_id) == "WC":

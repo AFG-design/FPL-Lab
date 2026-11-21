@@ -1,0 +1,103 @@
+{
+  "_description": "Official confirmation timestamps for every blank (BGW) and double (DGW) gameweek in 2024-25 and 2025-26. Used by strategy_replay.py so chip decisions at GW k only see doubles/blanks officially confirmed before the GW k deadline; any unconfirmed future GW is treated as a normal single-fixture week (dgw=0, bgw=0).",
+  "2024-25": [
+    {
+      "gw": 15,
+      "kind": "BGW",
+      "teams": ["EVE", "LIV"],
+      "confirmed_at": "2024-12-07T08:30:00Z",
+      "note": "Merseyside derby postponed on the morning of GW15 due to Storm Darragh, before the 11:00 UTC GW15 deadline.",
+      "source": "https://www.premierleague.com/en/news/4188928"
+    },
+    {
+      "gw": 24,
+      "kind": "DGW",
+      "teams": ["EVE", "LIV"],
+      "confirmed_at": "2025-01-13T12:00:00Z",
+      "note": "Rescheduled Merseyside derby placed in GW24 (12 Feb 2025); announced 13 Jan 2025 before GW21 deadline.",
+      "source": "https://www.premierleague.com/en/news/4221184"
+    },
+    {
+      "gw": 25,
+      "kind": "DGW",
+      "teams": ["AVL", "LIV"],
+      "confirmed_at": "2025-02-07T12:00:00Z",
+      "note": "Aston Villa v Liverpool brought forward to GW25 after Liverpool reached the EFL Cup final on 6 Feb; confirmed 7 Feb 2025 before GW25 deadline.",
+      "source": "https://www.premierleague.com/en/news/4243043"
+    },
+    {
+      "gw": 29,
+      "kind": "BGW",
+      "teams": ["AVL", "CRY", "LIV", "NEW"],
+      "confirmed_at": "2025-02-07T12:00:00Z",
+      "note": "EFL Cup final weekend blanks for finalists (LIV, NEW) and opponents (AVL, CRY); confirmed 7 Feb 2025 before GW25 deadline.",
+      "source": "https://www.premierleague.com/en/news/4243043"
+    },
+    {
+      "gw": 32,
+      "kind": "DGW",
+      "teams": ["CRY", "NEW"],
+      "confirmed_at": "2025-02-14T12:00:00Z",
+      "note": "Newcastle v Crystal Palace rescheduled to GW32; announced 14 Feb 2025 before the 18:30 UTC GW25 deadline.",
+      "source": "https://www.premierleague.com/en/news/4244786"
+    },
+    {
+      "gw": 33,
+      "kind": "DGW",
+      "teams": ["ARS", "AVL", "CRY", "MCI"],
+      "confirmed_at": "2025-04-03T12:00:00Z",
+      "note": "Post-FA Cup quarter-final rescheduling for semi-finalists and opponents; confirmed 3 Apr 2025 before GW31 deadline.",
+      "source": "https://www.premierleague.com/en/news/4277038"
+    },
+    {
+      "gw": 34,
+      "kind": "BGW",
+      "teams": ["ARS", "AVL", "CRY", "MCI"],
+      "confirmed_at": "2025-04-03T12:00:00Z",
+      "note": "FA Cup semi-final weekend blanks confirmed alongside DGW33 on 3 Apr 2025 before GW31 deadline.",
+      "source": "https://www.premierleague.com/en/news/4277038"
+    }
+  ],
+  "2025-26": [
+    {
+      "gw": 26,
+      "kind": "DGW",
+      "teams": ["ARS", "WOL"],
+      "confirmed_at": "2026-02-03T22:00:00Z",
+      "note": "Wolves v Arsenal brought forward to GW26 after Arsenal reached the EFL Cup final; confirmed 3 Feb 2026 before GW25 deadline.",
+      "source": "https://www.premierleague.com/en/news/4579676/arsenal-and-wolves-to-get-a-double-gameweek-26-in-fantasy"
+    },
+    {
+      "gw": 31,
+      "kind": "BGW",
+      "teams": ["ARS", "CRY", "MCI", "WOL"],
+      "confirmed_at": "2026-02-04T22:00:00Z",
+      "note": "EFL Cup final weekend blanks for finalists (ARS, MCI) and opponents (WOL, CRY); confirmed 4 Feb 2026 before GW25 deadline.",
+      "source": "https://www.premierleague.com/en/news/4579676/arsenal-and-wolves-to-get-a-double-gameweek-26-in-fantasy"
+    },
+    {
+      "gw": 33,
+      "kind": "DGW",
+      "teams": ["BHA", "BOU", "BUR", "CHE", "LEE", "MCI"],
+      "confirmed_at": "2026-04-05T19:00:00Z",
+      "note": "Post-FA Cup quarter-final doubles confirmed 5 Apr 2026 before GW32 deadline.",
+      "source": "https://www.premierleague.com/en/news/4624106/which-clubs-have-a-confirmed-dgw33-and-bgw34-after-fa-cup-ties"
+    },
+    {
+      "gw": 34,
+      "kind": "BGW",
+      "teams": ["BHA", "BOU", "BUR", "CHE", "LEE", "MCI"],
+      "confirmed_at": "2026-04-05T19:00:00Z",
+      "note": "FA Cup semi-final weekend blanks confirmed alongside DGW33 on 5 Apr 2026 before GW32 deadline.",
+      "source": "https://www.premierleague.com/en/news/4624106/which-clubs-have-a-confirmed-dgw33-and-bgw34-after-fa-cup-ties"
+    },
+    {
+      "gw": 36,
+      "kind": "DGW",
+      "teams": ["CRY", "MCI"],
+      "confirmed_at": "2026-04-28T12:00:00Z",
+      "note": "Man City v Crystal Palace rescheduled to GW36; confirmed 28 Apr 2026 before GW35 deadline.",
+      "source": "https://www.premierleague.com/en/news/4637009/double-gameweek-36-confirmed-in-fpl-for-man-city-and-crystal-palace"
+    }
+  ]
+}
