@@ -49,15 +49,17 @@ def _load():
     return _boosters
 
 
-def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, targets=None, moved=None, require_history=False):
+def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, targets=None, moved=None,
+             require_history=False, skipped_no_hist=None):
     """{pid: feature vector} for every player whose club has a fixture in the horizon.
     skip: {pid: set of gameweeks} to leave out of his history (weeks he was injured / banned), or None.
     feats: feature names (default: the shipped model's 21); targets: dict filled with {pid: target round}.
     moved (FL-030): {pid: {gw: club}} for weeks he played for another club (fplmodel passes ctx["moved"] when
     new_signings is on). Those weeks count in his history with that club's fixture count, so a player who moved within
     the Premier League keeps his minutes from his old club even in a week his new club didn't play.
-    require_history (FL-175): when True, omit players with zero prior GW rows (history_gws == 0). The shipped
-    XGBoost start_model sends all-NaN history features down the starter branch (~0.94 start chance for unused players)."""
+    require_history (FL-175): when True, omit players with zero prior GW rows (history_gws == 0) and record their
+    ids in skipped_no_hist (if given). The shipped XGBoost start_model sends all-NaN history features down the
+    starter branch (~0.94 start chance for unused players)."""
     feats = feats or _load()[0]
     nfx = {}
     for tid, lst in ctx["team_fix"].items():
@@ -81,6 +83,8 @@ def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, target
             s, n = gs[g], max(1, nfx.get((own.get(g, tid), g), 1))
             rows.append((g, s["minutes"] / n, min(1.0, s["starts"] / n), 1.0 if s["minutes"] > 0 else 0.0))
         if require_history and not rows:
+            if skipped_no_hist is not None:
+                skipped_no_hist.add(pid)
             continue
         f = dict.fromkeys(feats, np.nan)
         f["round"] = target
@@ -108,11 +112,12 @@ def features(ctx, as_of, team_gws, kick, upcoming, skip=None, feats=None, target
     return out
 
 
-def predict(ctx, as_of, team_gws, kick, upcoming, skip=None, moved=None, require_history=False):
+def predict(ctx, as_of, team_gws, kick, upcoming, skip=None, moved=None, require_history=False, skipped_no_hist=None):
     """{pid: (p_start, p_cameo, minutes if start, minutes if cameo)}, one batch for every player."""
     import xgboost as xgb
     feats, bs = _load()
-    fv = features(ctx, as_of, team_gws, kick, upcoming, skip, moved=moved, require_history=require_history)
+    fv = features(ctx, as_of, team_gws, kick, upcoming, skip, moved=moved,
+                  require_history=require_history, skipped_no_hist=skipped_no_hist)
     if not fv:
         return {}
     pids = list(fv)

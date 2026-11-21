@@ -56,15 +56,17 @@ from odds/archive/ since PR #24, 31 Oct 2026).
       Willian `0.965`) with **0/118 starts (0.0%)**; `2025/26` had `167` rows (e.g. Mheuka `0.965`, `xP 6.42` in DGW33)
       with **3/167 starts (1.8%)**.
 - **Fix (`xmins_no_hist_guard`, default `True`; `False` reproduces old behaviour bit-for-bit):**
-  - `xmins.py`: added `require_history=False` to `features()`, `predict()` and `predict_sell()`. When `True` and a
-    player has `not rows` (`history_gws == 0`), the player is omitted from the feature matrix so XGBoost never scores an
-    all-NaN history vector.
+  - `xmins.py`: added `require_history=False` and `skipped_no_hist=None` to `features()`, `predict()` and
+    `predict_sell()`. When `True` and `not rows` (`history_gws == 0`), the player is omitted from the feature matrix
+    and recorded in `skipped_no_hist` so XGBoost never scores an all-NaN history vector.
   - `fplmodel.py`: added `DEFAULTS["xmins_no_hist_guard"] = True` (strict `bool` validation). Passes
-    `require_history=use_nhg` to `xmins.predict()` and `predict_sell()`. In the `wsum == 0` fallback, when
-    `use_nhg and pr`, `p_start` uses the player's prior start rate (`pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230))`,
-    clamped `[0, 1]`), and `0.0` when `not pr` (flowing into `FL-030` `ARRIVAL_START`). Players with `history_gws >= 1`
-    are untouched.
-  - Unit tests: `tests/test_xmins_no_hist_guard.py`.
+    `require_history=use_nhg, skipped_no_hist=xm_no_hist` to `xmins.predict()`. The prior fallback runs **only** for
+    `pid in xm_no_hist` (using `pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230))` clamped `[0, 1]`, or `0.0`
+    when `not pr`, flowing into `FL-030` `ARRIVAL_START`) and tags them `min_src = "no_history"`. Players with any
+    history rows (even if all excluded as out-weeks) and counts-only runs (`xmins=False`) are untouched.
+  - `build.py` & `validate.py`: surface `meta.minutes_model.no_history` and accept intentional `"no_history"` bypasses
+    while still failing unexpected `"counts"` fallbacks when xMins is on.
+  - Unit tests: `tests/test_xmins_no_hist_guard.py` (including GW1 build-to-validator and counts-only/out-weeks tests).
 - **Results (new `xmins_no_hist_guard=True` vs old `False`):**
   - **No-history players (`history_gws == 0`) start-chance Brier & calibration (`pred − act`):**
     - `2024/25` GW4–38 (`n = 134`, act `0.075`): Brier `0.1165 → 0.0695` (**−0.0470**), cal `+0.0617 → +0.0171`.

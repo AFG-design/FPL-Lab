@@ -881,10 +881,18 @@ def main(path):
                         f"(e.g. {', '.join(off_total[:3])})")
 
     # minutes model: if xMins is on, every player with a next-GW fixture must have been projected by it
+    # (except zero-history players guarded by FL-175, min_src="no_history", who intentionally bypass xMins)
     mm = D["meta"].get("minutes_model")
     if mm and mm.get("xmins_on") and mm.get("counts"):
         errors.append(f"xMins minutes model is on but {mm['counts']} players with a GW{g} fixture fell back to the "
-                      f"old counts ({mm.get('xmins', 0)} used xMins)")
+                      f"old counts ({mm.get('xmins', 0)} used xMins, {mm.get('no_history', 0)} had no history)")
+    if mm and mm.get("no_history") is not None:
+        nh = mm["no_history"]
+        if not isinstance(nh, int) or nh < 0:
+            errors.append(f"minutes_model.no_history must be a non-negative int, got {nh!r}")
+        elif mm.get("fixture_players") is not None and mm.get("xmins", 0) + nh + mm.get("counts", 0) != mm["fixture_players"]:
+            errors.append(f"minutes_model counts don't add up: xmins {mm.get('xmins', 0)} + no_history {nh} + "
+                          f"counts {mm.get('counts', 0)} != fixture_players {mm['fixture_players']}")
 
     # selling-informed xMins (selling.py): coverage and ranges; warnings while it is a shadow, errors once it is live
     if mm and "sell" in mm:
