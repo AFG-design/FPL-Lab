@@ -38,11 +38,11 @@ def _make_ctx():
         {"id": g, "event": g, "team_h": 1 if g % 2 else 2, "team_a": 2 if g % 2 else 1,
          "team_h_score": 1 if g < 4 else None, "team_a_score": 0 if g < 4 else None,
          "team_h_difficulty": 3, "team_a_difficulty": 3,
-         "kickoff_time": f"2026-09-{g:02d}T14:00:00Z", "finished": g < 4}
+         "kickoff_time": f"2026-09-{1 + (g - 1) * 7:02d}T14:00:00Z", "finished": g < 4}
         for g in range(1, 5)
     ]
     boot = {"elements": elements, "teams": teams, "game_config": {"scoring": _scoring()},
-            "events": [{"id": g, "finished": g < 4, "deadline_time": f"2026-09-{g:02d}T11:30:00Z"} for g in range(1, 5)]}
+            "events": [{"id": g, "finished": g < 4, "deadline_time": f"2026-09-{1 + (g - 1) * 7:02d}T11:30:00Z"} for g in range(1, 5)]}
     live = {
         g: {"elements": [
             {"id": 1, "stats": {"minutes": 90, "starts": 1, "goals_scored": 0, "assists": 0, "clean_sheets": 1,

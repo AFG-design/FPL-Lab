@@ -22,10 +22,79 @@ Re-run each with `bench.py` at the stated time, candidate = the old value agains
 - **dc_blend 15 (FL-224)** (adopted 20 Nov 2026, entry below). Re-check at season end. Old value to test against:
   `{"dc_blend": 4}`. Targeted change (DefCon part): adopted at pooled DC part −0.00037 [−0.00054, −0.00021] better and
   pooled 5-GW +0.045 [−0.010, +0.098]. Revert if the DC part gain has gone.
+- **xmins_no_hist_guard (FL-175)** (proposed 21 Nov 2026, entry below). Re-check at season end. Old value to test against:
+  `{"xmins_no_hist_guard": false}`. Fixes a known error (zero-history players sent all-NaN history to XGBoost `start_model`,
+  producing ~0.94 start chance for unused bench players); pooled 5-GW picks `+0.000 [+0.000, +0.000]` (in-pool players
+  untouched), no-history start-chance Brier `−0.047` to `−0.161` better across all four test slices. Revert only if the
+  no-history calibration gain has gone, not on 5-GW picks alone.
 
 What has been tested on the projection model, with results, so ideas aren't re-tried blindly.
 Test bench: `bench.py` (rolling-origin backtest on this season, 2025/26 and 2024/25; past seasons carry betting odds
 from odds/archive/ since PR #24, 31 Oct 2026).
+
+## 21 Nov 2026 — FL-175: Guard xMins against zero-history all-NaN inputs (Adopt as Marginal — fixes a known error)
+
+- **Known error (recorded before fixing; originally spotted in issue #194 `diag_deep`):**
+  - When a player has no current-season match rows (`history_gws == 0`), `xmins.features()` leaves all 13 history
+    features (`gap_prev_gw`, `last_minutes`, `last_starts`, `last_played`, `minutes_avg_3/5/10`, `starts_avg_3/5/10`,
+    `played_avg_3/5/10`) as `np.nan`.
+  - The pre-trained XGBoost `start_model` routes `NaN` down its starter default branch, outputting `p_start` of
+    `0.928–0.962` (`GKP 0.957–0.962`, `DEF 0.928–0.936`, `MID 0.952–0.958`, `FWD 0.954–0.957`) for unused players who
+    have never played a minute this season.
+  - `FL-030` (`ARRIVAL_START`) only overwrites `p_start` when the player has no prior (`not pr`). Any zero-history player
+    who carries a Premier League prior keeps `~0.93–0.97` start chance.
+  - **Reproduction:**
+    - `2026/27` GW1 (`raw/`): `459 / 672` zero-history players got `p_start > 0.5` (`~0.925`, including backup keepers
+      Walton, Valdimarsson, Travers, Steele).
+    - `2026/27` GW2–4 (`raw/`): exact issue #194 players — Harwood-Bellis (GW3: `p_start 0.932`, `xMin 80.1`, `xP 3.18`,
+      did not start), Nunes (GW3: `0.955`, `xP 3.77`; GW4: `0.953`, `xP 3.17`, did not start), plus Flemming, Chilwell,
+      Bentley, Diouf, Wan-Bissaka.
+    - `2026/27` GW11 (live `raw/`): `0` players currently have `history_gws == 0` (`63` have `n_hist == 0`, all flagged
+      unavailable with `p_start <= 0.015`, `xMin 0`, `xP 0`; `213` have 0 minutes this season, `0` with `p_start > 0.5`).
+      The bug recurs every GW1 and whenever a player with a PL prior joins mid-season.
+    - Archives GW4–38 (`history_gws == 0` with `p_start > 0.5`): `2024/25` had `118` rows (e.g. Hennessey `0.968`,
+      Willian `0.965`) with **0/118 starts (0.0%)**; `2025/26` had `167` rows (e.g. Mheuka `0.965`, `xP 6.42` in DGW33)
+      with **3/167 starts (1.8%)**.
+- **Fix (`xmins_no_hist_guard`, default `True`; `False` reproduces old behaviour bit-for-bit):**
+  - `xmins.py`: added `require_history=False` to `features()`, `predict()` and `predict_sell()`. When `True` and a
+    player has `not rows` (`history_gws == 0`), the player is omitted from the feature matrix so XGBoost never scores an
+    all-NaN history vector.
+  - `fplmodel.py`: added `DEFAULTS["xmins_no_hist_guard"] = True` (strict `bool` validation). Passes
+    `require_history=use_nhg` to `xmins.predict()` and `predict_sell()`. In the `wsum == 0` fallback, when
+    `use_nhg and pr`, `p_start` uses the player's prior start rate (`pr.get("start_rate", min(1.0, pr.get("mins", 0) / 3230))`,
+    clamped `[0, 1]`), and `0.0` when `not pr` (flowing into `FL-030` `ARRIVAL_START`). Players with `history_gws >= 1`
+    are untouched.
+  - Unit tests: `tests/test_xmins_no_hist_guard.py`.
+- **Results (new `xmins_no_hist_guard=True` vs old `False`):**
+  - **No-history players (`history_gws == 0`) start-chance Brier & calibration (`pred − act`):**
+    - `2024/25` GW4–38 (`n = 134`, act `0.075`): Brier `0.1165 → 0.0695` (**−0.0470**), cal `+0.0617 → +0.0171`.
+    - `2025/26` GW4–38 (`n = 128`, act `0.094`): Brier `0.1191 → 0.0695` (**−0.0497**), cal `+0.0903 → +0.0278`.
+    - `2026/27` GW1 (`n = 610`, act `0.361`): Brier `0.3509 → 0.1899` (**−0.1610**), cal `+0.2746 → −0.0358`.
+    - `2026/27` GW2–10 (`n = 62`, act `0.032`): Brier `0.1390 → 0.0732` (**−0.0658**), cal `+0.1902 → +0.1320`.
+  - **`bench.py` (`2025/26`, `2024/25`, `current`, including FL-163 second pool):**
+    - Pooled 5-GW picks (60 origins): **`+0.000 [+0.000, +0.000] ~0`** (`2025/26` `19.08`, `2024/25` `19.16`, `current`
+      `18.56`).
+    - All pooled part scores (`n = 25,471` / `22,561` CS) and all FL-163 second-pool metrics (`n = 14,456` / `14,573`):
+      **`+0.00000 [+0.00000, +0.00000] ~0`** (every player in both pools has `history_gws >= 1`, so untouched).
+    - Outside pool (`bench.py` `all players`): `2024/25` MAE `1.417 → 1.416` (`n = 660`); `2025/26` MAE `1.536 → 1.538`
+      (`n = 636`); `current` MAE `1.380 → 1.396` (`n = 153`, because `all players` in `bench.py` only evaluates players
+      who actually played, whereas the bug's main error is false positives on players who never play).
+  - **`backtest.py --compare` (`2026/27` GW3–10, both without and with status log):**
+    - **0 segments past limits**; all pool segments `+0.00000`.
+    - All players (`n = 5,326`, with SL): `xMin MAE 12.30 → 12.25 (−0.05)`, `RMSE 20.89 → 20.82`, `Brier start 0.0739 → 0.0734 (−0.0005)`,
+      `Brier 60+ 0.0826 → 0.0823` (same gains without SL).
+    - Not in pool, played (`n = 153`, with SL): `xMin MAE 26.74 → 26.23 (−0.51)`, `RMSE 39.09 → 38.59`,
+      `Brier start 0.2177 → 0.2081 (−0.0096)`, `Brier 60+ 0.1930 → 0.1876 (−0.0054)`.
+  - **`backtest.py --bucketed` (2024/25, 2025/26, pooled):** identical to every printed digit (`>0 cal +0.0707 → +0.0707`).
+    **Explains `0.0000` of the `+7.1pt` `P(mins > 0)` overestimate** in `docs/experiments/bucketed-backtest-baseline.md`,
+    because `--bucketed` grades the a-priori pool (played in last 3 GWs, so always `history_gws >= 1`). That `+7.1pt`
+    overestimate comes from `p_sub = min(xc, 1 - xs)` in `fplmodel.py` (see FL-236).
+  - **Interaction with FL-174 (returning regulars):** none today, because returning regulars (e.g. Saliba, Mitoma) have
+    `history_gws >= 1` (0-minute rows while injured). If FL-174 later enables `xmins_skip_out=True` and strips out-weeks
+    for a player injured from GW1 onward, leaving `history_gws == 0`, FL-175's guard will cleanly fall back to
+    `pr["start_rate"]` (still multiplied by `return_ramp`) instead of hitting `~0.94`.
+- **Decision-table row:** `CI includes zero, the change fixes a known error, and no segment worse` → **Adopt as Marginal**
+  (re-check at season end).
 
 ## 21 Nov 2026 — FL-237: Goal-sum fix (Don't adopt)
 
