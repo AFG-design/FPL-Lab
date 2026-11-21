@@ -134,6 +134,8 @@ THREE_BUCKET_P60_PRIOR = {"GKP": 0.98, "DEF": 0.88, "MID": 0.76, "FWD": 0.75}
 THREE_BUCKET_P85_PRIOR = {"GKP": 0.99, "DEF": 0.88, "MID": 0.62, "FWD": 0.58}
 THREE_BUCKET_GKP_EU_CUT = 0.99   # keepers barely affected by European turnaround (vs eu_cut for outfield)
 THREE_BUCKET_CAL_INT = 0.50      # refit cal_int for 3bucket p_play (cross-season midpoint: 0.4814 on 24-25, 0.5262 on 25-26)
+THREE_BUCKET_CAMEO_SCALE = 1.12  # conditional cameo calibration: removes -2 to -3.6pp p_play under-prediction in 0.0-0.8 bands
+THREE_BUCKET_REG_PLAY_W = 0.30   # blend weight toward recent appearance rate (capped at 0.95) for fit regular starters
 
 
 
@@ -990,8 +992,17 @@ def project(ctx, as_of, horizon=6, params=None):
                 p_sub = min(p_sub, 1 - p_start)
         if use_3b:
             # FL-236: base nested probabilities 0 <= p_90 <= p_60 <= p_play <= 1.
-            # When xmins is active, cameo_model predicts P(cameo | didn't start), so P(play) = p_start + (1 - p_start) * xc.
-            p_play_b = min(1.0, max(0.0, p_start + (1.0 - p_start) * xc_raw)) if xc_raw is not None else min(1.0, max(0.0, p_start + p_sub))
+            # When xmins is active, cameo_model predicts P(cameo | didn't start); scale slightly (THREE_BUCKET_CAMEO_SCALE)
+            # so squad/rotation bands stay calibrated, and keep fit regular starters near their real appearance rate (~0.95).
+            if xc_raw is not None:
+                xc_eff = min(1.0, xc_raw * THREE_BUCKET_CAMEO_SCALE)
+                p_play_b = min(1.0, max(0.0, p_start + (1.0 - p_start) * xc_eff))
+            else:
+                p_play_b = min(1.0, max(0.0, p_start + p_sub))
+            if len(recent) >= 3 and wsum > 0 and (st / wsum) >= 0.85 and p_start >= 0.65 and not returning:
+                reg_play = min(0.95, (st + sub) / wsum)
+                if reg_play > p_play_b:
+                    p_play_b = (1.0 - THREE_BUCKET_REG_PLAY_W) * p_play_b + THREE_BUCKET_REG_PLAY_W * reg_play
             pw = THREE_BUCKET_PRIOR_W
             p60_gs_3b = (p60s + pw * THREE_BUCKET_P60_PRIOR[pos]) / (st + pw)
             p_60_b = min(p_play_b, max(0.0, p_start * p60_gs_3b))
