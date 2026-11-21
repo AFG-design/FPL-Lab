@@ -89,25 +89,52 @@ class ThreeBucketMinutesTest(unittest.TestCase):
     def test_nested_probabilities_and_exact_xmin_and_parts(self):
         ctx = _make_ctx()
         res = fplmodel.project(ctx, 6, horizon=1, params={"minutes_model": "3bucket", "xmins": False})
-        m_short, m_mid, m_full = fplmodel.THREE_BUCKET_MEANS
+        m_short, _, m_full = fplmodel.THREE_BUCKET_MEANS
+        mrec = fplmodel.DEFAULTS["min_recency"]
+        pw = fplmodel.THREE_BUCKET_PRIOR_W
         for pid, r in res["players"].items():
             pp, p60, p90 = r["p_play_next"], r["p60_next"], r["p90_next"]
             self.assertGreaterEqual(p90, 0.0)
             self.assertLessEqual(p90, p60 + 1e-12)
             self.assertLessEqual(p60, pp + 1e-12)
             self.assertLessEqual(pp, 1.0 + 1e-12)
-            # xMin is derived directly from (p_play, p_60, p_90)
+            # Recompute per-player 60-84 mean from history (no hindsight)
+            pos = fplmodel.POS[ctx["elements"][pid]["element_type"]]
+            w6084 = m6084 = 0.0
+            for g in range(1, 6):
+                s = ctx["pstats"][pid][g]
+                if s["starts"] > 0 and 60 <= s["minutes"] < 85:
+                    w = mrec ** (5 - g)
+                    w6084 += w; m6084 += w * s["minutes"]
+            m_mid = (m6084 + pw * fplmodel.THREE_BUCKET_M6084_PRIOR[pos]) / (w6084 + pw)
             expected_xmin = (pp - p60) * m_short + (p60 - p90) * m_mid + p90 * m_full
             self.assertAlmostEqual(r["xmin"], expected_xmin, places=9)
             # Appearance points come straight from p_play and p_60
             self.assertAlmostEqual(r["detail"][6]["mins"], pp * 1.0 + p60 * 1.0, places=9)
             # Clean sheet eligibility comes straight from p_60
             tid = ctx["elements"][pid]["team"]
-            pos = fplmodel.POS[ctx["elements"][pid]["element_type"]]
             mu_a = res["upcoming"][tid][6][0][3]
             pcs = math.exp(-fplmodel.DEFAULTS["cs_k"] * mu_a)
             cs_pts = ctx["scoring"]["clean_sheets"][pos]
             self.assertAlmostEqual(r["detail"][6]["cs"], pcs * p60 * cs_pts, places=9)
+
+    def test_per_player_6084_mean_rewards_late_subbed_attackers(self):
+        ctx_early = _make_ctx()
+        ctx_late = _make_ctx()
+        # Give player 3 five consecutive starts with identical per-90 xG/xA rates: 62 mins vs 82 mins
+        for g in range(1, 6):
+            ctx_early["pstats"][3][g]["minutes"] = 62
+            ctx_early["pstats"][3][g]["starts"] = 1
+            ctx_early["pstats"][3][g]["expected_goals"] = f"{0.45 * 62 / 90:.4f}"
+            ctx_early["pstats"][3][g]["expected_assists"] = f"{0.25 * 62 / 90:.4f}"
+            ctx_late["pstats"][3][g]["minutes"] = 82
+            ctx_late["pstats"][3][g]["starts"] = 1
+            ctx_late["pstats"][3][g]["expected_goals"] = f"{0.45 * 82 / 90:.4f}"
+            ctx_late["pstats"][3][g]["expected_assists"] = f"{0.25 * 82 / 90:.4f}"
+        r_early = fplmodel.project(ctx_early, 6, horizon=1, params={"minutes_model": "3bucket", "xmins": False})["players"][3]
+        r_late = fplmodel.project(ctx_late, 6, horizon=1, params={"minutes_model": "3bucket", "xmins": False})["players"][3]
+        self.assertGreater(r_late["xmin"], r_early["xmin"] + 10.0)
+        self.assertGreater(r_late["xp"][6], r_early["xp"][6])
 
     def test_european_turnaround_cuts_outfield_but_keepers_barely_affected(self):
         ctx_no = _make_ctx(congestion=())

@@ -132,8 +132,9 @@ THREE_BUCKET_MEANS = (25.0, 74.0, 90.0)
 THREE_BUCKET_PRIOR_W = 0.25
 THREE_BUCKET_P60_PRIOR = {"GKP": 0.98, "DEF": 0.88, "MID": 0.76, "FWD": 0.75}
 THREE_BUCKET_P85_PRIOR = {"GKP": 0.99, "DEF": 0.88, "MID": 0.62, "FWD": 0.58}
+THREE_BUCKET_M6084_PRIOR = {"GKP": 75.0, "DEF": 75.0, "MID": 74.0, "FWD": 74.0}
 THREE_BUCKET_GKP_EU_CUT = 0.99   # keepers barely affected by European turnaround (vs eu_cut for outfield)
-THREE_BUCKET_CAL_INT = 0.50      # refit cal_int for 3bucket p_play (cross-season midpoint: 0.4814 on 24-25, 0.5262 on 25-26)
+THREE_BUCKET_CAL_INT = 0.45      # refit cal_int for 3bucket p_play (keeps pooled bias within +-0.02 after Step 2)
 THREE_BUCKET_CAMEO_SCALE = 1.12  # conditional cameo calibration: removes -2 to -3.6pp p_play under-prediction in 0.0-0.8 bands
 THREE_BUCKET_REG_PLAY_W = 0.30   # blend weight toward recent appearance rate (capped at 0.95) for fit regular starters
 
@@ -938,7 +939,7 @@ def project(ctx, as_of, horizon=6, params=None):
             recent = [g for g in hist_gws[-P["min_window"]:]]
             returning = False
         mrec = P["min_recency"] or P["recency"]
-        wsum = st = sub = mstart = msub = p60s = p85s = 0.0
+        wsum = st = sub = mstart = msub = p60s = p85s = w6084 = m6084 = 0.0
         for g in recent:
             w = mrec ** (as_of - 1 - g)
             wsum += w
@@ -950,6 +951,9 @@ def project(ctx, as_of, horizon=6, params=None):
                 mstart += w * min(90, s["minutes"])
                 p60s += w * (s["minutes"] >= 60)
                 p85s += w * (s["minutes"] >= 85)
+                if 60 <= s["minutes"] < 85:
+                    w6084 += w
+                    m6084 += w * s["minutes"]
             elif s["minutes"] > 0:
                 sub += w
                 msub += w * s["minutes"]
@@ -1008,6 +1012,7 @@ def project(ctx, as_of, horizon=6, params=None):
             p_60_b = min(p_play_b, max(0.0, p_start * p60_gs_3b))
             p85_g60_3b = (p85s + pw * THREE_BUCKET_P85_PRIOR[pos]) / (p60s + pw)
             p_90_b = min(p_60_b, max(0.0, p_60_b * p85_g60_3b))
+            m_mid_3b = min(84.0, max(60.0, (m6084 + pw * THREE_BUCKET_M6084_PRIOR[pos]) / (w6084 + pw)))
         # ---- DC hit probability
         thr = ctx["dc_thr"].get(pos, 99)
         hits = n60 = 0
@@ -1072,13 +1077,14 @@ def project(ctx, as_of, horizon=6, params=None):
                     m60 = eu_3b * rmp
                     m90 = (eu_3b ** 1.5) * (rmp ** 1.3)
                     mplay = 1.0 - (1.0 - m60) * 0.3   # 70% of rested/ramped starters still appear off the bench
-                    pp_base = min(1.0, max(0.0, p_start + (1.0 - p_start) * xm_sell[pid][1])) if (k == 0 and pid in xm_sell) else p_play_b
+                    pp_base = min(1.0, max(0.0, p_start + (1.0 - p_start) * min(1.0, xm_sell[pid][1] * THREE_BUCKET_CAMEO_SCALE))) if (k == 0 and pid in xm_sell) else p_play_b
                     p6_base = min(pp_base, max(0.0, p_start * p60_gs_3b)) if (k == 0 and pid in xm_sell) else p_60_b
                     p9_base = min(p6_base, max(0.0, p6_base * p85_g60_3b)) if (k == 0 and pid in xm_sell) else p_90_b
                     p_play = min(1.0, max(0.0, pp_base * av * mplay))
                     p60 = min(p_play, max(0.0, p6_base * av * m60))
                     p90 = min(p60, max(0.0, p9_base * av * m90))
-                    m_short, m_mid, m_full = THREE_BUCKET_MEANS
+                    m_short, _, m_full = THREE_BUCKET_MEANS
+                    m_mid = m_mid_3b
                     m = (p_play - p60) * m_short + (p60 - p90) * m_mid + p90 * m_full
                     ps = min(p_play, max(p60, p_start * av * m60))
                     pb = max(0.0, p_play - ps)
