@@ -950,6 +950,8 @@ if __name__ == "__main__":
                          "per season and pooled across past archive seasons")
     ap.add_argument("--seasons", default=",".join(BUCKETED_SEASONS),
                     help="comma-separated archive seasons for --bucketed (default: 2024-25,2025-26)")
+    ap.add_argument("--minutes-model", choices=("default", "3bucket"), default=None,
+                    help="FL-236: opt-in minutes model ('3bucket' for nested p_play / p_60 / p_90; default: unchanged)")
     args = ap.parse_args()
     if args.compare:
         sys.exit(1 if compare(*args.compare) else 0)
@@ -958,6 +960,8 @@ if __name__ == "__main__":
         if not seasons:
             ap.error("--seasons must name at least one season")
         params = json.loads(args.params)
+        if args.minutes_model and args.minutes_model != "default":
+            params["minutes_model"] = args.minutes_model
         report = bucketed_eval(seasons=seasons, params=params)
         print_bucketed(report)
         if args.json:
@@ -999,6 +1003,8 @@ if __name__ == "__main__":
     gws = range(3, cur + 1)
     print("With last-season priors" + (f" (status log: {args.status_log})" if status_log else ""))
     params = json.loads(args.params)
+    if args.minutes_model and args.minutes_model != "default":
+        params["minutes_model"] = args.minutes_model
     if params:
         print("Params:", params)
     head = evaluate(ctx, gws, params=params, verbose=True)
